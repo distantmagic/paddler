@@ -1,0 +1,28 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+
+[*.example]
+indent_size = 2
+
+[*.go]
+indent_size = 4
+indent_style = tab
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{css,scss,js,tf,ts,tsx,yml,yaml}]
+indent_size = 2
+
+[Dockerfile]
+indent_size = 2
+
+[Makefile]
+indent_style = tab
