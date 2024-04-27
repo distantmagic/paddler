@@ -4,33 +4,91 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 )
 
+var completionDataPrefix = "data: "
+
 type LlamaCppClient struct {
-	httpClient http.Client
+	HttpClient            http.Client
+	LlamaCppConfiguration LlamaCppConfiguration
 }
 
-func (llamaCppClient LlamaCppClient) GetHealth(
-	responseChannel chan string,
-	errorChannel chan error,
-) {}
-
-func (llamaCppClient LlamaCppClient) GenerateCompletion(
-	responseChannel chan LlamaCppCompletionToken,
+func (self *LlamaCppClient) GetHealth(
+	responseChannel chan LlamaCppHealthStatus,
 ) {
 	defer close(responseChannel)
 
-	body := []byte(`{
-		"n_predict": 100,
-		"prompt": "Hello",
-		"stream": true
-	}`)
+	request, err := http.NewRequest(
+		"GET",
+		self.LlamaCppConfiguration.BuildUrlWithPath("health").String(),
+		nil,
+	)
+
+	if err != nil {
+		responseChannel <- LlamaCppHealthStatus{
+			Error: err,
+		}
+
+		return
+	}
+
+	response, err := self.HttpClient.Do(request)
+
+	if err != nil {
+		responseChannel <- LlamaCppHealthStatus{
+			Error: err,
+		}
+
+		return
+	}
+
+	defer response.Body.Close()
+
+	if http.StatusOK != response.StatusCode {
+		responseChannel <- LlamaCppHealthStatus{
+			Error: errors.New("Non-200 response from llama.cpp"),
+		}
+
+		return
+	}
+
+	var llamaCppHealthStatus LlamaCppHealthStatus
+
+	err = json.NewDecoder(response.Body).Decode(&llamaCppHealthStatus)
+
+	if err != nil {
+		responseChannel <- LlamaCppHealthStatus{
+			Error: err,
+		}
+
+		return
+	}
+
+	responseChannel <- llamaCppHealthStatus
+}
+
+func (self *LlamaCppClient) GenerateCompletion(
+	responseChannel chan LlamaCppCompletionToken,
+	llamaCppCompletionRequest LlamaCppCompletionRequest,
+) {
+	defer close(responseChannel)
+
+	body, err := json.Marshal(llamaCppCompletionRequest)
+
+	if err != nil {
+		responseChannel <- LlamaCppCompletionToken{
+			Error: err,
+		}
+
+		return
+	}
 
 	request, err := http.NewRequest(
 		"POST",
-		"http://127.0.0.1:8081/completion",
+		self.LlamaCppConfiguration.BuildUrlWithPath("completion").String(),
 		bytes.NewBuffer(body),
 	)
 
@@ -42,7 +100,7 @@ func (llamaCppClient LlamaCppClient) GenerateCompletion(
 		return
 	}
 
-	response, err := llamaCppClient.httpClient.Do(request)
+	response, err := self.HttpClient.Do(request)
 
 	if err != nil {
 		responseChannel <- LlamaCppCompletionToken{
@@ -54,6 +112,14 @@ func (llamaCppClient LlamaCppClient) GenerateCompletion(
 
 	defer response.Body.Close()
 
+	if http.StatusOK != response.StatusCode {
+		responseChannel <- LlamaCppCompletionToken{
+			Error: errors.New("Non-200 response from llama.cpp"),
+		}
+
+		return
+	}
+
 	reader := bufio.NewReader(response.Body)
 
 	for {
@@ -64,12 +130,12 @@ func (llamaCppClient LlamaCppClient) GenerateCompletion(
 				Error: err,
 			}
 
-			continue
+			return
 		}
 
 		var llamaCppCompletionToken LlamaCppCompletionToken
 
-		trimmedLine := bytes.TrimPrefix(line, []byte("data: "))
+		trimmedLine := bytes.TrimPrefix(line, []byte(completionDataPrefix))
 
 		if len(trimmedLine) < 2 {
 			continue
@@ -82,13 +148,13 @@ func (llamaCppClient LlamaCppClient) GenerateCompletion(
 				Error: err,
 			}
 
-			continue
+			return
 		}
 
 		responseChannel <- llamaCppCompletionToken
 
 		if llamaCppCompletionToken.IsLast {
-			break
+			return
 		}
 	}
 }
