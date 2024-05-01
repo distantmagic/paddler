@@ -1,29 +1,15 @@
 package rafthttp
 
 import (
-	"fmt"
 	"log"
 
+	"github.com/fasthttp/router"
 	"github.com/valyala/fasthttp"
 )
 
 type Server struct {
-	Foobar string
-	Logger *log.Logger
-}
-
-func (self *Server) HandleFastHTTP(ctx *fasthttp.RequestCtx) {
-	switch string(ctx.Path()) {
-	case "/foobar":
-		fmt.Fprintf(
-			ctx,
-			"Hello, world! Requested path is %q. Foobar is %q",
-			ctx.Path(),
-			self.Foobar,
-		)
-	default:
-		ctx.Error("not found", fasthttp.StatusNotFound)
-	}
+	Logger        *log.Logger
+	RespondToJoin *RespondToJoin
 }
 
 func (self *Server) Serve(serverEventsChannel chan ServerEvent) {
@@ -31,5 +17,8 @@ func (self *Server) Serve(serverEventsChannel chan ServerEvent) {
 
 	self.Logger.Println("rafthttp.Server.Serve()")
 
-	fasthttp.ListenAndServe(":8080", self.HandleFastHTTP)
+	routes := router.New()
+	routes.GET("/join", self.RespondToJoin.CreateResponse)
+
+	fasthttp.ListenAndServe(":8080", routes.Handler)
 }

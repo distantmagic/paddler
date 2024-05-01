@@ -13,21 +13,8 @@ type RaftClusterController struct {
 	RaftNetworkTransport *raft.NetworkTransport
 }
 
-func (self *RaftClusterController) BootstrapCluster() raft.Future {
-	configuration := raft.Configuration{
-		Servers: []raft.Server{
-			{
-				ID:      raft.ServerID(self.RaftConfiguration.LocalClusterNodeId),
-				Address: self.RaftNetworkTransport.LocalAddr(),
-			},
-		},
-	}
-
-	return self.Raft.BootstrapCluster(configuration)
-}
-
-func (self *RaftClusterController) Join(nodeId, joiningNodeAddr string) error {
-	self.Logger.Printf("raftstore.RaftClusterController.Join(%s, %s)", nodeId, joiningNodeAddr)
+func (self *RaftClusterController) AddVoter(nodeId, joiningNodeAddr string) error {
+	self.Logger.Printf("raftstore.RaftClusterController.AddVoter(%s, %s)", nodeId, joiningNodeAddr)
 
 	serverNodeId := raft.ServerID(nodeId)
 	joiningNodeServerAddr := raft.ServerAddress(joiningNodeAddr)
@@ -50,6 +37,19 @@ func (self *RaftClusterController) Join(nodeId, joiningNodeAddr string) error {
 	}
 
 	return nil
+}
+
+func (self *RaftClusterController) BootstrapCluster() raft.Future {
+	configuration := raft.Configuration{
+		Servers: []raft.Server{
+			{
+				ID:      raft.ServerID(self.RaftConfiguration.LocalClusterNodeId),
+				Address: self.RaftNetworkTransport.LocalAddr(),
+			},
+		},
+	}
+
+	return self.Raft.BootstrapCluster(configuration)
 }
 
 func (self *RaftClusterController) RemoveServerIfExists(

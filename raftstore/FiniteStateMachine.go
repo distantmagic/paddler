@@ -1,6 +1,7 @@
 package raftstore
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/hashicorp/raft"
@@ -16,7 +17,10 @@ type FiniteStateMachine struct {
 // produce the same result on all peers in the cluster.
 //
 // The returned value is returned to the client as the ApplyFuture.Response.
-func (self *FiniteStateMachine) Apply(*raft.Log) interface{} {
+func (self *FiniteStateMachine) Apply(log *raft.Log) interface{} {
+	fmt.Printf("Log: %+v", log)
+
+	return nil
 }
 
 // Snapshot returns an FSMSnapshot used to: support log compaction, to
@@ -32,10 +36,12 @@ func (self *FiniteStateMachine) Apply(*raft.Log) interface{} {
 // be called concurrently with FSMSnapshot.Persist. This means the FSM should
 // be implemented to allow for concurrent updates while a snapshot is happening.
 func (self *FiniteStateMachine) Snapshot() (raft.FSMSnapshot, error) {
+	return nil, nil
 }
 
 // Restore is used to restore an FSM from a snapshot. It is not called
 // concurrently with any other command. The FSM must discard all previous
 // state before restoring the snapshot.
 func (self *FiniteStateMachine) Restore(snapshot io.ReadCloser) error {
+	return nil
 }
