@@ -1,4 +1,4 @@
-package llamacpp
+package netcfg
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 )
 
 func TestUrlIsGenerated(t *testing.T) {
-	llamaCppConfiguration := &LlamaCppConfiguration{
+	config := &HttpAddressConfiguration{
 		Host:   "localhost",
 		Port:   8081,
 		Scheme: "http",
@@ -16,6 +16,6 @@ func TestUrlIsGenerated(t *testing.T) {
 	assert.Equal(
 		t,
 		"http://localhost:8081/hi",
-		llamaCppConfiguration.BuildUrlWithPath("hi").String(),
+		config.BuildUrlWithPath("hi").String(),
 	)
 }

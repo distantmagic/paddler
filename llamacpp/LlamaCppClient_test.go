@@ -1,12 +1,14 @@
 package llamacpp
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 var llamaCppClient *LlamaCppClient = &LlamaCppClient{
+	HttpClient: http.DefaultClient,
 	LlamaCppConfiguration: LlamaCppConfiguration{
 		Host:   "127.0.0.1",
 		Port:   8081,

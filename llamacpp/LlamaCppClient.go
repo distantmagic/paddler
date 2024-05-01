@@ -9,11 +9,11 @@ import (
 	"net/http"
 )
 
-var completionDataPrefix = "data: "
+const completionDataPrefix = "data: "
 
 type LlamaCppClient struct {
-	HttpClient            http.Client
-	LlamaCppConfiguration LlamaCppConfiguration
+	HttpClient            *http.Client
+	LlamaCppConfiguration *LlamaCppConfiguration
 }
 
 func (self *LlamaCppClient) GetHealth(
@@ -23,7 +23,7 @@ func (self *LlamaCppClient) GetHealth(
 
 	request, err := http.NewRequest(
 		"GET",
-		self.LlamaCppConfiguration.BuildUrlWithPath("health").String(),
+		self.LlamaCppConfiguration.HttpAddress.BuildUrlWithPath("health").String(),
 		nil,
 	)
 
@@ -88,7 +88,7 @@ func (self *LlamaCppClient) GenerateCompletion(
 
 	request, err := http.NewRequest(
 		"POST",
-		self.LlamaCppConfiguration.BuildUrlWithPath("completion").String(),
+		self.LlamaCppConfiguration.HttpAddress.BuildUrlWithPath("completion").String(),
 		bytes.NewBuffer(body),
 	)
 
