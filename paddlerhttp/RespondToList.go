@@ -1,4 +1,4 @@
-package rafthttp
+package paddlerhttp
 
 import (
 	"fmt"
@@ -7,11 +7,11 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-type RespondToJoin struct {
+type RespondToList struct {
 	RaftClusterController *raftstore.RaftClusterController
 }
 
-func (self *RespondToJoin) CreateResponse(ctx *fasthttp.RequestCtx) {
+func (self *RespondToList) CreateResponse(ctx *fasthttp.RequestCtx) {
 	configFuture := self.RaftClusterController.Raft.GetConfiguration()
 
 	if err := configFuture.Error(); err != nil {

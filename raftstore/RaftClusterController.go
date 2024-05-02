@@ -1,45 +1,21 @@
 package raftstore
 
 import (
-	"log"
-
+	"github.com/distantmagic/paddler/netcfg"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/raft"
 )
 
 type RaftClusterController struct {
-	Logger               *log.Logger
+	Logger               hclog.Logger
 	Raft                 *raft.Raft
 	RaftConfiguration    *RaftConfiguration
 	RaftNetworkTransport *raft.NetworkTransport
 }
 
-func (self *RaftClusterController) AddVoter(nodeId, joiningNodeAddr string) error {
-	self.Logger.Printf("raftstore.RaftClusterController.AddVoter(%s, %s)", nodeId, joiningNodeAddr)
-
-	serverNodeId := raft.ServerID(nodeId)
-	joiningNodeServerAddr := raft.ServerAddress(joiningNodeAddr)
-
-	err := self.RemoveServerIfExists(serverNodeId, joiningNodeServerAddr)
-
-	if err != nil {
-		return err
-	}
-
-	addVoterFuture := self.Raft.AddVoter(
-		serverNodeId,
-		joiningNodeServerAddr,
-		0,
-		self.RaftConfiguration.Timeout,
-	)
-
-	if err := addVoterFuture.Error(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (self *RaftClusterController) BootstrapCluster() raft.Future {
+	self.Logger.Debug("bootstrap_cluster")
+
 	configuration := raft.Configuration{
 		Servers: []raft.Server{
 			{
@@ -52,9 +28,38 @@ func (self *RaftClusterController) BootstrapCluster() raft.Future {
 	return self.Raft.BootstrapCluster(configuration)
 }
 
+func (self *RaftClusterController) AddVoter(
+	nodeId string,
+	raftLeaderAddr *netcfg.HttpAddressConfiguration,
+) error {
+	serverNodeId := raft.ServerID(nodeId)
+	raftLeaderServerAddr := raft.ServerAddress(
+		raftLeaderAddr.GetHostWithPort(),
+	)
+
+	err := self.RemoveServerIfExists(serverNodeId, raftLeaderServerAddr)
+
+	if err != nil {
+		return err
+	}
+
+	addVoterFuture := self.Raft.AddVoter(
+		serverNodeId,
+		raftLeaderServerAddr,
+		0,
+		self.RaftConfiguration.Timeout,
+	)
+
+	if err := addVoterFuture.Error(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (self *RaftClusterController) RemoveServerIfExists(
 	serverNodeId raft.ServerID,
-	joiningNodeServerAddr raft.ServerAddress,
+	raftLeaderServerAddr raft.ServerAddress,
 ) error {
 	configFuture := self.Raft.GetConfiguration()
 
@@ -63,7 +68,7 @@ func (self *RaftClusterController) RemoveServerIfExists(
 	}
 
 	for _, srv := range configFuture.Configuration().Servers {
-		if srv.ID == serverNodeId || srv.Address == joiningNodeServerAddr {
+		if srv.ID == serverNodeId || srv.Address == raftLeaderServerAddr {
 			removeServerFuture := self.Raft.RemoveServer(srv.ID, 0, 0)
 
 			if err := removeServerFuture.Error(); err != nil {

@@ -1,17 +1,17 @@
 package raftstore
 
 import (
-	"log"
 	"net"
 	"os"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 )
 
 type RaftClusterControllerBuilder struct {
 	FiniteStateMachine *FiniteStateMachine
-	Logger             *log.Logger
+	Logger             hclog.Logger
 	RaftConfiguration  *RaftConfiguration
 }
 
@@ -77,7 +77,7 @@ func (self *RaftClusterControllerBuilder) BuildRaftClusterController() (*RaftClu
 	}
 
 	raftClusterNode := &RaftClusterController{
-		Logger:               self.Logger,
+		Logger:               self.Logger.Named("RaftClusterController"),
 		Raft:                 raft,
 		RaftConfiguration:    self.RaftConfiguration,
 		RaftNetworkTransport: transport,

@@ -22,3 +22,9 @@ func (self *HttpAddressConfiguration) BuildUrlWithPath(path string) *url.URL {
 func (self *HttpAddressConfiguration) GetHostWithPort() string {
 	return fmt.Sprintf("%s:%d", self.Host, self.Port)
 }
+
+func (self *HttpAddressConfiguration) IsSameAs(other *HttpAddressConfiguration) bool {
+	return self.Host == other.Host &&
+		self.Port == other.Port &&
+		self.Scheme == other.Scheme
+}
