@@ -9,7 +9,13 @@ import (
 	"net/http"
 )
 
-const completionDataPrefix = "data: "
+const (
+	CompletionDataPrefix = "data: "
+)
+
+var (
+	ErrorNon200Response = errors.New("Non-200 response from llama.cpp")
+)
 
 type LlamaCppClient struct {
 	HttpClient            *http.Client
@@ -49,7 +55,7 @@ func (self *LlamaCppClient) GetHealth(
 
 	if http.StatusOK != response.StatusCode {
 		responseChannel <- LlamaCppHealthStatus{
-			Error: errors.New("Non-200 response from llama.cpp"),
+			Error: ErrorNon200Response,
 		}
 
 		return
@@ -114,7 +120,7 @@ func (self *LlamaCppClient) GenerateCompletion(
 
 	if http.StatusOK != response.StatusCode {
 		responseChannel <- LlamaCppCompletionToken{
-			Error: errors.New("Non-200 response from llama.cpp"),
+			Error: ErrorNon200Response,
 		}
 
 		return
@@ -135,7 +141,7 @@ func (self *LlamaCppClient) GenerateCompletion(
 
 		var llamaCppCompletionToken LlamaCppCompletionToken
 
-		trimmedLine := bytes.TrimPrefix(line, []byte(completionDataPrefix))
+		trimmedLine := bytes.TrimPrefix(line, []byte(CompletionDataPrefix))
 
 		if len(trimmedLine) < 2 {
 			continue

@@ -15,6 +15,12 @@ type RaftClusterControllerBuilder struct {
 	RaftConfiguration  *RaftConfiguration
 }
 
+func (self *RaftClusterControllerBuilder) BuildBoltDbStore(filename string) (*raftboltdb.BoltStore, error) {
+	return raftboltdb.New(raftboltdb.Options{
+		Path: filename,
+	})
+}
+
 func (self *RaftClusterControllerBuilder) BuildFileSnapshotStore() (*raft.FileSnapshotStore, error) {
 	return raft.NewFileSnapshotStore(
 		self.RaftConfiguration.SnapshotDirectory,
@@ -26,7 +32,13 @@ func (self *RaftClusterControllerBuilder) BuildFileSnapshotStore() (*raft.FileSn
 func (self *RaftClusterControllerBuilder) BuildRaft(
 	transport *raft.NetworkTransport,
 ) (*raft.Raft, error) {
-	raftStore, err := self.BuildRaftStore()
+	logStore, err := self.BuildRaftLogStore()
+
+	if err != nil {
+		return nil, err
+	}
+
+	stableStore, err := self.BuildRaftStableStore()
 
 	if err != nil {
 		return nil, err
@@ -44,8 +56,8 @@ func (self *RaftClusterControllerBuilder) BuildRaft(
 	return raft.NewRaft(
 		config,
 		self.FiniteStateMachine,
-		raftStore,
-		raftStore,
+		logStore,
+		stableStore,
 		snapshots,
 		transport,
 	)
@@ -74,6 +86,10 @@ func (self *RaftClusterControllerBuilder) BuildRaftClusterController() (*RaftClu
 	return raftClusterNode, nil
 }
 
+func (self *RaftClusterControllerBuilder) BuildRaftLogStore() (*raftboltdb.BoltStore, error) {
+	return self.BuildBoltDbStore(self.RaftConfiguration.LogDatabaseFile)
+}
+
 func (self *RaftClusterControllerBuilder) BuildRaftNetworkTransport() (*raft.NetworkTransport, error) {
 	advertiseAddr, err := net.ResolveTCPAddr(
 		"tcp",
@@ -93,8 +109,6 @@ func (self *RaftClusterControllerBuilder) BuildRaftNetworkTransport() (*raft.Net
 	)
 }
 
-func (self *RaftClusterControllerBuilder) BuildRaftStore() (*raftboltdb.BoltStore, error) {
-	return raftboltdb.New(raftboltdb.Options{
-		Path: self.RaftConfiguration.LogDatabaseFile,
-	})
+func (self *RaftClusterControllerBuilder) BuildRaftStableStore() (*raftboltdb.BoltStore, error) {
+	return self.BuildBoltDbStore(self.RaftConfiguration.StableDatabaseFile)
 }

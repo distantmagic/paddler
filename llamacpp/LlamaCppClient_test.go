@@ -4,15 +4,18 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/distantmagic/paddler/netcfg"
 	"github.com/stretchr/testify/assert"
 )
 
 var llamaCppClient *LlamaCppClient = &LlamaCppClient{
 	HttpClient: http.DefaultClient,
-	LlamaCppConfiguration: LlamaCppConfiguration{
-		Host:   "127.0.0.1",
-		Port:   8081,
-		Scheme: "http",
+	LlamaCppConfiguration: &LlamaCppConfiguration{
+		HttpAddress: &netcfg.HttpAddressConfiguration{
+			Host:   "127.0.0.1",
+			Port:   8081,
+			Scheme: "http",
+		},
 	},
 }
 

@@ -13,5 +13,6 @@ type RaftConfiguration struct {
 	MaxPool             int
 	RetainSnapshotCount int
 	SnapshotDirectory   string
+	StableDatabaseFile  string
 	Timeout             time.Duration
 }
