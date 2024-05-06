@@ -1,31 +1,26 @@
 package main
 
 import (
+	"container/heap"
 	"flag"
-	"time"
+	"net/http"
 
+	"github.com/distantmagic/paddler/httpserver"
+	"github.com/distantmagic/paddler/llamacpp"
+	"github.com/distantmagic/paddler/loadbalancer"
+	"github.com/distantmagic/paddler/metahttp"
 	"github.com/distantmagic/paddler/netcfg"
-	"github.com/distantmagic/paddler/paddlerhttp"
-	"github.com/distantmagic/paddler/raftstore"
+	"github.com/distantmagic/paddler/reverseproxy"
 	"github.com/hashicorp/go-hclog"
 )
 
 var (
-	FlagBootstrap          = flag.Bool("bootstrap", false, "Bootstrap the cluster")
-	FlagLocalClusterNodeId = flag.String("node-id", "node1", "Local cluster node id")
-	FlagLogDatabaseFile    = flag.String("log-db-file", "log.db", "Log database file")
-	FlagMaxPool            = flag.Int("max-pool", 5, "How many connections to pool")
-	FlagPaddlerHost        = flag.String("paddler-host", "127.0.0.1", "Paddler host to bind to")
-	FlagPaddlerPort        = flag.Uint("paddler-port", 8080, "Paddler port to bind to")
-	FlagPaddlerScheme      = flag.String("paddler-scheme", "http", "Paddler scheme to use")
-	FlagJoin               = flag.Bool("join", false, "Join the cluster")
-	FlagRaftHost           = flag.String("raft-host", "127.0.0.1", "Raft host to bind to")
-	FlagRaftPort           = flag.Uint("raft-port", 11000, "Raft port to bind to")
-	FlagRaftScheme         = flag.String("raft-scheme", "http", "Raft scheme to use")
-	FlagRetainSnapsotCount = flag.Int("retain-snapshot-count", 2, "How many snapshots to retain")
-	FlagSnapsotDirectory   = flag.String("snapshot-directory", ".", "Directory to retain snapshots")
-	FlagStableDatabaseFile = flag.String("stable-db-file", "stable.db", "Stable database file")
-	FlagTimeout            = flag.Int("timeout", 5000, "(Miliseconds) Timeout is used to apply I/O deadlines")
+	FlagMetaHost           = flag.String("paddler-host", "127.0.0.1", "Meta host to bind to")
+	FlagMetaPort           = flag.Uint("paddler-port", 8082, "Meta port to bind to")
+	FlagMetaScheme         = flag.String("paddler-scheme", "http", "Meta scheme to use")
+	FlagReverseProxyHost   = flag.String("reverseproxy-host", "127.0.0.1", "Reverse proxy host to bind to")
+	FlagReverseProxyPort   = flag.Uint("reverseproxy-port", 8083, "Reverse proxy port to bind to")
+	FlagReverseProxyScheme = flag.String("reverseproxy-scheme", "http", "Reve rseproxy scheme to use")
 )
 
 func main() {
@@ -36,69 +31,69 @@ func main() {
 		Level: hclog.Debug,
 	})
 
-	raftClusterControllerBuilder := &raftstore.RaftClusterControllerBuilder{
-		FiniteStateMachine: &raftstore.FiniteStateMachine{},
-		Logger:             logger.Named("raftstore"),
-		RaftConfiguration: &raftstore.RaftConfiguration{
-			HttpAddress: &netcfg.HttpAddressConfiguration{
-				Host:   *FlagRaftHost,
-				Port:   *FlagRaftPort,
-				Scheme: *FlagRaftScheme,
-			},
-			LocalClusterNodeId:  *FlagLocalClusterNodeId,
-			LogDatabaseFile:     *FlagLogDatabaseFile,
-			StableDatabaseFile:  *FlagStableDatabaseFile,
-			MaxPool:             *FlagMaxPool,
-			RetainSnapshotCount: *FlagRetainSnapsotCount,
-			SnapshotDirectory:   *FlagSnapsotDirectory,
-			Timeout:             time.Millisecond * time.Duration(*FlagTimeout),
-		},
-	}
+	serverEventsChannel := make(chan httpserver.ServerEvent)
 
-	raftClustercontroller, err := raftClusterControllerBuilder.BuildRaftClusterController()
-
-	if err != nil {
-		panic(err)
-	}
-
-	if *FlagBootstrap {
-		bootstrapClusterFuture := raftClustercontroller.BootstrapCluster()
-
-		if err := bootstrapClusterFuture.Error(); err != nil {
-			panic(err)
-		}
-	}
-
-	if *FlagJoin {
-		// err := raftClustercontroller.AddVoter(
-		// 	*FlagLocalClusterNodeId,
-		// 	&netcfg.HttpAddressConfiguration{
-		// 		Host:   *FlagJoinHost,
-		// 		Port:   *FlagJoinPort,
-		// 		Scheme: *FlagJoinScheme,
-		// 	},
-		// )
-
-		// if err != nil {
-		// 	panic(err)
-		// }
-	}
-
-	server := &paddlerhttp.Server{
+	paddlerHttpServer := &metahttp.Server{
 		HttpAddress: &netcfg.HttpAddressConfiguration{
-			Host:   *FlagPaddlerHost,
-			Port:   *FlagPaddlerPort,
-			Scheme: *FlagPaddlerScheme,
+			Host:   *FlagMetaHost,
+			Port:   *FlagMetaPort,
+			Scheme: *FlagMetaScheme,
 		},
-		Logger: logger.Named("paddlerhttp.Server"),
-		RespondToList: &paddlerhttp.RespondToList{
-			RaftClusterController: raftClustercontroller,
-		},
+		Logger:          logger.Named("metahttp.Server"),
+		RespondToHealth: &metahttp.RespondToHealth{},
 	}
 
-	serverEventsChannel := make(chan paddlerhttp.ServerEvent)
+	llamaCppHeap := &loadbalancer.LlamaCppHeap{}
 
-	go server.Serve(serverEventsChannel)
+	heap.Init(llamaCppHeap)
+	heap.Push(llamaCppHeap, &loadbalancer.LlamaCppTarget{
+		LlamaCppClient: &llamacpp.LlamaCppClient{
+			HttpClient: http.DefaultClient,
+			LlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{
+				HttpAddress: &netcfg.HttpAddressConfiguration{
+					Host:   "127.0.0.1",
+					Port:   8088,
+					Scheme: "http",
+				},
+			},
+		},
+		LlamaCppHealthStatus: &llamacpp.LlamaCppHealthStatus{
+			SlotsIdle: 10,
+		},
+	})
+	heap.Push(llamaCppHeap, &loadbalancer.LlamaCppTarget{
+		LlamaCppClient: &llamacpp.LlamaCppClient{
+			HttpClient: http.DefaultClient,
+			LlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{
+				HttpAddress: &netcfg.HttpAddressConfiguration{
+					Host:   "127.0.0.1",
+					Port:   8089,
+					Scheme: "http",
+				},
+			},
+		},
+		LlamaCppHealthStatus: &llamacpp.LlamaCppHealthStatus{
+			SlotsIdle: 10,
+		},
+	})
+
+	loadBalancer := &loadbalancer.LoadBalancer{
+		Logger:       logger.Named("LoadBalancer"),
+		LlamaCppHeap: llamaCppHeap,
+	}
+
+	reverseProxyServer := &reverseproxy.Server{
+		HttpAddress: &netcfg.HttpAddressConfiguration{
+			Host:   *FlagReverseProxyHost,
+			Port:   *FlagReverseProxyPort,
+			Scheme: *FlagReverseProxyScheme,
+		},
+		LoadBalancer: loadBalancer,
+		Logger:       logger.Named("reverseproxy.Server"),
+	}
+
+	go paddlerHttpServer.Serve(serverEventsChannel)
+	go reverseProxyServer.Serve(serverEventsChannel)
 
 	for serverEvent := range serverEventsChannel {
 		logger.Info("server event", serverEvent)
