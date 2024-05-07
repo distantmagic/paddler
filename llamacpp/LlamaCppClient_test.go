@@ -56,3 +56,36 @@ func TestCompletionsAreGenerated(t *testing.T) {
 	// 3 tokens + 1 summary token
 	assert.Equal(t, 4, generatedTokens)
 }
+
+func TestJsonSchemaConstrainedCompletionsAreGenerated(t *testing.T) {
+	responseChannel := make(chan LlamaCppCompletionToken)
+
+	go llamaCppClient.GenerateCompletion(
+		responseChannel,
+		LlamaCppCompletionRequest{
+			JsonSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"hello": map[string]string{
+						"type": "string",
+					},
+				},
+			},
+			NPredict: 100,
+			Prompt:   "Say 'world' as a hello!",
+			Stream:   true,
+		},
+	)
+
+	acc := ""
+
+	for token := range responseChannel {
+		if token.Error != nil {
+			t.Fatal(token.Error)
+		} else {
+			acc += token.Content
+		}
+	}
+
+	assert.Equal(t, "{ \"hello\": \"world\" } ", acc)
+}
