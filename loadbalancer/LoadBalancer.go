@@ -1,25 +1,29 @@
 package loadbalancer
 
 import (
+	"container/heap"
 	"errors"
 	"net/http"
 	"net/url"
 
 	"github.com/distantmagic/paddler/llamacpp"
-	"github.com/emirpasic/gods/v2/trees/binaryheap"
 	"github.com/hashicorp/go-hclog"
+)
+
+var (
+	ErrorNoTargetsAvailable = errors.New("no targets available")
 )
 
 type LoadBalancer struct {
 	Logger  hclog.Logger
-	targets *binaryheap.Heap[*LlamaCppTarget]
+	targets *LlamaCppTargetHeap
 }
 
 func (self *LoadBalancer) Balance(request *http.Request) (*url.URL, error) {
-	headTarget, ok := self.targets.Peek()
+	headTarget := (*self.targets)[0]
 
-	if !ok || headTarget == nil {
-		return nil, errors.New("no targets available")
+	if headTarget == nil {
+		return nil, ErrorNoTargetsAvailable
 	}
 
 	targetUrl := headTarget.
@@ -29,14 +33,19 @@ func (self *LoadBalancer) Balance(request *http.Request) (*url.URL, error) {
 		BuildUrlWithPath("")
 
 	headTarget.LlamaCppHealthStatus.SlotsIdle -= 1
+	heap.Fix(self.targets, 0)
 
-	self.Logger.Debug("balancing", "target", targetUrl)
+	self.Logger.Debug(
+		"balancing",
+		"target", targetUrl,
+		"slots", headTarget.LlamaCppHealthStatus.SlotsIdle,
+	)
 
 	return targetUrl, nil
 }
 
 func (self *LoadBalancer) RegisterTarget(targetConfiguration *LlamaCppTargetConfiguration) {
-	self.targets.Push(&LlamaCppTarget{
+	heap.Push(self.targets, &LlamaCppTarget{
 		LlamaCppClient: &llamacpp.LlamaCppClient{
 			HttpClient:            http.DefaultClient,
 			LlamaCppConfiguration: targetConfiguration.LlamaCppConfiguration,

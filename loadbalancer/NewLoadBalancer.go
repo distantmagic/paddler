@@ -1,15 +1,20 @@
 package loadbalancer
 
 import (
-	"github.com/emirpasic/gods/v2/trees/binaryheap"
+	"container/heap"
+
 	"github.com/hashicorp/go-hclog"
 )
 
 func NewLoadBalancer(
 	logger hclog.Logger,
 ) *LoadBalancer {
+	targetHeap := &LlamaCppTargetHeap{}
+
+	heap.Init(targetHeap)
+
 	return &LoadBalancer{
 		Logger:  logger,
-		targets: binaryheap.NewWith[*LlamaCppTarget](LlamaCppTargetComparator),
+		targets: targetHeap,
 	}
 }

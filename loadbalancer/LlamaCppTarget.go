@@ -9,5 +9,5 @@ type LlamaCppTarget struct {
 }
 
 func (self *LlamaCppTarget) Less(other *LlamaCppTarget) bool {
-	return self.LlamaCppHealthStatus.Less(other.LlamaCppHealthStatus)
+	return self.LlamaCppHealthStatus.SlotsIdle < other.LlamaCppHealthStatus.SlotsIdle
 }

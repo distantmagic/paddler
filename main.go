@@ -52,7 +52,7 @@ func main() {
 					},
 					&cli.UintFlag{
 						Name:        "management-port",
-						Value:       8088,
+						Value:       8085,
 						Destination: &balancer.ManagementServerConfiguration.HttpAddress.Port,
 					},
 					&cli.StringFlag{
@@ -67,7 +67,7 @@ func main() {
 					},
 					&cli.UintFlag{
 						Name:        "reverseproxy-port",
-						Value:       8087,
+						Value:       8086,
 						Destination: &balancer.ReverseProxyConfiguration.HttpAddress.Port,
 					},
 					&cli.StringFlag{

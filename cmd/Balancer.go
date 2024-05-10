@@ -34,21 +34,15 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 		},
 	})
 
-	// loadBalancer.RegisterTarget(&loadbalancer.LlamaCppTarget{
-	// 	LlamaCppClient: &llamacpp.LlamaCppClient{
-	// 		HttpClient: http.DefaultClient,
-	// 		LlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{
-	// 			HttpAddress: &netcfg.HttpAddressConfiguration{
-	// 				Host:   "127.0.0.1",
-	// 				Port:   8089,
-	// 				Scheme: "http",
-	// 			},
-	// 		},
-	// 	},
-	// 	LlamaCppHealthStatus: &llamacpp.LlamaCppHealthStatus{
-	// 		SlotsIdle: 10,
-	// 	},
-	// })
+	loadBalancer.RegisterTarget(&loadbalancer.LlamaCppTargetConfiguration{
+		LlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{
+			HttpAddress: &netcfg.HttpAddressConfiguration{
+				Host:   "127.0.0.1",
+				Port:   8089,
+				Scheme: "http",
+			},
+		},
+	})
 
 	managementServer := &management.Server{
 		ManagementServerConfiguration: self.ManagementServerConfiguration,
