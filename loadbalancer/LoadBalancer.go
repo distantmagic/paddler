@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/distantmagic/paddler/goroutine"
 	"github.com/distantmagic/paddler/llamacpp"
 	"github.com/hashicorp/go-hclog"
 )
@@ -15,16 +16,17 @@ var (
 )
 
 type LoadBalancer struct {
-	Logger  hclog.Logger
-	targets *LlamaCppTargetHeap
+	HttpClient *http.Client
+	Logger     hclog.Logger
+	targets    *LlamaCppTargetHeap
 }
 
 func (self *LoadBalancer) Balance(request *http.Request) (*url.URL, error) {
-	headTarget := (*self.targets)[0]
-
-	if headTarget == nil {
+	if self.targets.Len() < 1 {
 		return nil, ErrorNoTargetsAvailable
 	}
+
+	headTarget := (*self.targets)[0]
 
 	targetUrl := headTarget.
 		LlamaCppClient.
@@ -44,14 +46,43 @@ func (self *LoadBalancer) Balance(request *http.Request) (*url.URL, error) {
 	return targetUrl, nil
 }
 
-func (self *LoadBalancer) RegisterTarget(targetConfiguration *LlamaCppTargetConfiguration) {
-	heap.Push(self.targets, &LlamaCppTarget{
-		LlamaCppClient: &llamacpp.LlamaCppClient{
-			HttpClient:            http.DefaultClient,
-			LlamaCppConfiguration: targetConfiguration.LlamaCppConfiguration,
-		},
-		LlamaCppHealthStatus: &llamacpp.LlamaCppHealthStatus{
-			SlotsIdle: 10,
-		},
-	})
+func (self *LoadBalancer) RegisterTarget(
+	serverEventsChannel chan goroutine.ResultMessage,
+	targetConfiguration *LlamaCppTargetConfiguration,
+) {
+	self.Logger.Debug(
+		"registering target",
+		"host", targetConfiguration.LlamaCppConfiguration.HttpAddress.GetHostWithPort(),
+	)
+
+	llamaCppClient := &llamacpp.LlamaCppClient{
+		HttpClient:            self.HttpClient,
+		LlamaCppConfiguration: targetConfiguration.LlamaCppConfiguration,
+	}
+
+	responseChannel := make(chan llamacpp.LlamaCppHealthStatus)
+
+	go llamaCppClient.GetHealth(responseChannel)
+
+	healthStatus := <-responseChannel
+
+	if healthStatus.Error != nil {
+		serverEventsChannel <- goroutine.ResultMessage{
+			Comment: "failed to register target",
+			Error: healthStatus.Error,
+		}
+
+		return
+	}
+
+	llamaCppTarget := &LlamaCppTarget{
+		LlamaCppClient:       llamaCppClient,
+		LlamaCppHealthStatus: &healthStatus,
+	}
+
+	heap.Push(self.targets, llamaCppTarget)
+
+	serverEventsChannel <- goroutine.ResultMessage{
+		Comment: "registered target",
+	}
 }

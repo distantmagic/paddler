@@ -3,7 +3,7 @@ package management
 import (
 	"net/http"
 
-	"github.com/distantmagic/paddler/httpserver"
+	"github.com/distantmagic/paddler/goroutine"
 	"github.com/hashicorp/go-hclog"
 )
 
@@ -13,7 +13,7 @@ type Server struct {
 	RespondToHealth               *RespondToHealth
 }
 
-func (self *Server) Serve(serverEventsChannel chan httpserver.ServerEvent) {
+func (self *Server) Serve(serverEventsChannel chan goroutine.ResultMessage) {
 	self.Logger.Debug(
 		"listen",
 		"host", self.ManagementServerConfiguration.HttpAddress.GetHostWithPort(),
@@ -29,7 +29,8 @@ func (self *Server) Serve(serverEventsChannel chan httpserver.ServerEvent) {
 	)
 
 	if err != nil {
-		serverEventsChannel <- httpserver.ServerEvent{
+		serverEventsChannel <- goroutine.ResultMessage{
+			Comment: "failed to listen",
 			Error: err,
 		}
 	}

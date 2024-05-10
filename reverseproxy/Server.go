@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 
-	"github.com/distantmagic/paddler/httpserver"
+	"github.com/distantmagic/paddler/goroutine"
 	"github.com/distantmagic/paddler/loadbalancer"
 	"github.com/hashicorp/go-hclog"
 )
@@ -15,7 +15,7 @@ type Server struct {
 	ReverseProxyConfiguration *ReverseProxyConfiguration
 }
 
-func (self *Server) Serve(serverEventsChannel chan httpserver.ServerEvent) {
+func (self *Server) Serve(serverEventsChannel chan goroutine.ResultMessage) {
 	self.Logger.Debug(
 		"listen",
 		"host", self.ReverseProxyConfiguration.HttpAddress.GetHostWithPort(),
@@ -28,7 +28,12 @@ func (self *Server) Serve(serverEventsChannel chan httpserver.ServerEvent) {
 				targetUrl, err := self.LoadBalancer.Balance(request.In)
 
 				if err != nil {
-					panic(err)
+					serverEventsChannel <- goroutine.ResultMessage{
+						Comment: "failed to balance request",
+						Error: err,
+					}
+
+					return
 				}
 
 				request.SetURL(targetUrl)
@@ -43,7 +48,8 @@ func (self *Server) Serve(serverEventsChannel chan httpserver.ServerEvent) {
 	)
 
 	if err != nil {
-		serverEventsChannel <- httpserver.ServerEvent{
+		serverEventsChannel <- goroutine.ResultMessage{
+			Comment: "failed to listen",
 			Error: err,
 		}
 	}
