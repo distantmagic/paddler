@@ -1,7 +1,3 @@
-# Adler (Work in Progress)
+# Paddler
 
-## Thanks
-
-Thank you Hraftd for a reference implementation from which I copied  a lot of 
-storage related code:
-https://github.com/otoolep/hraftd
+llama.cpp load balancer and reverse proxy

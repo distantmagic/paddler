@@ -23,4 +23,4 @@ jobs:
 
       - name: Build
         run: |
-          go build -o structured-bin-linux-x64 .
+          go build -o paddler-bin-linux-x64 .
