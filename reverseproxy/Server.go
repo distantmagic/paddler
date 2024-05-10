@@ -6,30 +6,41 @@ import (
 
 	"github.com/distantmagic/paddler/httpserver"
 	"github.com/distantmagic/paddler/loadbalancer"
-	"github.com/distantmagic/paddler/netcfg"
 	"github.com/hashicorp/go-hclog"
 )
 
 type Server struct {
-	HttpAddress  *netcfg.HttpAddressConfiguration
-	LoadBalancer *loadbalancer.LoadBalancer
-	Logger       hclog.Logger
+	LoadBalancer              *loadbalancer.LoadBalancer
+	Logger                    hclog.Logger
+	ReverseProxyConfiguration *ReverseProxyConfiguration
 }
 
 func (self *Server) Serve(serverEventsChannel chan httpserver.ServerEvent) {
-	self.Logger.Debug("serve")
+	self.Logger.Debug(
+		"listen",
+		"host", self.ReverseProxyConfiguration.HttpAddress.GetHostWithPort(),
+	)
 
 	reverseProxyController := &ReverseProxyController{
 		Logger: self.Logger.Named("ReverseProxyController"),
 		ReverseProxy: &httputil.ReverseProxy{
 			Rewrite: func(request *httputil.ProxyRequest) {
-				request.SetURL(self.LoadBalancer.Balance(request.In))
+				targetUrl, err := self.LoadBalancer.Balance(request.In)
+
+				if err != nil {
+					panic(err)
+				}
+
+				request.SetURL(targetUrl)
 				request.SetXForwarded()
 			},
 		},
 	}
 
-	err := http.ListenAndServe(":8083", reverseProxyController)
+	err := http.ListenAndServe(
+		self.ReverseProxyConfiguration.HttpAddress.GetHostWithPort(),
+		reverseProxyController,
+	)
 
 	if err != nil {
 		serverEventsChannel <- httpserver.ServerEvent{

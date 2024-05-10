@@ -1,4 +1,4 @@
-package metahttp
+package management
 
 import (
 	"fmt"

@@ -6,3 +6,7 @@ type LlamaCppHealthStatus struct {
 	SlotsProcessing uint                     `json:"slots_processing"`
 	Error           error                    `json:"-"`
 }
+
+func (self *LlamaCppHealthStatus) Less(other *LlamaCppHealthStatus) bool {
+	return self.SlotsIdle < other.SlotsIdle
+}

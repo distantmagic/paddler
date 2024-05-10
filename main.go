@@ -1,101 +1,88 @@
 package main
 
 import (
-	"container/heap"
-	"flag"
-	"net/http"
+	"os"
 
-	"github.com/distantmagic/paddler/httpserver"
-	"github.com/distantmagic/paddler/llamacpp"
-	"github.com/distantmagic/paddler/loadbalancer"
-	"github.com/distantmagic/paddler/metahttp"
+	"github.com/distantmagic/paddler/cmd"
+	"github.com/distantmagic/paddler/management"
 	"github.com/distantmagic/paddler/netcfg"
 	"github.com/distantmagic/paddler/reverseproxy"
 	"github.com/hashicorp/go-hclog"
-)
-
-var (
-	FlagMetaHost           = flag.String("paddler-host", "127.0.0.1", "Meta host to bind to")
-	FlagMetaPort           = flag.Uint("paddler-port", 8082, "Meta port to bind to")
-	FlagMetaScheme         = flag.String("paddler-scheme", "http", "Meta scheme to use")
-	FlagReverseProxyHost   = flag.String("reverseproxy-host", "127.0.0.1", "Reverse proxy host to bind to")
-	FlagReverseProxyPort   = flag.Uint("reverseproxy-port", 8083, "Reverse proxy port to bind to")
-	FlagReverseProxyScheme = flag.String("reverseproxy-scheme", "http", "Reve rseproxy scheme to use")
+	"github.com/urfave/cli/v2"
 )
 
 func main() {
-	flag.Parse()
-
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:  "paddler",
 		Level: hclog.Debug,
 	})
 
-	serverEventsChannel := make(chan httpserver.ServerEvent)
-
-	paddlerHttpServer := &metahttp.Server{
-		HttpAddress: &netcfg.HttpAddressConfiguration{
-			Host:   *FlagMetaHost,
-			Port:   *FlagMetaPort,
-			Scheme: *FlagMetaScheme,
-		},
-		Logger:          logger.Named("metahttp.Server"),
-		RespondToHealth: &metahttp.RespondToHealth{},
+	agent := &cmd.Agent{
+		Logger: logger.Named("Agent"),
 	}
 
-	llamaCppHeap := &loadbalancer.LlamaCppHeap{}
+	balancer := &cmd.Balancer{
+		Logger: logger.Named("Balancer"),
+		ManagementServerConfiguration: &management.ManagementServerConfiguration{
+			HttpAddress: &netcfg.HttpAddressConfiguration{},
+		},
+		ReverseProxyConfiguration: &reverseproxy.ReverseProxyConfiguration{
+			HttpAddress: &netcfg.HttpAddressConfiguration{},
+		},
+	}
 
-	heap.Init(llamaCppHeap)
-	heap.Push(llamaCppHeap, &loadbalancer.LlamaCppTarget{
-		LlamaCppClient: &llamacpp.LlamaCppClient{
-			HttpClient: http.DefaultClient,
-			LlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{
-				HttpAddress: &netcfg.HttpAddressConfiguration{
-					Host:   "127.0.0.1",
-					Port:   8088,
-					Scheme: "http",
+	app := &cli.App{
+		Name:  "paddler",
+		Usage: "llama.cpp load balaner and reverse proxy server",
+		Commands: []*cli.Command{
+			{
+				Name:   "agent",
+				Usage:  "start llama.cpp observer agent",
+				Action: agent.Action,
+			},
+			{
+				Name:   "balancer",
+				Usage:  "start load balancer reverse proxy and Paddler metadata server",
+				Action: balancer.Action,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "management-host",
+						Value:       "127.0.0.1",
+						Destination: &balancer.ManagementServerConfiguration.HttpAddress.Host,
+					},
+					&cli.UintFlag{
+						Name:        "management-port",
+						Value:       8088,
+						Destination: &balancer.ManagementServerConfiguration.HttpAddress.Port,
+					},
+					&cli.StringFlag{
+						Name:        "management-scheme",
+						Value:       "http",
+						Destination: &balancer.ManagementServerConfiguration.HttpAddress.Scheme,
+					},
+					&cli.StringFlag{
+						Name:        "reverseproxy-host",
+						Value:       "127.0.0.1",
+						Destination: &balancer.ReverseProxyConfiguration.HttpAddress.Host,
+					},
+					&cli.UintFlag{
+						Name:        "reverseproxy-port",
+						Value:       8087,
+						Destination: &balancer.ReverseProxyConfiguration.HttpAddress.Port,
+					},
+					&cli.StringFlag{
+						Name:        "reverseproxy-scheme",
+						Value:       "http",
+						Destination: &balancer.ReverseProxyConfiguration.HttpAddress.Scheme,
+					},
 				},
 			},
 		},
-		LlamaCppHealthStatus: &llamacpp.LlamaCppHealthStatus{
-			SlotsIdle: 10,
-		},
-	})
-	heap.Push(llamaCppHeap, &loadbalancer.LlamaCppTarget{
-		LlamaCppClient: &llamacpp.LlamaCppClient{
-			HttpClient: http.DefaultClient,
-			LlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{
-				HttpAddress: &netcfg.HttpAddressConfiguration{
-					Host:   "127.0.0.1",
-					Port:   8089,
-					Scheme: "http",
-				},
-			},
-		},
-		LlamaCppHealthStatus: &llamacpp.LlamaCppHealthStatus{
-			SlotsIdle: 10,
-		},
-	})
-
-	loadBalancer := &loadbalancer.LoadBalancer{
-		Logger:       logger.Named("LoadBalancer"),
-		LlamaCppHeap: llamaCppHeap,
 	}
 
-	reverseProxyServer := &reverseproxy.Server{
-		HttpAddress: &netcfg.HttpAddressConfiguration{
-			Host:   *FlagReverseProxyHost,
-			Port:   *FlagReverseProxyPort,
-			Scheme: *FlagReverseProxyScheme,
-		},
-		LoadBalancer: loadBalancer,
-		Logger:       logger.Named("reverseproxy.Server"),
-	}
+	err := app.Run(os.Args)
 
-	go paddlerHttpServer.Serve(serverEventsChannel)
-	go reverseProxyServer.Serve(serverEventsChannel)
-
-	for serverEvent := range serverEventsChannel {
-		logger.Info("server event", serverEvent)
+	if err != nil {
+		panic(err)
 	}
 }
