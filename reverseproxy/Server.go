@@ -30,7 +30,7 @@ func (self *Server) Serve(serverEventsChannel chan goroutine.ResultMessage) {
 				if err != nil {
 					serverEventsChannel <- goroutine.ResultMessage{
 						Comment: "failed to balance request",
-						Error: err,
+						Error:   err,
 					}
 
 					return
@@ -50,7 +50,7 @@ func (self *Server) Serve(serverEventsChannel chan goroutine.ResultMessage) {
 	if err != nil {
 		serverEventsChannel <- goroutine.ResultMessage{
 			Comment: "failed to listen",
-			Error: err,
+			Error:   err,
 		}
 	}
 }

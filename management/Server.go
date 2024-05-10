@@ -11,6 +11,7 @@ type Server struct {
 	ManagementServerConfiguration *ManagementServerConfiguration
 	Logger                        hclog.Logger
 	RespondToHealth               *RespondToHealth
+	RespondToRegisterTarget       *RespondToRegisterTarget
 }
 
 func (self *Server) Serve(serverEventsChannel chan goroutine.ResultMessage) {
@@ -22,6 +23,7 @@ func (self *Server) Serve(serverEventsChannel chan goroutine.ResultMessage) {
 	mux := http.NewServeMux()
 
 	mux.Handle("/health", self.RespondToHealth)
+	mux.Handle("/register/target", self.RespondToRegisterTarget)
 
 	err := http.ListenAndServe(
 		self.ManagementServerConfiguration.HttpAddress.GetHostWithPort(),
@@ -31,7 +33,7 @@ func (self *Server) Serve(serverEventsChannel chan goroutine.ResultMessage) {
 	if err != nil {
 		serverEventsChannel <- goroutine.ResultMessage{
 			Comment: "failed to listen",
-			Error: err,
+			Error:   err,
 		}
 	}
 }

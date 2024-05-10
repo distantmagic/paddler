@@ -4,10 +4,8 @@ import (
 	"net/http"
 
 	"github.com/distantmagic/paddler/goroutine"
-	"github.com/distantmagic/paddler/llamacpp"
 	"github.com/distantmagic/paddler/loadbalancer"
 	"github.com/distantmagic/paddler/management"
-	"github.com/distantmagic/paddler/netcfg"
 	"github.com/distantmagic/paddler/reverseproxy"
 	"github.com/hashicorp/go-hclog"
 	"github.com/urfave/cli/v2"
@@ -30,7 +28,13 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 	managementServer := &management.Server{
 		ManagementServerConfiguration: self.ManagementServerConfiguration,
 		Logger:                        self.Logger.Named("management"),
-		RespondToHealth:               &management.RespondToHealth{},
+		RespondToHealth: &management.RespondToHealth{
+			LoadBalancer: loadBalancer,
+		},
+		RespondToRegisterTarget: &management.RespondToRegisterTarget{
+			LoadBalancer:        loadBalancer,
+			ServerEventsChannel: serverEventsChannel,
+		},
 	}
 
 	reverseProxyServer := &reverseproxy.Server{
@@ -38,32 +42,6 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 		Logger:                    self.Logger.Named("reverseproxy"),
 		ReverseProxyConfiguration: self.ReverseProxyConfiguration,
 	}
-
-	go loadBalancer.RegisterTarget(
-		serverEventsChannel,
-		&loadbalancer.LlamaCppTargetConfiguration{
-			LlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{
-				HttpAddress: &netcfg.HttpAddressConfiguration{
-					Host:   "127.0.0.1",
-					Port:   8088,
-					Scheme: "http",
-				},
-			},
-		},
-	)
-
-	go loadBalancer.RegisterTarget(
-		serverEventsChannel,
-		&loadbalancer.LlamaCppTargetConfiguration{
-			LlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{
-				HttpAddress: &netcfg.HttpAddressConfiguration{
-					Host:   "127.0.0.1",
-					Port:   8089,
-					Scheme: "http",
-				},
-			},
-		},
-	)
 
 	go managementServer.Serve(serverEventsChannel)
 	go reverseProxyServer.Serve(serverEventsChannel)

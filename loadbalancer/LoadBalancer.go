@@ -46,6 +46,12 @@ func (self *LoadBalancer) Balance(request *http.Request) (*url.URL, error) {
 	return targetUrl, nil
 }
 
+func (self *LoadBalancer) GetStatus() *LoadBalancerStatus {
+	return &LoadBalancerStatus{
+		RegisteredTargets: self.targets.Len(),
+	}
+}
+
 func (self *LoadBalancer) RegisterTarget(
 	serverEventsChannel chan goroutine.ResultMessage,
 	targetConfiguration *LlamaCppTargetConfiguration,
@@ -69,7 +75,7 @@ func (self *LoadBalancer) RegisterTarget(
 	if healthStatus.Error != nil {
 		serverEventsChannel <- goroutine.ResultMessage{
 			Comment: "failed to register target",
-			Error: healthStatus.Error,
+			Error:   healthStatus.Error,
 		}
 
 		return
