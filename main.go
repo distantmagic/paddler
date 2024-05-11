@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/distantmagic/paddler/cmd"
+	"github.com/distantmagic/paddler/llamacpp"
 	"github.com/distantmagic/paddler/management"
 	"github.com/distantmagic/paddler/netcfg"
 	"github.com/distantmagic/paddler/reverseproxy"
@@ -19,6 +20,12 @@ func main() {
 
 	agent := &cmd.Agent{
 		Logger: logger.Named("Agent"),
+		LlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{
+			HttpAddress: &netcfg.HttpAddressConfiguration{},
+		},
+		ReverseProxyConfiguration: &reverseproxy.ReverseProxyConfiguration{
+			HttpAddress: &netcfg.HttpAddressConfiguration{},
+		},
 	}
 
 	balancer := &cmd.Balancer{
@@ -39,6 +46,38 @@ func main() {
 				Name:   "agent",
 				Usage:  "start llama.cpp observer agent",
 				Action: agent.Action,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "balancer-host",
+						Value:       "127.0.0.1",
+						Destination: &agent.ReverseProxyConfiguration.HttpAddress.Host,
+					},
+					&cli.UintFlag{
+						Name:        "balancer-port",
+						Value:       8085,
+						Destination: &agent.ReverseProxyConfiguration.HttpAddress.Port,
+					},
+					&cli.StringFlag{
+						Name:        "balancer-scheme",
+						Value:       "http",
+						Destination: &agent.ReverseProxyConfiguration.HttpAddress.Scheme,
+					},
+					&cli.StringFlag{
+						Name:        "llamacpp-host",
+						Value:       "127.0.0.1",
+						Destination: &agent.LlamaCppConfiguration.HttpAddress.Host,
+					},
+					&cli.UintFlag{
+						Name:        "llamacpp-port",
+						Value:       8080,
+						Destination: &agent.LlamaCppConfiguration.HttpAddress.Port,
+					},
+					&cli.StringFlag{
+						Name:        "llamacpp-scheme",
+						Value:       "http",
+						Destination: &agent.LlamaCppConfiguration.HttpAddress.Scheme,
+					},
+				},
 			},
 			{
 				Name:   "balancer",
