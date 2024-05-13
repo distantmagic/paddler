@@ -29,7 +29,8 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 		ManagementServerConfiguration: self.ManagementServerConfiguration,
 		Logger:                        self.Logger.Named("management"),
 		RespondToHealth: &management.RespondToHealth{
-			LoadBalancer: loadBalancer,
+			LoadBalancer:        loadBalancer,
+			ServerEventsChannel: serverEventsChannel,
 		},
 		RespondToRegisterTarget: &management.RespondToRegisterTarget{
 			LoadBalancer:        loadBalancer,

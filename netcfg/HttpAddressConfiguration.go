@@ -28,3 +28,7 @@ func (self *HttpAddressConfiguration) IsSameAs(other *HttpAddressConfiguration) 
 		self.Port == other.Port &&
 		self.Scheme == other.Scheme
 }
+
+func (self *HttpAddressConfiguration) String() string {
+	return self.BuildUrlWithPath("").String()
+}

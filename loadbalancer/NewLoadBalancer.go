@@ -17,7 +17,10 @@ func NewLoadBalancer(
 
 	return &LoadBalancer{
 		HttpClient: httpClient,
-		Logger:     logger,
-		targets:    targetHeap,
+		LoadBalancerTargetCollection: &LoadBalancerTargetCollection{
+			targetMap:  make(map[string]*LlamaCppTarget),
+			targetHeap: targetHeap,
+		},
+		Logger: logger,
 	}
 }

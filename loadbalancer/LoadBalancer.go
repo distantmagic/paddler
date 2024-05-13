@@ -1,7 +1,6 @@
 package loadbalancer
 
 import (
-	"container/heap"
 	"errors"
 	"net/http"
 	"net/url"
@@ -16,26 +15,23 @@ var (
 )
 
 type LoadBalancer struct {
-	HttpClient *http.Client
-	Logger     hclog.Logger
-	targets    *LlamaCppTargetHeap
+	HttpClient                   *http.Client
+	LoadBalancerTargetCollection *LoadBalancerTargetCollection
+	Logger                       hclog.Logger
 }
 
 func (self *LoadBalancer) Balance(request *http.Request) (*url.URL, error) {
-	if self.targets.Len() < 1 {
+	headTarget := self.LoadBalancerTargetCollection.GetForBalancing()
+
+	if headTarget == nil {
 		return nil, ErrorNoTargetsAvailable
 	}
-
-	headTarget := (*self.targets)[0]
 
 	targetUrl := headTarget.
 		LlamaCppClient.
 		LlamaCppConfiguration.
 		HttpAddress.
 		BuildUrlWithPath("")
-
-	headTarget.LlamaCppHealthStatus.SlotsIdle -= 1
-	heap.Fix(self.targets, 0)
 
 	self.Logger.Debug(
 		"balancing",
@@ -48,7 +44,7 @@ func (self *LoadBalancer) Balance(request *http.Request) (*url.URL, error) {
 
 func (self *LoadBalancer) GetStatus() *LoadBalancerStatus {
 	return &LoadBalancerStatus{
-		RegisteredTargets: self.targets.Len(),
+		RegisteredTargets: self.LoadBalancerTargetCollection.Len(),
 	}
 }
 
@@ -56,6 +52,11 @@ func (self *LoadBalancer) RegisterTarget(
 	serverEventsChannel chan goroutine.ResultMessage,
 	targetConfiguration *LlamaCppTargetConfiguration,
 ) {
+	if self.LoadBalancerTargetCollection.HasTargetConfiguration(targetConfiguration) {
+		// nothing to do here
+		return
+	}
+
 	self.Logger.Debug(
 		"registering target",
 		"host", targetConfiguration.LlamaCppConfiguration.HttpAddress.GetHostWithPort(),
@@ -67,6 +68,8 @@ func (self *LoadBalancer) RegisterTarget(
 	}
 
 	responseChannel := make(chan llamacpp.LlamaCppHealthStatus)
+
+	defer close(responseChannel)
 
 	go llamaCppClient.GetHealth(responseChannel)
 
@@ -81,12 +84,11 @@ func (self *LoadBalancer) RegisterTarget(
 		return
 	}
 
-	llamaCppTarget := &LlamaCppTarget{
-		LlamaCppClient:       llamaCppClient,
-		LlamaCppHealthStatus: &healthStatus,
-	}
-
-	heap.Push(self.targets, llamaCppTarget)
+	self.LoadBalancerTargetCollection.RegisterTarget(&LlamaCppTarget{
+		LlamaCppClient:              llamaCppClient,
+		LlamaCppHealthStatus:        &healthStatus,
+		LlamaCppTargetConfiguration: targetConfiguration,
+	})
 
 	serverEventsChannel <- goroutine.ResultMessage{
 		Comment: "registered target",
