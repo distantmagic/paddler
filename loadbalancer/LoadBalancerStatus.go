@@ -1,5 +1,5 @@
 package loadbalancer
 
 type LoadBalancerStatus struct {
-	RegisteredTargets int
+	RegisteredTargets int `json:"registred_targets"`
 }

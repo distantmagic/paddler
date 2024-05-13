@@ -6,9 +6,9 @@ import (
 )
 
 type HttpAddressConfiguration struct {
-	Host   string
-	Port   uint
-	Scheme string
+	Host   string `json:"host"`
+	Port   uint   `json:"port"`
+	Scheme string `json:"scheme"`
 }
 
 func (self *HttpAddressConfiguration) BuildUrlWithPath(path string) *url.URL {

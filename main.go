@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 
+	"github.com/distantmagic/paddler/agent"
 	"github.com/distantmagic/paddler/cmd"
 	"github.com/distantmagic/paddler/llamacpp"
 	"github.com/distantmagic/paddler/management"
@@ -12,15 +13,26 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+const (
+	DefaultManagementHost   = "127.0.0.1"
+	DefaultManagementPort   = 8085
+	DefaultManagementScheme = "http"
+)
+
 func main() {
 	logger := hclog.New(&hclog.LoggerOptions{
-		Name:  "paddler",
+		Name: "paddler",
+		// JSONFormat: true,
 		Level: hclog.Debug,
 	})
 
 	agent := &cmd.Agent{
-		Logger: logger.Named("Agent"),
+		AgentConfiguration: &agent.AgentConfiguration{},
 		LlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{
+			HttpAddress: &netcfg.HttpAddressConfiguration{},
+		},
+		Logger: logger.Named("Agent"),
+		ManagementServerConfiguration: &management.ManagementServerConfiguration{
 			HttpAddress: &netcfg.HttpAddressConfiguration{},
 		},
 		ReverseProxyConfiguration: &reverseproxy.ReverseProxyConfiguration{
@@ -47,20 +59,25 @@ func main() {
 				Usage:  "start llama.cpp observer agent",
 				Action: agent.Action,
 				Flags: []cli.Flag{
+					&cli.UintFlag{
+						Name:        "agent-reporting-interval-miliseconds",
+						Value:       1000,
+						Destination: &agent.AgentConfiguration.ReportingIntervalMiliseconds,
+					},
 					&cli.StringFlag{
-						Name:        "balancer-host",
-						Value:       "127.0.0.1",
-						Destination: &agent.ReverseProxyConfiguration.HttpAddress.Host,
+						Name:        "management-host",
+						Value:       DefaultManagementHost,
+						Destination: &agent.ManagementServerConfiguration.HttpAddress.Host,
 					},
 					&cli.UintFlag{
-						Name:        "balancer-port",
-						Value:       8085,
-						Destination: &agent.ReverseProxyConfiguration.HttpAddress.Port,
+						Name:        "management-port",
+						Value:       DefaultManagementPort,
+						Destination: &agent.ManagementServerConfiguration.HttpAddress.Port,
 					},
 					&cli.StringFlag{
-						Name:        "balancer-scheme",
-						Value:       "http",
-						Destination: &agent.ReverseProxyConfiguration.HttpAddress.Scheme,
+						Name:        "management-scheme",
+						Value:       DefaultManagementScheme,
+						Destination: &agent.ManagementServerConfiguration.HttpAddress.Scheme,
 					},
 					&cli.StringFlag{
 						Name:        "llamacpp-host",
@@ -69,13 +86,28 @@ func main() {
 					},
 					&cli.UintFlag{
 						Name:        "llamacpp-port",
-						Value:       8080,
+						Value:       8088,
 						Destination: &agent.LlamaCppConfiguration.HttpAddress.Port,
 					},
 					&cli.StringFlag{
 						Name:        "llamacpp-scheme",
 						Value:       "http",
 						Destination: &agent.LlamaCppConfiguration.HttpAddress.Scheme,
+					},
+					&cli.StringFlag{
+						Name:        "reverseproxy-host",
+						Value:       "127.0.0.1",
+						Destination: &balancer.ReverseProxyConfiguration.HttpAddress.Host,
+					},
+					&cli.UintFlag{
+						Name:        "reverseproxy-port",
+						Value:       8086,
+						Destination: &balancer.ReverseProxyConfiguration.HttpAddress.Port,
+					},
+					&cli.StringFlag{
+						Name:        "reverseproxy-scheme",
+						Value:       "http",
+						Destination: &balancer.ReverseProxyConfiguration.HttpAddress.Scheme,
 					},
 				},
 			},
@@ -86,17 +118,17 @@ func main() {
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "management-host",
-						Value:       "127.0.0.1",
+						Value:       DefaultManagementHost,
 						Destination: &balancer.ManagementServerConfiguration.HttpAddress.Host,
 					},
 					&cli.UintFlag{
 						Name:        "management-port",
-						Value:       8085,
+						Value:       DefaultManagementPort,
 						Destination: &balancer.ManagementServerConfiguration.HttpAddress.Port,
 					},
 					&cli.StringFlag{
 						Name:        "management-scheme",
-						Value:       "http",
+						Value:       DefaultManagementScheme,
 						Destination: &balancer.ManagementServerConfiguration.HttpAddress.Scheme,
 					},
 					&cli.StringFlag{

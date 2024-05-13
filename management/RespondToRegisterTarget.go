@@ -1,14 +1,12 @@
 package management
 
 import (
+	"encoding/json"
 	"fmt"
-	"html"
 	"net/http"
 
 	"github.com/distantmagic/paddler/goroutine"
-	"github.com/distantmagic/paddler/llamacpp"
 	"github.com/distantmagic/paddler/loadbalancer"
-	"github.com/distantmagic/paddler/netcfg"
 )
 
 type RespondToRegisterTarget struct {
@@ -17,18 +15,35 @@ type RespondToRegisterTarget struct {
 }
 
 func (self *RespondToRegisterTarget) ServeHTTP(response http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(response, "Only POST method is allowed", http.StatusMethodNotAllowed)
+
+		return
+	}
+
+	var registerTargetRequest RegisterTargetRequest
+
+	decoder := json.NewDecoder(request.Body)
+
+	err := decoder.Decode(&registerTargetRequest)
+
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusBadRequest)
+
+		self.ServerEventsChannel <- goroutine.ResultMessage{
+			Comment: "failed to decode request body",
+			Error:   err,
+		}
+
+		return
+	}
+
 	go self.LoadBalancer.RegisterTarget(
 		self.ServerEventsChannel,
-		&loadbalancer.LlamaCppTargetConfiguration{
-			LlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{
-				HttpAddress: &netcfg.HttpAddressConfiguration{
-					Host:   "127.0.0.1",
-					Port:   8088,
-					Scheme: "http",
-				},
-			},
-		},
+		registerTargetRequest.LlamaCppTargetConfiguration,
 	)
 
-	fmt.Fprintf(response, "Hello, %q", html.EscapeString(request.URL.Path))
+	response.Header().Set("Content-Type", "application/json")
+	response.WriteHeader(http.StatusOK)
+	fmt.Fprintf(response, `{"status":"ok"}`)
 }

@@ -25,8 +25,6 @@ type LlamaCppClient struct {
 func (self *LlamaCppClient) GetHealth(
 	responseChannel chan LlamaCppHealthStatus,
 ) {
-	defer close(responseChannel)
-
 	request, err := http.NewRequest(
 		"GET",
 		self.LlamaCppConfiguration.HttpAddress.BuildUrlWithPath("health").String(),

@@ -22,6 +22,8 @@ var llamaCppClient *LlamaCppClient = &LlamaCppClient{
 func TestHealthIsObtained(t *testing.T) {
 	responseChannel := make(chan LlamaCppHealthStatus)
 
+	defer close(responseChannel)
+
 	go llamaCppClient.GetHealth(responseChannel)
 
 	healthStatus := <-responseChannel

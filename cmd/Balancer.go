@@ -37,7 +37,7 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 		},
 	}
 
-	reverseProxyServer := &reverseproxy.Server{
+	reverseProxyServer := &loadbalancer.ReverseProxyServer{
 		LoadBalancer:              loadBalancer,
 		Logger:                    self.Logger.Named("reverseproxy"),
 		ReverseProxyConfiguration: self.ReverseProxyConfiguration,
@@ -47,8 +47,9 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 	go reverseProxyServer.Serve(serverEventsChannel)
 
 	for serverEvent := range serverEventsChannel {
-		self.Logger.Info(
-			"server",
+		self.Logger.Log(
+			hclog.Info,
+			"server event",
 			"event", serverEvent,
 		)
 	}
