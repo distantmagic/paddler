@@ -20,8 +20,8 @@ type LoadBalancer struct {
 	Logger                       hclog.Logger
 }
 
-func (self *LoadBalancer) Balance(request *http.Request) (*url.URL, error) {
-	headTarget := self.LoadBalancerTargetCollection.GetForBalancing()
+func (self *LoadBalancer) Balance(request *LoadBalancerRequest) (*url.URL, error) {
+	headTarget := self.GetLlamaCppTargetForRequest(request)
 
 	if headTarget == nil {
 		return nil, ErrorNoTargetsAvailable
@@ -40,6 +40,14 @@ func (self *LoadBalancer) Balance(request *http.Request) (*url.URL, error) {
 	)
 
 	return targetUrl, nil
+}
+
+func (self *LoadBalancer) GetLlamaCppTargetForRequest(request *LoadBalancerRequest) *LlamaCppTarget {
+	if request.IsSlottable() {
+		return self.LoadBalancerTargetCollection.GetForBalancingSlot()
+	}
+
+	return self.LoadBalancerTargetCollection.GetHead()
 }
 
 func (self *LoadBalancer) GetStatus() *LoadBalancerStatus {

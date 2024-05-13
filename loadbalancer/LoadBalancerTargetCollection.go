@@ -19,15 +19,24 @@ func (self *LoadBalancerTargetCollection) HasTargetConfiguration(
 	return ok
 }
 
-func (self *LoadBalancerTargetCollection) GetForBalancing() *LlamaCppTarget {
+func (self *LoadBalancerTargetCollection) GetHead() *LlamaCppTarget {
 	if self.targetHeap.Len() < 1 {
+		return nil
+	}
+
+	return (*self.targetHeap)[0]
+}
+
+func (self *LoadBalancerTargetCollection) GetForBalancingSlot() *LlamaCppTarget {
+	headTarget := self.GetHead()
+
+	if headTarget == nil {
 		return nil
 	}
 
 	self.mutex.Lock()
 	defer self.mutex.Unlock()
 
-	headTarget := (*self.targetHeap)[0]
 	headTarget.LlamaCppHealthStatus.SlotsIdle -= 1
 	heap.Fix(self.targetHeap, 0)
 

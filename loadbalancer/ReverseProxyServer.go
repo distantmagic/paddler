@@ -26,7 +26,9 @@ func (self *ReverseProxyServer) Serve(serverEventsChannel chan goroutine.ResultM
 			InferLevels: true,
 		}),
 		Rewrite: func(request *httputil.ProxyRequest) {
-			targetUrl, err := self.LoadBalancer.Balance(request.In)
+			targetUrl, err := self.LoadBalancer.Balance(&LoadBalancerRequest{
+				HttpRequest: request.In,
+			})
 
 			if err != nil {
 				serverEventsChannel <- goroutine.ResultMessage{
