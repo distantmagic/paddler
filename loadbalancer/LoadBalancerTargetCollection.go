@@ -1,53 +1,112 @@
 package loadbalancer
 
 import (
-	"container/heap"
-	"sync"
+	"container/list"
 )
 
 type LoadBalancerTargetCollection struct {
-	mutex      sync.Mutex
-	targetMap  map[string]*LlamaCppTarget
-	targetHeap *LlamaCppTargetHeap
+	elementByTarget       map[*LlamaCppTarget]*list.Element
+	targets               *list.List
+	targetByConfiguration map[string]*LlamaCppTarget
 }
 
-func (self *LoadBalancerTargetCollection) HasTargetConfiguration(
+func (self *LoadBalancerTargetCollection) FixTargetOrder(target *LlamaCppTarget) {
+	element, ok := self.elementByTarget[target]
+
+	if !ok {
+		return
+	}
+
+	nextElement := element.Next()
+
+	for nextElement != nil {
+		if target.HasLessSlotsThan(nextElement.Value.(*LlamaCppTarget)) {
+			self.targets.MoveAfter(element, nextElement)
+
+			break
+		}
+
+		nextElement = nextElement.Next()
+	}
+
+	prevElement := element.Prev()
+
+	for prevElement != nil {
+		if prevElement.Value.(*LlamaCppTarget).HasLessSlotsThan(target) {
+			self.targets.MoveBefore(element, prevElement)
+
+			break
+		}
+
+		prevElement = prevElement.Prev()
+	}
+}
+
+func (self *LoadBalancerTargetCollection) GetTargetByConfiguration(
 	targetConfiguration *LlamaCppTargetConfiguration,
-) bool {
-	_, ok := self.targetMap[targetConfiguration.String()]
+) *LlamaCppTarget {
+	target, ok := self.targetByConfiguration[targetConfiguration.String()]
 
-	return ok
+	if ok {
+		return target
+	}
+
+	return nil
 }
 
-func (self *LoadBalancerTargetCollection) GetHead() *LlamaCppTarget {
-	if self.targetHeap.Len() < 1 {
+func (self *LoadBalancerTargetCollection) GetHeadTarget() *LlamaCppPickedTarget {
+	headElement := self.targets.Front()
+
+	if headElement == nil {
 		return nil
 	}
 
-	return (*self.targetHeap)[0]
+	headTarget := headElement.Value.(*LlamaCppTarget)
+
+	return &LlamaCppPickedTarget{
+		Element:        headElement,
+		LlamaCppTarget: headTarget,
+	}
 }
 
-func (self *LoadBalancerTargetCollection) GetForBalancingSlot() *LlamaCppTarget {
-	headTarget := self.GetHead()
+func (self *LoadBalancerTargetCollection) GetTargetWithFreeSlotsForBalancing() *LlamaCppPickedTarget {
+	pickedTarget := self.GetHeadTarget()
 
-	if headTarget == nil {
+	if pickedTarget == nil || pickedTarget.LlamaCppTarget.LlamaCppHealthStatus.SlotsIdle < 1 {
 		return nil
 	}
 
-	self.mutex.Lock()
-	defer self.mutex.Unlock()
+	nextTarget := pickedTarget.Element.Next()
 
-	headTarget.LlamaCppHealthStatus.SlotsIdle -= 1
-	heap.Fix(self.targetHeap, 0)
+	pickedTarget.LlamaCppTarget.LlamaCppHealthStatus.SlotsIdle -= 1
 
-	return headTarget
+	if nextTarget != nil && pickedTarget.LlamaCppTarget.HasLessSlotsThan(nextTarget.Value.(*LlamaCppTarget)) {
+		self.targets.MoveAfter(pickedTarget.Element, nextTarget)
+	}
+
+	return pickedTarget
 }
 
 func (self *LoadBalancerTargetCollection) Len() int {
-	return self.targetHeap.Len()
+	return self.targets.Len()
 }
 
 func (self *LoadBalancerTargetCollection) RegisterTarget(llamaCppTarget *LlamaCppTarget) {
-	self.targetMap[llamaCppTarget.LlamaCppTargetConfiguration.String()] = llamaCppTarget
-	heap.Push(self.targetHeap, llamaCppTarget)
+	self.targetByConfiguration[llamaCppTarget.LlamaCppTargetConfiguration.String()] = llamaCppTarget
+
+	if self.targets.Len() < 1 {
+		self.elementByTarget[llamaCppTarget] = self.targets.PushFront(llamaCppTarget)
+
+		return
+	}
+
+	for element := self.targets.Front(); element != nil; element = element.Next() {
+		if element.Value.(*LlamaCppTarget).HasLessSlotsThan(llamaCppTarget) {
+			self.elementByTarget[llamaCppTarget] = self.targets.InsertBefore(llamaCppTarget, element)
+
+			return
+		}
+	}
+
+	self.elementByTarget[llamaCppTarget] = self.targets.PushBack(llamaCppTarget)
 }

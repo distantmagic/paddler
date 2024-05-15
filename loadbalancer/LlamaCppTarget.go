@@ -8,6 +8,6 @@ type LlamaCppTarget struct {
 	LlamaCppHealthStatus        *llamacpp.LlamaCppHealthStatus
 }
 
-func (self *LlamaCppTarget) Less(other *LlamaCppTarget) bool {
+func (self *LlamaCppTarget) HasLessSlotsThan(other *LlamaCppTarget) bool {
 	return self.LlamaCppHealthStatus.SlotsIdle < other.LlamaCppHealthStatus.SlotsIdle
 }

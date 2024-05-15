@@ -1,7 +1,7 @@
 package loadbalancer
 
 import (
-	"container/heap"
+	"container/list"
 	"net/http"
 
 	"github.com/hashicorp/go-hclog"
@@ -11,15 +11,12 @@ func NewLoadBalancer(
 	httpClient *http.Client,
 	logger hclog.Logger,
 ) *LoadBalancer {
-	targetHeap := &LlamaCppTargetHeap{}
-
-	heap.Init(targetHeap)
-
 	return &LoadBalancer{
 		HttpClient: httpClient,
 		LoadBalancerTargetCollection: &LoadBalancerTargetCollection{
-			targetMap:  make(map[string]*LlamaCppTarget),
-			targetHeap: targetHeap,
+			elementByTarget:       make(map[*LlamaCppTarget]*list.Element),
+			targetByConfiguration: make(map[string]*LlamaCppTarget),
+			targets:               list.New(),
 		},
 		Logger: logger,
 	}

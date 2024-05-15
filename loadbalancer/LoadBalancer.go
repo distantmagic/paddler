@@ -44,10 +44,16 @@ func (self *LoadBalancer) Balance(request *LoadBalancerRequest) (*url.URL, error
 
 func (self *LoadBalancer) GetLlamaCppTargetForRequest(request *LoadBalancerRequest) *LlamaCppTarget {
 	if request.IsSlottable() {
-		return self.LoadBalancerTargetCollection.GetForBalancingSlot()
+		return self.
+			LoadBalancerTargetCollection.
+			GetTargetWithFreeSlotsForBalancing().
+			LlamaCppTarget
 	}
 
-	return self.LoadBalancerTargetCollection.GetHead()
+	return self.
+		LoadBalancerTargetCollection.
+		GetHeadTarget().
+		LlamaCppTarget
 }
 
 func (self *LoadBalancer) GetStatus() *LoadBalancerStatus {
@@ -56,49 +62,73 @@ func (self *LoadBalancer) GetStatus() *LoadBalancerStatus {
 	}
 }
 
-func (self *LoadBalancer) RegisterTarget(
+func (self *LoadBalancer) RegisterOrUpdateTarget(
 	serverEventsChannel chan goroutine.ResultMessage,
 	targetConfiguration *LlamaCppTargetConfiguration,
+	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
 ) {
-	if self.LoadBalancerTargetCollection.HasTargetConfiguration(targetConfiguration) {
-		// nothing to do here
+	existingTarget := self.LoadBalancerTargetCollection.GetTargetByConfiguration(targetConfiguration)
+
+	if existingTarget != nil {
+		self.updateTarget(
+			serverEventsChannel,
+			targetConfiguration,
+			llamaCppHealthStatus,
+			existingTarget,
+		)
+
 		return
 	}
 
+	self.registerTarget(
+		serverEventsChannel,
+		targetConfiguration,
+		llamaCppHealthStatus,
+	)
+}
+
+func (self *LoadBalancer) registerTarget(
+	serverEventsChannel chan goroutine.ResultMessage,
+	targetConfiguration *LlamaCppTargetConfiguration,
+	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
+) {
 	self.Logger.Debug(
 		"registering target",
 		"host", targetConfiguration.LlamaCppConfiguration.HttpAddress.GetHostWithPort(),
 	)
 
-	llamaCppClient := &llamacpp.LlamaCppClient{
-		HttpClient:            self.HttpClient,
-		LlamaCppConfiguration: targetConfiguration.LlamaCppConfiguration,
-	}
-
-	responseChannel := make(chan llamacpp.LlamaCppHealthStatus)
-
-	defer close(responseChannel)
-
-	go llamaCppClient.GetHealth(responseChannel)
-
-	healthStatus := <-responseChannel
-
-	if healthStatus.Error != nil {
-		serverEventsChannel <- goroutine.ResultMessage{
-			Comment: "failed to register target",
-			Error:   healthStatus.Error,
-		}
-
-		return
-	}
-
 	self.LoadBalancerTargetCollection.RegisterTarget(&LlamaCppTarget{
-		LlamaCppClient:              llamaCppClient,
-		LlamaCppHealthStatus:        &healthStatus,
+		LlamaCppClient: &llamacpp.LlamaCppClient{
+			HttpClient:            self.HttpClient,
+			LlamaCppConfiguration: targetConfiguration.LlamaCppConfiguration,
+		},
+		LlamaCppHealthStatus:        llamaCppHealthStatus,
 		LlamaCppTargetConfiguration: targetConfiguration,
 	})
 
 	serverEventsChannel <- goroutine.ResultMessage{
 		Comment: "registered target",
+	}
+}
+
+func (self *LoadBalancer) updateTarget(
+	serverEventsChannel chan goroutine.ResultMessage,
+	targetConfiguration *LlamaCppTargetConfiguration,
+	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
+	existingTarget *LlamaCppTarget,
+) {
+	self.Logger.Debug(
+		"updating target",
+		"host", targetConfiguration.LlamaCppConfiguration.HttpAddress.GetHostWithPort(),
+	)
+
+	existingTarget.LlamaCppHealthStatus.SlotsIdle = llamaCppHealthStatus.SlotsIdle
+	existingTarget.LlamaCppHealthStatus.SlotsProcessing = llamaCppHealthStatus.SlotsProcessing
+	existingTarget.LlamaCppHealthStatus.Status = llamaCppHealthStatus.Status
+
+	self.LoadBalancerTargetCollection.FixTargetOrder(existingTarget)
+
+	serverEventsChannel <- goroutine.ResultMessage{
+		Comment: "updated target",
 	}
 }
