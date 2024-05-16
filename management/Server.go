@@ -10,8 +10,10 @@ import (
 type Server struct {
 	ManagementServerConfiguration *ManagementServerConfiguration
 	Logger                        hclog.Logger
-	RespondToHealth               *RespondToHealth
-	RespondToRegisterTarget       *RespondToRegisterTarget
+	RespondToDashboard            http.Handler
+	RespondToHealth               http.Handler
+	RespondToRegisterTarget       http.Handler
+	RespondToStatic               http.Handler
 }
 
 func (self *Server) Serve(serverEventsChannel chan goroutine.ResultMessage) {
@@ -21,6 +23,13 @@ func (self *Server) Serve(serverEventsChannel chan goroutine.ResultMessage) {
 	)
 
 	mux := http.NewServeMux()
+
+	self.Logger.Debug("dashboard", "enabled", self.ManagementServerConfiguration.EnableDashboard)
+
+	if self.ManagementServerConfiguration.EnableDashboard {
+		mux.Handle("/dashboard", self.RespondToDashboard)
+		mux.Handle("/static/", self.RespondToStatic)
+	}
 
 	mux.Handle("/health", self.RespondToHealth)
 	mux.Handle("/register/target", self.RespondToRegisterTarget)

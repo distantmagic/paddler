@@ -116,6 +116,11 @@ func main() {
 				Usage:  "start load balancer reverse proxy and Paddler metadata server",
 				Action: balancer.Action,
 				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:        "management-dashboard-enable",
+						Value:       false,
+						Destination: &balancer.ManagementServerConfiguration.EnableDashboard,
+					},
 					&cli.StringFlag{
 						Name:        "management-host",
 						Value:       DefaultManagementHost,

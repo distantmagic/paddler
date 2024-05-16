@@ -25,9 +25,19 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 		self.Logger.Named("loadbalancer"),
 	)
 
+	respondToDashboard, err := management.NewRespondToDashboard(
+		loadBalancer,
+		serverEventsChannel,
+	)
+
+	if err != nil {
+		return err
+	}
+
 	managementServer := &management.Server{
 		ManagementServerConfiguration: self.ManagementServerConfiguration,
 		Logger:                        self.Logger.Named("management"),
+		RespondToDashboard:            respondToDashboard,
 		RespondToHealth: &management.RespondToHealth{
 			LoadBalancer:        loadBalancer,
 			ServerEventsChannel: serverEventsChannel,
@@ -36,6 +46,7 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 			LoadBalancer:        loadBalancer,
 			ServerEventsChannel: serverEventsChannel,
 		},
+		RespondToStatic: management.NewRespondToStatic(),
 	}
 
 	reverseProxyServer := &loadbalancer.ReverseProxyServer{
