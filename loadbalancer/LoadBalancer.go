@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/distantmagic/paddler/goroutine"
 	"github.com/distantmagic/paddler/llamacpp"
@@ -62,8 +63,22 @@ func (self *LoadBalancer) GetStatus() *LoadBalancerStatus {
 	}
 }
 
+func (self *LoadBalancer) OnTick() {
+	for element := self.LoadBalancerTargetCollection.Targets.Front(); element != nil; element = element.Next() {
+		target := element.Value.(*LlamaCppTarget)
+
+		target.RemainingTicksUntilRemoved -= 1
+
+		if target.RemainingTicksUntilRemoved < 1 {
+			defer self.LoadBalancerTargetCollection.RemoveTarget(target)
+
+			return
+		}
+	}
+}
+
 func (self *LoadBalancer) RegisterOrUpdateTarget(
-	serverEventsChannel chan goroutine.ResultMessage,
+	serverEventsChannel chan<- goroutine.ResultMessage,
 	targetConfiguration *LlamaCppTargetConfiguration,
 	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
 ) {
@@ -88,7 +103,7 @@ func (self *LoadBalancer) RegisterOrUpdateTarget(
 }
 
 func (self *LoadBalancer) registerTarget(
-	serverEventsChannel chan goroutine.ResultMessage,
+	serverEventsChannel chan<- goroutine.ResultMessage,
 	targetConfiguration *LlamaCppTargetConfiguration,
 	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
 ) {
@@ -98,12 +113,14 @@ func (self *LoadBalancer) registerTarget(
 	)
 
 	self.LoadBalancerTargetCollection.RegisterTarget(&LlamaCppTarget{
+		LastUpdate: time.Now(),
 		LlamaCppClient: &llamacpp.LlamaCppClient{
 			HttpClient:            self.HttpClient,
 			LlamaCppConfiguration: targetConfiguration.LlamaCppConfiguration,
 		},
 		LlamaCppHealthStatus:        llamaCppHealthStatus,
 		LlamaCppTargetConfiguration: targetConfiguration,
+		RemainingTicksUntilRemoved:  3,
 	})
 
 	serverEventsChannel <- goroutine.ResultMessage{
@@ -112,7 +129,7 @@ func (self *LoadBalancer) registerTarget(
 }
 
 func (self *LoadBalancer) updateTarget(
-	serverEventsChannel chan goroutine.ResultMessage,
+	serverEventsChannel chan<- goroutine.ResultMessage,
 	targetConfiguration *LlamaCppTargetConfiguration,
 	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
 	existingTarget *LlamaCppTarget,
@@ -120,11 +137,17 @@ func (self *LoadBalancer) updateTarget(
 	self.Logger.Debug(
 		"updating target",
 		"host", targetConfiguration.LlamaCppConfiguration.HttpAddress.GetHostWithPort(),
+		"status", llamaCppHealthStatus.Status,
+		"error", llamaCppHealthStatus.ErrorMessage,
 	)
 
+	existingTarget.LlamaCppHealthStatus.ErrorMessage = llamaCppHealthStatus.ErrorMessage
 	existingTarget.LlamaCppHealthStatus.SlotsIdle = llamaCppHealthStatus.SlotsIdle
 	existingTarget.LlamaCppHealthStatus.SlotsProcessing = llamaCppHealthStatus.SlotsProcessing
 	existingTarget.LlamaCppHealthStatus.Status = llamaCppHealthStatus.Status
+	existingTarget.LastUpdate = time.Now()
+	existingTarget.RemainingTicksUntilRemoved = 3
+	existingTarget.TotalUpdates += 1
 
 	self.LoadBalancerTargetCollection.FixTargetOrder(existingTarget)
 

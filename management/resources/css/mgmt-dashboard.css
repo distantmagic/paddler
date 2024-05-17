@@ -1,3 +1,40 @@
+@import url("./_reset.css");
+
+:root {
+  --color-body-font: #111;
+  --font-family-body: sans-serif;
+  --font-family-monospace: monospace;
+  --padding-base: 20px;
+  --padding-base-half: 10px;
+
+  @media screen and (max-height: 1199px) {
+    --font-size-base: 18px;
+    --font-size-code: 16px;
+    --font-size-smaller: 16px;
+  }
+  @media screen and (min-height: 1200px) {
+    --font-size-base: 20px;
+    --font-size-code: 18px;
+    --font-size-smaller: 18px;
+  }
+}
+
 body {
-  background-color: cadetblue;
+  background-color: white;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-base);
+  padding: var(--padding-base);
+  row-gap: var(--padding-base);
+}
+
+table {
+  border-collapse: collapse;
+  table-layout: fixed;
+
+  td, th {
+    border: 1px solid #111;
+    padding: var(--padding-base-half) var(--padding-base);
+  }
 }

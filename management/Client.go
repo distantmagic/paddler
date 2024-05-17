@@ -3,6 +3,7 @@ package management
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/distantmagic/paddler/goroutine"
@@ -16,7 +17,7 @@ type Client struct {
 }
 
 func (self *Client) ReportLlamaCppHealthStatus(
-	serverEventsChannel chan goroutine.ResultMessage,
+	serverEventsChannel chan<- goroutine.ResultMessage,
 	llamaCppConfiguration *llamacpp.LlamaCppConfiguration,
 	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
 ) {
@@ -26,6 +27,8 @@ func (self *Client) ReportLlamaCppHealthStatus(
 			LlamaCppConfiguration: llamaCppConfiguration,
 		},
 	})
+
+	fmt.Println(string(jsonData))
 
 	if err != nil {
 		serverEventsChannel <- goroutine.ResultMessage{

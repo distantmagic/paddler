@@ -15,7 +15,7 @@ type ReverseProxyServer struct {
 	ReverseProxyConfiguration *reverseproxy.ReverseProxyConfiguration
 }
 
-func (self *ReverseProxyServer) Serve(serverEventsChannel chan goroutine.ResultMessage) {
+func (self *ReverseProxyServer) Serve(serverEventsChannel chan<- goroutine.ResultMessage) {
 	self.Logger.Debug(
 		"listen",
 		"host", self.ReverseProxyConfiguration.HttpAddress.GetHostWithPort(),

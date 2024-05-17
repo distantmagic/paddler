@@ -16,7 +16,7 @@ func NewLoadBalancer(
 		LoadBalancerTargetCollection: &LoadBalancerTargetCollection{
 			elementByTarget:       make(map[*LlamaCppTarget]*list.Element),
 			targetByConfiguration: make(map[string]*LlamaCppTarget),
-			targets:               list.New(),
+			Targets:               list.New(),
 		},
 		Logger: logger,
 	}

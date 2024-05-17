@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/distantmagic/paddler/goroutine"
 	"github.com/distantmagic/paddler/loadbalancer"
@@ -58,6 +59,14 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 	go managementServer.Serve(serverEventsChannel)
 	go reverseProxyServer.Serve(serverEventsChannel)
 
+	ticker := time.NewTicker(time.Second * 1)
+
+	go self.RuntTickerInterval(
+		ticker,
+		serverEventsChannel,
+		loadBalancer,
+	)
+
 	for serverEvent := range serverEventsChannel {
 		self.Logger.Log(
 			hclog.Info,
@@ -67,4 +76,14 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 	}
 
 	return nil
+}
+
+func (self *Balancer) RuntTickerInterval(
+	ticker *time.Ticker,
+	serverEventsChannel chan<- goroutine.ResultMessage,
+	loadBalancer *loadbalancer.LoadBalancer,
+) {
+	for range ticker.C {
+		go loadBalancer.OnTick()
+	}
 }

@@ -13,7 +13,7 @@ var dashboardTemplatesFilesystem embed.FS
 
 func NewRespondToDashboard(
 	loadBalancer *loadbalancer.LoadBalancer,
-	serverEventsChannel chan goroutine.ResultMessage,
+	serverEventsChannel chan<- goroutine.ResultMessage,
 ) (*RespondToDashboard, error) {
 	dashboardTemplates, err := template.ParseFS(dashboardTemplatesFilesystem, "dashboard/views/*.html")
 

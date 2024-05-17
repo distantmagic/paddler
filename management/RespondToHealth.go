@@ -10,7 +10,7 @@ import (
 
 type RespondToHealth struct {
 	LoadBalancer        *loadbalancer.LoadBalancer
-	ServerEventsChannel chan goroutine.ResultMessage
+	ServerEventsChannel chan<- goroutine.ResultMessage
 }
 
 func (self *RespondToHealth) ServeHTTP(response http.ResponseWriter, request *http.Request) {

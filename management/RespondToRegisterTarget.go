@@ -11,7 +11,7 @@ import (
 
 type RespondToRegisterTarget struct {
 	LoadBalancer        *loadbalancer.LoadBalancer
-	ServerEventsChannel chan goroutine.ResultMessage
+	ServerEventsChannel chan<- goroutine.ResultMessage
 }
 
 func (self *RespondToRegisterTarget) ServeHTTP(response http.ResponseWriter, request *http.Request) {

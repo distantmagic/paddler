@@ -23,7 +23,7 @@ type LlamaCppClient struct {
 }
 
 func (self *LlamaCppClient) GetHealth(
-	responseChannel chan LlamaCppHealthStatus,
+	responseChannel chan<- LlamaCppHealthStatus,
 ) {
 	request, err := http.NewRequest(
 		"GET",
@@ -33,7 +33,9 @@ func (self *LlamaCppClient) GetHealth(
 
 	if err != nil {
 		responseChannel <- LlamaCppHealthStatus{
-			Error: err,
+			Error:        err,
+			ErrorMessage: err.Error(),
+			Status:       Error,
 		}
 
 		return
@@ -43,7 +45,9 @@ func (self *LlamaCppClient) GetHealth(
 
 	if err != nil {
 		responseChannel <- LlamaCppHealthStatus{
-			Error: err,
+			Error:        err,
+			ErrorMessage: err.Error(),
+			Status:       Error,
 		}
 
 		return
@@ -53,7 +57,9 @@ func (self *LlamaCppClient) GetHealth(
 
 	if http.StatusOK != response.StatusCode {
 		responseChannel <- LlamaCppHealthStatus{
-			Error: ErrorNon200Response,
+			Error:        ErrorNon200Response,
+			ErrorMessage: ErrorNon200Response.Error(),
+			Status:       Error,
 		}
 
 		return
@@ -65,7 +71,9 @@ func (self *LlamaCppClient) GetHealth(
 
 	if err != nil {
 		responseChannel <- LlamaCppHealthStatus{
-			Error: err,
+			Error:        err,
+			ErrorMessage: err.Error(),
+			Status:       Error,
 		}
 
 		return

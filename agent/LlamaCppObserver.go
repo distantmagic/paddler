@@ -17,8 +17,13 @@ type LlamaCppObserver struct {
 }
 
 func (self *LlamaCppObserver) ObserveAndReport(
-	serverEventsChannel chan goroutine.ResultMessage,
+	serverEventsChannel chan<- goroutine.ResultMessage,
 ) {
+	self.Logger.Debug(
+		"observing",
+		"host", self.LlamaCppClient.LlamaCppConfiguration.HttpAddress.GetHostWithPort(),
+	)
+
 	llamaCppHealthStatusChannel := make(chan llamacpp.LlamaCppHealthStatus)
 
 	defer close(llamaCppHealthStatusChannel)

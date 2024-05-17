@@ -16,7 +16,7 @@ type Server struct {
 	RespondToStatic               http.Handler
 }
 
-func (self *Server) Serve(serverEventsChannel chan goroutine.ResultMessage) {
+func (self *Server) Serve(serverEventsChannel chan<- goroutine.ResultMessage) {
 	self.Logger.Debug(
 		"listen",
 		"host", self.ManagementServerConfiguration.HttpAddress.GetHostWithPort(),

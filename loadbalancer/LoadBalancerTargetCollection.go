@@ -6,7 +6,7 @@ import (
 
 type LoadBalancerTargetCollection struct {
 	elementByTarget       map[*LlamaCppTarget]*list.Element
-	targets               *list.List
+	Targets               *list.List
 	targetByConfiguration map[string]*LlamaCppTarget
 }
 
@@ -21,7 +21,7 @@ func (self *LoadBalancerTargetCollection) FixTargetOrder(target *LlamaCppTarget)
 
 	for nextElement != nil {
 		if target.HasLessSlotsThan(nextElement.Value.(*LlamaCppTarget)) {
-			self.targets.MoveAfter(element, nextElement)
+			self.Targets.MoveAfter(element, nextElement)
 
 			break
 		}
@@ -33,7 +33,7 @@ func (self *LoadBalancerTargetCollection) FixTargetOrder(target *LlamaCppTarget)
 
 	for prevElement != nil {
 		if prevElement.Value.(*LlamaCppTarget).HasLessSlotsThan(target) {
-			self.targets.MoveBefore(element, prevElement)
+			self.Targets.MoveBefore(element, prevElement)
 
 			break
 		}
@@ -55,7 +55,7 @@ func (self *LoadBalancerTargetCollection) GetTargetByConfiguration(
 }
 
 func (self *LoadBalancerTargetCollection) GetHeadTarget() *LlamaCppPickedTarget {
-	headElement := self.targets.Front()
+	headElement := self.Targets.Front()
 
 	if headElement == nil {
 		return nil
@@ -81,32 +81,42 @@ func (self *LoadBalancerTargetCollection) GetTargetWithFreeSlotsForBalancing() *
 	pickedTarget.LlamaCppTarget.LlamaCppHealthStatus.SlotsIdle -= 1
 
 	if nextTarget != nil && pickedTarget.LlamaCppTarget.HasLessSlotsThan(nextTarget.Value.(*LlamaCppTarget)) {
-		self.targets.MoveAfter(pickedTarget.Element, nextTarget)
+		self.Targets.MoveAfter(pickedTarget.Element, nextTarget)
 	}
 
 	return pickedTarget
 }
 
 func (self *LoadBalancerTargetCollection) Len() int {
-	return self.targets.Len()
+	return self.Targets.Len()
 }
 
 func (self *LoadBalancerTargetCollection) RegisterTarget(llamaCppTarget *LlamaCppTarget) {
 	self.targetByConfiguration[llamaCppTarget.LlamaCppTargetConfiguration.String()] = llamaCppTarget
 
-	if self.targets.Len() < 1 {
-		self.elementByTarget[llamaCppTarget] = self.targets.PushFront(llamaCppTarget)
+	if self.Targets.Len() < 1 {
+		self.elementByTarget[llamaCppTarget] = self.Targets.PushFront(llamaCppTarget)
 
 		return
 	}
 
-	for element := self.targets.Front(); element != nil; element = element.Next() {
+	for element := self.Targets.Front(); element != nil; element = element.Next() {
 		if element.Value.(*LlamaCppTarget).HasLessSlotsThan(llamaCppTarget) {
-			self.elementByTarget[llamaCppTarget] = self.targets.InsertBefore(llamaCppTarget, element)
+			self.elementByTarget[llamaCppTarget] = self.Targets.InsertBefore(llamaCppTarget, element)
 
 			return
 		}
 	}
 
-	self.elementByTarget[llamaCppTarget] = self.targets.PushBack(llamaCppTarget)
+	self.elementByTarget[llamaCppTarget] = self.Targets.PushBack(llamaCppTarget)
+}
+
+func (self *LoadBalancerTargetCollection) RemoveTarget(llamaCppTarget *LlamaCppTarget) {
+	element := self.elementByTarget[llamaCppTarget]
+
+	if element != nil {
+		self.Targets.Remove(element)
+	}
+
+	delete(self.targetByConfiguration, llamaCppTarget.LlamaCppTargetConfiguration.String())
 }
