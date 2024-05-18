@@ -30,17 +30,15 @@ func (self *ReverseProxyServer) Serve(serverEventsChannel chan<- goroutine.Resul
 				HttpRequest: request.In,
 			})
 
-			if err != nil {
+			if err == nil {
+				request.SetURL(targetUrl)
+				request.SetXForwarded()
+			} else {
 				serverEventsChannel <- goroutine.ResultMessage{
 					Comment: "failed to balance request",
 					Error:   err,
 				}
-
-				return
 			}
-
-			request.SetURL(targetUrl)
-			request.SetXForwarded()
 		},
 	}
 

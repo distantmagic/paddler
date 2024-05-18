@@ -14,8 +14,9 @@ import (
 
 type Agent struct {
 	AgentConfiguration            *agent.AgentConfiguration
+	ExternalLlamaCppConfiguration *llamacpp.LlamaCppConfiguration
+	LocalLlamaCppConfiguration    *llamacpp.LlamaCppConfiguration
 	Logger                        hclog.Logger
-	LlamaCppConfiguration         *llamacpp.LlamaCppConfiguration
 	ManagementServerConfiguration *management.ManagementServerConfiguration
 	ReverseProxyConfiguration     *reverseproxy.ReverseProxyConfiguration
 }
@@ -24,10 +25,11 @@ func (self *Agent) Action(cliContext *cli.Context) error {
 	serverEventsChannel := make(chan goroutine.ResultMessage)
 
 	llamaCppObserver := &agent.LlamaCppObserver{
-		AgentConfiguration: self.AgentConfiguration,
+		AgentConfiguration:            self.AgentConfiguration,
+		ExternalLlamaCppConfiguration: self.ExternalLlamaCppConfiguration,
 		LlamaCppClient: &llamacpp.LlamaCppClient{
 			HttpClient:            http.DefaultClient,
-			LlamaCppConfiguration: self.LlamaCppConfiguration,
+			LlamaCppConfiguration: self.LocalLlamaCppConfiguration,
 		},
 		Logger: self.Logger.Named("LlamaCppObserver"),
 		ManagementClient: &management.Client{

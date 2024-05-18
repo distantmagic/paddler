@@ -14,6 +14,7 @@
     <table>
         <thead>
             <tr>
+                <th>Host</th>
                 <th>Status</th>
                 <th>Idle</th>
                 <th>Processing</th>
@@ -26,6 +27,7 @@
         <tbody>
             {{range .LlamaCppTargets}}
                 <tr>
+                    <td>{{.LlamaCppTargetConfiguration}}</td>
                     <td>{{.LlamaCppHealthStatus.Status}}</td>
                     <td>{{.LlamaCppHealthStatus.SlotsIdle}}</td>
                     <td>{{.LlamaCppHealthStatus.SlotsProcessing}}</td>
@@ -40,7 +42,7 @@
                 </tr>
             {{else}}
                 <tr>
-                    <td colspan="7">
+                    <td colspan="8">
                         No agents are registered
                     </td>
                 </tr>

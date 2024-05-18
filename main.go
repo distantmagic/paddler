@@ -28,7 +28,10 @@ func main() {
 
 	agent := &cmd.Agent{
 		AgentConfiguration: &agent.AgentConfiguration{},
-		LlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{
+		ExternalLlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{
+			HttpAddress: &netcfg.HttpAddressConfiguration{},
+		},
+		LocalLlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{
 			HttpAddress: &netcfg.HttpAddressConfiguration{},
 		},
 		Logger: logger.Named("Agent"),
@@ -65,6 +68,36 @@ func main() {
 						Destination: &agent.AgentConfiguration.ReportingIntervalMiliseconds,
 					},
 					&cli.StringFlag{
+						Name:        "external-llamacpp-host",
+						Value:       "127.0.0.1",
+						Destination: &agent.ExternalLlamaCppConfiguration.HttpAddress.Host,
+					},
+					&cli.UintFlag{
+						Name:        "external-llamacpp-port",
+						Value:       8088,
+						Destination: &agent.ExternalLlamaCppConfiguration.HttpAddress.Port,
+					},
+					&cli.StringFlag{
+						Name:        "external-llamacpp-scheme",
+						Value:       "http",
+						Destination: &agent.ExternalLlamaCppConfiguration.HttpAddress.Scheme,
+					},
+					&cli.StringFlag{
+						Name:        "local-llamacpp-host",
+						Value:       "127.0.0.1",
+						Destination: &agent.LocalLlamaCppConfiguration.HttpAddress.Host,
+					},
+					&cli.UintFlag{
+						Name:        "local-llamacpp-port",
+						Value:       8088,
+						Destination: &agent.LocalLlamaCppConfiguration.HttpAddress.Port,
+					},
+					&cli.StringFlag{
+						Name:        "local-llamacpp-scheme",
+						Value:       "http",
+						Destination: &agent.LocalLlamaCppConfiguration.HttpAddress.Scheme,
+					},
+					&cli.StringFlag{
 						Name:        "management-host",
 						Value:       DefaultManagementHost,
 						Destination: &agent.ManagementServerConfiguration.HttpAddress.Host,
@@ -78,21 +111,6 @@ func main() {
 						Name:        "management-scheme",
 						Value:       DefaultManagementScheme,
 						Destination: &agent.ManagementServerConfiguration.HttpAddress.Scheme,
-					},
-					&cli.StringFlag{
-						Name:        "llamacpp-host",
-						Value:       "127.0.0.1",
-						Destination: &agent.LlamaCppConfiguration.HttpAddress.Host,
-					},
-					&cli.UintFlag{
-						Name:        "llamacpp-port",
-						Value:       8088,
-						Destination: &agent.LlamaCppConfiguration.HttpAddress.Port,
-					},
-					&cli.StringFlag{
-						Name:        "llamacpp-scheme",
-						Value:       "http",
-						Destination: &agent.LlamaCppConfiguration.HttpAddress.Scheme,
 					},
 					&cli.StringFlag{
 						Name:        "reverseproxy-host",

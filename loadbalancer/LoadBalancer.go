@@ -84,22 +84,20 @@ func (self *LoadBalancer) RegisterOrUpdateTarget(
 ) {
 	existingTarget := self.LoadBalancerTargetCollection.GetTargetByConfiguration(targetConfiguration)
 
-	if existingTarget != nil {
+	if existingTarget == nil {
+		self.registerTarget(
+			serverEventsChannel,
+			targetConfiguration,
+			llamaCppHealthStatus,
+		)
+	} else {
 		self.updateTarget(
 			serverEventsChannel,
 			targetConfiguration,
 			llamaCppHealthStatus,
 			existingTarget,
 		)
-
-		return
 	}
-
-	self.registerTarget(
-		serverEventsChannel,
-		targetConfiguration,
-		llamaCppHealthStatus,
-	)
 }
 
 func (self *LoadBalancer) registerTarget(

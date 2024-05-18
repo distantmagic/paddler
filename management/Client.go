@@ -2,6 +2,7 @@ package management
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -17,6 +18,7 @@ type Client struct {
 }
 
 func (self *Client) ReportLlamaCppHealthStatus(
+	ctx context.Context,
 	serverEventsChannel chan<- goroutine.ResultMessage,
 	llamaCppConfiguration *llamacpp.LlamaCppConfiguration,
 	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
@@ -39,7 +41,8 @@ func (self *Client) ReportLlamaCppHealthStatus(
 		return
 	}
 
-	request, err := http.NewRequest(
+	request, err := http.NewRequestWithContext(
+		ctx,
 		"POST",
 		self.
 			ManagementServerConfiguration.

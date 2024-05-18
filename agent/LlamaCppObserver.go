@@ -11,10 +11,11 @@ import (
 )
 
 type LlamaCppObserver struct {
-	AgentConfiguration *AgentConfiguration
-	LlamaCppClient     *llamacpp.LlamaCppClient
-	Logger             hclog.Logger
-	ManagementClient   *management.Client
+	AgentConfiguration            *AgentConfiguration
+	ExternalLlamaCppConfiguration *llamacpp.LlamaCppConfiguration
+	LlamaCppClient                *llamacpp.LlamaCppClient
+	Logger                        hclog.Logger
+	ManagementClient              *management.Client
 }
 
 func (self *LlamaCppObserver) ObserveAndReport(
@@ -34,11 +35,19 @@ func (self *LlamaCppObserver) ObserveAndReport(
 	go self.RunTickerInterval(llamaCppHealthStatusChannel, ticker)
 
 	for llamaCppHealthStatus := range llamaCppHealthStatusChannel {
-		go self.ManagementClient.ReportLlamaCppHealthStatus(
+		ctx, cancel := context.WithTimeout(
+			context.Background(),
+			self.AgentConfiguration.GetReportingIntervalDuration(),
+		)
+
+		self.ManagementClient.ReportLlamaCppHealthStatus(
+			ctx,
 			serverEventsChannel,
-			self.LlamaCppClient.LlamaCppConfiguration,
+			self.ExternalLlamaCppConfiguration,
 			&llamaCppHealthStatus,
 		)
+
+		cancel()
 	}
 }
 
