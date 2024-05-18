@@ -46,29 +46,35 @@ go build -o paddler
 
 The agent should be installed in the same host as [llama.cpp](https://github.com/ggerganov/llama.cpp).
 
+It needs a few pieces of information:
+1. `external-*` tells how the load balancer can connect to the llama.cpp instance
+2. `local-*` tells how the agent can connect to the llama.cpp instance
+3. `management-*` tell where the agent should report the health status
+
 ```shell
 ./paddler agent \
-    # external: how loadbalancer can connect to the llama.cpp instance
-    --external-llamacpp-host 192.168.1.50 \
+    --external-llamacpp-host 127.0.0.1 \
     --external-llamacpp-port 8088 \
-    # local: how agent can connect to the llama.cpp instance
     --local-llamacpp-host 127.0.0.1 \
     --local-llamacpp-port 8088 \
-    # management: where agent should report the health status
-    --management-host 196.168.1.10 \
+    --management-host 127.0.0.1 \
     --management-port 8080
 ```
+
+Replace hosts and ports with your own server addresses when deploying.
 
 ### Running Load Balancer
 
 Load balancer collects data from agents and exposes reverse proxy to the outside world.
 
+It requires two sets of flags:
+1. `management-*` tells where the load balancer should listen for updated from agents
+2. `reverseproxy-*` tells how load balancer can be reached from the outside hosts
+
 ```shell
 ./paddler balancer \
-    # management: server that receives updates from agents
     --management-host 192.168.1.10 \
     --management-port 8088 \
-    # reverseproxy: endpoint for external services
     --reverseproxy-host 196.168.2.10 \
     --reverseproxy-port 8080
 ```
