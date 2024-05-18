@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"time"
 
 	"github.com/distantmagic/paddler/goroutine"
@@ -46,6 +47,16 @@ func (self *LlamaCppObserver) RunTickerInterval(
 	ticker *time.Ticker,
 ) {
 	for range ticker.C {
-		go self.LlamaCppClient.GetHealth(llamaCppHealthStatusChannel)
+		ctx, cancel := context.WithTimeout(
+			context.Background(),
+			self.AgentConfiguration.GetReportingIntervalDuration(),
+		)
+
+		self.LlamaCppClient.GetHealth(
+			ctx,
+			llamaCppHealthStatusChannel,
+		)
+
+		cancel()
 	}
 }

@@ -1,6 +1,7 @@
 package llamacpp
 
 import (
+	"context"
 	"net/http"
 	"testing"
 
@@ -24,7 +25,10 @@ func TestHealthIsObtained(t *testing.T) {
 
 	defer close(responseChannel)
 
-	go llamaCppClient.GetHealth(responseChannel)
+	go llamaCppClient.GetHealth(
+		context.Background(),
+		responseChannel,
+	)
 
 	healthStatus := <-responseChannel
 
@@ -37,6 +41,7 @@ func TestCompletionsAreGenerated(t *testing.T) {
 	responseChannel := make(chan LlamaCppCompletionToken)
 
 	go llamaCppClient.GenerateCompletion(
+		context.Background(),
 		responseChannel,
 		LlamaCppCompletionRequest{
 			NPredict: 3,
@@ -63,6 +68,7 @@ func TestJsonSchemaConstrainedCompletionsAreGenerated(t *testing.T) {
 	responseChannel := make(chan LlamaCppCompletionToken)
 
 	go llamaCppClient.GenerateCompletion(
+		context.Background(),
 		responseChannel,
 		LlamaCppCompletionRequest{
 			JsonSchema: map[string]any{

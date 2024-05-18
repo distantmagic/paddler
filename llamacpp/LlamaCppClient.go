@@ -3,6 +3,7 @@ package llamacpp
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -23,9 +24,11 @@ type LlamaCppClient struct {
 }
 
 func (self *LlamaCppClient) GetHealth(
+	ctx context.Context,
 	responseChannel chan<- LlamaCppHealthStatus,
 ) {
-	request, err := http.NewRequest(
+	request, err := http.NewRequestWithContext(
+		ctx,
 		"GET",
 		self.LlamaCppConfiguration.HttpAddress.BuildUrlWithPath("health").String(),
 		nil,
@@ -83,6 +86,7 @@ func (self *LlamaCppClient) GetHealth(
 }
 
 func (self *LlamaCppClient) GenerateCompletion(
+	ctx context.Context,
 	responseChannel chan LlamaCppCompletionToken,
 	llamaCppCompletionRequest LlamaCppCompletionRequest,
 ) {
@@ -98,7 +102,8 @@ func (self *LlamaCppClient) GenerateCompletion(
 		return
 	}
 
-	request, err := http.NewRequest(
+	request, err := http.NewRequestWithContext(
+		ctx,
 		"POST",
 		self.LlamaCppConfiguration.HttpAddress.BuildUrlWithPath("completion").String(),
 		bytes.NewBuffer(body),
