@@ -35,11 +35,12 @@ Alternatively you can build the project yourself. You need `go>=1.21` and
 `node` (for dashboard's front-end code) to build the project.
 
 ```shell
-# dashboard front-end
-pushd ./management
-make esbuild
-popd
-go build -o paddler
+$ git clone git@github.com:distantmagic/paddler.git
+$ cd paddler
+$ pushd ./management
+$ make esbuild # dashboard front-end
+$ popd
+$ go build -o paddler
 ```
 
 ### Running Agents
