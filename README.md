@@ -80,6 +80,8 @@ It requires two sets of flags:
     --reverseproxy-port 8080
 ```
 
+`management-host` and `management-port` in agents should be the same as in the load balancer.
+
 You can enable dashboard to see the status of the agents with 
 `--management-dashboard-enable=true` flag. If enabled it is available at the 
 management server address under `/dashboard` path.
