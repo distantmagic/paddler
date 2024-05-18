@@ -1,4 +1,5 @@
 /*.db
 /node_modules
 /paddler
+/paddler-bin-linux-x64
 /snapshots

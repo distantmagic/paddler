@@ -1,4 +1,4 @@
-.DEFAULT_GOAL := paddler
+.DEFAULT_GOAL := paddler-bin-linux-x64
 
 CSS_SOURCES := \
 	$(wildcard */*.css) \
@@ -13,9 +13,9 @@ GO_SOURCES := \
 # Real targets
 # -----------------------------------------------------------------------------
 
-paddler: $(CSS_SOURCES) $(GO_SOURCES)
+paddler-bin-linux-x64: $(CSS_SOURCES) $(GO_SOURCES)
 	$(MAKE) -C management build
-	go build -o paddler
+	go build -o paddler-bin-linux-x64
 
 # -----------------------------------------------------------------------------
 # Phony targets

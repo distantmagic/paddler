@@ -20,6 +20,8 @@ build: esbuild
 
 .PHONY: clean
 clean:
+	rm -rf esbuild-meta-mgmt.json
+	rm -rf static
 	rm -rf node_modules
 
 .PHONY: esbuild

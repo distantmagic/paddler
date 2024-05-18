@@ -26,6 +26,22 @@ sequenceDiagram
 
 ## Usage
 
+### Installation
+
+You can download the latest release from the 
+[releases page](https://github.com/distantmagic/paddler/releases).
+
+Alternatively you can build the project yourself. You need `go>=1.21` and
+`node` (for dashboard's front-end code) to build the project.
+
+```shell
+# dashboard front-end
+pushd ./management
+make esbuild
+popd
+go build -o paddler
+```
+
 ### Running Agents
 
 The agent should be installed in the same host as [llama.cpp](https://github.com/ggerganov/llama.cpp).
@@ -56,6 +72,10 @@ Load balancer collects data from agents and exposes reverse proxy to the outside
     --reverseproxy-host 196.168.2.10 \
     --reverseproxy-port 8080
 ```
+
+You can enable dashboard to see the status of the agents with 
+`--management-dashboard-enable=true` flag. If enabled it is available at the 
+management server address under `/dashboard` path.
 
 ## Roadmap
 
