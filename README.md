@@ -10,3 +10,7 @@ llama.cpp load balancer and reverse proxy
 - [ ] [OpenTelemetry] observer
 - [ ] Integration with AWS Auto Scaling (and other cloud providers) - out of 
     the box endpoint with custom metric to scale up/down
+
+## Community
+
+Discord: https://discord.gg/kysUzFqSCK
