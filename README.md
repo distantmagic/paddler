@@ -32,7 +32,7 @@ You can download the latest release from the
 [releases page](https://github.com/distantmagic/paddler/releases).
 
 Alternatively you can build the project yourself. You need `go>=1.21` and
-`node` (for dashboard's front-end code) to build the project.
+`nodejs` (for dashboard's front-end code) to build the project.
 
 ```shell
 $ git clone git@github.com:distantmagic/paddler.git
