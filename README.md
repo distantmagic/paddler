@@ -59,7 +59,7 @@ It needs a few pieces of information:
     --local-llamacpp-host 127.0.0.1 \
     --local-llamacpp-port 8088 \
     --management-host 127.0.0.1 \
-    --management-port 8080
+    --management-port 8085
 ```
 
 Replace hosts and ports with your own server addresses when deploying.
@@ -74,8 +74,8 @@ It requires two sets of flags:
 
 ```shell
 ./paddler balancer \
-    --management-host 192.168.1.10 \
-    --management-port 8088 \
+    --management-host 127.0.0.1 \
+    --management-port 8085 \
     --reverseproxy-host 196.168.2.10 \
     --reverseproxy-port 8080
 ```
