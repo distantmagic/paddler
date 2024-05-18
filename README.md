@@ -69,7 +69,7 @@ Replace hosts and ports with your own server addresses when deploying.
 Load balancer collects data from agents and exposes reverse proxy to the outside world.
 
 It requires two sets of flags:
-1. `management-*` tells where the load balancer should listen for updated from agents
+1. `management-*` tells where the load balancer should listen for updates from agents
 2. `reverseproxy-*` tells how load balancer can be reached from the outside hosts
 
 ```shell
