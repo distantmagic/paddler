@@ -69,4 +69,3 @@ Load balancer collects data from agents and exposes reverse proxy to the outside
 ## Community
 
 Discord: https://discord.gg/kysUzFqSCK
-The sequence repeats for each agent. Agents should be installed alongside llama.cpp instance to report their health status to the load balancer.
