@@ -5,9 +5,11 @@ system. This tutorial was specifically written for an installation on a `Ubuntu 
 
 ## Installation Steps
 
-1. Start an EC2 instance of any class with a GPU with CUDA support. If you want to compile llama.cpp on this instance, you will need at least 4GB for CUDA drivers and enough space for your LLM of choice. I recommed at least 30GB. Perform the following steps of this tutorial on the instance you started.
+1. Start an EC2 instance of any class with a GPU with CUDA support.  
+    
+    If you want to compile llama.cpp on this instance, you will need at least 4GB for CUDA drivers and enough space for your LLM of choice. I recommed at least 30GB. Perform the following steps of this tutorial on the instance you started.
    
-3. Install NVIDIA Drivers
+2. Install NVIDIA Drivers
   ```shell
   sudo apt update
   ```
@@ -16,10 +18,12 @@ system. This tutorial was specifically written for an installation on a `Ubuntu 
   sudo apt install nvidia-driver-550-server nvidia-headless-550-server nvidia-utils-550-server
   ```
 
-2. Install CUDA Toolkit. Download it and follow instructions from
-  https://developer.nvidia.com/cuda-downloads
+3. Install CUDA Toolkit. Download it and follow instructions from
+  https://developer.nvidia.com/cuda-downloads  
 
-3. Compile llama.cpp.
+    At the time of writing this tutorial, the highest available Ubuntu version supported is 22.04. But do not fear! :) We'll get it to work with some small workarounds (see the [Potential Errors](#potential-errors) section)
+
+4. Compile llama.cpp.
   Follow the official tutorial for the remaining steps. However, use `make LLAMA_CUDA=1` to compile the llama.cpp:
   https://github.com/ggerganov/llama.cpp/discussions/4225
 
