@@ -96,8 +96,10 @@ You need to check the mentioned page (https://developer.nvidia.com/cuda-gpus)
 and pick the appropriate version for your instance's GPU. `g4dn` instances 
 use T4 GPU, which would be `compute_75`.
 
+For example:
+
 ```shell
-CUDA_DOCKER_ARCH=compute_75 LLAMA_CUDA=1 make -j batched-bench
+CUDA_DOCKER_ARCH=compute_75 LLAMA_CUDA=1 make
 ```
 
 ### NVCC not found
