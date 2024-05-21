@@ -1,11 +1,11 @@
 # Installation on AWS EC2 CUDA Instances
 
 This tutorial was tested on `g4dn.xlarge` instance with `Ubuntu 24.04` operating 
-system. The installation will work on a machine with Ubuntu only.
+system. This tutorial was specifically written for an installation on a `Ubuntu 24.04` machine.
 
 ## Installation Steps
 
-1. Start an EC2 instance of any class with a GPU with CUDA support. Perform the following steps of this tutorial on the instance you started.
+1. Start an EC2 instance of any class with a GPU with CUDA support. If you want to compile llama.cpp on this instance, you will need at least 4GB for CUDA drivers and enough space for your LLM of choice. I recommed at least 30GB. Perform the following steps of this tutorial on the instance you started.
    
 3. Install NVIDIA Drivers
   ```shell
