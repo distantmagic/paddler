@@ -58,11 +58,13 @@ from Ubuntu 22.04 to your `/etc/apt/sources.list.d` directory and install it fro
 there. To do so, follow these steps:
 
 1. Enter `/etc/apt/sources.list.d` directory.
-2. Create a new file for Ubuntu 22.04 sources.
+2. Create a new file for Ubuntu 22.04 sources:
     ```shell
     sudo nano jammy.sources
     ```
-    paste the following content into that file:
+
+    Paste the following content into that file:
+
     ```
     Types: deb
     URIs: http://eu-central-1.ec2.archive.ubuntu.com/ubuntu/
