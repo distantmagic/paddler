@@ -1,13 +1,13 @@
 # Installation on AWS EC2 CUDA Instances
 
 This tutorial was tested on `g4dn.xlarge` instance with `Ubuntu 24.04` operating 
-system. This tutorial was specifically written for an installation on a `Ubuntu 24.04` machine.
+system. This tutorial was written explicitly to perform the installation on a `Ubuntu 24.04` machine.
 
 ## Installation Steps
 
 1. Start an EC2 instance of any class with a GPU with CUDA support.  
     
-    If you want to compile llama.cpp on this instance, you will need at least 4GB for CUDA drivers and enough space for your LLM of choice. I recommed at least 30GB. Perform the following steps of this tutorial on the instance you started.
+    If you want to compile llama.cpp on this instance, you will need at least 4GB for CUDA drivers and enough space for your LLM of choice. I recommend at least 30GB. Perform the following steps of this tutorial on the instance you started.
 
 2. Install build dependencies:
     ```shell
@@ -25,7 +25,7 @@ system. This tutorial was specifically written for an installation on a `Ubuntu 
 4. Install CUDA Toolkit (only the Base Installer). Download it and follow instructions from
   https://developer.nvidia.com/cuda-downloads  
 
-    At the time of writing this tutorial, the highest available Ubuntu version supported is 22.04. But do not fear! :) We'll get it to work with some small workarounds (see the [Potential Errors](#potential-errors) section)
+    At the time of writing this tutorial, the highest available supported version of the Ubuntu version was 22.04. But do not fear! :) We'll get it to work with some minor workarounds (see the [Potential Errors](#potential-errors) section)
 
 5. Compile llama.cpp:
     ```shell
@@ -42,7 +42,7 @@ system. This tutorial was specifically written for an installation on a `Ubuntu 
     Follow the official tutorial if you intend to run the benchmark. However, keep using `LLAMA_CUDA=1 make` to compile the llama.cpp (do *not* use `LLAMA_CUBLAS=1`):
   https://github.com/ggerganov/llama.cpp/discussions/4225
 
-    Instead of performing a model quantization by yourself, you can download quantized models from Hugging Face. For example, `Mistral Instruct` you can download from https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/tree/main
+    Instead of performing a model quantization yourself, you can download quantized models from Hugging Face. For example, `Mistral Instruct` you can download from https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/tree/main
 
 ## Potential Errors
 
@@ -144,8 +144,20 @@ failed to decode the batch, n_batch = 0, ret = -1
 main: llama_decode() failed
 ```
 
-Make sure you have CUDA Toolkit and NVIDIA drivers installed. If you do, restart your server and try again. Most likely NVIDIA kernel modules are not loaded.
+There are two potential causes of this issue.
+
+#### Option 1: Install NVIDIA drivers
+
+Make sure you have installed the CUDA Toolkit and NVIDIA drivers. If you do, restart your server and try again. Most likely, NVIDIA kernel modules are not loaded.
 
 ```shell
 sudo reboot
+```
+
+#### Option 2: Use different benchmarking parameters
+
+For example, with `Mistral Instruct 7B` what worked for me is:
+
+```shell
+./batched-bench ../mistral-7b-instruct-v0.2.Q4_K_M.gguf 2048 2048 512 0 999 128,256,512 128,256 1,2,4,8,16,32
 ```
