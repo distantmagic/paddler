@@ -1,7 +1,7 @@
 # Installation on AWS EC2 CUDA Instances
 
 This tutorial was tested on `g4dn.xlarge` instance with `Ubuntu 24.04` operating 
-system.
+system. The installation will work on a machine with Ubuntu only.
 
 ## Installation Steps
 
