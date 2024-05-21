@@ -24,6 +24,10 @@ sequenceDiagram
     loadbalancer->>llamacpp: I have a request for you to handle
 ```
 
+## Tutorials
+
+- [Installing llama.cpp on AWS EC2 CUDA Instance](tutorial-installing-llamacpp-aws-cuda.md)
+
 ## Usage
 
 ### Installation
