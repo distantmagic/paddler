@@ -10,6 +10,9 @@ system. This tutorial was specifically written for an installation on a `Ubuntu 
 3. Install NVIDIA Drivers
   ```shell
   sudo apt update
+  ```
+  ```shell
+  sudo apt update
   sudo apt install nvidia-driver-550-server nvidia-headless-550-server nvidia-utils-550-server
   ```
 
