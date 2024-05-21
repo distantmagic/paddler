@@ -31,11 +31,11 @@ system. This tutorial was specifically written for an installation on a `Ubuntu 
     cd llama.cpp
     ```
     ```shell
-    make LLAMA_CUDA=1
+    LLAMA_CUDA=1 make
     ```
 5. Benchmark llama.cpp (optional):
 
-    Follow the official tutorial if you intend to run the benchmark. However, keep using `make LLAMA_CUDA=1` to compile the llama.cpp (do *not* use `LLAMA_CUBLAS=1`):
+    Follow the official tutorial if you intend to run the benchmark. However, keep using `LLAMA_CUDA=1 make` to compile the llama.cpp (do *not* use `LLAMA_CUBLAS=1`):
   https://github.com/ggerganov/llama.cpp/discussions/4225
 
     Instead of performing a model quantization by yourself, you can download quantized models from Hugging Face. For example, `Mistral Instruct` you can download from https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/tree/main
