@@ -8,22 +8,26 @@ system. This tutorial was specifically written for an installation on a `Ubuntu 
 1. Start an EC2 instance of any class with a GPU with CUDA support.  
     
     If you want to compile llama.cpp on this instance, you will need at least 4GB for CUDA drivers and enough space for your LLM of choice. I recommed at least 30GB. Perform the following steps of this tutorial on the instance you started.
-   
-2. Install NVIDIA Drivers:
+
+2. Install build dependencies:
     ```shell
     sudo apt update
     ```
-    
+    ```shell
+    sudo apt install build-essential ccache
+    ```
+   
+3. Install NVIDIA Drivers:
     ```shell
     sudo apt install nvidia-driver-550-server nvidia-headless-550-server nvidia-utils-550-server
     ```
 
-3. Install CUDA Toolkit (only the Base Installer). Download it and follow instructions from
+4. Install CUDA Toolkit (only the Base Installer). Download it and follow instructions from
   https://developer.nvidia.com/cuda-downloads  
 
-    At the time of writing this tutorial, the highest available Ubuntu version supported is 22.04. But do not fear! :) We'll get it to work with some small workarounds (see the [Potential Errors](#potential-errors) section)
+ <   At the time of writing this tutorial, the highest available Ubuntu version supported is 22.04. But do not fear! :) We'll get it to work with some small workarounds (see the [Potential Errors](#potential-errors) section)
 
-4. Compile llama.cpp:
+5. Compile llama.cpp:
     ```shell
     git clone https://github.com/ggerganov/llama.cpp.git
     ```
@@ -31,7 +35,7 @@ system. This tutorial was specifically written for an installation on a `Ubuntu 
     cd llama.cpp
     ```
     ```shell
-    LLAMA_CUDA=1 make
+    LLAMA_CUDA=1 make -j
     ```
 5. Benchmark llama.cpp (optional):
 
@@ -99,7 +103,7 @@ use T4 GPU, which would be `compute_75`.
 For example:
 
 ```shell
-CUDA_DOCKER_ARCH=compute_75 LLAMA_CUDA=1 make
+CUDA_DOCKER_ARCH=compute_75 LLAMA_CUDA=1 make -j
 ```
 
 ### NVCC not found
