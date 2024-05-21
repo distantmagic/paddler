@@ -31,6 +31,18 @@ system. This tutorial was specifically written for an installation on a `Ubuntu 
 
 ### libtinfo5 is not installable
 
+```
+Some packages could not be installed. This may mean that you have
+requested an impossible situation or if you are using the unstable
+distribution that some required packages have not yet been created
+or been moved out of Incoming.
+The following information may help to resolve the situation:
+
+The following packages have unmet dependencies:
+ nsight-systems-2023.4.4 : Depends: libtinfo5 but it is not installable
+E: Unable to correct problems, you have held broken packages.
+```
+
 It was removed from Ubuntu 24.04. One way to solve that is to add a repository
 from Ubuntu 22.04 to your `/etc/sources.list.d` directory and install it from 
 there.
