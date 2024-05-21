@@ -9,14 +9,14 @@ system. This tutorial was specifically written for an installation on a `Ubuntu 
     
     If you want to compile llama.cpp on this instance, you will need at least 4GB for CUDA drivers and enough space for your LLM of choice. I recommed at least 30GB. Perform the following steps of this tutorial on the instance you started.
    
-2. Install NVIDIA Drivers
-  ```shell
-  sudo apt update
-  ```
-
-  ```shell
-  sudo apt install nvidia-driver-550-server nvidia-headless-550-server nvidia-utils-550-server
-  ```
+2. Install NVIDIA Drivers:
+    ```shell
+    sudo apt update
+    ```
+    
+    ```shell
+    sudo apt install nvidia-driver-550-server nvidia-headless-550-server nvidia-utils-550-server
+    ```
 
 3. Install CUDA Toolkit (only the Base Installer). Download it and follow instructions from
   https://developer.nvidia.com/cuda-downloads  
