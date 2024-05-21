@@ -136,3 +136,16 @@ NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver. Ma
 ```
 
 If you installed the drivers, reboot the instance.
+
+### Failed to decode the batch
+
+```
+failed to decode the batch, n_batch = 0, ret = -1
+main: llama_decode() failed
+```
+
+Make sure you have CUDA Toolkit and NVIDIA drivers installed. If you do, restart your server and try again. Most likely NVIDIA kernel modules are not loaded.
+
+```shell
+sudo reboot
+```
