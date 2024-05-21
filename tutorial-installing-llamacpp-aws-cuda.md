@@ -44,8 +44,24 @@ E: Unable to correct problems, you have held broken packages.
 ```
 
 It was removed from Ubuntu 24.04. One way to solve that is to add a repository
-from Ubuntu 22.04 to your `/etc/sources.list.d` directory and install it from 
-there.
+from Ubuntu 22.04 to your `/etc/apt/sources.list.d` directory and install it from 
+there. To do so, follow these steps:
+
+1. Enter `/etc/apt/sources.list.d` directory.
+2. Create a new file for Ubuntu 22.04 sources.
+    ```shell
+    sudo nano jammy.sources
+    ```
+    paste the following content into that file:
+    ```
+    Types: deb
+    URIs: http://eu-central-1.ec2.archive.ubuntu.com/ubuntu/
+    Suites: jammy jammy-updates jammy-backports
+    Components: main universe restricted multiverse
+    Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+    ```
+3. Run `sudo apt update`
+4. Try repeating the installation step that cuased the error.
 
 You might consider 
 [APT pinning](https://help.ubuntu.com/community/PinningHowto) to pin that 
