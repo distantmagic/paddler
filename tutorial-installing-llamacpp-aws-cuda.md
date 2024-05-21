@@ -5,7 +5,9 @@ system.
 
 ## Installation Steps
 
-1. Install NVIDIA Drivers
+1. Start an EC2 instance of any class with a GPU with CUDA support. Perform the following steps of this tutorial on the instance you started.
+   
+3. Install NVIDIA Drivers
   ```shell
   sudo apt install nvidia-driver-550-server nvidia-headless-550-server nvidia-utils-550-server
   ```
