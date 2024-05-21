@@ -25,7 +25,7 @@ system. This tutorial was specifically written for an installation on a `Ubuntu 
 4. Install CUDA Toolkit (only the Base Installer). Download it and follow instructions from
   https://developer.nvidia.com/cuda-downloads  
 
- <   At the time of writing this tutorial, the highest available Ubuntu version supported is 22.04. But do not fear! :) We'll get it to work with some small workarounds (see the [Potential Errors](#potential-errors) section)
+    At the time of writing this tutorial, the highest available Ubuntu version supported is 22.04. But do not fear! :) We'll get it to work with some small workarounds (see the [Potential Errors](#potential-errors) section)
 
 5. Compile llama.cpp:
     ```shell
