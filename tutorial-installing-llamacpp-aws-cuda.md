@@ -1,4 +1,4 @@
-# Installation on AWS EC2 CUDA Instances
+# Installing llama.cpp on AWS EC2 CUDA Instances
 
 This tutorial was tested on `g4dn.xlarge` instance with `Ubuntu 24.04` operating 
 system. This tutorial was written explicitly to perform the installation on a `Ubuntu 24.04` machine.
