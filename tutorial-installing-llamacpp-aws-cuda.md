@@ -116,8 +116,10 @@ You need to add CUDA path to your shell environmental variables.
 
 For example, with Bash and CUDA 12:
 
-```
+```shell
 export PATH="/usr/local/cuda-12/bin:$PATH"
+```
+```shell
 export LD_LIBRARY_PATH="/usr/local/cuda-12/lib64:$LD_LIBRARY_PATH"
 ```
 
