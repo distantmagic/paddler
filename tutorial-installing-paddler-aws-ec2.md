@@ -8,6 +8,14 @@ To learn how to install llama.cpp on EC2 instance, follow the other tutorial: [I
 
 This tutorial picks up from the above tutorial.
 
+## EC2 Image Builder
+
+### NVIDIA Drivers Component
+
+### CUDA Toolkit Component
+
+### llama.cpp Component
+
 # Notes
 
 1. create IAM role for EC2 so it can report custom metrics to cloudwatch
