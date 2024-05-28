@@ -1,6 +1,6 @@
-# Installing llama.cpp on AWS EC2 Image Builder
+# Installing llama.cpp with AWS EC2 Image Builder
 
-This tutorial explains how to install [llama.cpp](https://github.com/ggerganov/llama.cpp) on [AWS EC2 Image Builder](https://aws.amazon.com/image-builder/).
+This tutorial explains how to install [llama.cpp](https://github.com/ggerganov/llama.cpp) with [AWS EC2 Image Builder](https://aws.amazon.com/image-builder/).
 
 By putting [llama.cpp](https://github.com/ggerganov/llama.cpp) in EC2 Image Builder pipeline, you can automatically build custom AMIs with [llama.cpp](https://github.com/ggerganov/llama.cpp) pre-installed.
 
