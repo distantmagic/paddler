@@ -26,7 +26,7 @@ sequenceDiagram
 
 ## Tutorials
 
-- [Installing llama.cpp on AWS EC2 CUDA Instance](tutorial-installing-llamacpp-aws-cuda.md)
+- [Installing llama.cpp on AWS EC2 CUDA Instance](infra/tutorial-installing-llamacpp-aws-cuda.md)
 
 ## Usage
 
