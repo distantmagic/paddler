@@ -1,7 +1,7 @@
 # Installation on AWS EC2 CUDA Instances
 
-This tutorial was tested on `g4dn.xlarge` instance with `Ubuntu 24.04` operating 
-system. This tutorial was written explicitly to perform the installation on a `Ubuntu 24.04` machine.
+This tutorial was tested on `g4dn.xlarge` instance with `Ubuntu 22.04` operating 
+system. This tutorial was written explicitly to perform the installation on a `Ubuntu 22.04` machine.
 
 ## Installation Steps
 
@@ -17,15 +17,15 @@ system. This tutorial was written explicitly to perform the installation on a `U
     sudo apt install build-essential ccache
     ```
    
-3. Install NVIDIA Drivers:
-    ```shell
-    sudo apt install nvidia-driver-550-server nvidia-headless-550-server nvidia-utils-550-server
-    ```
-
-4. Install CUDA Toolkit (only the Base Installer). Download it and follow instructions from
+3. Install CUDA Toolkit (only the Base Installer). Download it and follow instructions from
   https://developer.nvidia.com/cuda-downloads  
 
     At the time of writing this tutorial, the highest available supported version of the Ubuntu version was 22.04. But do not fear! :) We'll get it to work with some minor workarounds (see the [Potential Errors](#potential-errors) section)
+
+4. Install NVIDIA Drivers:
+    ```shell
+    sudo apt install nvidia-driver-555
+    ```
 
 5. Compile llama.cpp:
     ```shell
@@ -45,46 +45,6 @@ system. This tutorial was written explicitly to perform the installation on a `U
     Instead of performing a model quantization yourself, you can download quantized models from Hugging Face. For example, `Mistral Instruct` you can download from https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/tree/main
 
 ## Potential Errors
-
-### libtinfo5 is not installable
-
-```
-Some packages could not be installed. This may mean that you have
-requested an impossible situation or if you are using the unstable
-distribution that some required packages have not yet been created
-or been moved out of Incoming.
-The following information may help to resolve the situation:
-
-The following packages have unmet dependencies:
- nsight-systems-2023.4.4 : Depends: libtinfo5 but it is not installable
-E: Unable to correct problems, you have held broken packages.
-```
-
-It was removed from Ubuntu 24.04. One way to solve that is to add a repository
-from Ubuntu 22.04 to your `/etc/apt/sources.list.d` directory and install it from 
-there. To do so, follow these steps:
-
-1. Enter `/etc/apt/sources.list.d` directory.
-2. Create a new file for Ubuntu 22.04 sources:
-    ```shell
-    sudo nano jammy.sources
-    ```
-
-    Paste the following content into that file:
-
-    ```
-    Types: deb
-    URIs: http://eu-central-1.ec2.archive.ubuntu.com/ubuntu/
-    Suites: jammy jammy-updates jammy-backports
-    Components: main universe restricted multiverse
-    Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-    ```
-3. Run `sudo apt update`
-4. Try repeating the installation step that cuased the error.
-
-You might consider 
-[APT pinning](https://help.ubuntu.com/community/PinningHowto) to pin that 
-specific version of the library, although it might not be necessary.
 
 ### CUDA Architecture Must Be Explicitly Provided
 
