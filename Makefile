@@ -32,6 +32,7 @@ clean:
 .PHONY: fmt
 fmt:
 	go fmt ./...
+	tofu fmt -recursive infra
 
 .PHONY: lint
 lint:
