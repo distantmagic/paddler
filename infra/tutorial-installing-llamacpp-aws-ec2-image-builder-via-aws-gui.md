@@ -26,7 +26,7 @@ This tutorial explains how to install [llama.cpp](https://github.com/ggerganov/l
 
    - Choose "Build" as the component type
    - Select "Linux" as the image OS
-   - Select "Ubuntu22.04" as the compatible OS version
+   - Select "Ubuntu 22.04" as the compatible OS version
 
    Provide the following as component names and contents in YAML format:
 
