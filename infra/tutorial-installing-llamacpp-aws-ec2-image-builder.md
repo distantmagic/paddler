@@ -8,74 +8,172 @@ You can also use that AMI as a base and add your foundational model on top of it
 
 We will repackage [the base EC2 tutorial](tutorial-installing-llamacpp-aws-cuda.md) as a set of Image Builder Components and Workflow.
 
-You can complete the tutorial steps either manually or by automating the setup with [Terraform](https://www.terraform.io/)/[OpenTofu](https://opentofu.org/).
+You can complete the tutorial steps either manually or by automating the setup with [Terraform](https://www.terraform.io/)/[OpenTofu](https://opentofu.org/). Terraform source files are linked to their respective tutorial steps.
 
 ## Installation Steps
 
-1. Create IAM `imagebuilder` role. It needs to have the following policies attached:
-    * `arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role`
-    * `arn:aws:iam::aws:policy/EC2InstanceProfileForImageBuilderECRContainerBuilds`
-    * `arn:aws:iam::aws:policy/EC2InstanceProfileForImageBuilder`
-    * `arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore`
+1. Create an IAM `imagebuilder` role ([source file](terraform/aws/aws_iam_role_imagebuilder_role.tf))
 
-    That role will be used by Image Builder to set up the instances. It needs some EC2 permissions to spin up a build instance and take a snapshot of it.
-    (see: [source file](terraform/aws/aws_iam_role_imagebuilder_role.tf))
+    Go to the IAM Dashboard, click "Roles" from the left-hand menu, and select "AWS service" as the trusted entity type. Next, select "EC2" as the use case:
 
-    You should end up with a role looking like this:
+    ![screenshot-01](https://github.com/malzag/paddler/assets/12105347/9c841ee9-0f19-48fc-8386-4b5cb7507a4b)
 
-    ![image](https://github.com/distantmagic/paddler/assets/1286785/570e57e5-9049-4907-b7de-98a1e3a2de93)
+    Next, assign the following policies:
 
-3. Add necessary components (you can refer to [the generic EC2 tutorial for more details](tutorial-installing-llamacpp-aws-cuda.md)):
-    1. llama.cpp build dependencies. It needs to install `build-essentials` and `ccache` (see: [source file](terraform/aws/aws_imagebuilder_component_apt_build_essential.tf))
-    2. CUDA toolkit (see: [source file](terraform/aws/aws_imagebuilder_component_cuda_toolkit_12.tf))
-    3. NVIDIA driver (see: [source file](terraform/aws/aws_imagebuilder_component_apt_nvidia_driver_555.tf))
-    4. llama.cpp itself (see: [source file](terraform/aws/aws_imagebuilder_component_llamacpp_gpu_compute_75.tf))
+    - `arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role`
+    - `arn:aws:iam::aws:policy/EC2InstanceProfileForImageBuilderECRContainerBuilds`
+    - `arn:aws:iam::aws:policy/EC2InstanceProfileForImageBuilder`
+    - `arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore`
 
-    Those components are the building blocks in our Image Builder pipeline.
+    Name your role (for example, "imagebuilder") and finish creating it. You should end up with permissions and trust relationships looking like this:
 
-    ![image](https://github.com/distantmagic/paddler/assets/1286785/0f1a34e3-b950-4f1e-a555-862922835e22)
+    ![screenshot-02](https://github.com/malzag/paddler/assets/12105347/cc6e56f1-91e0-472a-814d-6c9dc0c9ba81)
+    ![screenshot-03](https://github.com/malzag/paddler/assets/12105347/97dee654-c146-4e68-b2a2-05a2a433b545)
 
-4. Add Infrastructure Configuration
+2. Create components.
 
-    It should use `g4dn.xlarge` or any other instance type that supports CUDA (in case you want to use llama.cpp with cuda). In general, you should use exactly the same instance type you plan to use later in the production environment.
+    We'll need the following four components:
+    * llama.cpp build dependencies. It needs to install `build-essentials` and `ccache` ([source file](terraform/aws/aws_imagebuilder_component_apt_build_essential.tf))
+    * CUDA toolkit ([source file](terraform/aws/aws_imagebuilder_component_cuda_toolkit_12.tf))
+    * NVIDIA driver ([source file](terraform/aws/aws_imagebuilder_component_apt_nvidia_driver_555.tf))
+    * llama.cpp itself ([source file](terraform/aws/aws_imagebuilder_component_llamacpp_gpu_compute_75.tf)) 
 
-    It should have the `imagebuilder` role attached, which we created previously.
+    To create the component via GUI, navigate to EC2 Image Builder service on AWS. From there, select "Components" from the menu. We'll need to add four components that will act as the building blocks       in our Image Builder pipeline. You can refer to [the generic EC2 tutorial for more details](tutorial-installing-llamacpp-aws-cuda.md) for more information.
+   
+    Click "Create component". Next, for each component:
 
-    (see: [source file](terraform/aws/aws_imagebuilder_infrastructure_configuration_llamacpp_gpu_compute_75.tf))
+   - Choose "Build" as the component type
+   - Select "Linux" as the image OS
+   - Select "Ubuntu 22.04" as the compatible OS version
 
-    ![image](https://github.com/distantmagic/paddler/assets/1286785/d61f2eec-d753-46ef-9dde-0996f5e481bb)
+   Provide the following as component names and contents in YAML format:
 
-6. Add Distribution Configuration
+   **Component name: apt_build_essential**
+   ```yaml
+    name: apt_build_essential
+    description: "Component to install build essentials on Ubuntu"
+    schemaVersion: '1.0'
+    phases:
+      - name: build
+        steps:
+          - name: InstallBuildEssential
+            action: ExecuteBash
+            inputs:
+              commands:
+                - sudo apt-get update
+                - DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq build-essential ccache
+            onFailure: Abort
+            timeoutSeconds: 180
+   ```
 
-    It specifies how the AMI should be distributed (on what type of base AMI it will be published)
 
-    (see: [source file](terraform/aws/aws_imagebuilder_distribution_configuration_compute_75.tf))
+   **Component name: apt_nvidia_driver_555**
+   ```yaml
+    name: apt_nvidia_driver_555
+    description: "Component to install NVIDIA driver 555 on Ubuntu"
+    schemaVersion: '1.0'
+    phases:
+      - name: build
+        steps:
+          - name: apt_nvidia_driver_555
+            action: ExecuteBash
+            inputs:
+              commands:
+                - sudo apt-get update
+                - DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq nvidia-driver-555
+            onFailure: Abort
+            timeoutSeconds: 180
+          - name: reboot
+            action: Reboot
+   ```
+   
 
-    ![image](https://github.com/distantmagic/paddler/assets/1286785/6de3085b-1ce5-4359-a77f-b603cdfec383)
+   **Component name: cuda_toolkit_12**
+   ```yaml
+    name: cuda_toolkit_12
+    description: "Component to install CUDA Toolkit 12 on Ubuntu"
+    schemaVersion: '1.0'
+    phases:
+      - name: build
+        steps:
+          - name: apt_cuda_toolkit_12
+            action: ExecuteBash
+            inputs:
+              commands:
+                - wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+                - sudo dpkg -i cuda-keyring_1.1-1_all.deb
+                - sudo apt-get update
+                - DEBIAN_FRONTEND=noninteractive sudo apt-get -yq install cuda-toolkit-12-5
+            onFailure: Abort
+            timeoutSeconds: 600
+          - name: reboot
+            action: Reboot
+   ```
 
-7. Add Image Pipeline
 
-    The pipeline should use the Components, Infrastructure Configuration, and Distribution Configuration we prepared previously.
+    **Component name: llamacpp_gpu_compute_75**
+   ```yaml
+    name: llamacpp_gpu_compute_75
+    description: "Component to install and compile llama.cpp with CUDA compute capability 75 on Ubuntu"
+    schemaVersion: '1.0'
+    phases:
+      - name: build
+        steps:
+          - name: compile
+            action: ExecuteBash
+            inputs:
+              commands:
+                - cd /opt
+                - git clone https://github.com/ggerganov/llama.cpp.git
+                - cd llama.cpp
+                - |
+                  CUDA_DOCKER_ARCH=compute_75 \
+                  LD_LIBRARY_PATH="/usr/local/cuda-12/lib64:$LD_LIBRARY_PATH" \
+                  LLAMA_CUDA=1 \
+                  PATH="/usr/local/cuda-12/bin:$PATH" \
+                  make -j
+            onFailure: Abort
+            timeoutSeconds: 1200
+   ```        
 
-    (see: [source file](terraform/aws/aws_imagebuilder_image_pipeline_llamacpp_gpu_compute_75.tf))
+   Once you're finished, you'll see all the created components you added on the list:
+   
+   ![screenshot-04](https://github.com/malzag/paddler/assets/12105347/c3d082a8-1971-471a-84a4-b806a14dd899)
 
-    ![image](https://github.com/distantmagic/paddler/assets/1286785/a7ceaddd-5d0a-4aa2-9304-43e7c80d5f41)
+3. Add Infrastructure Configuration [source file](terraform/aws/aws_imagebuilder_infrastructure_configuration_llamacpp_gpu_compute_75.tf)
 
-    The recipe should use all the components we prepared beforehand:
+    Next, we'll create a new Infrastructure Configuration. Select it from the left-hand menu and click "Create". You'll need to use `g4dn.xlarge` instance type or any other instance type that supports       CUDA. Name your configuration, select the IAM role you created in step 1, and select the instance, for example:
 
-    ![image](https://github.com/distantmagic/paddler/assets/1286785/81b3627f-ba2b-4404-a35d-0174ca861ef9)
+   ![screenshot-05](https://github.com/malzag/paddler/assets/12105347/9f5777b9-721e-4760-884b-e117b2bbc8a3)
 
-8. Build the image
+4. Add Distribution Configuration [source file](terraform/aws/aws_imagebuilder_distribution_configuration_compute_75.tf)
 
-    Now you should be able to run the pipeline and prepare the image:
+    Select Distribution settings in the left-hand menu to create a Distribution Configuration. It specifies how the AMI should be distributed (on what type of base AMI it will be published). Select          Amazon Machine Image, name the configuration, and save:
 
-    ![image](https://github.com/distantmagic/paddler/assets/1286785/94716142-00bf-431c-89d5-9a9b15a38cbf)
+   ![screenshot-06](https://github.com/malzag/paddler/assets/12105347/1f01e63d-db21-4bb4-906b-df4ea51e43b7)
 
-9. Launch test EC2 Instance
+5. Add Image Pipeline [source file](terraform/aws/aws_imagebuilder_image_pipeline_llamacpp_gpu_compute_75.tf)
 
-    When launching EC2 instance, the llama.cpp image we prepared should be available under `My AMIs` list:
+    Next, we'll add the Image Pipeline. It will use the Components, Infrastructure Configuration, and Distribution Configuration we prepared previously. Select "Imagie Pipeline" from the left-hand menu      and click "Create". Name your image pipeline, and select the desired build schedule.
 
-    ![image](https://github.com/distantmagic/paddler/assets/1286785/1e571f84-61d8-461d-aef6-a373f6a0020b)
+   As the second step, create a new recipe. Choose AMI, name the recipe:
+
+   ![screenshot-07](https://github.com/malzag/paddler/assets/12105347/1d89b1ca-265b-4195-88e5-a965e124858f)
+  
+   Next, select the previously created components:
+  
+   ![screenshot-08](https://github.com/malzag/paddler/assets/12105347/c0fef492-dd04-40d6-b3d1-066c7baaf2d3)
+
+6. The next step is to build the image. You should be able to run the pipeline:
+
+   ![screenshot-09](https://github.com/malzag/paddler/assets/12105347/c1e54bcd-9f8f-44bb-a1e1-e6bde546fbc4)
+
+7. Launch test EC2 Instance.
+
+   When launching EC2 instance, the llama.cpp image we prepared should be available under `My AMIs` list:
+
+   ![screenshot-10](https://github.com/malzag/paddler/assets/12105347/7e56bb7e-f458-4b4a-89c2-51dd35e656e9)
+
 
 ## Summary
 
