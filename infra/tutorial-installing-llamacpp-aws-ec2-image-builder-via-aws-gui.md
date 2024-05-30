@@ -1,28 +1,46 @@
 # Installing llama.cpp with AWS EC2 Image Builder via AWS GUI
 
-This tutorial explains how to install [llama.cpp](https://github.com/ggerganov/llama.cpp) with [AWS EC2 Image Builder](https://aws.amazon.com/image-builder/) using the AWS GUI. It's an adjacent tutorial to [Installing llama.cpp with AWS EC2 Image Builder](tutorial-installing-llamacpp-aws-ec2-image-builder.md) that explains the same installation process using Terraform.
+This tutorial explains how to install [llama.cpp](https://github.com/ggerganov/llama.cpp) with [AWS EC2 Image Builder](https://aws.amazon.com/image-builder/).
+
+By putting [llama.cpp](https://github.com/ggerganov/llama.cpp) in EC2 Image Builder pipeline, you can automatically build custom AMIs with [llama.cpp](https://github.com/ggerganov/llama.cpp) pre-installed.
+
+You can also use that AMI as a base and add your foundational model on top of it. Thanks to that, you can quickly scale up or down your [llama.cpp](https://github.com/ggerganov/llama.cpp) groups.
+
+We will repackage [the base EC2 tutorial](tutorial-installing-llamacpp-aws-cuda.md) as a set of Image Builder Components and Workflow.
+
+You can complete the tutorial steps either manually or by automating the setup with [Terraform](https://www.terraform.io/)/[OpenTofu](https://opentofu.org/). Terraform source files are linked to their respective tutorial steps.
 
 ## Installation Steps
 
-1. Create an IAM `imagebuilder` role. Go to the IAM Dashboard, click "Roles" from the left-hand menu, and select "AWS service" as the trusted entity type. Next, select "EC2" as the use case:
+1. Create an IAM `imagebuilder` role ([source file](terraform/aws/aws_iam_role_imagebuilder_role.tf))
 
-   ![screenshot-01](https://github.com/malzag/paddler/assets/12105347/9c841ee9-0f19-48fc-8386-4b5cb7507a4b)
+    Go to the IAM Dashboard, click "Roles" from the left-hand menu, and select "AWS service" as the trusted entity type. Next, select "EC2" as the use case:
 
-   Next, assign the following policies:
+    ![screenshot-01](https://github.com/malzag/paddler/assets/12105347/9c841ee9-0f19-48fc-8386-4b5cb7507a4b)
 
-   - `arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role`
-   - `arn:aws:iam::aws:policy/EC2InstanceProfileForImageBuilderECRContainerBuilds`
-   - `arn:aws:iam::aws:policy/EC2InstanceProfileForImageBuilder`
-   - `arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore`
+    Next, assign the following policies:
 
-   Name your role (for example, "imagebuilder") and finish creating it. You should end up with permissions and trust relationships looking like this:
+    - `arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role`
+    - `arn:aws:iam::aws:policy/EC2InstanceProfileForImageBuilderECRContainerBuilds`
+    - `arn:aws:iam::aws:policy/EC2InstanceProfileForImageBuilder`
+    - `arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore`
 
-   ![screenshot-02](https://github.com/malzag/paddler/assets/12105347/cc6e56f1-91e0-472a-814d-6c9dc0c9ba81)
-   ![screenshot-03](https://github.com/malzag/paddler/assets/12105347/97dee654-c146-4e68-b2a2-05a2a433b545)
+    Name your role (for example, "imagebuilder") and finish creating it. You should end up with permissions and trust relationships looking like this:
 
-2. Navigate to EC2 Image Builder service on AWS. From there, select "Components" from the menu. We'll need to add four components that will act as the building blocks in our Image Builder pipeline. You can refer to [the generic EC2 tutorial for more details](tutorial-installing-llamacpp-aws-cuda.md) for more information.
+    ![screenshot-02](https://github.com/malzag/paddler/assets/12105347/cc6e56f1-91e0-472a-814d-6c9dc0c9ba81)
+    ![screenshot-03](https://github.com/malzag/paddler/assets/12105347/97dee654-c146-4e68-b2a2-05a2a433b545)
+
+2. Create components.
+
+    We'll need the following four components:
+    * llama.cpp build dependencies. It needs to install `build-essentials` and `ccache` ([source file](terraform/aws/aws_imagebuilder_component_apt_build_essential.tf))
+    * CUDA toolkit ([source file](terraform/aws/aws_imagebuilder_component_cuda_toolkit_12.tf))
+    * NVIDIA driver ([source file](terraform/aws/aws_imagebuilder_component_apt_nvidia_driver_555.tf))
+    * llama.cpp itself ([source file](terraform/aws/aws_imagebuilder_component_llamacpp_gpu_compute_75.tf)) 
+
+    To create the component via GUI, navigate to EC2 Image Builder service on AWS. From there, select "Components" from the menu. We'll need to add four components that will act as the building blocks       in our Image Builder pipeline. You can refer to [the generic EC2 tutorial for more details](tutorial-installing-llamacpp-aws-cuda.md) for more information.
    
-   Click "Create component". Next, for each component:
+    Click "Create component". Next, for each component:
 
    - Choose "Build" as the component type
    - Select "Linux" as the image OS
@@ -48,6 +66,7 @@ This tutorial explains how to install [llama.cpp](https://github.com/ggerganov/l
             timeoutSeconds: 180
    ```
 
+
    **Component name: apt_nvidia_driver_555**
    ```yaml
     name: apt_nvidia_driver_555
@@ -67,6 +86,7 @@ This tutorial explains how to install [llama.cpp](https://github.com/ggerganov/l
           - name: reboot
             action: Reboot
    ```
+   
 
    **Component name: cuda_toolkit_12**
    ```yaml
@@ -89,6 +109,7 @@ This tutorial explains how to install [llama.cpp](https://github.com/ggerganov/l
           - name: reboot
             action: Reboot
    ```
+
 
     **Component name: llamacpp_gpu_compute_75**
    ```yaml
@@ -119,15 +140,21 @@ This tutorial explains how to install [llama.cpp](https://github.com/ggerganov/l
    
    ![screenshot-04](https://github.com/malzag/paddler/assets/12105347/c3d082a8-1971-471a-84a4-b806a14dd899)
 
-3. Next, we'll create a new Infrastructure Configuration. Select it from the left-hand menu and click "Create". You'll need to use `g4dn.xlarge` instance type or any other instance type that supports CUDA. Name your configuration, select the IAM role you created in step 1, and select the instance, for example:
+3. Add Infrastructure Configuration [source file](terraform/aws/aws_imagebuilder_infrastructure_configuration_llamacpp_gpu_compute_75.tf)
+
+    Next, we'll create a new Infrastructure Configuration. Select it from the left-hand menu and click "Create". You'll need to use `g4dn.xlarge` instance type or any other instance type that supports       CUDA. Name your configuration, select the IAM role you created in step 1, and select the instance, for example:
 
    ![screenshot-05](https://github.com/malzag/paddler/assets/12105347/9f5777b9-721e-4760-884b-e117b2bbc8a3)
 
-4. Select Distribution settings in the left-hand menu to create a Distribution Configuration. It specifies how the AMI should be distributed (on what type of base AMI it will be published). Select Amazon Machine Image, name the configuration, and save:
+4. Add Distribution Configuration [source file](terraform/aws/aws_imagebuilder_distribution_configuration_compute_75.tf)
+
+    Select Distribution settings in the left-hand menu to create a Distribution Configuration. It specifies how the AMI should be distributed (on what type of base AMI it will be published). Select          Amazon Machine Image, name the configuration, and save:
 
    ![screenshot-06](https://github.com/malzag/paddler/assets/12105347/1f01e63d-db21-4bb4-906b-df4ea51e43b7)
 
-6. Next, we'll add the Image Pipeline. It will use the Components, Infrastructure Configuration, and Distribution Configuration we prepared previously. Select "Imagie Pipeline" from the left-hand menu and click "Create". Name your image pipeline, and select the desired build schedule.
+5. Add Image Pipeline [source file](terraform/aws/aws_imagebuilder_image_pipeline_llamacpp_gpu_compute_75.tf)
+
+    Next, we'll add the Image Pipeline. It will use the Components, Infrastructure Configuration, and Distribution Configuration we prepared previously. Select "Imagie Pipeline" from the left-hand menu      and click "Create". Name your image pipeline, and select the desired build schedule.
 
    As the second step, create a new recipe. Choose AMI, name the recipe:
 
@@ -148,4 +175,8 @@ This tutorial explains how to install [llama.cpp](https://github.com/ggerganov/l
    ![screenshot-10](https://github.com/malzag/paddler/assets/12105347/7e56bb7e-f458-4b4a-89c2-51dd35e656e9)
 
 
+## Summary
 
+Check out `infra/terraform/aws` if you have any issues. Feel free to open an issue if you find a bug in the tutorial or have ideas on how to improve it.
+
+Contributions are always welcomed!
