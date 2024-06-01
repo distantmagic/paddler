@@ -51,8 +51,13 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 	}
 
 	reverseProxyServer := &loadbalancer.ReverseProxyServer{
-		LoadBalancer:              loadBalancer,
-		Logger:                    self.Logger.Named("reverseproxy"),
+		LoadBalancer: loadBalancer,
+		Logger:       self.Logger.Named("reverseproxy"),
+		RespondToAggregatedHealth: &loadbalancer.RespondToAggregatedHealth{
+			LoadBalancerTargetCollection: loadBalancer.LoadBalancerTargetCollection,
+			ServerEventsChannel:          serverEventsChannel,
+		},
+		RespondToFavicon:          &loadbalancer.RespondToFavicon{},
 		ReverseProxyConfiguration: self.ReverseProxyConfiguration,
 	}
 

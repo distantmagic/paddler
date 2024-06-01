@@ -12,6 +12,8 @@ import (
 type ReverseProxyServer struct {
 	LoadBalancer              *LoadBalancer
 	Logger                    hclog.Logger
+	RespondToAggregatedHealth *RespondToAggregatedHealth
+	RespondToFavicon          *RespondToFavicon
 	ReverseProxyConfiguration *reverseproxy.ReverseProxyConfiguration
 }
 
@@ -25,14 +27,14 @@ func (self *ReverseProxyServer) Serve(serverEventsChannel chan<- goroutine.Resul
 		ErrorLog: self.Logger.Named("ReverseProxy").StandardLogger(&hclog.StandardLoggerOptions{
 			InferLevels: true,
 		}),
-		Rewrite: func(request *httputil.ProxyRequest) {
+		Rewrite: func(proxyRequest *httputil.ProxyRequest) {
 			targetUrl, err := self.LoadBalancer.Balance(&LoadBalancerRequest{
-				HttpRequest: request.In,
+				HttpRequest: proxyRequest.In,
 			})
 
 			if err == nil {
-				request.SetURL(targetUrl)
-				request.SetXForwarded()
+				proxyRequest.SetURL(targetUrl)
+				proxyRequest.SetXForwarded()
 			} else {
 				serverEventsChannel <- goroutine.ResultMessage{
 					Comment: "failed to balance request",
@@ -42,9 +44,14 @@ func (self *ReverseProxyServer) Serve(serverEventsChannel chan<- goroutine.Resul
 		},
 	}
 
+	reverseProxyMux := http.NewServeMux()
+	reverseProxyMux.Handle("/favicon.ico", self.RespondToFavicon)
+	reverseProxyMux.Handle("/health", self.RespondToAggregatedHealth)
+	reverseProxyMux.Handle("/", reverseProxy)
+
 	err := http.ListenAndServe(
 		self.ReverseProxyConfiguration.HttpAddress.GetHostWithPort(),
-		reverseProxy,
+		reverseProxyMux,
 	)
 
 	if err != nil {

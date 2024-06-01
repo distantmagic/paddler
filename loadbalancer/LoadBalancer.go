@@ -72,17 +72,7 @@ func (self *LoadBalancer) GetStatus() *LoadBalancerStatus {
 }
 
 func (self *LoadBalancer) OnTick() {
-	for element := self.LoadBalancerTargetCollection.Targets.Front(); element != nil; element = element.Next() {
-		target := element.Value.(*LlamaCppTarget)
-
-		target.RemainingTicksUntilRemoved -= 1
-
-		if target.RemainingTicksUntilRemoved < 1 {
-			defer self.LoadBalancerTargetCollection.RemoveTarget(target)
-
-			return
-		}
-	}
+	self.LoadBalancerTargetCollection.OnTick()
 }
 
 func (self *LoadBalancer) RegisterOrUpdateTarget(
@@ -147,15 +137,10 @@ func (self *LoadBalancer) updateTarget(
 		"error", llamaCppHealthStatus.ErrorMessage,
 	)
 
-	existingTarget.LlamaCppHealthStatus.ErrorMessage = llamaCppHealthStatus.ErrorMessage
-	existingTarget.LlamaCppHealthStatus.SlotsIdle = llamaCppHealthStatus.SlotsIdle
-	existingTarget.LlamaCppHealthStatus.SlotsProcessing = llamaCppHealthStatus.SlotsProcessing
-	existingTarget.LlamaCppHealthStatus.Status = llamaCppHealthStatus.Status
-	existingTarget.LastUpdate = time.Now()
-	existingTarget.RemainingTicksUntilRemoved = 3
-	existingTarget.TotalUpdates += 1
-
-	self.LoadBalancerTargetCollection.FixTargetOrder(existingTarget)
+	self.LoadBalancerTargetCollection.UpdateTargetWithLlamaCppHealthStatus(
+		existingTarget,
+		llamaCppHealthStatus,
+	)
 
 	serverEventsChannel <- goroutine.ResultMessage{
 		Comment: "updated target",
