@@ -43,18 +43,26 @@ func (self *LoadBalancer) Balance(request *LoadBalancerRequest) (*url.URL, error
 	return targetUrl, nil
 }
 
-func (self *LoadBalancer) GetLlamaCppTargetForRequest(request *LoadBalancerRequest) *LlamaCppTarget {
+func (self *LoadBalancer) GetLlamaCppPickedTargetForRequest(request *LoadBalancerRequest) *LlamaCppPickedTarget {
 	if request.IsSlottable() {
 		return self.
 			LoadBalancerTargetCollection.
-			GetTargetWithFreeSlotsForBalancing().
-			LlamaCppTarget
+			GetTargetWithFreeSlotsForBalancing()
 	}
 
 	return self.
 		LoadBalancerTargetCollection.
-		GetHeadTarget().
-		LlamaCppTarget
+		GetHeadTarget()
+}
+
+func (self *LoadBalancer) GetLlamaCppTargetForRequest(request *LoadBalancerRequest) *LlamaCppTarget {
+	pickedTarget := self.GetLlamaCppPickedTargetForRequest(request)
+
+	if pickedTarget == nil {
+		return nil
+	}
+
+	return pickedTarget.LlamaCppTarget
 }
 
 func (self *LoadBalancer) GetStatus() *LoadBalancerStatus {
