@@ -105,6 +105,7 @@ management server address under `/dashboard` path.
 - [ ] [OpenTelemetry](https://opentelemetry.io/) observer
 - [ ] Integration with AWS Auto Scaling (and other cloud providers) - out of 
     the box endpoint with a custom metric to scale up/down
+- [ ] Queueing requests
 
 ## Community
 
