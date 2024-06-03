@@ -19,6 +19,8 @@ type LoadBalancer struct {
 	HttpClient                   *http.Client
 	LoadBalancerTargetCollection *LoadBalancerTargetCollection
 	Logger                       hclog.Logger
+	ServerEventsChannel          chan<- goroutine.ResultMessage
+	StatsdReporter               StatsdReporterInterface
 }
 
 func (self *LoadBalancer) Balance(request *LoadBalancerRequest) (*url.URL, error) {
@@ -73,6 +75,15 @@ func (self *LoadBalancer) GetStatus() *LoadBalancerStatus {
 
 func (self *LoadBalancer) OnTick() {
 	self.LoadBalancerTargetCollection.OnTick()
+
+	err := self.StatsdReporter.ReportAggregatedHealthStatus(self.LoadBalancerTargetCollection.AggregatedHealthStatus)
+
+	if err != nil {
+		self.ServerEventsChannel <- goroutine.ResultMessage{
+			Comment: "error reporting aggregated health status",
+			Error:   err,
+		}
+	}
 }
 
 func (self *LoadBalancer) RegisterOrUpdateTarget(

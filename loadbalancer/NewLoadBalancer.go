@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"net/http"
 
+	"github.com/distantmagic/paddler/goroutine"
 	"github.com/distantmagic/paddler/llamacpp"
 	"github.com/hashicorp/go-hclog"
 )
@@ -11,6 +12,8 @@ import (
 func NewLoadBalancer(
 	httpClient *http.Client,
 	logger hclog.Logger,
+	serverEventsChannel chan<- goroutine.ResultMessage,
+	statsdReporter StatsdReporterInterface,
 ) *LoadBalancer {
 	loadBalancerTargetCollection := &LoadBalancerTargetCollection{
 		AggregatedHealthStatus: &llamacpp.LlamaCppHealthStatus{
@@ -25,5 +28,7 @@ func NewLoadBalancer(
 		HttpClient:                   httpClient,
 		LoadBalancerTargetCollection: loadBalancerTargetCollection,
 		Logger:                       logger,
+		ServerEventsChannel:          serverEventsChannel,
+		StatsdReporter:               statsdReporter,
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/distantmagic/paddler/agent"
 	"github.com/distantmagic/paddler/cmd"
 	"github.com/distantmagic/paddler/llamacpp"
+	"github.com/distantmagic/paddler/loadbalancer"
 	"github.com/distantmagic/paddler/management"
 	"github.com/distantmagic/paddler/netcfg"
 	"github.com/distantmagic/paddler/reverseproxy"
@@ -21,8 +22,7 @@ const (
 
 func main() {
 	logger := hclog.New(&hclog.LoggerOptions{
-		Name: "paddler",
-		// JSONFormat: true,
+		Name:  "paddler",
 		Level: hclog.Debug,
 	})
 
@@ -49,6 +49,9 @@ func main() {
 			HttpAddress: &netcfg.HttpAddressConfiguration{},
 		},
 		ReverseProxyConfiguration: &reverseproxy.ReverseProxyConfiguration{
+			HttpAddress: &netcfg.HttpAddressConfiguration{},
+		},
+		StatsdConfiguration: &loadbalancer.StatsdConfiguration{
 			HttpAddress: &netcfg.HttpAddressConfiguration{},
 		},
 	}
@@ -168,6 +171,26 @@ func main() {
 						Name:        "reverseproxy-scheme",
 						Value:       "http",
 						Destination: &balancer.ReverseProxyConfiguration.HttpAddress.Scheme,
+					},
+					&cli.BoolFlag{
+						Name:        "statsd-enable",
+						Value:       false,
+						Destination: &balancer.StatsdConfiguration.EnableStatsdReporter,
+					},
+					&cli.StringFlag{
+						Name:        "statsd-host",
+						Value:       "127.0.0.1",
+						Destination: &balancer.StatsdConfiguration.HttpAddress.Host,
+					},
+					&cli.UintFlag{
+						Name:        "statsd-port",
+						Value:       8125,
+						Destination: &balancer.StatsdConfiguration.HttpAddress.Port,
+					},
+					&cli.StringFlag{
+						Name:        "statsd-scheme",
+						Value:       "http",
+						Destination: &balancer.StatsdConfiguration.HttpAddress.Scheme,
 					},
 				},
 			},

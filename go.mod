@@ -3,8 +3,8 @@ module github.com/distantmagic/paddler
 go 1.21.8
 
 require (
-	github.com/a-h/templ v0.2.680
 	github.com/hashicorp/go-hclog v1.6.2
+	github.com/smira/go-statsd v1.3.3
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.2
 )
