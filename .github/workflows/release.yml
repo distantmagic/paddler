@@ -2,8 +2,10 @@ name: release
 
 on:
   push:
+    branches:
+      - "**"
     tags:
-      - '*'
+      - "**"
 
 jobs:
   release:
@@ -28,11 +30,11 @@ jobs:
         id: tag_type
         run: |
           if [[ ${{ github.ref }} =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$ ]]; then
-            echo "PRE_RELEASE_TAG" >> $GITHUB_OUTPUT
+            echo "tag_type=PRE_RELEASE_TAG" >> $GITHUB_OUTPUT
           elif [[ ${{ github.ref }} =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "RELEASE_TAG" >> $GITHUB_OUTPUT
+            echo "tag_type=RELEASE_TAG" >> $GITHUB_OUTPUT
           else
-            echo "INVALID_TAG" >> $GITHUB_OUTPUT
+            echo "tag_type=INVALID_TAG" >> $GITHUB_OUTPUT
           fi
 
       - name: create pre-release
@@ -42,6 +44,7 @@ jobs:
         with:
           fail_on_unmatched_files: true
           files: paddler-bin-linux-x64
+          generate_release_notes: true
           prerelease: true
 
       - name: create release
@@ -51,4 +54,5 @@ jobs:
         with:
           fail_on_unmatched_files: true
           files: paddler-bin-linux-x64
+          generate_release_notes: true
           prerelease: false
