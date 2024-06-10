@@ -7,7 +7,6 @@ import (
 	"github.com/distantmagic/paddler/goroutine"
 	"github.com/distantmagic/paddler/llamacpp"
 	"github.com/distantmagic/paddler/management"
-	"github.com/distantmagic/paddler/reverseproxy"
 	"github.com/hashicorp/go-hclog"
 	"github.com/urfave/cli/v2"
 )
@@ -18,7 +17,6 @@ type Agent struct {
 	LocalLlamaCppConfiguration    *llamacpp.LlamaCppConfiguration
 	Logger                        hclog.Logger
 	ManagementServerConfiguration *management.ManagementServerConfiguration
-	ReverseProxyConfiguration     *reverseproxy.ReverseProxyConfiguration
 }
 
 func (self *Agent) Action(cliContext *cli.Context) error {

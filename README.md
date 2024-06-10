@@ -91,6 +91,12 @@ You can enable dashboard to see the status of the agents with
 `--management-dashboard-enable=true` flag. If enabled it is available at the 
 management server address under `/dashboard` path.
 
+## Changelog
+
+### v0.1.0
+
+* New feature: [Aggregated Health Status Responses](https://github.com/distantmagic/paddler/releases/tag/v0.1.0)
+
 ## Roadmap
 
 - [x] [llama.cpp](https://github.com/ggerganov/llama.cpp) reverse proxy
@@ -99,6 +105,7 @@ management server address under `/dashboard` path.
 - [ ] [OpenTelemetry](https://opentelemetry.io/) observer
 - [ ] Integration with AWS Auto Scaling (and other cloud providers) - out of 
     the box endpoint with a custom metric to scale up/down
+- [ ] Queueing requests
 
 ## Community
 

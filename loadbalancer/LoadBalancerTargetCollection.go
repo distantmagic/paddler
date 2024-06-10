@@ -2,12 +2,16 @@ package loadbalancer
 
 import (
 	"container/list"
+	"time"
+
+	"github.com/distantmagic/paddler/llamacpp"
 )
 
 type LoadBalancerTargetCollection struct {
-	elementByTarget       map[*LlamaCppTarget]*list.Element
-	Targets               *list.List
-	targetByConfiguration map[string]*LlamaCppTarget
+	AggregatedHealthStatus *llamacpp.LlamaCppHealthStatus
+	elementByTarget        map[*LlamaCppTarget]*list.Element
+	Targets                *list.List
+	targetByConfiguration  map[string]*LlamaCppTarget
 }
 
 func (self *LoadBalancerTargetCollection) FixTargetOrder(target *LlamaCppTarget) {
@@ -79,6 +83,8 @@ func (self *LoadBalancerTargetCollection) GetTargetWithFreeSlotsForBalancing() *
 	nextTarget := pickedTarget.Element.Next()
 
 	pickedTarget.LlamaCppTarget.LlamaCppHealthStatus.SlotsIdle -= 1
+	self.AggregatedHealthStatus.SlotsIdle -= 1
+	self.AggregatedHealthStatus.SlotsProcessing += 1
 
 	if nextTarget != nil && pickedTarget.LlamaCppTarget.HasLessSlotsThan(nextTarget.Value.(*LlamaCppTarget)) {
 		self.Targets.MoveAfter(pickedTarget.Element, nextTarget)
@@ -91,8 +97,31 @@ func (self *LoadBalancerTargetCollection) Len() int {
 	return self.Targets.Len()
 }
 
+func (self *LoadBalancerTargetCollection) OnTick() {
+	var aggregatedSlotsIdle uint
+	var aggregatedSlotsProcessing uint
+
+	for element := self.Targets.Front(); element != nil; element = element.Next() {
+		target := element.Value.(*LlamaCppTarget)
+		target.RemainingTicksUntilRemoved -= 1
+
+		if target.RemainingTicksUntilRemoved < 1 {
+			defer self.RemoveTarget(target)
+		}
+
+		aggregatedSlotsIdle += target.LlamaCppHealthStatus.SlotsIdle
+		aggregatedSlotsProcessing += target.LlamaCppHealthStatus.SlotsProcessing
+	}
+
+	self.AggregatedHealthStatus.SlotsIdle = aggregatedSlotsIdle
+	self.AggregatedHealthStatus.SlotsProcessing = aggregatedSlotsProcessing
+}
+
 func (self *LoadBalancerTargetCollection) RegisterTarget(llamaCppTarget *LlamaCppTarget) {
 	self.targetByConfiguration[llamaCppTarget.LlamaCppTargetConfiguration.String()] = llamaCppTarget
+
+	self.AggregatedHealthStatus.SlotsIdle += llamaCppTarget.LlamaCppHealthStatus.SlotsIdle
+	self.AggregatedHealthStatus.SlotsProcessing += llamaCppTarget.LlamaCppHealthStatus.SlotsProcessing
 
 	if self.Targets.Len() < 1 {
 		self.elementByTarget[llamaCppTarget] = self.Targets.PushFront(llamaCppTarget)
@@ -112,6 +141,9 @@ func (self *LoadBalancerTargetCollection) RegisterTarget(llamaCppTarget *LlamaCp
 }
 
 func (self *LoadBalancerTargetCollection) RemoveTarget(llamaCppTarget *LlamaCppTarget) {
+	self.AggregatedHealthStatus.SlotsIdle -= llamaCppTarget.LlamaCppHealthStatus.SlotsIdle
+	self.AggregatedHealthStatus.SlotsProcessing -= llamaCppTarget.LlamaCppHealthStatus.SlotsProcessing
+
 	element := self.elementByTarget[llamaCppTarget]
 
 	if element != nil {
@@ -119,4 +151,22 @@ func (self *LoadBalancerTargetCollection) RemoveTarget(llamaCppTarget *LlamaCppT
 	}
 
 	delete(self.targetByConfiguration, llamaCppTarget.LlamaCppTargetConfiguration.String())
+}
+
+func (self *LoadBalancerTargetCollection) UpdateTargetWithLlamaCppHealthStatus(
+	llamaCppTarget *LlamaCppTarget,
+	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
+) {
+	self.AggregatedHealthStatus.SlotsIdle += llamaCppTarget.LlamaCppHealthStatus.SlotsIdle - llamaCppHealthStatus.SlotsIdle
+	self.AggregatedHealthStatus.SlotsProcessing += llamaCppTarget.LlamaCppHealthStatus.SlotsProcessing - llamaCppHealthStatus.SlotsProcessing
+
+	llamaCppTarget.LlamaCppHealthStatus.ErrorMessage = llamaCppHealthStatus.ErrorMessage
+	llamaCppTarget.LlamaCppHealthStatus.SlotsIdle = llamaCppHealthStatus.SlotsIdle
+	llamaCppTarget.LlamaCppHealthStatus.SlotsProcessing = llamaCppHealthStatus.SlotsProcessing
+	llamaCppTarget.LlamaCppHealthStatus.Status = llamaCppHealthStatus.Status
+	llamaCppTarget.LastUpdate = time.Now()
+	llamaCppTarget.RemainingTicksUntilRemoved = 3
+	llamaCppTarget.TotalUpdates += 1
+
+	self.FixTargetOrder(llamaCppTarget)
 }

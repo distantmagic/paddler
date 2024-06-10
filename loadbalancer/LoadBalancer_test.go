@@ -12,14 +12,16 @@ import (
 )
 
 func TestTargetOrderIsPreserved(t *testing.T) {
+	serverEventsChannel := make(chan goroutine.ResultMessage)
+
 	loadBalancer := NewLoadBalancer(
 		http.DefaultClient,
 		hclog.NewNullLogger(),
+		serverEventsChannel,
+		&StatsdReporterVoid{},
 	)
 
 	assert.Equal(t, 0, loadBalancer.GetStatus().RegisteredTargets)
-
-	serverEventsChannel := make(chan goroutine.ResultMessage)
 
 	target1 := &LlamaCppTargetConfiguration{
 		LlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{

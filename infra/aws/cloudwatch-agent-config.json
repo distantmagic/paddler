@@ -1,0 +1,14 @@
+{
+    "agent": {
+        "run_as_user": "cwagent"
+    },
+    "metrics": {
+        "metrics_collected": {
+            "statsd": {
+                "metrics_aggregation_interval": 60,
+                "metrics_collection_interval": 10,
+                "service_address": ":8125"
+            }
+        }
+    }
+}

@@ -9,6 +9,7 @@ import (
 	"github.com/distantmagic/paddler/management"
 	"github.com/distantmagic/paddler/reverseproxy"
 	"github.com/hashicorp/go-hclog"
+	statsd "github.com/smira/go-statsd"
 	"github.com/urfave/cli/v2"
 )
 
@@ -16,14 +17,35 @@ type Balancer struct {
 	Logger                        hclog.Logger
 	ManagementServerConfiguration *management.ManagementServerConfiguration
 	ReverseProxyConfiguration     *reverseproxy.ReverseProxyConfiguration
+	StatsdConfiguration           *loadbalancer.StatsdConfiguration
 }
 
 func (self *Balancer) Action(cliContext *cli.Context) error {
 	serverEventsChannel := make(chan goroutine.ResultMessage)
 
+	var statsdReporter loadbalancer.StatsdReporterInterface
+
+	if self.StatsdConfiguration.EnableStatsdReporter {
+		self.Logger.Log(
+			hclog.Info,
+			"starting statsd reporter",
+			"target host", self.StatsdConfiguration.HttpAddress.GetHostWithPort(),
+		)
+		statsdReporter = &loadbalancer.StatsdReporter{
+			StatsdClient: *statsd.NewClient(
+				self.StatsdConfiguration.HttpAddress.GetHostWithPort(),
+				statsd.MetricPrefix("paddler."),
+			),
+		}
+	} else {
+		statsdReporter = &loadbalancer.StatsdReporterVoid{}
+	}
+
 	loadBalancer := loadbalancer.NewLoadBalancer(
 		http.DefaultClient,
 		self.Logger.Named("loadbalancer"),
+		serverEventsChannel,
+		statsdReporter,
 	)
 
 	respondToDashboard, err := management.NewRespondToDashboard(
@@ -51,8 +73,13 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 	}
 
 	reverseProxyServer := &loadbalancer.ReverseProxyServer{
-		LoadBalancer:              loadBalancer,
-		Logger:                    self.Logger.Named("reverseproxy"),
+		LoadBalancer: loadBalancer,
+		Logger:       self.Logger.Named("reverseproxy"),
+		RespondToAggregatedHealth: &loadbalancer.RespondToAggregatedHealth{
+			LoadBalancerTargetCollection: loadBalancer.LoadBalancerTargetCollection,
+			ServerEventsChannel:          serverEventsChannel,
+		},
+		RespondToFavicon:          &loadbalancer.RespondToFavicon{},
 		ReverseProxyConfiguration: self.ReverseProxyConfiguration,
 	}
 
