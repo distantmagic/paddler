@@ -110,7 +110,7 @@ management server address under `/dashboard` path.
 
 ## Changelog
 
-### v0.3.0
+### v0.3.0 (to be released)
 
 * New feature: Requests can queue when all llama.cpp instances are busy
 * New feature: AWS Metadata support for agent local IP address
