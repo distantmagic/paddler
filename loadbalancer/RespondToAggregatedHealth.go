@@ -8,12 +8,12 @@ import (
 )
 
 type RespondToAggregatedHealth struct {
-	LoadBalancerTargetCollection *LoadBalancerTargetCollection
-	ServerEventsChannel          chan<- goroutine.ResultMessage
+	LlamaCppHealthStatusAggregate *LlamaCppHealthStatusAggregate
+	ServerEventsChannel           chan<- goroutine.ResultMessage
 }
 
 func (self *RespondToAggregatedHealth) ServeHTTP(response http.ResponseWriter, request *http.Request) {
-	jsonLoadBalancerStatus, err := json.Marshal(self.LoadBalancerTargetCollection.AggregatedHealthStatus)
+	jsonLoadBalancerStatus, err := json.Marshal(self.LlamaCppHealthStatusAggregate.AggregatedHealthStatus)
 
 	if err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)

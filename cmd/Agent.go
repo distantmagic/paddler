@@ -22,6 +22,8 @@ type Agent struct {
 func (self *Agent) Action(cliContext *cli.Context) error {
 	serverEventsChannel := make(chan goroutine.ResultMessage)
 
+	defer close(serverEventsChannel)
+
 	llamaCppObserver := &agent.LlamaCppObserver{
 		AgentConfiguration:            self.AgentConfiguration,
 		ExternalLlamaCppConfiguration: self.ExternalLlamaCppConfiguration,

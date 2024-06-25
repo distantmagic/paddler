@@ -33,12 +33,14 @@ func TestHealthIsObtained(t *testing.T) {
 	healthStatus := <-responseChannel
 
 	assert.Nil(t, healthStatus.Error)
-	assert.Greater(t, healthStatus.SlotsIdle, uint(0))
-	assert.GreaterOrEqual(t, healthStatus.SlotsProcessing, uint(0))
+	assert.Greater(t, healthStatus.SlotsIdle, 0)
+	assert.GreaterOrEqual(t, healthStatus.SlotsProcessing, 0)
 }
 
 func TestCompletionsAreGenerated(t *testing.T) {
 	responseChannel := make(chan LlamaCppCompletionToken)
+
+	defer close(responseChannel)
 
 	go llamaCppClient.GenerateCompletion(
 		context.Background(),
@@ -66,6 +68,8 @@ func TestCompletionsAreGenerated(t *testing.T) {
 
 func TestJsonSchemaConstrainedCompletionsAreGenerated(t *testing.T) {
 	responseChannel := make(chan LlamaCppCompletionToken)
+
+	defer close(responseChannel)
 
 	go llamaCppClient.GenerateCompletion(
 		context.Background(),

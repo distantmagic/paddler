@@ -10,8 +10,8 @@ import (
 )
 
 type RespondToRegisterTarget struct {
-	LoadBalancer        *loadbalancer.LoadBalancer
-	ServerEventsChannel chan<- goroutine.ResultMessage
+	LoadBalancerTargetRegistrar *loadbalancer.LoadBalancerTargetRegistrar
+	ServerEventsChannel         chan<- goroutine.ResultMessage
 }
 
 func (self *RespondToRegisterTarget) ServeHTTP(response http.ResponseWriter, request *http.Request) {
@@ -38,7 +38,7 @@ func (self *RespondToRegisterTarget) ServeHTTP(response http.ResponseWriter, req
 		return
 	}
 
-	go self.LoadBalancer.RegisterOrUpdateTarget(
+	go self.LoadBalancerTargetRegistrar.RegisterOrUpdateTarget(
 		self.ServerEventsChannel,
 		registerTargetRequest.LlamaCppTargetConfiguration,
 		registerTargetRequest.LlamaCppHealthStatus,

@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/distantmagic/paddler/goroutine"
+	"github.com/distantmagic/paddler/llamacpp"
 	"github.com/distantmagic/paddler/loadbalancer"
 	"github.com/distantmagic/paddler/management"
 	"github.com/distantmagic/paddler/reverseproxy"
@@ -13,7 +15,12 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var (
+	ErrorUnrecognizedBufferDriver = errors.New("unrecognized queue driver")
+)
+
 type Balancer struct {
+	LoadBalancerConfiguration     *loadbalancer.LoadBalancerConfiguration
 	Logger                        hclog.Logger
 	ManagementServerConfiguration *management.ManagementServerConfiguration
 	ReverseProxyConfiguration     *reverseproxy.ReverseProxyConfiguration
@@ -23,30 +30,27 @@ type Balancer struct {
 func (self *Balancer) Action(cliContext *cli.Context) error {
 	serverEventsChannel := make(chan goroutine.ResultMessage)
 
-	var statsdReporter loadbalancer.StatsdReporterInterface
+	defer close(serverEventsChannel)
 
-	if self.StatsdConfiguration.EnableStatsdReporter {
-		self.Logger.Log(
-			hclog.Info,
-			"starting statsd reporter",
-			"target host", self.StatsdConfiguration.HttpAddress.GetHostWithPort(),
-		)
-		statsdReporter = &loadbalancer.StatsdReporter{
-			StatsdClient: *statsd.NewClient(
-				self.StatsdConfiguration.HttpAddress.GetHostWithPort(),
-				statsd.MetricPrefix("paddler."),
-			),
-		}
-	} else {
-		statsdReporter = &loadbalancer.StatsdReporterVoid{}
+	requestBuffer, err := self.MakeRequestBuffer()
+
+	if err != nil {
+		return err
 	}
 
-	loadBalancer := loadbalancer.NewLoadBalancer(
-		http.DefaultClient,
-		self.Logger.Named("loadbalancer"),
-		serverEventsChannel,
-		statsdReporter,
-	)
+	llamaCppHealthStatusAggregate := &loadbalancer.LlamaCppHealthStatusAggregate{
+		AggregatedHealthStatus: &llamacpp.LlamaCppHealthStatus{
+			Status: llamacpp.Ok,
+		},
+	}
+
+	loadBalancerTargetCollection := loadbalancer.NewLoadBalancerTargetCollection(llamaCppHealthStatusAggregate)
+
+	loadBalancer := &loadbalancer.LoadBalancer{
+		LoadBalancerTargetCollection: loadBalancerTargetCollection,
+		Logger:                       self.Logger,
+		RequestBuffer:                &requestBuffer,
+	}
 
 	respondToDashboard, err := management.NewRespondToDashboard(
 		loadBalancer,
@@ -66,18 +70,23 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 			ServerEventsChannel: serverEventsChannel,
 		},
 		RespondToRegisterTarget: &management.RespondToRegisterTarget{
-			LoadBalancer:        loadBalancer,
+			LoadBalancerTargetRegistrar: &loadbalancer.LoadBalancerTargetRegistrar{
+				HttpClient:                   http.DefaultClient,
+				LoadBalancerTargetCollection: loadBalancer.LoadBalancerTargetCollection,
+				Logger:                       self.Logger,
+			},
 			ServerEventsChannel: serverEventsChannel,
 		},
 		RespondToStatic: management.NewRespondToStatic(),
 	}
 
 	reverseProxyServer := &loadbalancer.ReverseProxyServer{
-		LoadBalancer: loadBalancer,
-		Logger:       self.Logger.Named("reverseproxy"),
+		LoadBalancer:              loadBalancer,
+		LoadBalancerConfiguration: self.LoadBalancerConfiguration,
+		Logger:                    self.Logger.Named("reverseproxy"),
 		RespondToAggregatedHealth: &loadbalancer.RespondToAggregatedHealth{
-			LoadBalancerTargetCollection: loadBalancer.LoadBalancerTargetCollection,
-			ServerEventsChannel:          serverEventsChannel,
+			LlamaCppHealthStatusAggregate: llamaCppHealthStatusAggregate,
+			ServerEventsChannel:           serverEventsChannel,
 		},
 		RespondToFavicon:          &loadbalancer.RespondToFavicon{},
 		ReverseProxyConfiguration: self.ReverseProxyConfiguration,
@@ -91,7 +100,12 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 	go self.RuntTickerInterval(
 		ticker,
 		serverEventsChannel,
-		loadBalancer,
+		&loadbalancer.LoadBalancerTemporalManager{
+			LlamaCppHealthStatusAggregate: llamaCppHealthStatusAggregate,
+			LoadBalancerTargetCollection:  loadBalancerTargetCollection,
+			ServerEventsChannel:           serverEventsChannel,
+			StatsdReporter:                self.MakeStatsdReporter(),
+		},
 	)
 
 	for serverEvent := range serverEventsChannel {
@@ -105,12 +119,49 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 	return nil
 }
 
+func (self *Balancer) MakeRequestBuffer() (loadbalancer.RequestBuffer, error) {
+	var requestBuffer loadbalancer.RequestBuffer
+
+	switch self.LoadBalancerConfiguration.BufferDriver {
+	case "memory":
+		requestBuffer = &loadbalancer.MemoryRequestBuffer{}
+	case "none":
+		requestBuffer = &loadbalancer.VoidRequestBuffer{}
+	default:
+		return nil, ErrorUnrecognizedBufferDriver
+	}
+
+	return requestBuffer, nil
+}
+
+func (self *Balancer) MakeStatsdReporter() loadbalancer.StatsdReporterInterface {
+	var statsdReporter loadbalancer.StatsdReporterInterface
+
+	if self.StatsdConfiguration.EnableStatsdReporter {
+		self.Logger.Log(
+			hclog.Info,
+			"starting statsd reporter",
+			"target host", self.StatsdConfiguration.HttpAddress.GetHostWithPort(),
+		)
+		statsdReporter = &loadbalancer.StatsdReporter{
+			StatsdClient: *statsd.NewClient(
+				self.StatsdConfiguration.HttpAddress.GetHostWithPort(),
+				statsd.MetricPrefix("paddler."),
+			),
+		}
+	} else {
+		statsdReporter = &loadbalancer.StatsdReporterVoid{}
+	}
+
+	return statsdReporter
+}
+
 func (self *Balancer) RuntTickerInterval(
 	ticker *time.Ticker,
 	serverEventsChannel chan<- goroutine.ResultMessage,
-	loadBalancer *loadbalancer.LoadBalancer,
+	loadBalancerTemporalManager *loadbalancer.LoadBalancerTemporalManager,
 ) {
 	for range ticker.C {
-		go loadBalancer.OnTick()
+		go loadBalancerTemporalManager.OnApplicationTick()
 	}
 }

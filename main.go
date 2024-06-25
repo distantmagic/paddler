@@ -46,7 +46,8 @@ func main() {
 	}
 
 	balancer := &cmd.Balancer{
-		Logger: logger.Named("Balancer"),
+		LoadBalancerConfiguration: &loadbalancer.LoadBalancerConfiguration{},
+		Logger:                    logger.Named("Balancer"),
 		ManagementServerConfiguration: &management.ManagementServerConfiguration{
 			HttpAddress: &netcfg.HttpAddressConfiguration{},
 		},
@@ -238,6 +239,11 @@ func main() {
 						Name:        "statsd-scheme",
 						Value:       "http",
 						Destination: &balancer.StatsdConfiguration.HttpAddress.Scheme,
+					},
+					&cli.StringFlag{
+						Name:        "buffer-driver",
+						Value:       "memory",
+						Destination: &balancer.LoadBalancerConfiguration.BufferDriver,
 					},
 				},
 			},

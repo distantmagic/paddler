@@ -1,6 +1,7 @@
 package loadbalancer
 
 import (
+	"context"
 	"net/http"
 	"net/http/httputil"
 
@@ -11,6 +12,7 @@ import (
 
 type ReverseProxyServer struct {
 	LoadBalancer              *LoadBalancer
+	LoadBalancerConfiguration *LoadBalancerConfiguration
 	Logger                    hclog.Logger
 	RespondToAggregatedHealth *RespondToAggregatedHealth
 	RespondToFavicon          *RespondToFavicon
@@ -28,17 +30,43 @@ func (self *ReverseProxyServer) Serve(serverEventsChannel chan<- goroutine.Resul
 			InferLevels: true,
 		}),
 		Rewrite: func(proxyRequest *httputil.ProxyRequest) {
-			targetUrl, err := self.LoadBalancer.Balance(&LoadBalancerRequest{
-				HttpRequest: proxyRequest.In,
-			})
+			balancingAttemptStatusChannel := make(chan *BalancingAttemptStatus)
 
-			if err == nil {
-				proxyRequest.SetURL(targetUrl)
-				proxyRequest.SetXForwarded()
-			} else {
+			defer close(balancingAttemptStatusChannel)
+
+			ctx, cancel := context.WithTimeout(
+				context.Background(),
+				self.LoadBalancerConfiguration.BalancingTimeoutDuration,
+			)
+
+			defer cancel()
+
+			go self.LoadBalancer.Balance(
+				ctx,
+				balancingAttemptStatusChannel,
+				&LoadBalancerRequest{
+					BufferIfNoTargetsAvailable: self.LoadBalancerConfiguration.IsBufferEnabled(),
+					HttpRequest:                proxyRequest.In,
+				},
+			)
+
+			select {
+			case <-ctx.Done():
 				serverEventsChannel <- goroutine.ResultMessage{
-					Comment: "failed to balance request",
-					Error:   err,
+					Comment: "balancing a request timed out",
+					Error:   ctx.Err(),
+				}
+
+				return
+			case balancingAttemptStatus := <-balancingAttemptStatusChannel:
+				if balancingAttemptStatus.Error == nil {
+					proxyRequest.SetURL(balancingAttemptStatus.TargetUrl)
+					proxyRequest.SetXForwarded()
+				} else {
+					serverEventsChannel <- goroutine.ResultMessage{
+						Comment: "error while balancing request",
+						Error:   balancingAttemptStatus.Error,
+					}
 				}
 			}
 		},

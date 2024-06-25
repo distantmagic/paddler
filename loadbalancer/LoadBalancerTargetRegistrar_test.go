@@ -14,14 +14,19 @@ import (
 func TestTargetOrderIsPreserved(t *testing.T) {
 	serverEventsChannel := make(chan goroutine.ResultMessage)
 
-	loadBalancer := NewLoadBalancer(
-		http.DefaultClient,
-		hclog.NewNullLogger(),
-		serverEventsChannel,
-		&StatsdReporterVoid{},
-	)
+	llamaCppHealthStatusAggregate := &LlamaCppHealthStatusAggregate{
+		AggregatedHealthStatus: &llamacpp.LlamaCppHealthStatus{
+			Status: llamacpp.Ok,
+		},
+	}
 
-	assert.Equal(t, 0, loadBalancer.GetStatus().RegisteredTargets)
+	loadBalancerTargetRegistrar := &LoadBalancerTargetRegistrar{
+		HttpClient:                   http.DefaultClient,
+		LoadBalancerTargetCollection: NewLoadBalancerTargetCollection(llamaCppHealthStatusAggregate),
+		Logger:                       hclog.NewNullLogger(),
+	}
+
+	assert.Equal(t, 0, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.Len())
 
 	target1 := &LlamaCppTargetConfiguration{
 		LlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{
@@ -43,7 +48,7 @@ func TestTargetOrderIsPreserved(t *testing.T) {
 		},
 	}
 
-	go loadBalancer.RegisterOrUpdateTarget(
+	go loadBalancerTargetRegistrar.RegisterOrUpdateTarget(
 		serverEventsChannel,
 		target1,
 		&llamacpp.LlamaCppHealthStatus{
@@ -56,14 +61,14 @@ func TestTargetOrderIsPreserved(t *testing.T) {
 
 	<-serverEventsChannel
 
-	assert.Equal(t, 1, loadBalancer.GetStatus().RegisteredTargets)
+	assert.Equal(t, 1, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.Len())
 	assert.Same(
 		t,
 		target1,
-		loadBalancer.LoadBalancerTargetCollection.GetHeadTarget().LlamaCppTarget.LlamaCppTargetConfiguration,
+		loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetHeadTarget().LlamaCppTarget.LlamaCppTargetConfiguration,
 	)
 
-	go loadBalancer.RegisterOrUpdateTarget(
+	go loadBalancerTargetRegistrar.RegisterOrUpdateTarget(
 		serverEventsChannel,
 		target2,
 		&llamacpp.LlamaCppHealthStatus{
@@ -76,14 +81,14 @@ func TestTargetOrderIsPreserved(t *testing.T) {
 
 	<-serverEventsChannel
 
-	assert.Equal(t, 2, loadBalancer.GetStatus().RegisteredTargets)
+	assert.Equal(t, 2, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.Len())
 	assert.Same(
 		t,
 		target1,
-		loadBalancer.LoadBalancerTargetCollection.GetHeadTarget().LlamaCppTarget.LlamaCppTargetConfiguration,
+		loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetHeadTarget().LlamaCppTarget.LlamaCppTargetConfiguration,
 	)
 
-	go loadBalancer.RegisterOrUpdateTarget(
+	go loadBalancerTargetRegistrar.RegisterOrUpdateTarget(
 		serverEventsChannel,
 		target2,
 		&llamacpp.LlamaCppHealthStatus{
@@ -96,10 +101,10 @@ func TestTargetOrderIsPreserved(t *testing.T) {
 
 	<-serverEventsChannel
 
-	assert.Equal(t, 2, loadBalancer.GetStatus().RegisteredTargets)
+	assert.Equal(t, 2, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.Len())
 	assert.Same(
 		t,
 		target2,
-		loadBalancer.LoadBalancerTargetCollection.GetHeadTarget().LlamaCppTarget.LlamaCppTargetConfiguration,
+		loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetHeadTarget().LlamaCppTarget.LlamaCppTargetConfiguration,
 	)
 }
