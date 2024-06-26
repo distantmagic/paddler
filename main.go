@@ -60,6 +60,10 @@ func main() {
 		},
 	}
 
+	buffer := &cmd.Buffer{
+		Logger:                    logger.Named("Buffer"),
+	}
+
 	app := &cli.App{
 		Name:  "paddler",
 		Usage: "llama.cpp load balaner and reverse proxy server",
@@ -252,6 +256,11 @@ func main() {
 						Destination: &balancer.LoadBalancerConfiguration.BufferDriver,
 					},
 				},
+			},
+			{
+				Name:   "buffer",
+				Usage:  "start a buffer to queue requests if there are nor available backends",
+				Action: buffer.Action,
 			},
 		},
 	}

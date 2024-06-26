@@ -11,7 +11,6 @@ type RespondToCompletion struct {
 	LoadBalancer              *LoadBalancer
 	LoadBalancerConfiguration *LoadBalancerConfiguration
 	Logger                    hclog.Logger
-	RequestBuffer             *RequestBuffer
 	ServerEventsChannel       chan<- goroutine.ResultMessage
 }
 

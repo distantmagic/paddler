@@ -32,12 +32,6 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 
 	defer close(serverEventsChannel)
 
-	requestBuffer, err := self.MakeRequestBuffer()
-
-	if err != nil {
-		return err
-	}
-
 	llamaCppHealthStatusAggregate := &loadbalancer.LlamaCppHealthStatusAggregate{
 		AggregatedHealthStatus: &llamacpp.LlamaCppHealthStatus{
 			Status: llamacpp.Ok,
@@ -89,7 +83,6 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 			LoadBalancer:              loadBalancer,
 			LoadBalancerConfiguration: self.LoadBalancerConfiguration,
 			Logger:                    self.Logger.Named("respond_to_completion"),
-			RequestBuffer:             &requestBuffer,
 		},
 		RespondToFallback: &loadbalancer.RespondToFallback{
 			LoadBalancerTargetCollection: loadBalancerTargetCollection,
@@ -123,21 +116,6 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 	}
 
 	return nil
-}
-
-func (self *Balancer) MakeRequestBuffer() (loadbalancer.RequestBuffer, error) {
-	var requestBuffer loadbalancer.RequestBuffer
-
-	switch self.LoadBalancerConfiguration.BufferDriver {
-	case "memory":
-		requestBuffer = &loadbalancer.MemoryRequestBuffer{}
-	case "none":
-		requestBuffer = &loadbalancer.VoidRequestBuffer{}
-	default:
-		return nil, ErrorUnrecognizedBufferDriver
-	}
-
-	return requestBuffer, nil
 }
 
 func (self *Balancer) MakeStatsdReporter() loadbalancer.StatsdReporterInterface {
