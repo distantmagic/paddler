@@ -1,15 +1,11 @@
 package loadbalancer
 
 import (
-	"sync"
-
 	"github.com/distantmagic/paddler/llamacpp"
 )
 
 type LlamaCppHealthStatusAggregate struct {
 	AggregatedHealthStatus *llamacpp.LlamaCppHealthStatus
-
-	mutex sync.Mutex
 }
 
 func (self *LlamaCppHealthStatusAggregate) AddSlotsFrom(llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus) {
@@ -32,9 +28,6 @@ func (self *LlamaCppHealthStatusAggregate) RemoveSlotsFrom(llamaCppHealthStatus 
 }
 
 func (self *LlamaCppHealthStatusAggregate) SetTo(slotsIdle int, slotsProcessing int) {
-	self.mutex.Lock()
-	defer self.mutex.Unlock()
-
 	self.AggregatedHealthStatus.SlotsIdle = slotsIdle
 	self.AggregatedHealthStatus.SlotsProcessing = slotsProcessing
 }

@@ -69,7 +69,10 @@ It needs a few pieces of information:
 
 Replace hosts and ports with your own server addresses when deploying.
 
-#### AWS
+#### AWS Integration
+
+> [!NOTE]
+> Available since v0.3.0
 
 When running on AWS EC2, you can replace `--local-llamacpp-host` with `aws:metadata:local-ipv4`. In that case, Paddler will use [EC2 instance metadata](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html) to fetch the local IP address (from the local network):
 
@@ -84,7 +87,6 @@ If you want to keep the balancer management address predictable, I recommend usi
     --management-host paddler_balancer.example.com \
     --management-port 8085
 ```
-
 
 ### Running Load Balancer
 
@@ -107,6 +109,17 @@ It requires two sets of flags:
 You can enable dashboard to see the status of the agents with 
 `--management-dashboard-enable=true` flag. If enabled it is available at the 
 management server address under `/dashboard` path.
+
+### Buffered Requests (Scaling from Zero Hosts)
+
+> [!NOTE]
+> Available since v0.3.0
+
+Load balancer's buffered requests allow your infrastructure to scale from zero hosts by providing an additional metric (requests waiting to be handled). 
+
+It also gives your infrastructure some additional time to add additional hosts. For example, if your autoscaler is setting up an additional server, putting an incoming request on hold for 60 seconds might give it a chance to be handled even though there might be no available llama.cpp instances at the moment of issuing it.
+
+https://github.com/distantmagic/paddler/assets/1286785/34b93e4c-0746-4eed-8be3-cd698e15cbf9
 
 ## Changelog
 

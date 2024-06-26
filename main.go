@@ -60,9 +60,9 @@ func main() {
 		},
 	}
 
-	buffer := &cmd.Buffer{
-		Logger:                    logger.Named("Buffer"),
-	}
+	// buffer := &cmd.Buffer{
+	// 	Logger:                    logger.Named("Buffer"),
+	// }
 
 	app := &cli.App{
 		Name:  "paddler",
@@ -245,23 +245,23 @@ func main() {
 						Value:       "http",
 						Destination: &balancer.StatsdConfiguration.HttpAddress.Scheme,
 					},
-					&cli.DurationFlag{
-						Name:        "balancing-attempt-timeout",
-						Value:       10 * time.Second,
-						Destination: &balancer.LoadBalancerConfiguration.BalancingTimeoutDuration,
+					&cli.UintFlag{
+						Name:        "request-buffer-size",
+						Value:       20,
+						Destination: &balancer.LoadBalancerConfiguration.RequestBufferSize,
 					},
-					&cli.StringFlag{
-						Name:        "buffer-driver",
-						Value:       "memory",
-						Destination: &balancer.LoadBalancerConfiguration.BufferDriver,
+					&cli.DurationFlag{
+						Name:        "request-buffer-timeout",
+						Value:       60 * time.Second,
+						Destination: &balancer.LoadBalancerConfiguration.RequestBufferTimeout,
 					},
 				},
 			},
-			{
-				Name:   "buffer",
-				Usage:  "start a buffer to queue requests if there are nor available backends",
-				Action: buffer.Action,
-			},
+			// {
+			// 	Name:   "buffer",
+			// 	Usage:  "start a buffer to queue requests if there are nor available backends",
+			// 	Action: buffer.Action,
+			// },
 		},
 	}
 

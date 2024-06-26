@@ -1,6 +1,8 @@
 package loadbalancer
 
 import (
+	"time"
+
 	"github.com/distantmagic/paddler/goroutine"
 )
 
@@ -46,5 +48,13 @@ func (self *LoadBalancerTemporalManager) ReportStats() {
 			Comment: "error reporting aggregated health status",
 			Error:   err,
 		}
+	}
+}
+
+func (self *LoadBalancerTemporalManager) RunTickerInterval() {
+	ticker := time.NewTicker(time.Second * 1)
+
+	for range ticker.C {
+		go self.OnApplicationTick()
 	}
 }

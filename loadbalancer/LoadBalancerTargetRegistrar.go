@@ -49,6 +49,14 @@ func (self *LoadBalancerTargetRegistrar) registerTarget(
 		"host", targetConfiguration.LlamaCppConfiguration.HttpAddress.GetHostWithPort(),
 	)
 
+	reverseProxy := httputil.NewSingleHostReverseProxy(
+		targetConfiguration.LlamaCppConfiguration.HttpAddress.GetBaseUrl(),
+	)
+
+	reverseProxy.ErrorLog = self.Logger.Named("ReverseProxy").StandardLogger(&hclog.StandardLoggerOptions{
+		InferLevels: true,
+	})
+
 	self.LoadBalancerTargetCollection.RegisterTarget(&LlamaCppTarget{
 		LastUpdate: time.Now(),
 		LlamaCppClient: &llamacpp.LlamaCppClient{
@@ -58,9 +66,7 @@ func (self *LoadBalancerTargetRegistrar) registerTarget(
 		LlamaCppHealthStatus:        llamaCppHealthStatus,
 		LlamaCppTargetConfiguration: targetConfiguration,
 		RemainingTicksUntilRemoved:  3,
-		ReverseProxy: httputil.NewSingleHostReverseProxy(
-			targetConfiguration.LlamaCppConfiguration.HttpAddress.GetBaseUrl(),
-		),
+		ReverseProxy:                reverseProxy,
 	})
 
 	serverEventsChannel <- goroutine.ResultMessage{

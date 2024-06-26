@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"errors"
 	"net/http"
-	"time"
 
 	"github.com/distantmagic/paddler/goroutine"
 	"github.com/distantmagic/paddler/llamacpp"
@@ -13,10 +11,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	statsd "github.com/smira/go-statsd"
 	"github.com/urfave/cli/v2"
-)
-
-var (
-	ErrorUnrecognizedBufferDriver = errors.New("unrecognized queue driver")
 )
 
 type Balancer struct {
@@ -73,17 +67,20 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 		RespondToStatic: management.NewRespondToStatic(),
 	}
 
+	respondToCompletion := &loadbalancer.RespondToCompletion{
+		BufferChannel:             make(chan *loadbalancer.BufferedRequest, self.LoadBalancerConfiguration.RequestBufferSize),
+		LoadBalancer:              loadBalancer,
+		LoadBalancerConfiguration: self.LoadBalancerConfiguration,
+		Logger:                    self.Logger.Named("respond_to_completion"),
+	}
+
 	reverseProxyServer := &loadbalancer.ReverseProxyServer{
 		Logger: self.Logger.Named("reverseproxy"),
 		RespondToAggregatedHealth: &loadbalancer.RespondToAggregatedHealth{
 			LlamaCppHealthStatusAggregate: llamaCppHealthStatusAggregate,
 			ServerEventsChannel:           serverEventsChannel,
 		},
-		RespondToCompletion: &loadbalancer.RespondToCompletion{
-			LoadBalancer:              loadBalancer,
-			LoadBalancerConfiguration: self.LoadBalancerConfiguration,
-			Logger:                    self.Logger.Named("respond_to_completion"),
-		},
+		RespondToCompletion: respondToCompletion,
 		RespondToFallback: &loadbalancer.RespondToFallback{
 			LoadBalancerTargetCollection: loadBalancerTargetCollection,
 		},
@@ -91,21 +88,17 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 		ReverseProxyConfiguration: self.ReverseProxyConfiguration,
 	}
 
+	loadBalancerTemporalManager := &loadbalancer.LoadBalancerTemporalManager{
+		LlamaCppHealthStatusAggregate: llamaCppHealthStatusAggregate,
+		LoadBalancerTargetCollection:  loadBalancerTargetCollection,
+		ServerEventsChannel:           serverEventsChannel,
+		StatsdReporter:                self.MakeStatsdReporter(),
+	}
+
+	go loadBalancerTemporalManager.RunTickerInterval()
 	go managementServer.Serve(serverEventsChannel)
+	go respondToCompletion.StartBufferProcessor()
 	go reverseProxyServer.Serve(serverEventsChannel)
-
-	ticker := time.NewTicker(time.Second * 1)
-
-	go self.RuntTickerInterval(
-		ticker,
-		serverEventsChannel,
-		&loadbalancer.LoadBalancerTemporalManager{
-			LlamaCppHealthStatusAggregate: llamaCppHealthStatusAggregate,
-			LoadBalancerTargetCollection:  loadBalancerTargetCollection,
-			ServerEventsChannel:           serverEventsChannel,
-			StatsdReporter:                self.MakeStatsdReporter(),
-		},
-	)
 
 	for serverEvent := range serverEventsChannel {
 		self.Logger.Log(
@@ -138,14 +131,4 @@ func (self *Balancer) MakeStatsdReporter() loadbalancer.StatsdReporterInterface 
 	}
 
 	return statsdReporter
-}
-
-func (self *Balancer) RuntTickerInterval(
-	ticker *time.Ticker,
-	serverEventsChannel chan<- goroutine.ResultMessage,
-	loadBalancerTemporalManager *loadbalancer.LoadBalancerTemporalManager,
-) {
-	for range ticker.C {
-		go loadBalancerTemporalManager.OnApplicationTick()
-	}
 }

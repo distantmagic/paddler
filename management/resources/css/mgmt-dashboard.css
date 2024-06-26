@@ -1,8 +1,10 @@
 @import url("./_reset.css");
 
 :root {
-  --color-body-background: #eee;
-  --color-body-font: #111;
+  --color-body-background: #111;
+  --color-body-font: #eee;
+  --color-border-base: #ccc;
+  --color-border-error: crimson;
   --font-family-body: sans-serif;
   --font-family-monospace: monospace;
   --padding-base: 20px;
@@ -24,17 +26,66 @@ body {
   background-color: var(--color-body-background);
   display: flex;
   flex-direction: column;
-  font-family: var(--font-family-monospace);
+  font-family: var(--font-family-body);
   font-size: var(--font-size-base);
+  line-height: 1.5;
   padding: var(--padding-base);
   row-gap: var(--padding-base);
 }
 
-table {
-  border-collapse: collapse;
+code {
+  word-break: break-word;
+}
 
-  td, th {
-    border: 1px solid #111;
-    padding: var(--padding-base-half) var(--padding-base);
+h1, h2 {
+  padding-left: var(--padding-base);
+}
+
+h1 {
+  font-size: 2.25em;
+}
+
+h2 {
+  font-size: 1.5em;
+}
+
+.agents {
+  list-style-type: none;
+  gap: var(--padding-base);
+
+  @media screen and (max-width: 1279px) {
+    display: flex;
+    flex-direction: column;
   }
+  @media screen and (min-width: 1280px) {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.agents__agent {
+  border: 1px solid var(--color-border-base);
+  display: flex;
+  flex-direction: column;
+  padding: var(--padding-base);
+}
+
+.agents__agent.agents__agent--error {
+  border-color: var(--color-border-error);
+}
+
+.metric {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  column-gap: var(--padding-base);
+}
+
+.metric__name {
+  font-weight: bold;
+  width: 180px;
+}
+
+.metric__value {
+  flex-grow: 1;
 }

@@ -1,54 +1,71 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <link rel="stylesheet" type="text/css" href="/static/mgmt-dashboard.css">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" type="text/css" href="/static/mgmt-dashboard.css">
-    <title>Paddler</title>
+    <meta name="turbo-refresh-method" content="morph">
+    <meta name="turbo-refresh-scroll" content="preserve">
+    <script src="/static/global_turbo.js" type="module"></script>
+    <script src="/static/global_stimulus.js" type="module"></script>
+    <script src="/static/controller_refresh_body.js" type="module"></script>
+    <title>Paddler Dashboard</title>
 </head>
-<body>
-    <table>
-        <thead>
-            <tr>
-                <th>Host</th>
-                <th rowspan="2">Status</th>
-                <th rowspan="2">Idle</th>
-                <th rowspan="2">Processing</th>
-                <th rowspan="2">Remaining Ticks</th>
-                <th rowspan="2">Updates</th>
-                <th rowspan="2">Last Update</th>
-                <th rowspan="2">Error</th>
-            </tr>
-            <tr>
-                <th>
-                    Total: {{.LoadBalancerStatus.RegisteredTargets}}
-                </th>
-            </tr>
-        </thead>
-        <tbody>
-            {{range .LlamaCppTargets}}
-                <tr>
-                    <td>{{.LlamaCppTargetConfiguration}}</td>
-                    <td>{{.LlamaCppHealthStatus.Status}}</td>
-                    <td>{{.LlamaCppHealthStatus.SlotsIdle}}</td>
-                    <td>{{.LlamaCppHealthStatus.SlotsProcessing}}</td>
-                    <td>{{.RemainingTicksUntilRemoved}}</td>
-                    <td>{{.TotalUpdates}}</td>
-                    <td>{{.LastUpdate}}</td>
-                    <td>
-                        {{if .LlamaCppHealthStatus.ErrorMessage}}
-                            {{.LlamaCppHealthStatus.ErrorMessage}}
-                        {{end}}
-                    </td>
-                </tr>
-            {{else}}
-                <tr>
-                    <td colspan="8">
-                        No agents are registered
-                    </td>
-                </tr>
-            {{end}}
-        </tbody>
-    </table>
+<body data-controller="refresh_body">
+    <h1>Paddler Dashboard</h1>
+    <h2>Registered Agents ({{.LoadBalancerStatus.RegisteredTargets}} Total)</h2>
+    <ol class="agents">
+        {{range .LlamaCppTargets}}
+            <li
+                class="
+                    agents__agent
+                    {{if .LlamaCppHealthStatus.ErrorMessage}}
+                        agents__agent--error
+                    {{end}}
+                "
+            >
+                <p class="metric">
+                    <span class="metric__name">Host:</span>
+                    <span class="metric__value">{{.LlamaCppTargetConfiguration}}</span>
+                </p>
+                <p class="metric">
+                    <span class="metric__name">Status:</span>
+                    <span class="metric__value">{{.LlamaCppHealthStatus.Status}}</span>
+                </p>
+                <p class="metric">
+                    <span class="metric__name">Idle:</span>
+                    <span class="metric__value">{{.LlamaCppHealthStatus.SlotsIdle}}</span>
+                </p>
+                <p class="metric">
+                    <span class="metric__name">Processing:</span>
+                    <span class="metric__value">{{.LlamaCppHealthStatus.SlotsProcessing}}</span>
+                </p>
+                <p class="metric">
+                    <span class="metric__name">Remaining Ticks:</span>
+                    <span class="metric__value">{{.RemainingTicksUntilRemoved}}</span>
+                </p>
+                <p class="metric">
+                    <span class="metric__name">Updates:</span>
+                    <span class="metric__value">{{.TotalUpdates}}</span>
+                </p>
+                <p class="metric">
+                    <span class="metric__name">Last Update:</span>
+                    <span class="metric__value">{{.LastUpdate}}</span>
+                </p>
+                <p class="metric">
+                    {{if .LlamaCppHealthStatus.ErrorMessage}}
+                        <span class="metric__name">Error:</span>
+                        <code>{{.LlamaCppHealthStatus.ErrorMessage}}</code>
+                    {{else}}
+                        <span class="metric__name">Status:</span> OK
+                    {{end}}
+                </p>
+            </li>
+        {{else}}
+            <li>
+                No agents are registered
+            </li>
+        {{end}}
+    </ol>
 </body>
 </html>

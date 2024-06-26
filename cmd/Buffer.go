@@ -6,7 +6,7 @@ import (
 )
 
 type Buffer struct {
-	Logger                        hclog.Logger
+	Logger hclog.Logger
 }
 
 func (self *Buffer) Action(cliContext *cli.Context) error {

@@ -1,5 +1,9 @@
 CSS_ENTRYPOINTS := $(wildcard resources/css/mgmt-*.css)
 CSS_SOURCES := $(wildcard resources/css/*.css)
+TS_ENTRYPOINTS := \
+	$(wildcard resources/ts/controller_*.ts) \
+	$(wildcard resources/ts/global_*.ts)
+TS_SOURCES := $(wildcard resources/ts/*.ts)
 
 ESBUILD_TARGET_DIRECTORY ?= static
 
@@ -7,9 +11,9 @@ ESBUILD_TARGET_DIRECTORY ?= static
 # Real targets
 # -----------------------------------------------------------------------------
 
-node_modules: yarn.lock
-	yarnpkg install --check-files --frozen-lockfile --non-interactive;
-	touch node_modules;
+.pnp.cjs: yarn.lock
+	yarnpkg install --immutable
+	touch .pnp.cjs;
 
 # -----------------------------------------------------------------------------
 # Phony targets
@@ -22,11 +26,11 @@ build: esbuild
 clean:
 	rm -rf esbuild-meta-mgmt.json
 	rm -rf static
-	rm -rf node_modules
+	rm -rf .pnp.cjs
 
 .PHONY: esbuild
-esbuild: $(CSS_SOURCES) node_modules
-	./node_modules/.bin/esbuild \
+esbuild: $(CSS_SOURCES) .pnp.cjs
+	yarnpkg run esbuild \
 		--bundle \
 		--asset-names="./[name]" \
 		--entry-names="./[name]" \
@@ -44,4 +48,5 @@ esbuild: $(CSS_SOURCES) node_modules
 		--target=safari16 \
 		--tree-shaking=true \
 		$(CSS_ENTRYPOINTS) \
+		$(TS_ENTRYPOINTS) \
 	;
