@@ -49,7 +49,6 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 	loadBalancer := &loadbalancer.LoadBalancer{
 		LoadBalancerTargetCollection: loadBalancerTargetCollection,
 		Logger:                       self.Logger,
-		RequestBuffer:                &requestBuffer,
 	}
 
 	respondToDashboard, err := management.NewRespondToDashboard(
@@ -81,12 +80,19 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 	}
 
 	reverseProxyServer := &loadbalancer.ReverseProxyServer{
-		LoadBalancer:              loadBalancer,
-		LoadBalancerConfiguration: self.LoadBalancerConfiguration,
-		Logger:                    self.Logger.Named("reverseproxy"),
+		Logger: self.Logger.Named("reverseproxy"),
 		RespondToAggregatedHealth: &loadbalancer.RespondToAggregatedHealth{
 			LlamaCppHealthStatusAggregate: llamaCppHealthStatusAggregate,
 			ServerEventsChannel:           serverEventsChannel,
+		},
+		RespondToCompletion: &loadbalancer.RespondToCompletion{
+			LoadBalancer:              loadBalancer,
+			LoadBalancerConfiguration: self.LoadBalancerConfiguration,
+			Logger:                    self.Logger.Named("respond_to_completion"),
+			RequestBuffer:             &requestBuffer,
+		},
+		RespondToFallback: &loadbalancer.RespondToFallback{
+			LoadBalancerTargetCollection: loadBalancerTargetCollection,
 		},
 		RespondToFavicon:          &loadbalancer.RespondToFavicon{},
 		ReverseProxyConfiguration: self.ReverseProxyConfiguration,

@@ -2,6 +2,7 @@ package loadbalancer
 
 import (
 	"net/http"
+	"net/http/httputil"
 	"time"
 
 	"github.com/distantmagic/paddler/goroutine"
@@ -57,6 +58,9 @@ func (self *LoadBalancerTargetRegistrar) registerTarget(
 		LlamaCppHealthStatus:        llamaCppHealthStatus,
 		LlamaCppTargetConfiguration: targetConfiguration,
 		RemainingTicksUntilRemoved:  3,
+		ReverseProxy: httputil.NewSingleHostReverseProxy(
+			targetConfiguration.LlamaCppConfiguration.HttpAddress.GetBaseUrl(),
+		),
 	})
 
 	serverEventsChannel <- goroutine.ResultMessage{
@@ -70,19 +74,8 @@ func (self *LoadBalancerTargetRegistrar) updateTarget(
 	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
 	existingTarget *LlamaCppTarget,
 ) {
-	self.Logger.Debug(
-		"updating target",
-		"host", targetConfiguration.LlamaCppConfiguration.HttpAddress.GetHostWithPort(),
-		"status", llamaCppHealthStatus.Status,
-		"error", llamaCppHealthStatus.ErrorMessage,
-	)
-
 	self.LoadBalancerTargetCollection.UpdateTargetWithLlamaCppHealthStatus(
 		existingTarget,
 		llamaCppHealthStatus,
 	)
-
-	serverEventsChannel <- goroutine.ResultMessage{
-		Comment: "updated target",
-	}
 }

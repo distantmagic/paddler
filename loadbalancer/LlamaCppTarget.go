@@ -1,6 +1,7 @@
 package loadbalancer
 
 import (
+	"net/http/httputil"
 	"time"
 
 	"github.com/distantmagic/paddler/llamacpp"
@@ -13,6 +14,7 @@ type LlamaCppTarget struct {
 	LlamaCppHealthStatus        *llamacpp.LlamaCppHealthStatus
 	RemainingTicksUntilRemoved  int
 	TotalUpdates                int
+	ReverseProxy                *httputil.ReverseProxy
 }
 
 func (self *LlamaCppTarget) HasLessSlotsThan(other *LlamaCppTarget) bool {

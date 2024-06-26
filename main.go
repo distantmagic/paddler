@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"time"
 
 	"github.com/distantmagic/paddler/agent"
 	"github.com/distantmagic/paddler/cmd"
@@ -239,6 +240,11 @@ func main() {
 						Name:        "statsd-scheme",
 						Value:       "http",
 						Destination: &balancer.StatsdConfiguration.HttpAddress.Scheme,
+					},
+					&cli.DurationFlag{
+						Name:        "balancing-attempt-timeout",
+						Value:       10 * time.Second,
+						Destination: &balancer.LoadBalancerConfiguration.BalancingTimeoutDuration,
 					},
 					&cli.StringFlag{
 						Name:        "buffer-driver",

@@ -1,6 +1,7 @@
 @import url("./_reset.css");
 
 :root {
+  --color-body-background: #eee;
   --color-body-font: #111;
   --font-family-body: sans-serif;
   --font-family-monospace: monospace;
@@ -20,10 +21,10 @@
 }
 
 body {
-  background-color: white;
+  background-color: var(--color-body-background);
   display: flex;
   flex-direction: column;
-  font-family: var(--font-family-body);
+  font-family: var(--font-family-monospace);
   font-size: var(--font-size-base);
   padding: var(--padding-base);
   row-gap: var(--padding-base);
@@ -31,7 +32,6 @@ body {
 
 table {
   border-collapse: collapse;
-  table-layout: fixed;
 
   td, th {
     border: 1px solid #111;

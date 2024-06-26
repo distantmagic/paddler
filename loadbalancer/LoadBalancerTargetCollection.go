@@ -2,7 +2,6 @@ package loadbalancer
 
 import (
 	"container/list"
-	"sync"
 	"time"
 
 	"github.com/distantmagic/paddler/llamacpp"
@@ -13,14 +12,10 @@ type LoadBalancerTargetCollection struct {
 	Targets                       *list.List
 
 	elementByTarget       map[*LlamaCppTarget]*list.Element
-	mutex                 sync.RWMutex
 	targetByConfiguration map[string]*LlamaCppTarget
 }
 
 func (self *LoadBalancerTargetCollection) FixTargetOrder(target *LlamaCppTarget) {
-	self.mutex.Lock()
-	defer self.mutex.Unlock()
-
 	element, ok := self.elementByTarget[target]
 
 	if !ok {
@@ -55,9 +50,6 @@ func (self *LoadBalancerTargetCollection) FixTargetOrder(target *LlamaCppTarget)
 func (self *LoadBalancerTargetCollection) GetTargetByConfiguration(
 	targetConfiguration *LlamaCppTargetConfiguration,
 ) *LlamaCppTarget {
-	self.mutex.RLock()
-	defer self.mutex.RUnlock()
-
 	target, ok := self.targetByConfiguration[targetConfiguration.String()]
 
 	if ok {
@@ -68,9 +60,6 @@ func (self *LoadBalancerTargetCollection) GetTargetByConfiguration(
 }
 
 func (self *LoadBalancerTargetCollection) GetHeadTarget() *LlamaCppPickedTarget {
-	self.mutex.RLock()
-	defer self.mutex.RUnlock()
-
 	headElement := self.Targets.Front()
 
 	if headElement == nil {
@@ -86,16 +75,10 @@ func (self *LoadBalancerTargetCollection) GetHeadTarget() *LlamaCppPickedTarget 
 }
 
 func (self *LoadBalancerTargetCollection) Len() int {
-	self.mutex.RLock()
-	defer self.mutex.RUnlock()
-
 	return self.Targets.Len()
 }
 
 func (self *LoadBalancerTargetCollection) RegisterTarget(llamaCppTarget *LlamaCppTarget) {
-	self.mutex.Lock()
-	defer self.mutex.Unlock()
-
 	self.targetByConfiguration[llamaCppTarget.LlamaCppTargetConfiguration.String()] = llamaCppTarget
 	self.LlamaCppHealthStatusAggregate.AddSlotsFrom(llamaCppTarget.LlamaCppHealthStatus)
 
@@ -117,9 +100,6 @@ func (self *LoadBalancerTargetCollection) RegisterTarget(llamaCppTarget *LlamaCp
 }
 
 func (self *LoadBalancerTargetCollection) RemoveTarget(llamaCppTarget *LlamaCppTarget) {
-	self.mutex.Lock()
-	defer self.mutex.Unlock()
-
 	self.LlamaCppHealthStatusAggregate.RemoveSlotsFrom(llamaCppTarget.LlamaCppHealthStatus)
 	element := self.elementByTarget[llamaCppTarget]
 
@@ -134,9 +114,6 @@ func (self *LoadBalancerTargetCollection) UpdateTargetWithLlamaCppHealthStatus(
 	llamaCppTarget *LlamaCppTarget,
 	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
 ) {
-	self.mutex.Lock()
-	defer self.mutex.Unlock()
-
 	self.LlamaCppHealthStatusAggregate.IncreaseBy(
 		llamaCppTarget.LlamaCppHealthStatus.SlotsIdle-llamaCppHealthStatus.SlotsIdle,
 		llamaCppTarget.LlamaCppHealthStatus.SlotsProcessing-llamaCppHealthStatus.SlotsProcessing,
@@ -152,9 +129,6 @@ func (self *LoadBalancerTargetCollection) UpdateTargetWithLlamaCppHealthStatus(
 }
 
 func (self *LoadBalancerTargetCollection) UseSlot(llamaCppTarget *LlamaCppTarget) {
-	self.mutex.Lock()
-	defer self.mutex.Unlock()
-
 	targetElement := self.elementByTarget[llamaCppTarget]
 	nextTarget := targetElement.Next()
 

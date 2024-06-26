@@ -1,24 +1,22 @@
 package loadbalancer
 
 import (
-	"context"
 	"errors"
 
 	"github.com/hashicorp/go-hclog"
 )
 
 var (
+	ErrorNoSlotsAvailable   = errors.New("no slots available")
 	ErrorNoTargetsAvailable = errors.New("no targets available")
 )
 
 type LoadBalancer struct {
 	LoadBalancerTargetCollection *LoadBalancerTargetCollection
 	Logger                       hclog.Logger
-	RequestBuffer                *RequestBuffer
 }
 
 func (self *LoadBalancer) Balance(
-	ctx context.Context,
 	balancingAttemptStatusChannel chan<- *BalancingAttemptStatus,
 	request *LoadBalancerRequest,
 ) {
@@ -34,24 +32,17 @@ func (self *LoadBalancer) Balance(
 
 	headTarget := headPickedTarget.LlamaCppTarget
 
-	if request.IsSlottable() {
-		self.LoadBalancerTargetCollection.UseSlot(headTarget)
+	if headTarget.LlamaCppHealthStatus.SlotsIdle < 1 {
+		balancingAttemptStatusChannel <- &BalancingAttemptStatus{
+			Error: ErrorNoSlotsAvailable,
+		}
+
+		return
 	}
 
-	targetUrl := headTarget.
-		LlamaCppClient.
-		LlamaCppConfiguration.
-		HttpAddress.
-		BuildUrlWithPath("")
-
-	self.Logger.Debug(
-		"balancing",
-		"target", targetUrl,
-		"slots", headTarget.LlamaCppHealthStatus.SlotsIdle,
-	)
-
+	self.LoadBalancerTargetCollection.UseSlot(headTarget)
 	balancingAttemptStatusChannel <- &BalancingAttemptStatus{
-		TargetUrl: targetUrl,
+		LlamaCppTarget: headTarget,
 	}
 }
 

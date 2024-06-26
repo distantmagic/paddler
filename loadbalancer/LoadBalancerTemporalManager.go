@@ -1,8 +1,6 @@
 package loadbalancer
 
 import (
-	"sync"
-
 	"github.com/distantmagic/paddler/goroutine"
 )
 
@@ -11,8 +9,6 @@ type LoadBalancerTemporalManager struct {
 	LoadBalancerTargetCollection  *LoadBalancerTargetCollection
 	ServerEventsChannel           chan<- goroutine.ResultMessage
 	StatsdReporter                StatsdReporterInterface
-
-	mu sync.Mutex
 }
 
 func (self *LoadBalancerTemporalManager) OnApplicationTick() {
@@ -21,9 +17,6 @@ func (self *LoadBalancerTemporalManager) OnApplicationTick() {
 }
 
 func (self *LoadBalancerTemporalManager) ReduceTargetCollectionRemainingTicks() {
-	self.mu.Lock()
-	defer self.mu.Unlock()
-
 	var aggregatedSlotsIdle int
 	var aggregatedSlotsProcessing int
 

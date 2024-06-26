@@ -20,9 +20,6 @@ func (self *LlamaCppHealthStatusAggregate) AddSlotsFrom(llamaCppHealthStatus *ll
 }
 
 func (self *LlamaCppHealthStatusAggregate) IncreaseBy(slotsIdle int, slotsProcessing int) {
-	self.mutex.Lock()
-	defer self.mutex.Unlock()
-
 	self.AggregatedHealthStatus.SlotsIdle += slotsIdle
 	self.AggregatedHealthStatus.SlotsProcessing += slotsProcessing
 }

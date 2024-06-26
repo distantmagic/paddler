@@ -7,21 +7,22 @@
     <title>Paddler</title>
 </head>
 <body>
-    <p>
-        <strong>Registered Targets</strong>:
-        {{.LoadBalancerStatus.RegisteredTargets}}
-    </p>
     <table>
         <thead>
             <tr>
                 <th>Host</th>
-                <th>Status</th>
-                <th>Idle</th>
-                <th>Processing</th>
-                <th>Remaining Ticks</th>
-                <th>Updates</th>
-                <th>Last Update</th>
-                <th>Error</th>
+                <th rowspan="2">Status</th>
+                <th rowspan="2">Idle</th>
+                <th rowspan="2">Processing</th>
+                <th rowspan="2">Remaining Ticks</th>
+                <th rowspan="2">Updates</th>
+                <th rowspan="2">Last Update</th>
+                <th rowspan="2">Error</th>
+            </tr>
+            <tr>
+                <th>
+                    Total: {{.LoadBalancerStatus.RegisteredTargets}}
+                </th>
             </tr>
         </thead>
         <tbody>

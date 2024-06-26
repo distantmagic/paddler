@@ -19,6 +19,10 @@ func (self *HttpAddressConfiguration) BuildUrlWithPath(path string) *url.URL {
 	}
 }
 
+func (self *HttpAddressConfiguration) GetBaseUrl() *url.URL {
+	return self.BuildUrlWithPath("")
+}
+
 func (self *HttpAddressConfiguration) GetHostWithPort() string {
 	return fmt.Sprintf("%s:%d", self.Host, self.Port)
 }
