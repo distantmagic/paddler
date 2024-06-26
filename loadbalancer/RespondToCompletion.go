@@ -16,6 +16,11 @@ type RespondToCompletion struct {
 }
 
 func (self *RespondToCompletion) ServeHTTP(response http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(response, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	balancingAttemptStatusChannel := make(chan *BalancingAttemptStatus)
 
 	defer close(balancingAttemptStatusChannel)
