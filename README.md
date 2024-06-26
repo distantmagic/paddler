@@ -69,25 +69,6 @@ It needs a few pieces of information:
 
 Replace hosts and ports with your own server addresses when deploying.
 
-#### AWS Integration
-
-> [!NOTE]
-> Available since v0.3.0
-
-When running on AWS EC2, you can replace `--local-llamacpp-host` with `aws:metadata:local-ipv4`. In that case, Paddler will use [EC2 instance metadata](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html) to fetch the local IP address (from the local network):
-
-If you want to keep the balancer management address predictable, I recommend using [Route 53](https://aws.amazon.com/route53/) to create a record that always points to your load balancer (for example `paddler_balancer.example.com`), which makes it something like that in the end:
-
-```shell
-./paddler agent \
-    --external-llamacpp-host paddler_balancer.example.com \
-    --external-llamacpp-port 8088 \
-    --local-llamacpp-host aws:metadata:local-ipv4 \
-    --local-llamacpp-port 8088 \
-    --management-host paddler_balancer.example.com \
-    --management-port 8085
-```
-
 ### Running Load Balancer
 
 Load balancer collects data from agents and exposes reverse proxy to the outside world.
@@ -110,6 +91,27 @@ You can enable dashboard to see the status of the agents with
 `--management-dashboard-enable=true` flag. If enabled it is available at the 
 management server address under `/dashboard` path.
 
+## Feature Highlight
+
+### AWS Integration
+
+> [!NOTE]
+> Available since v0.3.0
+
+When running on AWS EC2, you can replace `--local-llamacpp-host` with `aws:metadata:local-ipv4`. In that case, Paddler will use [EC2 instance metadata](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html) to fetch the local IP address (from the local network):
+
+If you want to keep the balancer management address predictable, I recommend using [Route 53](https://aws.amazon.com/route53/) to create a record that always points to your load balancer (for example `paddler_balancer.example.com`), which makes it something like that in the end:
+
+```shell
+./paddler agent \
+    --external-llamacpp-host paddler_balancer.example.com \
+    --external-llamacpp-port 8088 \
+    --local-llamacpp-host aws:metadata:local-ipv4 \
+    --local-llamacpp-port 8088 \
+    --management-host paddler_balancer.example.com \
+    --management-port 8085
+```
+
 ### Buffered Requests (Scaling from Zero Hosts)
 
 > [!NOTE]
@@ -120,6 +122,12 @@ Load balancer's buffered requests allow your infrastructure to scale from zero h
 It also gives your infrastructure some additional time to add additional hosts. For example, if your autoscaler is setting up an additional server, putting an incoming request on hold for 60 seconds might give it a chance to be handled even though there might be no available llama.cpp instances at the moment of issuing it.
 
 https://github.com/distantmagic/paddler/assets/1286785/34b93e4c-0746-4eed-8be3-cd698e15cbf9
+
+### State Dashboard
+
+Although Paddler provides an integration with the [StatsD protocol](https://github.com/statsd/statsd), you can preview the cluster's state using a built-in dashboard.
+
+![image](https://github.com/distantmagic/paddler/assets/1286785/d6de62d0-c871-4c85-a5b3-a6bad8b53cab)
 
 ## Changelog
 
