@@ -7,6 +7,7 @@ import (
 )
 
 type LoadBalancerTemporalManager struct {
+	BufferedRequestsStats         *BufferedRequestsStats
 	LlamaCppHealthStatusAggregate *LlamaCppHealthStatusAggregate
 	LoadBalancerTargetCollection  *LoadBalancerTargetCollection
 	ServerEventsChannel           chan<- goroutine.ResultMessage
@@ -41,7 +42,10 @@ func (self *LoadBalancerTemporalManager) ReduceTargetCollectionRemainingTicks() 
 }
 
 func (self *LoadBalancerTemporalManager) ReportStats() {
-	err := self.StatsdReporter.ReportAggregatedHealthStatus(self.LlamaCppHealthStatusAggregate)
+	err := self.StatsdReporter.ReportAggregatedHealthStatus(
+		self.BufferedRequestsStats,
+		self.LlamaCppHealthStatusAggregate,
+	)
 
 	if err != nil {
 		self.ServerEventsChannel <- goroutine.ResultMessage{

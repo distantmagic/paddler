@@ -10,6 +10,7 @@ import (
 
 type RespondToCompletion struct {
 	BufferChannel             chan *BufferedRequest
+	BufferedRequestsStats     *BufferedRequestsStats
 	LoadBalancer              *LoadBalancer
 	LoadBalancerConfiguration *LoadBalancerConfiguration
 	Logger                    hclog.Logger
@@ -31,7 +32,7 @@ func (self *RespondToCompletion) ServeHTTP(response http.ResponseWriter, request
 
 	defer bufferedRequest.Close()
 
-	go self.handleRequest(bufferedRequest)
+	go self.handleRequest(bufferedRequest, true)
 
 	select {
 	case <-bufferedRequest.DoneChannel:
@@ -39,7 +40,7 @@ func (self *RespondToCompletion) ServeHTTP(response http.ResponseWriter, request
 	case <-request.Context().Done():
 		// request is canceled
 	case <-time.After(self.LoadBalancerConfiguration.RequestBufferTimeout):
-		http.Error(response, "Request Timeout", http.StatusRequestTimeout)
+		http.Error(response, "Request Timeout", http.StatusGatewayTimeout)
 	}
 }
 
@@ -51,7 +52,10 @@ func (self *RespondToCompletion) bufferRequest(bufferedRequest *BufferedRequest)
 	}
 }
 
-func (self *RespondToCompletion) handleRequest(bufferedRequest *BufferedRequest) {
+func (self *RespondToCompletion) handleRequest(
+	bufferedRequest *BufferedRequest,
+	isInitial bool,
+) {
 	balancingAttemptStatusChannel := make(chan *BalancingAttemptStatus)
 	defer close(balancingAttemptStatusChannel)
 
@@ -66,8 +70,13 @@ func (self *RespondToCompletion) handleRequest(bufferedRequest *BufferedRequest)
 
 	switch balancingAttemptStatus.Error {
 	case ErrorNoTargetsAvailable:
-		bufferedRequest.SendError("No Targets Available", http.StatusTooManyRequests)
+		bufferedRequest.SendError("No Targets Available", http.StatusServiceUnavailable)
 	case ErrorNoSlotsAvailable:
+		if isInitial {
+			// do not increase buffered requests stat multiple times
+			self.BufferedRequestsStats.RequestsBuffered += 1
+		}
+
 		go self.bufferRequest(bufferedRequest)
 	case nil:
 		balancingAttemptStatus.LlamaCppTarget.ReverseProxy.ServeHTTP(
@@ -98,7 +107,7 @@ func (self *RespondToCompletion) StartBufferProcessor() {
 				continue
 			}
 
-			go self.handleRequest(bufferedRequest)
+			go self.handleRequest(bufferedRequest, false)
 		default:
 			// no buffered requests
 		}

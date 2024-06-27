@@ -1,5 +1,8 @@
 package loadbalancer
 
 type StatsdReporterInterface interface {
-	ReportAggregatedHealthStatus(llamaCppHealthStatusAggregate *LlamaCppHealthStatusAggregate) error
+	ReportAggregatedHealthStatus(
+		bufferedRequestsStats *BufferedRequestsStats,
+		llamaCppHealthStatusAggregate *LlamaCppHealthStatusAggregate,
+	) error
 }

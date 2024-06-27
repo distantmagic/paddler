@@ -1,13 +1,13 @@
 @import url("./_reset.css");
 
 :root {
+  --color-agent-background: white;
+  --color-agent-background-error: #ffb8b8;
+  --color-agent-font: #111;
   --color-body-background: #111;
   --color-body-font: #eee;
-  --color-border-base: #ccc;
-  --color-border-error: crimson;
   --font-family-body: sans-serif;
   --font-family-monospace: monospace;
-  --padding-base: 20px;
   --padding-base-half: 10px;
 
   @media screen and (max-height: 1199px) {
@@ -20,13 +20,19 @@
     --font-size-code: 18px;
     --font-size-smaller: 18px;
   }
+  @media screen and (max-width: 1279px) {
+    --padding-base: 20px;
+  }
+  @media screen and (min-width: 1280px) {
+    --padding-base: 32px;
+  }
 }
 
 body {
   background-color: var(--color-body-background);
   display: flex;
   flex-direction: column;
-  font-family: var(--font-family-body);
+  font-family: var(--font-family-monospace);
   font-size: var(--font-size-base);
   line-height: 1.5;
   padding: var(--padding-base);
@@ -57,21 +63,27 @@ h2 {
     display: flex;
     flex-direction: column;
   }
-  @media screen and (min-width: 1280px) {
+  @media screen and (min-width: 1280px) and (max-width: 1919px) {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
+  }
+  @media screen and (min-width: 1920px) {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
 .agents__agent {
-  border: 1px solid var(--color-border-base);
+  background-color: var(--color-agent-background);
+  color: var(--color-agent-font);
   display: flex;
   flex-direction: column;
-  padding: var(--padding-base);
+  padding: var(--padding-base) var(--padding-base);
+  row-gap: 4px;
 }
 
 .agents__agent.agents__agent--error {
-  border-color: var(--color-border-error);
+  background-color: var(--color-agent-background-error);
 }
 
 .agents__empty {
@@ -80,21 +92,26 @@ h2 {
 
 .metric {
   display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
   column-gap: var(--padding-base);
+
+  @media screen and (max-width: 1279px) {
+    flex-direction: column;
+  }
+  @media screen and (min-width: 1280px) {
+    flex-direction: row;
+  }
 }
 
 .metric.metric--error {
-  border-top: 1px solid var(--color-border-base);
   flex-direction: column;
   margin-top: var(--padding-base);
   padding-top: var(--padding-base);
+  row-gap: 4px;
 }
 
 .metric__name {
   font-weight: bold;
-  width: 180px;
+  width: 200px;
 }
 
 .metric__value {

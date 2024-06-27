@@ -48,6 +48,8 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 		return err
 	}
 
+	bufferedRequestsStats := &loadbalancer.BufferedRequestsStats{}
+
 	managementServer := &management.Server{
 		ManagementServerConfiguration: self.ManagementServerConfiguration,
 		Logger:                        self.Logger.Named("management"),
@@ -69,6 +71,7 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 
 	respondToCompletion := &loadbalancer.RespondToCompletion{
 		BufferChannel:             make(chan *loadbalancer.BufferedRequest, self.LoadBalancerConfiguration.RequestBufferSize),
+		BufferedRequestsStats:     bufferedRequestsStats,
 		LoadBalancer:              loadBalancer,
 		LoadBalancerConfiguration: self.LoadBalancerConfiguration,
 		Logger:                    self.Logger.Named("respond_to_completion"),
@@ -89,6 +92,7 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 	}
 
 	loadBalancerTemporalManager := &loadbalancer.LoadBalancerTemporalManager{
+		BufferedRequestsStats:         bufferedRequestsStats,
 		LlamaCppHealthStatusAggregate: llamaCppHealthStatusAggregate,
 		LoadBalancerTargetCollection:  loadBalancerTargetCollection,
 		ServerEventsChannel:           serverEventsChannel,
