@@ -168,7 +168,7 @@ StatsD metrics need to be enabled with the following flags:
 
 ## Changelog
 
-### v0.3.0 (to be released)
+### v0.3.0
 
 #### Features
 
