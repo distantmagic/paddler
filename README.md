@@ -127,7 +127,7 @@ Load balancer's buffered requests allow your infrastructure to scale from zero h
 
 It also gives your infrastructure some additional time to add additional hosts. For example, if your autoscaler is setting up an additional server, putting an incoming request on hold for 60 seconds might give it a chance to be handled even though there might be no available llama.cpp instances at the moment of issuing it.
 
-![Paddler Buffered Requests](https://github.com/distantmagic/paddler/assets/1286785/ddafc1c4-85bd-48f9-8e58-65294281835d)
+![Paddler Buffered Requests](https://github.com/distantmagic/paddler/assets/1286785/a1754d46-d728-4858-a991-11e8b52bd20d)
 
 https://github.com/distantmagic/paddler/assets/1286785/34b93e4c-0746-4eed-8be3-cd698e15cbf9
 
