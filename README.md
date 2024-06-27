@@ -93,6 +93,12 @@ management server address under `/dashboard` path.
 
 ## Feature Highlight
 
+### Aggregated Health Status
+
+Paddler overrides `/health` endpoint of `llama.cpp` and reports the total number of available and processing slots.
+
+![Aggregated Health Status](https://github.com/distantmagic/paddler/assets/1286785/01f2fb39-ccc5-4bfa-896f-919b66318b2c)
+
 ### AWS Integration
 
 > [!NOTE]
@@ -127,20 +133,54 @@ https://github.com/distantmagic/paddler/assets/1286785/34b93e4c-0746-4eed-8be3-c
 
 ### State Dashboard
 
-Although Paddler provides an integration with the [StatsD protocol](https://github.com/statsd/statsd), you can preview the cluster's state using a built-in dashboard.
+Although Paddler integrates with the [StatsD protocol](https://github.com/statsd/statsd), you can preview the cluster's state using a built-in dashboard.
 
 ![Paddler State Dashboard](https://github.com/distantmagic/paddler/assets/1286785/251921bf-cfbd-4269-b0c9-b9cc981d4128)
+
+### StatsD Metrics
+
+> [!NOTE]
+> Available since v0.3.0
+
+> [!TIP]
+> If you keep your stack self-hosted you can use [Prometheus](https://prometheus.io/) with StatsD exporter to handle the incoming metrics.
+
+> [!TIP]
+> This feature works with [AWS CloudWatch Agent](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Agent-custom-metrics-statsd.html) as well.
+
+Paddler supports the following StatsD metrics:
+- `paddler.requests_buffered` number of buffered requests since the last report (resets after each report)
+- `paddler.slots_idle` total idle slots
+- `paddler.slots_processing` total slots processing requests
+
+All of them use `gauge` internally.
+
+StatsD metrics need to be enabled with the following flags:
+
+```shell
+./paddler balancer \
+    # .. put all the other flags here ...
+    --statsd-enable=true \
+    --statsd-host=127.0.0.1 \
+    --statsd-port=8125 \
+    --statsd-scheme=http
+```
 
 ## Changelog
 
 ### v0.3.0 (to be released)
 
-* New feature: Requests can queue when all llama.cpp instances are busy
-* New feature: AWS Metadata support for agent local IP address
+#### Features
+
+* Requests can queue when all llama.cpp instances are busy
+* AWS Metadata support for agent local IP address
+* StatsD metrics support
 
 ### v0.1.0
 
-* New feature: [Aggregated Health Status Responses](https://github.com/distantmagic/paddler/releases/tag/v0.1.0)
+#### Features
+
+* [Aggregated Health Status Responses](https://github.com/distantmagic/paddler/releases/tag/v0.1.0)
 
 ## Community
 
