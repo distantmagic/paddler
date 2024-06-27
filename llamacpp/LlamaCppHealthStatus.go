@@ -19,3 +19,7 @@ func (self *LlamaCppHealthStatus) CopyFrom(other *LlamaCppHealthStatus) {
 	self.SlotsProcessing = other.SlotsProcessing
 	self.Status = other.Status
 }
+
+func (self *LlamaCppHealthStatus) GetTotalSlots() int {
+	return self.SlotsIdle + self.SlotsProcessing
+}

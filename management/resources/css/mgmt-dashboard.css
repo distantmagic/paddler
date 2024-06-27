@@ -74,11 +74,22 @@ h2 {
   border-color: var(--color-border-error);
 }
 
+.agents__empty {
+  padding: 0 var(--padding-base);
+}
+
 .metric {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
   column-gap: var(--padding-base);
+}
+
+.metric.metric--error {
+  border-top: 1px solid var(--color-border-base);
+  flex-direction: column;
+  margin-top: var(--padding-base);
+  padding-top: var(--padding-base);
 }
 
 .metric__name {

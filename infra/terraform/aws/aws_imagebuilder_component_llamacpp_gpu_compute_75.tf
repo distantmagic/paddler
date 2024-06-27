@@ -12,7 +12,7 @@ resource "aws_imagebuilder_component" "llamacpp_gpu_compute_75" {
             <<COMPILE
             CUDA_DOCKER_ARCH=compute_75 \
             LD_LIBRARY_PATH="/usr/local/cuda-12/lib64:$LD_LIBRARY_PATH" \
-            LLAMA_CUDA=1 \
+            GGML_CUDA=1 \
             PATH="/usr/local/cuda-12/bin:$PATH" \
               make -j
             COMPILE

@@ -35,11 +35,11 @@ system. This tutorial was written explicitly to perform the installation on a `U
     cd llama.cpp
     ```
     ```shell
-    LLAMA_CUDA=1 make -j
+    GGML_CUDA=1 make -j
     ```
 5. Benchmark llama.cpp (optional):
 
-    Follow the official tutorial if you intend to run the benchmark. However, keep using `LLAMA_CUDA=1 make` to compile the llama.cpp (do *not* use `LLAMA_CUBLAS=1`):
+    Follow the official tutorial if you intend to run the benchmark. However, keep using `GGML_CUDA=1 make` to compile the llama.cpp (do *not* use `LLAMA_CUBLAS=1`):
   https://github.com/ggerganov/llama.cpp/discussions/4225
 
     Instead of performing a model quantization yourself, you can download quantized models from Hugging Face. For example, `Mistral Instruct` you can download from https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/tree/main
@@ -63,7 +63,29 @@ use T4 GPU, which would be `compute_75`.
 For example:
 
 ```shell
-CUDA_DOCKER_ARCH=compute_75 LLAMA_CUDA=1 make -j
+CUDA_DOCKER_ARCH=compute_75 GGML_CUDA=1 make -j
+```
+
+### Failed to initialize CUDA
+
+```
+ggml_cuda_init: failed to initialize CUDA: unknown error
+```
+
+Sometimes can be solved with `sudo modprobe nvidia_uvm`. 
+
+You can also create a Systemd unit that loads the module on boot:
+
+```ini
+[Unit]
+After=nvidia-persistenced.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/modprobe nvidia_uvm
+
+[Install]
+WantedBy=multi-user.target
 ```
 
 ### NVCC not found

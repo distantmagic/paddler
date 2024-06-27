@@ -33,11 +33,11 @@
                     <span class="metric__value">{{.LlamaCppHealthStatus.Status}}</span>
                 </p>
                 <p class="metric">
-                    <span class="metric__name">Idle:</span>
+                    <span class="metric__name">Slots Idle:</span>
                     <span class="metric__value">{{.LlamaCppHealthStatus.SlotsIdle}}</span>
                 </p>
                 <p class="metric">
-                    <span class="metric__name">Processing:</span>
+                    <span class="metric__name">Slots Processing:</span>
                     <span class="metric__value">{{.LlamaCppHealthStatus.SlotsProcessing}}</span>
                 </p>
                 <p class="metric">
@@ -52,17 +52,17 @@
                     <span class="metric__name">Last Update:</span>
                     <span class="metric__value">{{.LastUpdate}}</span>
                 </p>
-                <p class="metric">
-                    {{if .LlamaCppHealthStatus.ErrorMessage}}
+                {{if .LlamaCppHealthStatus.ErrorMessage}}
+                    <p class="metric metric--error">
                         <span class="metric__name">Error:</span>
-                        <code>{{.LlamaCppHealthStatus.ErrorMessage}}</code>
-                    {{else}}
-                        <span class="metric__name">Status:</span> OK
-                    {{end}}
-                </p>
+                        <span class="metric_value">
+                            <code>{{.LlamaCppHealthStatus.ErrorMessage}}</code>
+                        </span>
+                    </p>
+                {{end}}
             </li>
         {{else}}
-            <li>
+            <li class="agents__empty">
                 No agents are registered
             </li>
         {{end}}

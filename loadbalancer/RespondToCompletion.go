@@ -22,62 +22,43 @@ func (self *RespondToCompletion) ServeHTTP(response http.ResponseWriter, request
 		return
 	}
 
-	bufferedRequestDoneChannel := make(chan bool)
-
-	defer close(bufferedRequestDoneChannel)
-
-	bufferedRequest := self.handleRequest(response, request, bufferedRequestDoneChannel)
-
-	if bufferedRequest == nil {
-		return
+	bufferedRequest := &BufferedRequest{
+		DoneChannel: make(chan bool),
+		Response:    response,
+		Request:     request,
+		Timeout:     time.Now().Add(self.LoadBalancerConfiguration.RequestBufferTimeout),
 	}
 
-	self.Logger.Info("BUFFER AWAITS", "url", request.URL.String())
+	defer bufferedRequest.Close()
+
+	go self.handleRequest(bufferedRequest)
 
 	select {
-	case <-bufferedRequest.Done:
-		self.Logger.Info("BUFFER DONE", "url", request.URL.String())
-		return
+	case <-bufferedRequest.DoneChannel:
+		// buffer finished
 	case <-request.Context().Done():
-		self.Logger.Info("Request DONE", "url", request.URL.String())
-		return
+		// request is canceled
+	case <-time.After(self.LoadBalancerConfiguration.RequestBufferTimeout):
+		http.Error(response, "Request Timeout", http.StatusRequestTimeout)
 	}
 }
 
-func (self *RespondToCompletion) bufferRequest(
-	response http.ResponseWriter,
-	request *http.Request,
-	bufferedRequestDoneChannel chan bool,
-) *BufferedRequest {
-	bufferedRequest := &BufferedRequest{
-		Done:     bufferedRequestDoneChannel,
-		Response: response,
-		Request:  request,
-		Timeout:  time.Now().Add(self.LoadBalancerConfiguration.RequestBufferTimeout),
-	}
-
+func (self *RespondToCompletion) bufferRequest(bufferedRequest *BufferedRequest) {
 	select {
 	case self.BufferChannel <- bufferedRequest:
-		return bufferedRequest
 	default:
-		http.Error(response, "Too Many Requests", http.StatusTooManyRequests)
-
-		return nil
+		bufferedRequest.SendError("Too Many Requests", http.StatusTooManyRequests)
 	}
 }
 
-func (self *RespondToCompletion) handleRequest(
-	response http.ResponseWriter,
-	request *http.Request,
-	bufferedRequestDoneChannel chan bool,
-) *BufferedRequest {
+func (self *RespondToCompletion) handleRequest(bufferedRequest *BufferedRequest) {
 	balancingAttemptStatusChannel := make(chan *BalancingAttemptStatus)
 	defer close(balancingAttemptStatusChannel)
 
 	go self.LoadBalancer.Balance(
 		balancingAttemptStatusChannel,
 		&LoadBalancerRequest{
-			HttpRequest: request,
+			HttpRequest: bufferedRequest.Request,
 		},
 	)
 
@@ -85,20 +66,21 @@ func (self *RespondToCompletion) handleRequest(
 
 	switch balancingAttemptStatus.Error {
 	case ErrorNoTargetsAvailable:
-		http.Error(response, "No Targets Available", http.StatusTooManyRequests)
+		bufferedRequest.SendError("No Targets Available", http.StatusTooManyRequests)
 	case ErrorNoSlotsAvailable:
-		return self.bufferRequest(response, request, bufferedRequestDoneChannel)
+		go self.bufferRequest(bufferedRequest)
 	case nil:
-		balancingAttemptStatus.LlamaCppTarget.ReverseProxy.ServeHTTP(response, request)
-		bufferedRequestDoneChannel <- true
+		balancingAttemptStatus.LlamaCppTarget.ReverseProxy.ServeHTTP(
+			bufferedRequest.Response,
+			bufferedRequest.Request,
+		)
+		bufferedRequest.SetDone()
 	default:
 		self.ServerEventsChannel <- goroutine.ResultMessage{
 			Comment: "error while balancing request",
 			Error:   balancingAttemptStatus.Error,
 		}
 	}
-
-	return nil
 }
 
 func (self *RespondToCompletion) StartBufferProcessor() {
@@ -108,16 +90,15 @@ func (self *RespondToCompletion) StartBufferProcessor() {
 	for range ticker.C {
 		select {
 		case bufferedRequest := <-self.BufferChannel:
-			if time.Now().After(bufferedRequest.Timeout) {
-				http.Error(bufferedRequest.Response, "Request Timeout", http.StatusRequestTimeout)
+			if bufferedRequest.IsDone {
 				continue
 			}
 
-			self.handleRequest(
-				bufferedRequest.Response,
-				bufferedRequest.Request,
-				bufferedRequest.Done,
-			)
+			if time.Now().After(bufferedRequest.Timeout) {
+				continue
+			}
+
+			go self.handleRequest(bufferedRequest)
 		default:
 			// no buffered requests
 		}

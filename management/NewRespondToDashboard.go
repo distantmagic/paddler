@@ -8,14 +8,14 @@ import (
 	"github.com/distantmagic/paddler/loadbalancer"
 )
 
-//go:embed dashboard/views/*
+//go:embed resources/views/*
 var dashboardTemplatesFilesystem embed.FS
 
 func NewRespondToDashboard(
 	loadBalancer *loadbalancer.LoadBalancer,
 	serverEventsChannel chan<- goroutine.ResultMessage,
 ) (*RespondToDashboard, error) {
-	dashboardTemplates, err := template.ParseFS(dashboardTemplatesFilesystem, "dashboard/views/*.html")
+	dashboardTemplates, err := template.ParseFS(dashboardTemplatesFilesystem, "resources/views/*.html")
 
 	if err != nil {
 		return nil, err
