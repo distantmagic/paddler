@@ -110,9 +110,9 @@ If you want to keep the balancer management address predictable, I recommend usi
 
 ```shell
 ./paddler agent \
-    --external-llamacpp-host paddler_balancer.example.com \
+    --external-llamacpp-host aws:metadata:local-ipv4 \
     --external-llamacpp-port 8088 \
-    --local-llamacpp-host aws:metadata:local-ipv4 \
+    --local-llamacpp-host 127.0.0.1 \
     --local-llamacpp-port 8088 \
     --management-host paddler_balancer.example.com \
     --management-port 8085
