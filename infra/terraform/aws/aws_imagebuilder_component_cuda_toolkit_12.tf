@@ -7,10 +7,8 @@ resource "aws_imagebuilder_component" "cuda_toolkit_12" {
           action = "ExecuteBash"
           inputs = {
             commands = [
-              "wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb",
-              "sudo dpkg -i cuda-keyring_1.1-1_all.deb",
               "sudo apt-get update",
-              "DEBIAN_FRONTEND=noninteractive sudo apt-get -yq install cuda-toolkit-12-5"
+              "DEBIAN_FRONTEND=noninteractive sudo apt-get -yq install nvidia-cuda-toolkit"
             ]
           }
           name           = "apt_cuda_toolkit_12"

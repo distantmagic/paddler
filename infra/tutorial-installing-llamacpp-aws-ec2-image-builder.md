@@ -70,7 +70,7 @@ You can complete the tutorial steps either manually or by automating the setup w
    **Component name: apt_nvidia_driver_555**
    ```yaml
     name: apt_nvidia_driver_555
-    description: "Component to install NVIDIA driver 555 on Ubuntu"
+    description: "Component to install NVIDIA driver 550 on Ubuntu"
     schemaVersion: '1.0'
     phases:
       - name: build
@@ -80,7 +80,7 @@ You can complete the tutorial steps either manually or by automating the setup w
             inputs:
               commands:
                 - sudo apt-get update
-                - DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq nvidia-driver-555
+                - DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq nvidia-driver-550
             onFailure: Abort
             timeoutSeconds: 180
           - name: reboot
@@ -100,10 +100,7 @@ You can complete the tutorial steps either manually or by automating the setup w
             action: ExecuteBash
             inputs:
               commands:
-                - wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
-                - sudo dpkg -i cuda-keyring_1.1-1_all.deb
-                - sudo apt-get update
-                - DEBIAN_FRONTEND=noninteractive sudo apt-get -yq install cuda-toolkit-12-5
+                - DEBIAN_FRONTEND=noninteractive sudo apt-get -yq install nvidia-cuda-toolkit
             onFailure: Abort
             timeoutSeconds: 600
           - name: reboot

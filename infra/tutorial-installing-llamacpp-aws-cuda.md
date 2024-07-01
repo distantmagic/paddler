@@ -143,5 +143,5 @@ sudo reboot
 For example, with `Mistral Instruct 7B` what worked for me is:
 
 ```shell
-./batched-bench ../mistral-7b-instruct-v0.2.Q4_K_M.gguf 2048 2048 512 0 999 128,256,512 128,256 1,2,4,8,16,32
+./llama-batched-bench -m ../mistral-7b-instruct-v0.2.Q4_K_M.gguf 2048 2048 512 0 999 128,256,512 128,256 1,2,4,8,16,32
 ```

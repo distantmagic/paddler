@@ -1,4 +1,4 @@
-resource "aws_imagebuilder_component" "apt_nvidia_driver_555" {
+resource "aws_imagebuilder_component" "apt_nvidia_driver_550" {
   data = yamlencode({
     phases = [{
       name = "build"
@@ -8,10 +8,10 @@ resource "aws_imagebuilder_component" "apt_nvidia_driver_555" {
           inputs = {
             commands = [
               "sudo apt-get update",
-              "DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq nvidia-driver-555",
+              "DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq nvidia-driver-550",
             ]
           }
-          name           = "apt_nvidia_driver_555"
+          name           = "apt_nvidia_driver_550"
           onFailure      = "Abort"
           timeoutSeconds = 180
         },
@@ -23,7 +23,7 @@ resource "aws_imagebuilder_component" "apt_nvidia_driver_555" {
     }]
     schemaVersion = 1.0
   })
-  name     = "apt_nvidia_driver_555"
+  name     = "apt_nvidia_driver_550"
   platform = "Linux"
   supported_os_versions = [
     "Ubuntu 22"
