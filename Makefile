@@ -32,7 +32,7 @@ paddler-bin-linux-x64: $(CSS_SOURCES) $(GO_SOURCES)
 clean:
 	$(MAKE) -C management clean
 	rm -f log.db
-	rm -f paddler
+	rm -f paddler-bin-linux-x64
 	rm -rf snapshots
 	rm -f stable.db
 
