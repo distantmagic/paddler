@@ -1,6 +1,6 @@
 module github.com/distantmagic/paddler
 
-go 1.21.8
+go 1.21
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.17
