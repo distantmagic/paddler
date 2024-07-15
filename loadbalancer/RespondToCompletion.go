@@ -1,6 +1,7 @@
 package loadbalancer
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -32,15 +33,19 @@ func (self *RespondToCompletion) ServeHTTP(response http.ResponseWriter, request
 
 	defer bufferedRequest.Close()
 
+	self.Logger.Info("TEST")
 	go self.handleRequest(bufferedRequest, true)
 
 	select {
 	case <-bufferedRequest.DoneChannel:
 		// buffer finished
+		self.Logger.Info("BUFFER FINISHED")
 	case <-request.Context().Done():
 		// request is canceled
+		self.Logger.Info("REQUEST IS CANCELED")
 	case <-time.After(self.LoadBalancerConfiguration.RequestBufferTimeout):
 		http.Error(response, "Request Timeout", http.StatusGatewayTimeout)
+		self.Logger.Info("REQUEST TIMEOUT")
 	}
 }
 
@@ -52,12 +57,35 @@ func (self *RespondToCompletion) bufferRequest(bufferedRequest *BufferedRequest)
 	}
 }
 
+func (self *RespondToCompletion) StartBufferProcessor() {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		select {
+		case bufferedRequest := <-self.BufferChannel:
+			if bufferedRequest.IsDone {
+				continue
+			}
+
+			if time.Now().After(bufferedRequest.Timeout) {
+				continue
+			}
+
+			go self.handleRequest(bufferedRequest, false)
+		default:
+			// no buffered requests
+		}
+	}
+}
+
 func (self *RespondToCompletion) handleRequest(
 	bufferedRequest *BufferedRequest,
 	isInitial bool,
 ) {
 	balancingAttemptStatusChannel := make(chan *BalancingAttemptStatus)
 	defer close(balancingAttemptStatusChannel)
+	defer self.recoverFromPanic(bufferedRequest)
 
 	go self.LoadBalancer.Balance(
 		balancingAttemptStatusChannel,
@@ -92,24 +120,17 @@ func (self *RespondToCompletion) handleRequest(
 	}
 }
 
-func (self *RespondToCompletion) StartBufferProcessor() {
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
+func (self *RespondToCompletion) recoverFromPanic(bufferedRequest *BufferedRequest) {
+	r := recover()
 
-	for range ticker.C {
-		select {
-		case bufferedRequest := <-self.BufferChannel:
-			if bufferedRequest.IsDone {
-				continue
-			}
+	if r == nil {
+		return
+	}
 
-			if time.Now().After(bufferedRequest.Timeout) {
-				continue
-			}
+	bufferedRequest.SendError("Bad Gateway", http.StatusBadGateway)
 
-			go self.handleRequest(bufferedRequest, false)
-		default:
-			// no buffered requests
-		}
+	self.ServerEventsChannel <- goroutine.ResultMessage{
+		Comment: "reverse proxy panicked",
+		Error:   fmt.Errorf("%v", r),
 	}
 }
