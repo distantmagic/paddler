@@ -2,10 +2,9 @@ name: release
 
 on:
   push:
-    branches:
-      - "**"
     tags:
-      - "**"
+      - v[0-9].[0-9]+.[0-9]+
+      - v[0-9].[0-9]+.[0-9]+-rc[0-9]+
 
 jobs:
   build:
@@ -54,6 +53,7 @@ jobs:
           fi
 
       - name: upload binaries to release
+        if: steps.tag_type.outputs.tag_type != 'INVALID_TAG'
         uses: svenstaro/upload-release-action@v2
         with:
           file: ${{ matrix.artifact_name }}
