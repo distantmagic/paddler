@@ -33,19 +33,15 @@ func (self *RespondToCompletion) ServeHTTP(response http.ResponseWriter, request
 
 	defer bufferedRequest.Close()
 
-	self.Logger.Info("TEST")
 	go self.handleRequest(bufferedRequest, true)
 
 	select {
 	case <-bufferedRequest.DoneChannel:
 		// buffer finished
-		self.Logger.Info("BUFFER FINISHED")
 	case <-request.Context().Done():
 		// request is canceled
-		self.Logger.Info("REQUEST IS CANCELED")
 	case <-time.After(self.LoadBalancerConfiguration.RequestBufferTimeout):
 		http.Error(response, "Request Timeout", http.StatusGatewayTimeout)
-		self.Logger.Info("REQUEST TIMEOUT")
 	}
 }
 
