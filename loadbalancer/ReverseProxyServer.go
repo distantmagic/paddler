@@ -27,6 +27,7 @@ func (self *ReverseProxyServer) Serve(serverEventsChannel chan<- goroutine.Resul
 	reverseProxyMux.Handle("/favicon.ico", self.RespondToFavicon)
 	reverseProxyMux.Handle("/health", self.RespondToAggregatedHealth)
 	reverseProxyMux.Handle("/completion", self.RespondToCompletion)
+	reverseProxyMux.Handle("/v1/chat/completions", self.RespondToCompletion)
 	reverseProxyMux.Handle("/", self.RespondToFallback)
 
 	err := http.ListenAndServe(
