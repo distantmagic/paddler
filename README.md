@@ -29,6 +29,10 @@ sequenceDiagram
     loadbalancer->>llamacpp: I have a request for you to handle
 ```
 
+### Running Multiple `llama.cpp` Servers
+
+https://github.com/user-attachments/assets/9d78dd7c-c340-448f-bbd8-146e4be0db56
+
 ## Tutorials
 
 - [Installing llama.cpp on AWS EC2 CUDA Instance](infra/tutorial-installing-llamacpp-aws-cuda.md)
