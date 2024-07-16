@@ -2,6 +2,7 @@ package loadbalancer
 
 import (
 	"container/list"
+	"sync"
 	"time"
 
 	"github.com/distantmagic/paddler/llamacpp"
@@ -12,10 +13,14 @@ type LoadBalancerTargetCollection struct {
 	Targets                       *list.List
 
 	elementByTarget       map[*LlamaCppTarget]*list.Element
+	mu                    sync.RWMutex
 	targetByConfiguration map[string]*LlamaCppTarget
 }
 
 func (self *LoadBalancerTargetCollection) FixTargetOrder(target *LlamaCppTarget) {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
 	element, ok := self.elementByTarget[target]
 
 	if !ok {
@@ -60,6 +65,9 @@ func (self *LoadBalancerTargetCollection) GetTargetByConfiguration(
 }
 
 func (self *LoadBalancerTargetCollection) GetHeadTarget() *LlamaCppPickedTarget {
+	self.mu.RLock()
+	defer self.mu.RUnlock()
+
 	headElement := self.Targets.Front()
 
 	if headElement == nil {
@@ -129,6 +137,9 @@ func (self *LoadBalancerTargetCollection) UpdateTargetWithLlamaCppHealthStatus(
 }
 
 func (self *LoadBalancerTargetCollection) UseSlot(llamaCppTarget *LlamaCppTarget) {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
 	targetElement := self.elementByTarget[llamaCppTarget]
 	nextTarget := targetElement.Next()
 
