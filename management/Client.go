@@ -26,6 +26,7 @@ func (self *Client) ReportLlamaCppHealthStatus(
 	jsonData, err := json.Marshal(&RegisterTargetRequest{
 		LlamaCppHealthStatus: llamaCppHealthStatus,
 		LlamaCppTargetConfiguration: &loadbalancer.LlamaCppTargetConfiguration{
+			Id:                    llamaCppConfiguration.String(),
 			LlamaCppConfiguration: llamaCppConfiguration,
 		},
 	})

@@ -7,19 +7,3 @@ type LlamaCppHealthStatus struct {
 	SlotsIdle       int                      `json:"slots_idle"`
 	SlotsProcessing int                      `json:"slots_processing"`
 }
-
-func (self *LlamaCppHealthStatus) IsOk() bool {
-	return self.Status == Ok
-}
-
-func (self *LlamaCppHealthStatus) CopyFrom(other *LlamaCppHealthStatus) {
-	self.Error = other.Error
-	self.ErrorMessage = other.ErrorMessage
-	self.SlotsIdle = other.SlotsIdle
-	self.SlotsProcessing = other.SlotsProcessing
-	self.Status = other.Status
-}
-
-func (self *LlamaCppHealthStatus) GetTotalSlots() int {
-	return self.SlotsIdle + self.SlotsProcessing
-}

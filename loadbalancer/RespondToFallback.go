@@ -16,5 +16,5 @@ func (self *RespondToFallback) ServeHTTP(response http.ResponseWriter, request *
 		return
 	}
 
-	headPickedTarget.LlamaCppTarget.ReverseProxy.ServeHTTP(response, request)
+	headPickedTarget.ReverseProxy.ServeHTTP(response, request)
 }

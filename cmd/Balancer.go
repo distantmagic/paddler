@@ -95,7 +95,6 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 		BufferedRequestsStats:         bufferedRequestsStats,
 		LlamaCppHealthStatusAggregate: llamaCppHealthStatusAggregate,
 		LoadBalancerTargetCollection:  loadBalancerTargetCollection,
-		ServerEventsChannel:           serverEventsChannel,
 		StatsdReporter:                self.MakeStatsdReporter(),
 	}
 

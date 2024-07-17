@@ -3,14 +3,14 @@ package loadbalancer
 import (
 	"time"
 
-	"github.com/distantmagic/paddler/goroutine"
+	"github.com/hashicorp/go-hclog"
 )
 
 type LoadBalancerTemporalManager struct {
 	BufferedRequestsStats         *BufferedRequestsStats
 	LlamaCppHealthStatusAggregate *LlamaCppHealthStatusAggregate
 	LoadBalancerTargetCollection  *LoadBalancerTargetCollection
-	ServerEventsChannel           chan<- goroutine.ResultMessage
+	Logger                        hclog.Logger
 	StatsdReporter                StatsdReporterInterface
 }
 
@@ -24,8 +24,12 @@ func (self *LoadBalancerTemporalManager) ReduceTargetCollectionRemainingTicks() 
 	var aggregatedSlotsProcessing int
 
 	for element := self.LoadBalancerTargetCollection.Targets.Front(); element != nil; element = element.Next() {
+		if element.Value == nil {
+			continue
+		}
+
 		target := element.Value.(*LlamaCppTarget)
-		target.RemainingTicksUntilRemoved -= 1
+		target.DecrementRemainingTicks()
 
 		if target.RemainingTicksUntilRemoved < 1 {
 			defer self.LoadBalancerTargetCollection.RemoveTarget(target)
@@ -48,10 +52,10 @@ func (self *LoadBalancerTemporalManager) ReportStats() {
 	)
 
 	if err != nil {
-		self.ServerEventsChannel <- goroutine.ResultMessage{
-			Comment: "error reporting aggregated health status",
-			Error:   err,
-		}
+		self.Logger.Error(
+			"error reporting aggregated health status",
+			"error", err,
+		)
 	}
 }
 

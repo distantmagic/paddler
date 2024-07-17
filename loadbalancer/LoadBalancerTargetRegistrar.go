@@ -5,7 +5,6 @@ import (
 	"net/http/httputil"
 	"time"
 
-	"github.com/distantmagic/paddler/goroutine"
 	"github.com/distantmagic/paddler/llamacpp"
 	"github.com/hashicorp/go-hclog"
 )
@@ -17,7 +16,6 @@ type LoadBalancerTargetRegistrar struct {
 }
 
 func (self *LoadBalancerTargetRegistrar) RegisterOrUpdateTarget(
-	serverEventsChannel chan<- goroutine.ResultMessage,
 	targetConfiguration *LlamaCppTargetConfiguration,
 	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
 ) {
@@ -25,14 +23,11 @@ func (self *LoadBalancerTargetRegistrar) RegisterOrUpdateTarget(
 
 	if existingTarget == nil {
 		self.registerTarget(
-			serverEventsChannel,
 			targetConfiguration,
 			llamaCppHealthStatus,
 		)
 	} else {
 		self.updateTarget(
-			serverEventsChannel,
-			targetConfiguration,
 			llamaCppHealthStatus,
 			existingTarget,
 		)
@@ -40,7 +35,6 @@ func (self *LoadBalancerTargetRegistrar) RegisterOrUpdateTarget(
 }
 
 func (self *LoadBalancerTargetRegistrar) registerTarget(
-	serverEventsChannel chan<- goroutine.ResultMessage,
 	targetConfiguration *LlamaCppTargetConfiguration,
 	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
 ) {
@@ -68,15 +62,9 @@ func (self *LoadBalancerTargetRegistrar) registerTarget(
 		RemainingTicksUntilRemoved:  3,
 		ReverseProxy:                reverseProxy,
 	})
-
-	serverEventsChannel <- goroutine.ResultMessage{
-		Comment: "registered target",
-	}
 }
 
 func (self *LoadBalancerTargetRegistrar) updateTarget(
-	serverEventsChannel chan<- goroutine.ResultMessage,
-	targetConfiguration *LlamaCppTargetConfiguration,
 	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
 	existingTarget *LlamaCppTarget,
 ) {

@@ -20,17 +20,15 @@ func (self *LoadBalancer) Balance(
 	balancingAttemptStatusChannel chan<- *BalancingAttemptStatus,
 	request *LoadBalancerRequest,
 ) {
-	headPickedTarget := self.LoadBalancerTargetCollection.GetHeadTarget()
+	headTarget := self.LoadBalancerTargetCollection.GetHeadTarget()
 
-	if headPickedTarget == nil {
+	if headTarget == nil {
 		balancingAttemptStatusChannel <- &BalancingAttemptStatus{
 			Error: ErrorNoTargetsAvailable,
 		}
 
 		return
 	}
-
-	headTarget := headPickedTarget.LlamaCppTarget
 
 	if headTarget.LlamaCppHealthStatus.SlotsIdle < 1 {
 		balancingAttemptStatusChannel <- &BalancingAttemptStatus{

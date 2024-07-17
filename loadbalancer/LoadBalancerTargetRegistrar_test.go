@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/distantmagic/paddler/goroutine"
 	"github.com/distantmagic/paddler/llamacpp"
 	"github.com/distantmagic/paddler/netcfg"
 	"github.com/hashicorp/go-hclog"
@@ -12,8 +11,6 @@ import (
 )
 
 func TestTargetOrderIsPreserved(t *testing.T) {
-	serverEventsChannel := make(chan goroutine.ResultMessage)
-
 	llamaCppHealthStatusAggregate := &LlamaCppHealthStatusAggregate{
 		AggregatedHealthStatus: &llamacpp.LlamaCppHealthStatus{
 			Status: llamacpp.Ok,
@@ -29,6 +26,7 @@ func TestTargetOrderIsPreserved(t *testing.T) {
 	assert.Equal(t, 0, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.Len())
 
 	target1 := &LlamaCppTargetConfiguration{
+		Id: "target1",
 		LlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{
 			HttpAddress: &netcfg.HttpAddressConfiguration{
 				Host:   "127.0.0.1",
@@ -38,18 +36,7 @@ func TestTargetOrderIsPreserved(t *testing.T) {
 		},
 	}
 
-	target2 := &LlamaCppTargetConfiguration{
-		LlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{
-			HttpAddress: &netcfg.HttpAddressConfiguration{
-				Host:   "127.0.0.1",
-				Port:   8082,
-				Scheme: "http",
-			},
-		},
-	}
-
-	go loadBalancerTargetRegistrar.RegisterOrUpdateTarget(
-		serverEventsChannel,
+	loadBalancerTargetRegistrar.RegisterOrUpdateTarget(
 		target1,
 		&llamacpp.LlamaCppHealthStatus{
 			Status:          llamacpp.Ok,
@@ -59,17 +46,26 @@ func TestTargetOrderIsPreserved(t *testing.T) {
 		},
 	)
 
-	<-serverEventsChannel
-
+	assert.NotNil(t, loadBalancerTargetRegistrar.LoadBalancerTargetCollection)
 	assert.Equal(t, 1, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.Len())
-	assert.Same(
-		t,
-		target1,
-		loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetHeadTarget().LlamaCppTarget.LlamaCppTargetConfiguration,
-	)
 
-	go loadBalancerTargetRegistrar.RegisterOrUpdateTarget(
-		serverEventsChannel,
+	headTarget := loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetHeadTarget()
+
+	assert.NotNil(t, headTarget)
+	assert.Same(t, target1, headTarget.LlamaCppTargetConfiguration)
+
+	target2 := &LlamaCppTargetConfiguration{
+		Id: "target2",
+		LlamaCppConfiguration: &llamacpp.LlamaCppConfiguration{
+			HttpAddress: &netcfg.HttpAddressConfiguration{
+				Host:   "127.0.0.1",
+				Port:   8082,
+				Scheme: "http",
+			},
+		},
+	}
+
+	loadBalancerTargetRegistrar.RegisterOrUpdateTarget(
 		target2,
 		&llamacpp.LlamaCppHealthStatus{
 			Status:          llamacpp.Ok,
@@ -79,17 +75,14 @@ func TestTargetOrderIsPreserved(t *testing.T) {
 		},
 	)
 
-	<-serverEventsChannel
-
 	assert.Equal(t, 2, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.Len())
 	assert.Same(
 		t,
 		target1,
-		loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetHeadTarget().LlamaCppTarget.LlamaCppTargetConfiguration,
+		loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetHeadTarget().LlamaCppTargetConfiguration,
 	)
 
-	go loadBalancerTargetRegistrar.RegisterOrUpdateTarget(
-		serverEventsChannel,
+	loadBalancerTargetRegistrar.RegisterOrUpdateTarget(
 		target2,
 		&llamacpp.LlamaCppHealthStatus{
 			Status:          llamacpp.Ok,
@@ -99,12 +92,10 @@ func TestTargetOrderIsPreserved(t *testing.T) {
 		},
 	)
 
-	<-serverEventsChannel
-
 	assert.Equal(t, 2, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.Len())
 	assert.Same(
 		t,
 		target2,
-		loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetHeadTarget().LlamaCppTarget.LlamaCppTargetConfiguration,
+		loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetHeadTarget().LlamaCppTargetConfiguration,
 	)
 }

@@ -39,7 +39,6 @@ func (self *RespondToRegisterTarget) ServeHTTP(response http.ResponseWriter, req
 	}
 
 	go self.LoadBalancerTargetRegistrar.RegisterOrUpdateTarget(
-		self.ServerEventsChannel,
 		registerTargetRequest.LlamaCppTargetConfiguration,
 		registerTargetRequest.LlamaCppHealthStatus,
 	)

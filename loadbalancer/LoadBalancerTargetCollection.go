@@ -11,16 +11,13 @@ import (
 type LoadBalancerTargetCollection struct {
 	LlamaCppHealthStatusAggregate *LlamaCppHealthStatusAggregate
 	Targets                       *list.List
+	TargetsRWMutex                sync.RWMutex
 
 	elementByTarget       map[*LlamaCppTarget]*list.Element
-	mu                    sync.RWMutex
 	targetByConfiguration map[string]*LlamaCppTarget
 }
 
 func (self *LoadBalancerTargetCollection) FixTargetOrder(target *LlamaCppTarget) {
-	self.mu.Lock()
-	defer self.mu.Unlock()
-
 	element, ok := self.elementByTarget[target]
 
 	if !ok {
@@ -55,7 +52,7 @@ func (self *LoadBalancerTargetCollection) FixTargetOrder(target *LlamaCppTarget)
 func (self *LoadBalancerTargetCollection) GetTargetByConfiguration(
 	targetConfiguration *LlamaCppTargetConfiguration,
 ) *LlamaCppTarget {
-	target, ok := self.targetByConfiguration[targetConfiguration.String()]
+	target, ok := self.targetByConfiguration[targetConfiguration.Id]
 
 	if ok {
 		return target
@@ -64,22 +61,18 @@ func (self *LoadBalancerTargetCollection) GetTargetByConfiguration(
 	return nil
 }
 
-func (self *LoadBalancerTargetCollection) GetHeadTarget() *LlamaCppPickedTarget {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-
+func (self *LoadBalancerTargetCollection) GetHeadTarget() *LlamaCppTarget {
 	headElement := self.Targets.Front()
 
 	if headElement == nil {
 		return nil
 	}
 
-	headTarget := headElement.Value.(*LlamaCppTarget)
-
-	return &LlamaCppPickedTarget{
-		Element:        headElement,
-		LlamaCppTarget: headTarget,
+	if headElement.Value == nil {
+		return nil
 	}
+
+	return headElement.Value.(*LlamaCppTarget)
 }
 
 func (self *LoadBalancerTargetCollection) Len() int {
@@ -87,8 +80,8 @@ func (self *LoadBalancerTargetCollection) Len() int {
 }
 
 func (self *LoadBalancerTargetCollection) RegisterTarget(llamaCppTarget *LlamaCppTarget) {
-	self.targetByConfiguration[llamaCppTarget.LlamaCppTargetConfiguration.String()] = llamaCppTarget
-	self.LlamaCppHealthStatusAggregate.AddSlotsFrom(llamaCppTarget.LlamaCppHealthStatus)
+	self.targetByConfiguration[llamaCppTarget.LlamaCppTargetConfiguration.Id] = llamaCppTarget
+	self.LlamaCppHealthStatusAggregate.AddSlotsFrom(llamaCppTarget)
 
 	if self.Targets.Len() < 1 {
 		self.elementByTarget[llamaCppTarget] = self.Targets.PushFront(llamaCppTarget)
@@ -108,14 +101,14 @@ func (self *LoadBalancerTargetCollection) RegisterTarget(llamaCppTarget *LlamaCp
 }
 
 func (self *LoadBalancerTargetCollection) RemoveTarget(llamaCppTarget *LlamaCppTarget) {
-	self.LlamaCppHealthStatusAggregate.RemoveSlotsFrom(llamaCppTarget.LlamaCppHealthStatus)
+	self.LlamaCppHealthStatusAggregate.RemoveSlotsFrom(llamaCppTarget)
 	element := self.elementByTarget[llamaCppTarget]
 
 	if element != nil {
 		self.Targets.Remove(element)
 	}
 
-	delete(self.targetByConfiguration, llamaCppTarget.LlamaCppTargetConfiguration.String())
+	delete(self.targetByConfiguration, llamaCppTarget.LlamaCppTargetConfiguration.Id)
 }
 
 func (self *LoadBalancerTargetCollection) UpdateTargetWithLlamaCppHealthStatus(
@@ -127,23 +120,17 @@ func (self *LoadBalancerTargetCollection) UpdateTargetWithLlamaCppHealthStatus(
 		llamaCppTarget.LlamaCppHealthStatus.SlotsProcessing-llamaCppHealthStatus.SlotsProcessing,
 	)
 
-	llamaCppTarget.LlamaCppHealthStatus.CopyFrom(llamaCppHealthStatus)
-
-	llamaCppTarget.LastUpdate = time.Now()
-	llamaCppTarget.RemainingTicksUntilRemoved = 3
-	llamaCppTarget.TotalUpdates += 1
+	llamaCppTarget.LlamaCppHealthStatus = llamaCppHealthStatus
+	llamaCppTarget.SetTickStatus(time.Now(), 3)
 
 	self.FixTargetOrder(llamaCppTarget)
 }
 
 func (self *LoadBalancerTargetCollection) UseSlot(llamaCppTarget *LlamaCppTarget) {
-	self.mu.Lock()
-	defer self.mu.Unlock()
-
 	targetElement := self.elementByTarget[llamaCppTarget]
 	nextTarget := targetElement.Next()
 
-	llamaCppTarget.LlamaCppHealthStatus.SlotsIdle -= 1
+	// llamaCppTarget.LlamaCppHealthStatus.DecrementIdleSlots()
 	self.LlamaCppHealthStatusAggregate.UseSlot()
 
 	if nextTarget != nil && llamaCppTarget.HasLessSlotsThan(nextTarget.Value.(*LlamaCppTarget)) {
