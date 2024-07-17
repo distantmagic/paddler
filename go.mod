@@ -3,16 +3,17 @@ module github.com/distantmagic/paddler
 go 1.21
 
 require (
+	github.com/aws/aws-sdk-go-v2 v1.27.1
 	github.com/aws/aws-sdk-go-v2/config v1.27.17
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.4
 	github.com/hashicorp/go-hclog v1.6.2
+	github.com/puzpuzpuz/xsync/v3 v3.4.0
 	github.com/smira/go-statsd v1.3.3
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.2
 )
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.27.1 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.17 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.8 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.8 // indirect

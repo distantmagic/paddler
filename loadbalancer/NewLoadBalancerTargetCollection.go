@@ -2,6 +2,8 @@ package loadbalancer
 
 import (
 	"container/list"
+
+	"github.com/puzpuzpuz/xsync/v3"
 )
 
 func NewLoadBalancerTargetCollection(
@@ -11,7 +13,7 @@ func NewLoadBalancerTargetCollection(
 		LlamaCppHealthStatusAggregate: llamaCppHealthStatusAggregate,
 		Targets:                       list.New(),
 
-		elementByTarget:       make(map[*LlamaCppTarget]*list.Element),
-		targetByConfiguration: make(map[string]*LlamaCppTarget),
+		elementByTarget:       xsync.NewMapOf[*LlamaCppTarget, *list.Element](),
+		targetByConfiguration: xsync.NewMapOf[string, *LlamaCppTarget](),
 	}
 }

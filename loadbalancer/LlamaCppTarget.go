@@ -2,10 +2,10 @@ package loadbalancer
 
 import (
 	"net/http/httputil"
-	"sync"
 	"time"
 
 	"github.com/distantmagic/paddler/llamacpp"
+	"github.com/puzpuzpuz/xsync/v3"
 )
 
 type LlamaCppTarget struct {
@@ -14,30 +14,51 @@ type LlamaCppTarget struct {
 	LlamaCppClient              *llamacpp.LlamaCppClient
 	LlamaCppHealthStatus        *llamacpp.LlamaCppHealthStatus
 	RemainingTicksUntilRemoved  int
-	RWMutex                     sync.RWMutex
+	RBMutex                     xsync.RBMutex
 	TotalUpdates                int
 	ReverseProxy                *httputil.ReverseProxy
 }
 
+func (self *LlamaCppTarget) DecrementIdleSlots() {
+	self.RBMutex.Lock()
+	defer self.RBMutex.Unlock()
+
+	self.LlamaCppHealthStatus.SlotsIdle -= 1
+	self.LlamaCppHealthStatus.SlotsProcessing += 1
+}
+
 func (self *LlamaCppTarget) DecrementRemainingTicks() {
-	self.RWMutex.Lock()
-	defer self.RWMutex.Unlock()
+	self.RBMutex.Lock()
+	defer self.RBMutex.Unlock()
 
 	self.RemainingTicksUntilRemoved -= 1
 }
 
 func (self *LlamaCppTarget) HasLessSlotsThan(other *LlamaCppTarget) bool {
+	mutexToken := self.RBMutex.RLock()
+	defer self.RBMutex.RUnlock(mutexToken)
+
+	otherMutexToken := other.RBMutex.RLock()
+	defer other.RBMutex.RUnlock(otherMutexToken)
+
 	return self.LlamaCppHealthStatus.SlotsIdle < other.LlamaCppHealthStatus.SlotsIdle
 }
 
 func (self *LlamaCppTarget) SetTickStatus(
 	lastUpdate time.Time,
+	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
 	remainingTicksUntilRemoved int,
-) {
-	self.RWMutex.Lock()
-	defer self.RWMutex.Unlock()
+) (int, int) {
+	self.RBMutex.Lock()
+	defer self.RBMutex.Unlock()
+
+	slotsIdleDiff := self.LlamaCppHealthStatus.SlotsIdle-llamaCppHealthStatus.SlotsIdle
+	slotsProcessingDiff := self.LlamaCppHealthStatus.SlotsProcessing-llamaCppHealthStatus.SlotsProcessing
 
 	self.LastUpdate = lastUpdate
+	self.LlamaCppHealthStatus = llamaCppHealthStatus
 	self.RemainingTicksUntilRemoved = remainingTicksUntilRemoved
 	self.TotalUpdates += 1
+
+	return slotsIdleDiff, slotsProcessingDiff
 }

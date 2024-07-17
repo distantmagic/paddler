@@ -1,19 +1,18 @@
 package loadbalancer
 
 import (
-	"sync"
-
 	"github.com/distantmagic/paddler/llamacpp"
+	"github.com/puzpuzpuz/xsync/v3"
 )
 
 type LlamaCppHealthStatusAggregate struct {
 	AggregatedHealthStatus *llamacpp.LlamaCppHealthStatus
-	RWMutex                sync.RWMutex
+	RBMutex                xsync.RBMutex
 }
 
 func (self *LlamaCppHealthStatusAggregate) AddSlotsFrom(llamaCppTarget *LlamaCppTarget) {
-	llamaCppTarget.RWMutex.RLock()
-	defer llamaCppTarget.RWMutex.RUnlock()
+	mutexToken := llamaCppTarget.RBMutex.RLock()
+	defer llamaCppTarget.RBMutex.RUnlock(mutexToken)
 
 	self.IncreaseBy(
 		llamaCppTarget.LlamaCppHealthStatus.SlotsIdle,
@@ -22,16 +21,16 @@ func (self *LlamaCppHealthStatusAggregate) AddSlotsFrom(llamaCppTarget *LlamaCpp
 }
 
 func (self *LlamaCppHealthStatusAggregate) IncreaseBy(slotsIdle int, slotsProcessing int) {
-	self.RWMutex.Lock()
-	defer self.RWMutex.Unlock()
+	self.RBMutex.Lock()
+	defer self.RBMutex.Unlock()
 
 	self.AggregatedHealthStatus.SlotsIdle += slotsIdle
 	self.AggregatedHealthStatus.SlotsProcessing += slotsProcessing
 }
 
 func (self *LlamaCppHealthStatusAggregate) RemoveSlotsFrom(llamaCppTarget *LlamaCppTarget) {
-	llamaCppTarget.RWMutex.RLock()
-	defer llamaCppTarget.RWMutex.RUnlock()
+	mutexToken := llamaCppTarget.RBMutex.RLock()
+	defer llamaCppTarget.RBMutex.RUnlock(mutexToken)
 
 	self.IncreaseBy(
 		-1*llamaCppTarget.LlamaCppHealthStatus.SlotsIdle,
@@ -40,8 +39,8 @@ func (self *LlamaCppHealthStatusAggregate) RemoveSlotsFrom(llamaCppTarget *Llama
 }
 
 func (self *LlamaCppHealthStatusAggregate) SetTo(slotsIdle int, slotsProcessing int) {
-	self.RWMutex.Lock()
-	defer self.RWMutex.Unlock()
+	self.RBMutex.Lock()
+	defer self.RBMutex.Unlock()
 
 	self.AggregatedHealthStatus.SlotsIdle = slotsIdle
 	self.AggregatedHealthStatus.SlotsProcessing = slotsProcessing
