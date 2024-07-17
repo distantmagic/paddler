@@ -1,5 +1,7 @@
 # Paddler
 
+<img align="left" src="https://github.com/user-attachments/assets/19e74262-1918-4b1d-9b4c-bcb4f0ab79f5">
+
 Paddler is an open-source load balancer and reverse proxy designed to optimize servers running [llama.cpp](https://github.com/ggerganov/llama.cpp). 
 
 Typical strategies like round robin or least connections are not effective for [llama.cpp](https://github.com/ggerganov/llama.cpp) servers, which need slots for continuous batching and concurrent requests. 
@@ -179,6 +181,16 @@ StatsD metrics need to be enabled with the following flags:
 
 ## Changelog
 
+### v0.4.0
+
+Thank you, [@ScottMcNaught](https://github.com/ScottMcNaught), for the help with debugging the issues! :)
+
+#### Fixes
+
+- OpenAI compatible endpoint is now properly balanced (`/v1/chat/completions`)
+- Balancer's reverse proxy `panic`ked in some scenarios when the underlying `llama.cpp` instance was abruptly closed during the generation of completion tokens
+- Added mutex in the targets collection for better internal slots data integrity
+
 ### v0.3.0
 
 #### Features
@@ -192,6 +204,12 @@ StatsD metrics need to be enabled with the following flags:
 #### Features
 
 * [Aggregated Health Status Responses](https://github.com/distantmagic/paddler/releases/tag/v0.1.0)
+
+## Why the Name
+
+I initially wanted to use [Raft](https://raft.github.io/) consensus algorithm (thus Paddler, because it paddles on a Raft), but eventually, I dropped that idea. The name stayed, though.
+
+Later, people started sending me a "that's a paddlin'" clip from The Simpsons, and I just embraced it.
 
 ## Community
 
