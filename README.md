@@ -181,6 +181,12 @@ StatsD metrics need to be enabled with the following flags:
 
 ## Changelog
 
+### v0.5.0
+
+#### Fixes
+
+- Management server crashed in some scenarios due to concurrency issues
+
 ### v0.4.0
 
 Thank you, [@ScottMcNaught](https://github.com/ScottMcNaught), for the help with debugging the issues! :)
