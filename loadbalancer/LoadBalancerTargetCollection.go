@@ -24,6 +24,9 @@ func (self *LoadBalancerTargetCollection) FixTargetOrder(target *LlamaCppTarget)
 		return
 	}
 
+	self.TargetsRBMutex.Lock()
+	defer self.TargetsRBMutex.Unlock()
+
 	nextElement := element.Next()
 
 	for nextElement != nil {
@@ -62,6 +65,9 @@ func (self *LoadBalancerTargetCollection) GetTargetByConfiguration(
 }
 
 func (self *LoadBalancerTargetCollection) GetHeadTarget() *LlamaCppTarget {
+	mutexToken := self.TargetsRBMutex.RLock()
+	defer self.TargetsRBMutex.RUnlock(mutexToken)
+
 	headElement := self.Targets.Front()
 
 	if headElement == nil {
@@ -76,12 +82,18 @@ func (self *LoadBalancerTargetCollection) GetHeadTarget() *LlamaCppTarget {
 }
 
 func (self *LoadBalancerTargetCollection) Len() int {
+	mutexToken := self.TargetsRBMutex.RLock()
+	defer self.TargetsRBMutex.RUnlock(mutexToken)
+
 	return self.Targets.Len()
 }
 
 func (self *LoadBalancerTargetCollection) RegisterTarget(llamaCppTarget *LlamaCppTarget) {
 	self.setTargetByConfiguration(llamaCppTarget)
 	self.LlamaCppHealthStatusAggregate.AddSlotsFrom(llamaCppTarget)
+
+	self.TargetsRBMutex.Lock()
+	defer self.TargetsRBMutex.Unlock()
 
 	if self.Targets.Len() < 1 {
 		self.elementByTarget.Store(llamaCppTarget, self.Targets.PushFront(llamaCppTarget))
@@ -101,6 +113,9 @@ func (self *LoadBalancerTargetCollection) RegisterTarget(llamaCppTarget *LlamaCp
 }
 
 func (self *LoadBalancerTargetCollection) RemoveTarget(llamaCppTarget *LlamaCppTarget) {
+	self.TargetsRBMutex.Lock()
+	defer self.TargetsRBMutex.Unlock()
+
 	self.LlamaCppHealthStatusAggregate.RemoveSlotsFrom(llamaCppTarget)
 	element := self.getElementByTarget(llamaCppTarget)
 
@@ -124,6 +139,14 @@ func (self *LoadBalancerTargetCollection) UpdateTargetWithLlamaCppHealthStatus(
 
 func (self *LoadBalancerTargetCollection) UseSlot(llamaCppTarget *LlamaCppTarget) {
 	targetElement := self.getElementByTarget(llamaCppTarget)
+
+	if targetElement == nil {
+		return
+	}
+
+	self.TargetsRBMutex.Lock()
+	defer self.TargetsRBMutex.Unlock()
+
 	nextTarget := targetElement.Next()
 
 	llamaCppTarget.DecrementIdleSlots()

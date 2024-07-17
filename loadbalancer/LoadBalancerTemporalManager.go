@@ -23,6 +23,8 @@ func (self *LoadBalancerTemporalManager) ReduceTargetCollectionRemainingTicks() 
 	var aggregatedSlotsIdle int
 	var aggregatedSlotsProcessing int
 
+	targetsMutexToken := self.LoadBalancerTargetCollection.TargetsRBMutex.RLock()
+
 	for element := self.LoadBalancerTargetCollection.Targets.Front(); element != nil; element = element.Next() {
 		if element.Value == nil {
 			continue
@@ -31,13 +33,17 @@ func (self *LoadBalancerTemporalManager) ReduceTargetCollectionRemainingTicks() 
 		target := element.Value.(*LlamaCppTarget)
 		target.DecrementRemainingTicks()
 
-		if target.RemainingTicksUntilRemoved < 1 {
+		if !target.HasRemainingTicks() {
 			defer self.LoadBalancerTargetCollection.RemoveTarget(target)
 		}
 
-		aggregatedSlotsIdle += target.LlamaCppHealthStatus.SlotsIdle
-		aggregatedSlotsProcessing += target.LlamaCppHealthStatus.SlotsProcessing
+		slotsIdle, slotsProcessing := target.GetSlotsStatus()
+
+		aggregatedSlotsIdle += slotsIdle
+		aggregatedSlotsProcessing += slotsProcessing
 	}
+
+	self.LoadBalancerTargetCollection.TargetsRBMutex.RUnlock(targetsMutexToken)
 
 	self.LlamaCppHealthStatusAggregate.SetTo(
 		aggregatedSlotsIdle,

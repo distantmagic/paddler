@@ -12,6 +12,9 @@ func (self *StatsdReporter) ReportAggregatedHealthStatus(
 	bufferedRequestsStats *BufferedRequestsStats,
 	llamaCppHealthStatusAggregate *LlamaCppHealthStatusAggregate,
 ) error {
+	mutexToken := llamaCppHealthStatusAggregate.RBMutex.RLock()
+	defer llamaCppHealthStatusAggregate.RBMutex.RUnlock(mutexToken)
+
 	self.StatsdClient.Gauge("requests_buffered", int64(bufferedRequestsStats.RequestsBuffered))
 	self.StatsdClient.Gauge("slots_idle", int64(llamaCppHealthStatusAggregate.AggregatedHealthStatus.SlotsIdle))
 	self.StatsdClient.Gauge("slots_processing", int64(llamaCppHealthStatusAggregate.AggregatedHealthStatus.SlotsProcessing))

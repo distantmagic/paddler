@@ -13,6 +13,9 @@ type RespondToAggregatedHealth struct {
 }
 
 func (self *RespondToAggregatedHealth) ServeHTTP(response http.ResponseWriter, request *http.Request) {
+	mutexToken := self.LlamaCppHealthStatusAggregate.RBMutex.RLock()
+	defer self.LlamaCppHealthStatusAggregate.RBMutex.RUnlock(mutexToken)
+
 	jsonLoadBalancerStatus, err := json.Marshal(self.LlamaCppHealthStatusAggregate.AggregatedHealthStatus)
 
 	if err != nil {

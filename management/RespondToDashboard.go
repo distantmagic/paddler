@@ -30,6 +30,9 @@ func iterList[T any](loadBalancerCollection *list.List) <-chan T {
 }
 
 func (self *RespondToDashboard) ServeHTTP(response http.ResponseWriter, request *http.Request) {
+	mutexToken := self.LoadBalancer.LoadBalancerTargetCollection.TargetsRBMutex.RLock()
+	defer self.LoadBalancer.LoadBalancerTargetCollection.TargetsRBMutex.RUnlock(mutexToken)
+
 	response.Header().Set("Content-Type", "text/html")
 	response.WriteHeader(http.StatusOK)
 
