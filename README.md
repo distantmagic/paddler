@@ -6,6 +6,8 @@ Paddler is an open-source load balancer and reverse proxy designed to optimize s
 
 Typical strategies like round robin or least connections are not effective for [llama.cpp](https://github.com/ggerganov/llama.cpp) servers, which need slots for continuous batching and concurrent requests. 
 
+You can also check out this awesome blog post that explains the scenarios where Round Robin and Least Connections might not be the most efficient algorithms to choose: https://samwho.dev/load-balancing/
+
 Paddler overcomes this by maintaining a stateful load balancer that is aware of each server's available slots, ensuring efficient request distribution. Additionally, Paddler uses agents to monitor the health of individual [llama.cpp](https://github.com/ggerganov/llama.cpp) instances, providing feedback to the load balancer for optimal performance. Paddler also supports the dynamic addition or removal of [llama.cpp](https://github.com/ggerganov/llama.cpp) servers, enabling integration with autoscaling tools.
 
 > [!NOTE]
