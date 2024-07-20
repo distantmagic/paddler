@@ -1,28 +1,35 @@
 # Paddler
 
-<img align="left" src="https://github.com/user-attachments/assets/19e74262-1918-4b1d-9b4c-bcb4f0ab79f5">
+Paddler is an open-source, production-ready, stateful load balancer and reverse proxy designed to optimize servers running [llama.cpp](https://github.com/ggerganov/llama.cpp).
 
-Paddler is an open-source load balancer and reverse proxy designed to optimize servers running [llama.cpp](https://github.com/ggerganov/llama.cpp). 
+## Why Paddler
 
-Typical strategies like round robin or least connections are not effective for [llama.cpp](https://github.com/ggerganov/llama.cpp) servers, which need slots for continuous batching and concurrent requests. 
+<img align="right" src="https://github.com/user-attachments/assets/19e74262-1918-4b1d-9b4c-bcb4f0ab79f5">
 
-You can also check out this awesome blog post that explains the scenarios where Round Robin and Least Connections might not be the most efficient algorithms to choose: https://samwho.dev/load-balancing/
+Typical load balancing strategies like round robin and least connections are ineffective for llama.cpp servers, which utilize continuous batching algorithms and allow to configure slots to handle multiple requests concurrently. 
 
-Paddler overcomes this by maintaining a stateful load balancer that is aware of each server's available slots, ensuring efficient request distribution. Additionally, Paddler uses agents to monitor the health of individual [llama.cpp](https://github.com/ggerganov/llama.cpp) instances, providing feedback to the load balancer for optimal performance. Paddler also supports the dynamic addition or removal of [llama.cpp](https://github.com/ggerganov/llama.cpp) servers, enabling integration with autoscaling tools.
-
-![paddler-animation](https://github.com/user-attachments/assets/2a0f3837-7b0a-4249-b385-46ebc7c38065)
-
+Paddler is designed to support llama.cpp-specific features like slots. It works by maintaining a stateful load balancer aware of each server's available slots, ensuring efficient request distribution.
 
 > [!NOTE]
 > In simple terms, the `slots` in llama.cpp refer to predefined memory slices within the server that handle individual requests. When a request comes in, it is assigned to an available slot for processing. They are predictable and highly configurable.
 >
 > You can learn more about them in [llama.cpp server](https://github.com/ggerganov/llama.cpp/tree/master/examples/server) documentation.
 
+## Key features
+* Uses agents to monitor the health of individual llama.cpp instances.
+* Supports the dynamic addition or removal of llama.cpp servers, enabling integration with autoscaling tools.
+* Buffers requests, allowing to scale from zero hosts.
+* Integrates with StatsD protocol but also comes with a built-in dashboard.
+* AWS integration.
+
+![paddler-animation](https://github.com/user-attachments/assets/2a0f3837-7b0a-4249-b385-46ebc7c38065)
+*Paddler's aware of each server's available slots, ensuring efficient request ("R") distribution*
+
 ## How it Works
 
-### Registering llama.cpp Instances
+llama.cpp instances need to be registered in Paddler. Paddler’s agents should be installed alongside llama.cpp instances so that they can report their health status to the load balancer.
 
-The sequence repeats for each agent. Agents should be installed alongside llama.cpp instance to report their health status to the load balancer.
+The sequence repeats for each agent:
 
 ```mermaid
 sequenceDiagram
@@ -35,15 +42,6 @@ sequenceDiagram
     agent-->>loadbalancer: llama.cpp is still working
     loadbalancer->>llamacpp: I have a request for you to handle
 ```
-
-### Running Multiple `llama.cpp` Servers
-
-https://github.com/user-attachments/assets/9d78dd7c-c340-448f-bbd8-146e4be0db56
-
-## Tutorials
-
-- [Installing llama.cpp on AWS EC2 CUDA Instance](infra/tutorial-installing-llamacpp-aws-cuda.md)
-- [Installing llama.cpp with AWS EC2 Image Builder](infra/tutorial-installing-llamacpp-aws-ec2-image-builder.md)
 
 ## Usage
 
@@ -107,32 +105,13 @@ You can enable dashboard to see the status of the agents with
 `--management-dashboard-enable=true` flag. If enabled it is available at the 
 management server address under `/dashboard` path.
 
-## Feature Highlight
+## Feature Highlights
 
 ### Aggregated Health Status
 
 Paddler overrides `/health` endpoint of `llama.cpp` and reports the total number of available and processing slots.
 
 ![Aggregated Health Status](https://github.com/distantmagic/paddler/assets/1286785/01f2fb39-ccc5-4bfa-896f-919b66318b2c)
-
-### AWS Integration
-
-> [!NOTE]
-> Available since v0.3.0
-
-When running on AWS EC2, you can replace `--local-llamacpp-host` with `aws:metadata:local-ipv4`. In that case, Paddler will use [EC2 instance metadata](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html) to fetch the local IP address (from the local network):
-
-If you want to keep the balancer management address predictable, I recommend using [Route 53](https://aws.amazon.com/route53/) to create a record that always points to your load balancer (for example `paddler_balancer.example.com`), which makes it something like that in the end:
-
-```shell
-./paddler agent \
-    --external-llamacpp-host aws:metadata:local-ipv4 \
-    --external-llamacpp-port 8088 \
-    --local-llamacpp-host 127.0.0.1 \
-    --local-llamacpp-port 8088 \
-    --management-host paddler_balancer.example.com \
-    --management-port 8085
-```
 
 ### Buffered Requests (Scaling from Zero Hosts)
 
@@ -183,6 +162,30 @@ StatsD metrics need to be enabled with the following flags:
     --statsd-port=8125 \
     --statsd-scheme=http
 ```
+
+### AWS Integration
+
+> [!NOTE]
+> Available since v0.3.0
+
+When running on AWS EC2, you can replace `--local-llamacpp-host` with `aws:metadata:local-ipv4`. In that case, Paddler will use [EC2 instance metadata](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html) to fetch the local IP address (from the local network):
+
+If you want to keep the balancer management address predictable, I recommend using [Route 53](https://aws.amazon.com/route53/) to create a record that always points to your load balancer (for example `paddler_balancer.example.com`), which makes it something like that in the end:
+
+```shell
+./paddler agent \
+    --external-llamacpp-host aws:metadata:local-ipv4 \
+    --external-llamacpp-port 8088 \
+    --local-llamacpp-host 127.0.0.1 \
+    --local-llamacpp-port 8088 \
+    --management-host paddler_balancer.example.com \
+    --management-port 8085
+```
+
+## Tutorials
+
+- [Installing llama.cpp on AWS EC2 CUDA Instance](infra/tutorial-installing-llamacpp-aws-cuda.md)
+- [Installing llama.cpp with AWS EC2 Image Builder](infra/tutorial-installing-llamacpp-aws-ec2-image-builder.md)
 
 ## Changelog
 
