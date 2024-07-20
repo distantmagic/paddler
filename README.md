@@ -10,6 +10,9 @@ You can also check out this awesome blog post that explains the scenarios where 
 
 Paddler overcomes this by maintaining a stateful load balancer that is aware of each server's available slots, ensuring efficient request distribution. Additionally, Paddler uses agents to monitor the health of individual [llama.cpp](https://github.com/ggerganov/llama.cpp) instances, providing feedback to the load balancer for optimal performance. Paddler also supports the dynamic addition or removal of [llama.cpp](https://github.com/ggerganov/llama.cpp) servers, enabling integration with autoscaling tools.
 
+![paddler-animation](https://github.com/user-attachments/assets/2a0f3837-7b0a-4249-b385-46ebc7c38065)
+
+
 > [!NOTE]
 > In simple terms, the `slots` in llama.cpp refer to predefined memory slices within the server that handle individual requests. When a request comes in, it is assigned to an available slot for processing. They are predictable and highly configurable.
 >
