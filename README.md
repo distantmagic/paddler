@@ -47,29 +47,22 @@ sequenceDiagram
 
 ### Installation
 
-You can download the latest release from the 
+Download the latest release for Linux, Mac, or Windows from the 
 [releases page](https://github.com/distantmagic/paddler/releases).
 
-Alternatively, you can build the project yourself. You need `go>=1.21` and
-`nodejs` (for the dashboard's front-end code) to build the project.
-
-```shell
-$ git clone git@github.com:distantmagic/paddler.git
-$ cd paddler
-$ pushd ./management
-$ make esbuild # dashboard front-end
-$ popd
-$ go build -o paddler
-```
+On Linux, if you want Paddler to be accessible system-wide, rename the downloaded executable to `/usr/bin/paddler` (or `/usr/local/bin/paddler`).
 
 ### Running Agents
 
-The agent should be installed in the same host as [llama.cpp](https://github.com/ggerganov/llama.cpp).
+The next step is to run Paddler’s agents. Agents register your llama.cpp instances in Paddler and monitor the health of llama.cpp instances. 
+They should be installed on the same host as your server that runs [llama.cpp](https://github.com/ggerganov/llama.cpp).
 
-It needs a few pieces of information:
+An agent needs a few pieces of information:
 1. `external-*` tells how the load balancer can connect to the llama.cpp instance
 2. `local-*` tells how the agent can connect to the llama.cpp instance
 3. `management-*` tell where the agent should report the health status
+
+Run the following to start a Paddler’s agent (replace the hosts and ports with your own server addresses when deploying):
 
 ```shell
 ./paddler agent \
@@ -81,8 +74,6 @@ It needs a few pieces of information:
     --management-port 8085
 ```
 
-Replace hosts and ports with your own server addresses when deploying.
-
 ### Running Load Balancer
 
 Load balancer collects data from agents and exposes reverse proxy to the outside world.
@@ -91,6 +82,7 @@ It requires two sets of flags:
 1. `management-*` tells where the load balancer should listen for updates from agents
 2. `reverseproxy-*` tells how load balancer can be reached from the outside hosts
 
+To start the load balancer, run:
 ```shell
 ./paddler balancer \
     --management-host 127.0.0.1 \
@@ -102,7 +94,7 @@ It requires two sets of flags:
 `management-host` and `management-port` in agents should be the same as in the load balancer.
 
 You can enable dashboard to see the status of the agents with 
-`--management-dashboard-enable=true` flag. If enabled it is available at the 
+`--management-dashboard-enable=true` flag. If enabled, it is available at the 
 management server address under `/dashboard` path.
 
 ## Feature Highlights
