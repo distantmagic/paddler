@@ -101,7 +101,7 @@ management server address under `/dashboard` path.
 
 ### Aggregated Health Status
 
-Paddler overrides `/health` endpoint of `llama.cpp` and reports the total number of available and processing slots.
+Paddler balancer endpoint aggregates the `/health` endpoints of `llama.cpp` and reports the total number of available and processing slots.
 
 ![Aggregated Health Status](https://github.com/distantmagic/paddler/assets/1286785/01f2fb39-ccc5-4bfa-896f-919b66318b2c)
 
