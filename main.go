@@ -44,6 +44,9 @@ func main() {
 		ManagementServerConfiguration: &management.ManagementServerConfiguration{
 			HttpAddress: &netcfg.HttpAddressConfiguration{},
 		},
+		StatusServerConfiguration: &agent.StatusServerConfiguration{
+			HttpAddress: &netcfg.HttpAddressConfiguration{},
+		},
 	}
 
 	balancer := &cmd.Balancer{
@@ -59,10 +62,6 @@ func main() {
 			HttpAddress: &netcfg.HttpAddressConfiguration{},
 		},
 	}
-
-	// buffer := &cmd.Buffer{
-	// 	Logger:                    logger.Named("Buffer"),
-	// }
 
 	app := &cli.App{
 		Name:  "paddler",
@@ -99,6 +98,14 @@ func main() {
 					}
 
 					agent.ManagementServerConfiguration.HttpAddress.Host = host
+
+					host, err = hostResolver.ResolveHost(backgroundContext, agent.StatusServerConfiguration.HttpAddress.Host)
+
+					if err != nil {
+						return err
+					}
+
+					agent.StatusServerConfiguration.HttpAddress.Host = host
 
 					return nil
 				},
@@ -152,6 +159,21 @@ func main() {
 						Name:        "management-scheme",
 						Value:       DefaultManagementScheme,
 						Destination: &agent.ManagementServerConfiguration.HttpAddress.Scheme,
+					},
+					&cli.StringFlag{
+						Name:        "status-server-host",
+						Value:       "127.0.0.1",
+						Destination: &agent.StatusServerConfiguration.HttpAddress.Host,
+					},
+					&cli.UintFlag{
+						Name:        "status-server-port",
+						Value:       8087,
+						Destination: &agent.StatusServerConfiguration.HttpAddress.Port,
+					},
+					&cli.StringFlag{
+						Name:        "status-server-scheme",
+						Value:       "http",
+						Destination: &agent.StatusServerConfiguration.HttpAddress.Scheme,
 					},
 				},
 			},

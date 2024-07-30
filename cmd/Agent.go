@@ -17,6 +17,7 @@ type Agent struct {
 	LocalLlamaCppConfiguration    *llamacpp.LlamaCppConfiguration
 	Logger                        hclog.Logger
 	ManagementServerConfiguration *management.ManagementServerConfiguration
+	StatusServerConfiguration     *agent.StatusServerConfiguration
 }
 
 func (self *Agent) Action(cliContext *cli.Context) error {
@@ -38,7 +39,16 @@ func (self *Agent) Action(cliContext *cli.Context) error {
 		},
 	}
 
+	statusServer := &agent.StatusServer{
+		Logger: self.Logger.Named("StatusServer"),
+		RespondToHealth: &agent.RespondToHealth{
+			ServerEventsChannel: serverEventsChannel,
+		},
+		StatusServerConfiguration: self.StatusServerConfiguration,
+	}
+
 	go llamaCppObserver.ObserveAndReport(serverEventsChannel)
+	go statusServer.Serve(serverEventsChannel)
 
 	for serverEvent := range serverEventsChannel {
 		self.Logger.Info(
