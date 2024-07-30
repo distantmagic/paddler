@@ -176,8 +176,8 @@ If you want to keep the balancer management address predictable, I recommend usi
 
 ## Tutorials
 
-- [Installing llama.cpp on AWS EC2 CUDA Instance](infra/tutorial-installing-llamacpp-aws-cuda.md)
-- [Installing llama.cpp with AWS EC2 Image Builder](infra/tutorial-installing-llamacpp-aws-ec2-image-builder.md)
+- [Installing llama.cpp on AWS EC2 CUDA Instance](https://llmops-handbook.distantmagic.com/deployments/llama.cpp/aws-ec2-cuda/index.html)
+- [Installing llama.cpp with AWS EC2 Image Builder](https://llmops-handbook.distantmagic.com/deployments/llama.cpp/aws-image-builder/index.html)
 
 ## Changelog
 
