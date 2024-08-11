@@ -25,4 +25,4 @@ RUN make
 
 RUN mv ./paddler-bin-linux-x64 /usr/local/bin/paddler
 
-CMD ["paddler", "balancer"]
+ENTRYPOINT ["paddler"]
