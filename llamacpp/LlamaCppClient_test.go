@@ -40,8 +40,6 @@ func TestHealthIsObtained(t *testing.T) {
 func TestCompletionsAreGenerated(t *testing.T) {
 	responseChannel := make(chan LlamaCppCompletionToken)
 
-	defer close(responseChannel)
-
 	go llamaCppClient.GenerateCompletion(
 		context.Background(),
 		responseChannel,
@@ -68,8 +66,6 @@ func TestCompletionsAreGenerated(t *testing.T) {
 
 func TestJsonSchemaConstrainedCompletionsAreGenerated(t *testing.T) {
 	responseChannel := make(chan LlamaCppCompletionToken)
-
-	defer close(responseChannel)
 
 	go llamaCppClient.GenerateCompletion(
 		context.Background(),

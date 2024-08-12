@@ -25,8 +25,12 @@
                 "
             >
                 <p class="metric">
+                    <span class="metric__name">Name:</span>
+                    <span class="metric__value">{{.LlamaCppTargetConfiguration.Name}}</span>
+                </p>
+                <p class="metric">
                     <span class="metric__name">Host:</span>
-                    <span class="metric__value">{{.LlamaCppTargetConfiguration}}</span>
+                    <span class="metric__value">{{.LlamaCppTargetConfiguration.LlamaCppConfiguration}}</span>
                 </p>
                 <p class="metric">
                     <span class="metric__name">Status:</span>

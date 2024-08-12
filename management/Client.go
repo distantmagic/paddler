@@ -22,11 +22,14 @@ func (self *Client) ReportLlamaCppHealthStatus(
 	serverEventsChannel chan<- goroutine.ResultMessage,
 	llamaCppConfiguration *llamacpp.LlamaCppConfiguration,
 	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
+	llamaCppTargetId string,
+	llamaCppTargetName string,
 ) {
 	jsonData, err := json.Marshal(&RegisterTargetRequest{
 		LlamaCppHealthStatus: llamaCppHealthStatus,
 		LlamaCppTargetConfiguration: &loadbalancer.LlamaCppTargetConfiguration{
-			Id:                    llamaCppConfiguration.String(),
+			Id:                    llamaCppTargetId,
+			Name:                  llamaCppTargetName,
 			LlamaCppConfiguration: llamaCppConfiguration,
 		},
 	})

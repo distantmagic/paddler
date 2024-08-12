@@ -6,6 +6,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.27.1
 	github.com/aws/aws-sdk-go-v2/config v1.27.17
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.4
+	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-hclog v1.6.2
 	github.com/puzpuzpuz/xsync/v3 v3.4.0
 	github.com/smira/go-statsd v1.3.3

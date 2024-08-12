@@ -7,6 +7,7 @@ import (
 	"github.com/distantmagic/paddler/goroutine"
 	"github.com/distantmagic/paddler/llamacpp"
 	"github.com/distantmagic/paddler/management"
+	"github.com/google/uuid"
 	"github.com/hashicorp/go-hclog"
 )
 
@@ -25,6 +26,19 @@ func (self *LlamaCppObserver) ObserveAndReport(
 		"observing",
 		"host", self.LlamaCppClient.LlamaCppConfiguration.HttpAddress.GetHostWithPort(),
 	)
+
+	agentRuntimeId, err := uuid.NewV7()
+
+	if err != nil {
+		serverEventsChannel <- goroutine.ResultMessage{
+			Comment: "failed to generate agent uuid",
+			Error:   err,
+		}
+
+		return
+	}
+
+	agentRuntimeIdString := agentRuntimeId.String()
 
 	llamaCppHealthStatusChannel := make(chan llamacpp.LlamaCppHealthStatus)
 
@@ -45,6 +59,8 @@ func (self *LlamaCppObserver) ObserveAndReport(
 			serverEventsChannel,
 			self.ExternalLlamaCppConfiguration,
 			&llamaCppHealthStatus,
+			agentRuntimeIdString,
+			self.AgentConfiguration.Name,
 		)
 
 		cancel()

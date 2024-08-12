@@ -3,6 +3,7 @@ package agent
 import "time"
 
 type AgentConfiguration struct {
+	Name                         string
 	ReportingIntervalMiliseconds uint
 }
 

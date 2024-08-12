@@ -161,6 +161,11 @@ func main() {
 						Destination: &agent.ManagementServerConfiguration.HttpAddress.Scheme,
 					},
 					&cli.StringFlag{
+						Name:        "name",
+						Value:       "",
+						Destination: &agent.AgentConfiguration.Name,
+					},
+					&cli.StringFlag{
 						Name:        "status-server-host",
 						Value:       "127.0.0.1",
 						Destination: &agent.StatusServerConfiguration.HttpAddress.Host,
