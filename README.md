@@ -74,6 +74,13 @@ Run the following to start a Paddler’s agent (replace the hosts and ports with
     --management-port 8085
 ```
 
+#### Naming the Agents
+
+> [!NOTE]
+> Available since v0.6.0
+
+With the `--name` flag, you can assign each agent a custom name. This name will be displayed in the management dashboard and not used for any other purpose. 
+
 ### Running Load Balancer
 
 Load balancer collects data from agents and exposes reverse proxy to the outside world.
@@ -92,6 +99,8 @@ To start the load balancer, run:
 ```
 
 `management-host` and `management-port` in agents should be the same as in the load balancer.
+
+#### Enabling Dashboard
 
 You can enable dashboard to see the status of the agents with 
 `--management-dashboard-enable=true` flag. If enabled, it is available at the 
