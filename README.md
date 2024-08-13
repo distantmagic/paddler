@@ -194,7 +194,7 @@ If you want to keep the balancer management address predictable, I recommend usi
 
 #### Features
 
-- Name agents with `--name` flag (#15)
+- [Name agents with `--name` flag](https://github.com/distantmagic/paddler/issues/15)
 
 ### v0.5.0
 
