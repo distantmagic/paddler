@@ -190,6 +190,12 @@ If you want to keep the balancer management address predictable, I recommend usi
 
 ## Changelog
 
+### v0.6.0
+
+#### Features
+
+- Name agents with `--name` flag (#15)
+
 ### v0.5.0
 
 #### Fixes
