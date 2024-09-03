@@ -33,8 +33,6 @@ func TestHealthIsObtained(t *testing.T) {
 	healthStatus := <-responseChannel
 
 	assert.Nil(t, healthStatus.Error)
-	assert.Greater(t, healthStatus.SlotsIdle, 0)
-	assert.GreaterOrEqual(t, healthStatus.SlotsProcessing, 0)
 }
 
 func TestCompletionsAreGenerated(t *testing.T) {
@@ -62,6 +60,44 @@ func TestCompletionsAreGenerated(t *testing.T) {
 
 	// 3 tokens + 1 summary token
 	assert.Equal(t, 4, generatedTokens)
+}
+
+func TestSlotsAreObtained(t *testing.T) {
+	// the test assumes llama.cpp instance running with 4 available slots
+	// all of them idle
+
+	responseChannel := make(chan LlamaCppSlotStatus)
+
+	go llamaCppClient.GetSlots(
+		context.Background(),
+		responseChannel,
+	)
+
+	var totalStatuses int
+
+	for slotStatus := range responseChannel {
+		totalStatuses += 1
+
+		assert.Nil(t, slotStatus.Error)
+		assert.Equal(t, slotStatus.State, 0)
+	}
+
+	assert.Equal(t, totalStatuses, 4)
+}
+
+func TestSlotsAggregatedStatusIsbtained(t *testing.T) {
+	responseChannel := make(chan LlamaCppSlotsAggregatedStatus)
+
+	go llamaCppClient.GetSlotsAggregatedStatus(
+		context.Background(),
+		responseChannel,
+	)
+
+	slotsAggregatedStatus := <-responseChannel
+
+	assert.Nil(t, slotsAggregatedStatus.Error)
+	assert.Equal(t, slotsAggregatedStatus.SlotsIdle, 4)
+	assert.Equal(t, slotsAggregatedStatus.SlotsProcessing, 0)
 }
 
 func TestJsonSchemaConstrainedCompletionsAreGenerated(t *testing.T) {
