@@ -19,7 +19,7 @@
             <li
                 class="
                     agents__agent
-                    {{if .LlamaCppHealthStatus.ErrorMessage}}
+                    {{if .LlamaCppSlotsAggregatedStatus.ErrorMessage}}
                         agents__agent--error
                     {{end}}
                 "
@@ -33,16 +33,12 @@
                     <span class="metric__value">{{.LlamaCppTargetConfiguration.LlamaCppConfiguration}}</span>
                 </p>
                 <p class="metric">
-                    <span class="metric__name">Status:</span>
-                    <span class="metric__value">{{.LlamaCppHealthStatus.Status}}</span>
-                </p>
-                <p class="metric">
                     <span class="metric__name">Idle:</span>
-                    <span class="metric__value">{{.LlamaCppHealthStatus.SlotsIdle}}</span>
+                    <span class="metric__value">{{.LlamaCppSlotsAggregatedStatus.SlotsIdle}}</span>
                 </p>
                 <p class="metric">
                     <span class="metric__name">Processing:</span>
-                    <span class="metric__value">{{.LlamaCppHealthStatus.SlotsProcessing}}</span>
+                    <span class="metric__value">{{.LlamaCppSlotsAggregatedStatus.SlotsProcessing}}</span>
                 </p>
                 <p class="metric">
                     <span class="metric__name">Remaining Ticks:</span>
@@ -56,11 +52,11 @@
                     <span class="metric__name">Last Update:</span>
                     <span class="metric__value">{{.LastUpdate | formatDate}}</span>
                 </p>
-                {{if .LlamaCppHealthStatus.ErrorMessage}}
+                {{if .LlamaCppSlotsAggregatedStatus.ErrorMessage}}
                     <p class="metric metric--error">
                         <span class="metric__name">Error:</span>
                         <span class="metric_value">
-                            <code>{{.LlamaCppHealthStatus.ErrorMessage}}</code>
+                            <code>{{.LlamaCppSlotsAggregatedStatus.ErrorMessage}}</code>
                         </span>
                     </p>
                 {{end}}

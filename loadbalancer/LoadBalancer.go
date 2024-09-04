@@ -30,7 +30,7 @@ func (self *LoadBalancer) Balance(
 		return
 	}
 
-	if headTarget.LlamaCppHealthStatus.SlotsIdle < 1 {
+	if headTarget.LlamaCppSlotsAggregatedStatus.SlotsIdle < 1 {
 		balancingAttemptStatusChannel <- &BalancingAttemptStatus{
 			Error: ErrorNoSlotsAvailable,
 		}

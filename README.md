@@ -16,7 +16,7 @@ Paddler is designed to support llama.cpp-specific features like slots. It works 
 > You can learn more about them in [llama.cpp server](https://github.com/ggerganov/llama.cpp/tree/master/examples/server) documentation.
 
 ## Key features
-* Uses agents to monitor the health of individual llama.cpp instances.
+* Uses agents to monitor the slots of individual llama.cpp instances.
 * Supports the dynamic addition or removal of llama.cpp servers, enabling integration with autoscaling tools.
 * Buffers requests, allowing to scale from zero hosts.
 * Integrates with StatsD protocol but also comes with a built-in dashboard.
@@ -27,7 +27,7 @@ Paddler is designed to support llama.cpp-specific features like slots. It works 
 
 ## How it Works
 
-llama.cpp instances need to be registered in Paddler. Paddler’s agents should be installed alongside llama.cpp instances so that they can report their health status to the load balancer.
+llama.cpp instances need to be registered in Paddler. Paddler’s agents should be installed alongside llama.cpp instances so that they can report their slots status to the load balancer.
 
 The sequence repeats for each agent:
 
@@ -38,7 +38,7 @@ sequenceDiagram
     participant llamacpp as llama.cpp
 
     agent->>llamacpp: Hey, are you alive?
-    llamacpp-->>agent: Yes, this is my health status
+    llamacpp-->>agent: Yes, this is my slots status
     agent-->>loadbalancer: llama.cpp is still working
     loadbalancer->>llamacpp: I have a request for you to handle
 ```
@@ -54,13 +54,13 @@ On Linux, if you want Paddler to be accessible system-wide, rename the downloade
 
 ### Running Agents
 
-The next step is to run Paddler’s agents. Agents register your llama.cpp instances in Paddler and monitor the health of llama.cpp instances. 
+The next step is to run Paddler’s agents. Agents register your llama.cpp instances in Paddler and monitor the slots of llama.cpp instances. 
 They should be installed on the same host as your server that runs [llama.cpp](https://github.com/ggerganov/llama.cpp).
 
 An agent needs a few pieces of information:
 1. `external-*` tells how the load balancer can connect to the llama.cpp instance
 2. `local-*` tells how the agent can connect to the llama.cpp instance
-3. `management-*` tell where the agent should report the health status
+3. `management-*` tell where the agent should report the slots status
 
 Run the following to start a Paddler’s agent (replace the hosts and ports with your own server addresses when deploying):
 
@@ -108,9 +108,9 @@ management server address under `/dashboard` path.
 
 ## Feature Highlights
 
-### Aggregated Health Status
+### Aggregated Slots Status
 
-Paddler balancer endpoint aggregates the `/health` endpoints of `llama.cpp` and reports the total number of available and processing slots.
+Paddler balancer endpoint aggregates the `/slots` endpoints of `llama.cpp` and reports the total number of available and processing slots.
 
 ![Aggregated Health Status](https://github.com/distantmagic/paddler/assets/1286785/01f2fb39-ccc5-4bfa-896f-919b66318b2c)
 

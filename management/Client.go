@@ -17,16 +17,16 @@ type Client struct {
 	ManagementServerConfiguration *ManagementServerConfiguration
 }
 
-func (self *Client) ReportLlamaCppHealthStatus(
+func (self *Client) ReportLlamaCppSlotsAggregatedStatus(
 	ctx context.Context,
 	serverEventsChannel chan<- goroutine.ResultMessage,
 	llamaCppConfiguration *llamacpp.LlamaCppConfiguration,
-	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
+	llamaCppSlotsAggregatedStatus *llamacpp.LlamaCppSlotsAggregatedStatus,
 	llamaCppTargetId string,
 	llamaCppTargetName string,
 ) {
 	jsonData, err := json.Marshal(&RegisterTargetRequest{
-		LlamaCppHealthStatus: llamaCppHealthStatus,
+		LlamaCppSlotsAggregatedStatus: llamaCppSlotsAggregatedStatus,
 		LlamaCppTargetConfiguration: &loadbalancer.LlamaCppTargetConfiguration{
 			Id:                    llamaCppTargetId,
 			Name:                  llamaCppTargetName,

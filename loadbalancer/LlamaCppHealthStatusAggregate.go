@@ -6,7 +6,7 @@ import (
 )
 
 type LlamaCppHealthStatusAggregate struct {
-	AggregatedHealthStatus *llamacpp.LlamaCppHealthStatus
+	AggregatedHealthStatus *llamacpp.LlamaCppSlotsAggregatedStatus
 	RBMutex                xsync.RBMutex
 }
 
@@ -15,8 +15,8 @@ func (self *LlamaCppHealthStatusAggregate) AddSlotsFrom(llamaCppTarget *LlamaCpp
 	defer llamaCppTarget.RBMutex.RUnlock(mutexToken)
 
 	self.IncreaseBy(
-		llamaCppTarget.LlamaCppHealthStatus.SlotsIdle,
-		llamaCppTarget.LlamaCppHealthStatus.SlotsProcessing,
+		llamaCppTarget.LlamaCppSlotsAggregatedStatus.SlotsIdle,
+		llamaCppTarget.LlamaCppSlotsAggregatedStatus.SlotsProcessing,
 	)
 }
 
@@ -33,8 +33,8 @@ func (self *LlamaCppHealthStatusAggregate) RemoveSlotsFrom(llamaCppTarget *Llama
 	defer llamaCppTarget.RBMutex.RUnlock(mutexToken)
 
 	self.IncreaseBy(
-		-1*llamaCppTarget.LlamaCppHealthStatus.SlotsIdle,
-		-1*llamaCppTarget.LlamaCppHealthStatus.SlotsProcessing,
+		-1*llamaCppTarget.LlamaCppSlotsAggregatedStatus.SlotsIdle,
+		-1*llamaCppTarget.LlamaCppSlotsAggregatedStatus.SlotsProcessing,
 	)
 }
 

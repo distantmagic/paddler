@@ -9,22 +9,22 @@ import (
 )
 
 type LlamaCppTarget struct {
-	LastUpdate                  time.Time
-	LlamaCppTargetConfiguration *LlamaCppTargetConfiguration
-	LlamaCppClient              *llamacpp.LlamaCppClient
-	LlamaCppHealthStatus        *llamacpp.LlamaCppHealthStatus
-	RemainingTicksUntilRemoved  int
-	RBMutex                     xsync.RBMutex
-	TotalUpdates                int
-	ReverseProxy                *httputil.ReverseProxy
+	LastUpdate                    time.Time
+	LlamaCppTargetConfiguration   *LlamaCppTargetConfiguration
+	LlamaCppClient                *llamacpp.LlamaCppClient
+	LlamaCppSlotsAggregatedStatus *llamacpp.LlamaCppSlotsAggregatedStatus
+	RemainingTicksUntilRemoved    int
+	RBMutex                       xsync.RBMutex
+	TotalUpdates                  int
+	ReverseProxy                  *httputil.ReverseProxy
 }
 
 func (self *LlamaCppTarget) DecrementIdleSlots() {
 	self.RBMutex.Lock()
 	defer self.RBMutex.Unlock()
 
-	self.LlamaCppHealthStatus.SlotsIdle -= 1
-	self.LlamaCppHealthStatus.SlotsProcessing += 1
+	self.LlamaCppSlotsAggregatedStatus.SlotsIdle -= 1
+	self.LlamaCppSlotsAggregatedStatus.SlotsProcessing += 1
 }
 
 func (self *LlamaCppTarget) DecrementRemainingTicks() {
@@ -38,7 +38,7 @@ func (self *LlamaCppTarget) GetSlotsStatus() (int, int) {
 	mutexToken := self.RBMutex.RLock()
 	defer self.RBMutex.RUnlock(mutexToken)
 
-	return self.LlamaCppHealthStatus.SlotsIdle, self.LlamaCppHealthStatus.SlotsProcessing
+	return self.LlamaCppSlotsAggregatedStatus.SlotsIdle, self.LlamaCppSlotsAggregatedStatus.SlotsProcessing
 }
 
 func (self *LlamaCppTarget) HasLessSlotsThan(other *LlamaCppTarget) bool {
@@ -48,7 +48,7 @@ func (self *LlamaCppTarget) HasLessSlotsThan(other *LlamaCppTarget) bool {
 	otherMutexToken := other.RBMutex.RLock()
 	defer other.RBMutex.RUnlock(otherMutexToken)
 
-	return self.LlamaCppHealthStatus.SlotsIdle < other.LlamaCppHealthStatus.SlotsIdle
+	return self.LlamaCppSlotsAggregatedStatus.SlotsIdle < other.LlamaCppSlotsAggregatedStatus.SlotsIdle
 }
 
 func (self *LlamaCppTarget) HasRemainingTicks() bool {
@@ -60,17 +60,17 @@ func (self *LlamaCppTarget) HasRemainingTicks() bool {
 
 func (self *LlamaCppTarget) SetTickStatus(
 	lastUpdate time.Time,
-	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
+	llamaCppSlotsAggregatedStatus *llamacpp.LlamaCppSlotsAggregatedStatus,
 	remainingTicksUntilRemoved int,
 ) (int, int) {
 	self.RBMutex.Lock()
 	defer self.RBMutex.Unlock()
 
-	slotsIdleDiff := self.LlamaCppHealthStatus.SlotsIdle - llamaCppHealthStatus.SlotsIdle
-	slotsProcessingDiff := self.LlamaCppHealthStatus.SlotsProcessing - llamaCppHealthStatus.SlotsProcessing
+	slotsIdleDiff := self.LlamaCppSlotsAggregatedStatus.SlotsIdle - llamaCppSlotsAggregatedStatus.SlotsIdle
+	slotsProcessingDiff := self.LlamaCppSlotsAggregatedStatus.SlotsProcessing - llamaCppSlotsAggregatedStatus.SlotsProcessing
 
 	self.LastUpdate = lastUpdate
-	self.LlamaCppHealthStatus = llamaCppHealthStatus
+	self.LlamaCppSlotsAggregatedStatus = llamaCppSlotsAggregatedStatus
 	self.RemainingTicksUntilRemoved = remainingTicksUntilRemoved
 	self.TotalUpdates += 1
 

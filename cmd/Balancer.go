@@ -27,9 +27,7 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 	defer close(serverEventsChannel)
 
 	llamaCppHealthStatusAggregate := &loadbalancer.LlamaCppHealthStatusAggregate{
-		AggregatedHealthStatus: &llamacpp.LlamaCppHealthStatus{
-			Status: llamacpp.Ok,
-		},
+		AggregatedHealthStatus: &llamacpp.LlamaCppSlotsAggregatedStatus{},
 	}
 
 	loadBalancerTargetCollection := loadbalancer.NewLoadBalancerTargetCollection(llamaCppHealthStatusAggregate)

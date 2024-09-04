@@ -40,25 +40,25 @@ func (self *LlamaCppObserver) ObserveAndReport(
 
 	agentRuntimeIdString := agentRuntimeId.String()
 
-	llamaCppHealthStatusChannel := make(chan llamacpp.LlamaCppHealthStatus)
+	llamaCppSlotsAggregateStatusChannel := make(chan llamacpp.LlamaCppSlotsAggregatedStatus)
 
-	defer close(llamaCppHealthStatusChannel)
+	defer close(llamaCppSlotsAggregateStatusChannel)
 
 	ticker := time.NewTicker(self.AgentConfiguration.GetReportingIntervalDuration())
 
-	go self.RunTickerInterval(llamaCppHealthStatusChannel, ticker)
+	go self.RunTickerInterval(llamaCppSlotsAggregateStatusChannel, ticker)
 
-	for llamaCppHealthStatus := range llamaCppHealthStatusChannel {
+	for llamaCppSlotsAggregatedStatus := range llamaCppSlotsAggregateStatusChannel {
 		ctx, cancel := context.WithTimeout(
 			context.Background(),
 			self.AgentConfiguration.GetReportingIntervalDuration(),
 		)
 
-		self.ManagementClient.ReportLlamaCppHealthStatus(
+		self.ManagementClient.ReportLlamaCppSlotsAggregatedStatus(
 			ctx,
 			serverEventsChannel,
 			self.ExternalLlamaCppConfiguration,
-			&llamaCppHealthStatus,
+			&llamaCppSlotsAggregatedStatus,
 			agentRuntimeIdString,
 			self.AgentConfiguration.Name,
 		)
@@ -68,7 +68,7 @@ func (self *LlamaCppObserver) ObserveAndReport(
 }
 
 func (self *LlamaCppObserver) RunTickerInterval(
-	llamaCppHealthStatusChannel chan llamacpp.LlamaCppHealthStatus,
+	llamaCppSlotsAggregateStatusChannel chan llamacpp.LlamaCppSlotsAggregatedStatus,
 	ticker *time.Ticker,
 ) {
 	for range ticker.C {
@@ -77,9 +77,9 @@ func (self *LlamaCppObserver) RunTickerInterval(
 			self.AgentConfiguration.GetReportingIntervalDuration(),
 		)
 
-		self.LlamaCppClient.GetHealth(
+		self.LlamaCppClient.GetSlotsAggregatedStatus(
 			ctx,
-			llamaCppHealthStatusChannel,
+			llamaCppSlotsAggregateStatusChannel,
 		)
 
 		cancel()

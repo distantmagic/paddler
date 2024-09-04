@@ -12,9 +12,7 @@ import (
 
 func TestTargetOrderIsPreserved(t *testing.T) {
 	llamaCppHealthStatusAggregate := &LlamaCppHealthStatusAggregate{
-		AggregatedHealthStatus: &llamacpp.LlamaCppHealthStatus{
-			Status: llamacpp.Ok,
-		},
+		AggregatedHealthStatus: &llamacpp.LlamaCppSlotsAggregatedStatus{},
 	}
 
 	loadBalancerTargetRegistrar := &LoadBalancerTargetRegistrar{
@@ -38,8 +36,7 @@ func TestTargetOrderIsPreserved(t *testing.T) {
 
 	loadBalancerTargetRegistrar.RegisterOrUpdateTarget(
 		target1,
-		&llamacpp.LlamaCppHealthStatus{
-			Status:          llamacpp.Ok,
+		&llamacpp.LlamaCppSlotsAggregatedStatus{
 			SlotsIdle:       10,
 			SlotsProcessing: 0,
 			Error:           nil,
@@ -67,8 +64,7 @@ func TestTargetOrderIsPreserved(t *testing.T) {
 
 	loadBalancerTargetRegistrar.RegisterOrUpdateTarget(
 		target2,
-		&llamacpp.LlamaCppHealthStatus{
-			Status:          llamacpp.Ok,
+		&llamacpp.LlamaCppSlotsAggregatedStatus{
 			SlotsIdle:       8,
 			SlotsProcessing: 0,
 			Error:           nil,
@@ -84,8 +80,7 @@ func TestTargetOrderIsPreserved(t *testing.T) {
 
 	loadBalancerTargetRegistrar.RegisterOrUpdateTarget(
 		target2,
-		&llamacpp.LlamaCppHealthStatus{
-			Status:          llamacpp.Ok,
+		&llamacpp.LlamaCppSlotsAggregatedStatus{
 			SlotsIdle:       11,
 			SlotsProcessing: 0,
 			Error:           nil,

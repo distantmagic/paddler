@@ -17,18 +17,18 @@ type LoadBalancerTargetRegistrar struct {
 
 func (self *LoadBalancerTargetRegistrar) RegisterOrUpdateTarget(
 	targetConfiguration *LlamaCppTargetConfiguration,
-	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
+	llamaCppSlotsAggregatedStatus *llamacpp.LlamaCppSlotsAggregatedStatus,
 ) {
 	existingTarget := self.LoadBalancerTargetCollection.GetTargetByConfiguration(targetConfiguration)
 
 	if existingTarget == nil {
 		self.registerTarget(
 			targetConfiguration,
-			llamaCppHealthStatus,
+			llamaCppSlotsAggregatedStatus,
 		)
 	} else {
 		self.updateTarget(
-			llamaCppHealthStatus,
+			llamaCppSlotsAggregatedStatus,
 			existingTarget,
 		)
 	}
@@ -36,7 +36,7 @@ func (self *LoadBalancerTargetRegistrar) RegisterOrUpdateTarget(
 
 func (self *LoadBalancerTargetRegistrar) registerTarget(
 	targetConfiguration *LlamaCppTargetConfiguration,
-	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
+	llamaCppSlotsAggregatedStatus *llamacpp.LlamaCppSlotsAggregatedStatus,
 ) {
 	self.Logger.Debug(
 		"registering target",
@@ -57,19 +57,19 @@ func (self *LoadBalancerTargetRegistrar) registerTarget(
 			HttpClient:            self.HttpClient,
 			LlamaCppConfiguration: targetConfiguration.LlamaCppConfiguration,
 		},
-		LlamaCppHealthStatus:        llamaCppHealthStatus,
-		LlamaCppTargetConfiguration: targetConfiguration,
-		RemainingTicksUntilRemoved:  3,
-		ReverseProxy:                reverseProxy,
+		LlamaCppSlotsAggregatedStatus: llamaCppSlotsAggregatedStatus,
+		LlamaCppTargetConfiguration:   targetConfiguration,
+		RemainingTicksUntilRemoved:    3,
+		ReverseProxy:                  reverseProxy,
 	})
 }
 
 func (self *LoadBalancerTargetRegistrar) updateTarget(
-	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
+	llamaCppSlotsAggregatedStatus *llamacpp.LlamaCppSlotsAggregatedStatus,
 	existingTarget *LlamaCppTarget,
 ) {
-	self.LoadBalancerTargetCollection.UpdateTargetWithLlamaCppHealthStatus(
+	self.LoadBalancerTargetCollection.UpdateTargetWithLlamaCppSlotsAggregatedStatus(
 		existingTarget,
-		llamaCppHealthStatus,
+		llamaCppSlotsAggregatedStatus,
 	)
 }

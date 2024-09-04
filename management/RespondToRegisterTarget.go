@@ -40,7 +40,7 @@ func (self *RespondToRegisterTarget) ServeHTTP(response http.ResponseWriter, req
 
 	go self.LoadBalancerTargetRegistrar.RegisterOrUpdateTarget(
 		registerTargetRequest.LlamaCppTargetConfiguration,
-		registerTargetRequest.LlamaCppHealthStatus,
+		registerTargetRequest.LlamaCppSlotsAggregatedStatus,
 	)
 
 	response.Header().Set("Content-Type", "application/json")

@@ -11,9 +11,7 @@ import (
 
 func BenchmarkLoadBalancerTargetCollection(b *testing.B) {
 	llamaCppHealthStatusAggregate := &LlamaCppHealthStatusAggregate{
-		AggregatedHealthStatus: &llamacpp.LlamaCppHealthStatus{
-			Status: llamacpp.Ok,
-		},
+		AggregatedHealthStatus: &llamacpp.LlamaCppSlotsAggregatedStatus{},
 	}
 
 	loadBalancerTargetRegistrar := &LoadBalancerTargetRegistrar{
@@ -37,8 +35,7 @@ func BenchmarkLoadBalancerTargetCollection(b *testing.B) {
 		for pb.Next() {
 			loadBalancerTargetRegistrar.RegisterOrUpdateTarget(
 				target,
-				&llamacpp.LlamaCppHealthStatus{
-					Status:          llamacpp.Ok,
+				&llamacpp.LlamaCppSlotsAggregatedStatus{
 					SlotsIdle:       8,
 					SlotsProcessing: 0,
 					Error:           nil,

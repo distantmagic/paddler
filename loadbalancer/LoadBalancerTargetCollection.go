@@ -127,11 +127,11 @@ func (self *LoadBalancerTargetCollection) RemoveTarget(llamaCppTarget *LlamaCppT
 	self.targetByConfiguration.Delete(llamaCppTarget.LlamaCppTargetConfiguration.Id)
 }
 
-func (self *LoadBalancerTargetCollection) UpdateTargetWithLlamaCppHealthStatus(
+func (self *LoadBalancerTargetCollection) UpdateTargetWithLlamaCppSlotsAggregatedStatus(
 	llamaCppTarget *LlamaCppTarget,
-	llamaCppHealthStatus *llamacpp.LlamaCppHealthStatus,
+	llamaCppSlotsAggregatedStatus *llamacpp.LlamaCppSlotsAggregatedStatus,
 ) {
-	slotsIdleDiff, slotsProcessingDiff := llamaCppTarget.SetTickStatus(time.Now(), llamaCppHealthStatus, 3)
+	slotsIdleDiff, slotsProcessingDiff := llamaCppTarget.SetTickStatus(time.Now(), llamaCppSlotsAggregatedStatus, 3)
 
 	self.LlamaCppHealthStatusAggregate.IncreaseBy(slotsIdleDiff, slotsProcessingDiff)
 	self.FixTargetOrder(llamaCppTarget)
