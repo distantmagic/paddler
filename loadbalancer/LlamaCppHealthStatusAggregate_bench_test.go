@@ -8,7 +8,9 @@ import (
 
 func BenchmarkLlamaCppHealthStatusAggregate(b *testing.B) {
 	llamaCppHealthStatusAggregate := &LlamaCppHealthStatusAggregate{
-		AggregatedHealthStatus: &llamacpp.LlamaCppSlotsAggregatedStatus{},
+		AggregatedHealthStatus: &llamacpp.LlamaCppSlotsAggregatedStatus{
+			Status: llamacpp.Ok,
+		},
 	}
 
 	b.RunParallel(func(pb *testing.PB) {

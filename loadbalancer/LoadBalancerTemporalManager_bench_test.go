@@ -13,7 +13,9 @@ func BenchmarkLoadBalancerTemporalManager(b *testing.B) {
 	logger := hclog.NewNullLogger()
 
 	llamaCppHealthStatusAggregate := &LlamaCppHealthStatusAggregate{
-		AggregatedHealthStatus: &llamacpp.LlamaCppSlotsAggregatedStatus{},
+		AggregatedHealthStatus: &llamacpp.LlamaCppSlotsAggregatedStatus{
+			Status: llamacpp.Ok,
+		},
 	}
 
 	loadBalancerTargetCollection := NewLoadBalancerTargetCollection(llamaCppHealthStatusAggregate)
@@ -50,6 +52,7 @@ func BenchmarkLoadBalancerTemporalManager(b *testing.B) {
 				&llamacpp.LlamaCppSlotsAggregatedStatus{
 					SlotsIdle:       8,
 					SlotsProcessing: 0,
+					Status:          llamacpp.Ok,
 					Error:           nil,
 				},
 			)

@@ -257,6 +257,7 @@ func (self *LlamaCppClient) GetSlotsAggregatedStatus(
 			responseChannel <- LlamaCppSlotsAggregatedStatus{
 				Error:        slotStatus.Error,
 				ErrorMessage: slotStatus.ErrorMessage,
+				Status:       Error,
 			}
 
 			return

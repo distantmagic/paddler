@@ -190,6 +190,25 @@ If you want to keep the balancer management address predictable, I recommend usi
 
 ## Changelog
 
+### v0.7.0
+
+Requires at least [b3606](https://github.com/ggerganov/llama.cpp/releases/tag/b3606) llama.cpp release.
+
+#### Breaking Changes
+
+- Adjusted to handle breaking changes in llama.cpp `/health` endpoint: https://github.com/ggerganov/llama.cpp/pull/9056
+  
+    Instead of using the `/health` endpoint to monitor slot statuses, starting from this version, Paddler uses the `/slots` endpoint to monitor llama.cpp instances.
+    Paddler's `/health` endpoint remains unchanged.
+
+### v0.6.0
+
+Latest supported llama.cpp release: [b3604](https://github.com/ggerganov/llama.cpp/releases/tag/b3604)
+
+#### Features
+
+- [Name agents with `--name` flag](https://github.com/distantmagic/paddler/issues/15)
+
 ### v0.6.0
 
 #### Features
