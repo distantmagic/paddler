@@ -108,9 +108,9 @@ management server address under `/dashboard` path.
 
 ## Feature Highlights
 
-### Aggregated Slots Status
+### Aggregated Health Status
 
-Paddler balancer endpoint aggregates the `/slots` endpoints of `llama.cpp` and reports the total number of available and processing slots.
+Paddler balancer endpoint aggregates the `/health` endpoints of `llama.cpp` and reports the total number of available and processing slots.
 
 ![Aggregated Health Status](https://github.com/distantmagic/paddler/assets/1286785/01f2fb39-ccc5-4bfa-896f-919b66318b2c)
 
