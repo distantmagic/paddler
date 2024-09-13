@@ -19,6 +19,7 @@ func TestTargetOrderIsPreserved(t *testing.T) {
 
 	loadBalancerTargetRegistrar := &LoadBalancerTargetRegistrar{
 		HttpClient:                   http.DefaultClient,
+		LoadBalancerConfiguration:    &LoadBalancerConfiguration{},
 		LoadBalancerTargetCollection: NewLoadBalancerTargetCollection(llamaCppHealthStatusAggregate),
 		Logger:                       hclog.NewNullLogger(),
 	}

@@ -48,6 +48,8 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 		return err
 	}
 
+	self.Logger.Debug("rewrite-host-header", "enabled", self.LoadBalancerConfiguration.RewriteHostHeader)
+
 	bufferedRequestsStats := &loadbalancer.BufferedRequestsStats{}
 
 	managementServer := &management.Server{
@@ -61,6 +63,7 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 		RespondToRegisterTarget: &management.RespondToRegisterTarget{
 			LoadBalancerTargetRegistrar: &loadbalancer.LoadBalancerTargetRegistrar{
 				HttpClient:                   http.DefaultClient,
+				LoadBalancerConfiguration:    self.LoadBalancerConfiguration,
 				LoadBalancerTargetCollection: loadBalancer.LoadBalancerTargetCollection,
 				Logger:                       self.Logger,
 			},

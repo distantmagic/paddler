@@ -2,7 +2,6 @@ package loadbalancer
 
 import (
 	"net/http"
-	"net/http/httputil"
 	"time"
 
 	"github.com/distantmagic/paddler/llamacpp"
@@ -11,6 +10,7 @@ import (
 
 type LoadBalancerTargetRegistrar struct {
 	HttpClient                   *http.Client
+	LoadBalancerConfiguration    *LoadBalancerConfiguration
 	LoadBalancerTargetCollection *LoadBalancerTargetCollection
 	Logger                       hclog.Logger
 }
@@ -43,14 +43,6 @@ func (self *LoadBalancerTargetRegistrar) registerTarget(
 		"host", targetConfiguration.LlamaCppConfiguration.HttpAddress.GetHostWithPort(),
 	)
 
-	reverseProxy := httputil.NewSingleHostReverseProxy(
-		targetConfiguration.LlamaCppConfiguration.HttpAddress.GetBaseUrl(),
-	)
-
-	reverseProxy.ErrorLog = self.Logger.Named("ReverseProxy").StandardLogger(&hclog.StandardLoggerOptions{
-		InferLevels: true,
-	})
-
 	self.LoadBalancerTargetCollection.RegisterTarget(&LlamaCppTarget{
 		LastUpdate: time.Now(),
 		LlamaCppClient: &llamacpp.LlamaCppClient{
@@ -60,6 +52,10 @@ func (self *LoadBalancerTargetRegistrar) registerTarget(
 		LlamaCppSlotsAggregatedStatus: llamaCppSlotsAggregatedStatus,
 		LlamaCppTargetConfiguration:   targetConfiguration,
 		RemainingTicksUntilRemoved:    3,
-		ReverseProxy:                  reverseProxy,
+		ReverseProxy: CreateLlamaCppTargetReverseProxy(
+			self.Logger.Named("ReverseProxy"),
+			self.LoadBalancerConfiguration,
+			targetConfiguration,
+		),
 	})
 }

@@ -22,6 +22,7 @@ func BenchmarkLoadBalancerTemporalManager(b *testing.B) {
 
 	loadBalancerTargetRegistrar := &LoadBalancerTargetRegistrar{
 		HttpClient:                   http.DefaultClient,
+		LoadBalancerConfiguration:    &LoadBalancerConfiguration{},
 		LoadBalancerTargetCollection: loadBalancerTargetCollection,
 		Logger:                       hclog.NewNullLogger(),
 	}

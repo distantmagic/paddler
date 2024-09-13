@@ -106,6 +106,15 @@ You can enable dashboard to see the status of the agents with
 `--management-dashboard-enable=true` flag. If enabled, it is available at the 
 management server address under `/dashboard` path.
 
+#### Rewriting the `Host` Header
+
+> [!NOTE]
+> Available since v0.8.0
+
+In some cases (see: [#20](https://github.com/distantmagic/paddler/issues/20)), you might want to rewrite the `Host` header.
+
+In such cases, you can use the `--rewrite-host-header` flag. If used, Paddler will use the `external` host provided by agents instead of the balancer host when forwarding the requests.
+
 ## Feature Highlights
 
 ### Aggregated Health Status

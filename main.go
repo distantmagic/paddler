@@ -282,6 +282,11 @@ func main() {
 						Value:       60 * time.Second,
 						Destination: &balancer.LoadBalancerConfiguration.RequestBufferTimeout,
 					},
+					&cli.BoolFlag{
+						Name:        "rewrite-host-header",
+						Value:       false,
+						Destination: &balancer.LoadBalancerConfiguration.RewriteHostHeader,
+					},
 				},
 			},
 			// {

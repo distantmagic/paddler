@@ -18,6 +18,7 @@ func BenchmarkLoadBalancerTargetCollection(b *testing.B) {
 
 	loadBalancerTargetRegistrar := &LoadBalancerTargetRegistrar{
 		HttpClient:                   http.DefaultClient,
+		LoadBalancerConfiguration:    &LoadBalancerConfiguration{},
 		LoadBalancerTargetCollection: NewLoadBalancerTargetCollection(llamaCppHealthStatusAggregate),
 		Logger:                       hclog.NewNullLogger(),
 	}
