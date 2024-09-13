@@ -190,6 +190,12 @@ If you want to keep the balancer management address predictable, I recommend usi
 
 ## Changelog
 
+### v0.7.1
+
+#### Fixes
+
+- Incorrect preemptive counting of remaining slots in some scenarios
+
 ### v0.7.0
 
 Requires at least [b3606](https://github.com/ggerganov/llama.cpp/releases/tag/b3606) llama.cpp release.
