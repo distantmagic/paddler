@@ -10,13 +10,13 @@ import (
 
 type LlamaCppTarget struct {
 	LastUpdate                    time.Time
-	LlamaCppTargetConfiguration   *LlamaCppTargetConfiguration
 	LlamaCppClient                *llamacpp.LlamaCppClient
 	LlamaCppSlotsAggregatedStatus *llamacpp.LlamaCppSlotsAggregatedStatus
-	RemainingTicksUntilRemoved    int
+	LlamaCppTargetConfiguration   *LlamaCppTargetConfiguration
 	RBMutex                       xsync.RBMutex
-	TotalUpdates                  int
+	RemainingTicksUntilRemoved    int
 	ReverseProxy                  *httputil.ReverseProxy
+	TotalUpdates                  int
 }
 
 func (self *LlamaCppTarget) DecrementIdleSlots() {
@@ -66,8 +66,8 @@ func (self *LlamaCppTarget) SetTickStatus(
 	self.RBMutex.Lock()
 	defer self.RBMutex.Unlock()
 
-	slotsIdleDiff := self.LlamaCppSlotsAggregatedStatus.SlotsIdle - llamaCppSlotsAggregatedStatus.SlotsIdle
-	slotsProcessingDiff := self.LlamaCppSlotsAggregatedStatus.SlotsProcessing - llamaCppSlotsAggregatedStatus.SlotsProcessing
+	slotsIdleDiff := llamaCppSlotsAggregatedStatus.SlotsIdle - self.LlamaCppSlotsAggregatedStatus.SlotsIdle
+	slotsProcessingDiff := llamaCppSlotsAggregatedStatus.SlotsProcessing - self.LlamaCppSlotsAggregatedStatus.SlotsProcessing
 
 	self.LastUpdate = lastUpdate
 	self.LlamaCppSlotsAggregatedStatus = llamaCppSlotsAggregatedStatus

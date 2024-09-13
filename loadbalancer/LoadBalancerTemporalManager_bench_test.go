@@ -56,6 +56,7 @@ func BenchmarkLoadBalancerTemporalManager(b *testing.B) {
 					Error:           nil,
 				},
 			)
+
 			loadBalancerTemporalManager.OnApplicationTick()
 		}
 	})

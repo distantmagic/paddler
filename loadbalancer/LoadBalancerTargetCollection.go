@@ -1,7 +1,7 @@
 package loadbalancer
 
 import (
-	"container/list"
+	"slices"
 	"time"
 
 	"github.com/distantmagic/paddler/llamacpp"
@@ -10,52 +10,14 @@ import (
 
 type LoadBalancerTargetCollection struct {
 	LlamaCppHealthStatusAggregate *LlamaCppHealthStatusAggregate
-	Targets                       *list.List
-	TargetsRBMutex                xsync.RBMutex
+	Targets                       []*LlamaCppTarget
 
-	elementByTarget       *xsync.MapOf[*LlamaCppTarget, *list.Element]
-	targetByConfiguration *xsync.MapOf[string, *LlamaCppTarget]
+	targetById *xsync.MapOf[string, *LlamaCppTarget]
+	RBMutex    xsync.RBMutex
 }
 
-func (self *LoadBalancerTargetCollection) FixTargetOrder(target *LlamaCppTarget) {
-	element := self.getElementByTarget(target)
-
-	if element == nil {
-		return
-	}
-
-	self.TargetsRBMutex.Lock()
-	defer self.TargetsRBMutex.Unlock()
-
-	nextElement := element.Next()
-
-	for nextElement != nil {
-		if target.HasLessSlotsThan(nextElement.Value.(*LlamaCppTarget)) {
-			self.Targets.MoveAfter(element, nextElement)
-
-			break
-		}
-
-		nextElement = nextElement.Next()
-	}
-
-	prevElement := element.Prev()
-
-	for prevElement != nil {
-		if prevElement.Value.(*LlamaCppTarget).HasLessSlotsThan(target) {
-			self.Targets.MoveBefore(element, prevElement)
-
-			break
-		}
-
-		prevElement = prevElement.Prev()
-	}
-}
-
-func (self *LoadBalancerTargetCollection) GetTargetByConfiguration(
-	targetConfiguration *LlamaCppTargetConfiguration,
-) *LlamaCppTarget {
-	target, ok := self.targetByConfiguration.Load(targetConfiguration.Id)
+func (self *LoadBalancerTargetCollection) GetTargetById(targetId string) *LlamaCppTarget {
+	target, ok := self.targetById.Load(targetId)
 
 	if ok {
 		return target
@@ -65,111 +27,71 @@ func (self *LoadBalancerTargetCollection) GetTargetByConfiguration(
 }
 
 func (self *LoadBalancerTargetCollection) GetHeadTarget() *LlamaCppTarget {
-	mutexToken := self.TargetsRBMutex.RLock()
-	defer self.TargetsRBMutex.RUnlock(mutexToken)
+	mutexToken := self.RBMutex.RLock()
+	defer self.RBMutex.RUnlock(mutexToken)
 
-	headElement := self.Targets.Front()
-
-	if headElement == nil {
-		return nil
+	if len(self.Targets) > 0 {
+		return self.Targets[0]
 	}
 
-	if headElement.Value == nil {
-		return nil
-	}
-
-	return headElement.Value.(*LlamaCppTarget)
+	return nil
 }
 
 func (self *LoadBalancerTargetCollection) Len() int {
-	mutexToken := self.TargetsRBMutex.RLock()
-	defer self.TargetsRBMutex.RUnlock(mutexToken)
+	mutexToken := self.RBMutex.RLock()
+	defer self.RBMutex.RUnlock(mutexToken)
 
-	return self.Targets.Len()
+	return len(self.Targets)
 }
 
 func (self *LoadBalancerTargetCollection) RegisterTarget(llamaCppTarget *LlamaCppTarget) {
-	self.setTargetByConfiguration(llamaCppTarget)
+	self.RBMutex.Lock()
+	defer self.RBMutex.Unlock()
+
+	self.Targets = append(self.Targets, llamaCppTarget)
+	self.sort()
+
+	self.targetById.Store(llamaCppTarget.LlamaCppTargetConfiguration.Id, llamaCppTarget)
 	self.LlamaCppHealthStatusAggregate.AddSlotsFrom(llamaCppTarget)
-
-	self.TargetsRBMutex.Lock()
-	defer self.TargetsRBMutex.Unlock()
-
-	if self.Targets.Len() < 1 {
-		self.elementByTarget.Store(llamaCppTarget, self.Targets.PushFront(llamaCppTarget))
-
-		return
-	}
-
-	for element := self.Targets.Front(); element != nil; element = element.Next() {
-		if element.Value.(*LlamaCppTarget).HasLessSlotsThan(llamaCppTarget) {
-			self.elementByTarget.Store(llamaCppTarget, self.Targets.InsertBefore(llamaCppTarget, element))
-
-			return
-		}
-	}
-
-	self.elementByTarget.Store(llamaCppTarget, self.Targets.PushBack(llamaCppTarget))
 }
 
 func (self *LoadBalancerTargetCollection) RemoveTarget(llamaCppTarget *LlamaCppTarget) {
-	self.TargetsRBMutex.Lock()
-	defer self.TargetsRBMutex.Unlock()
+	self.RBMutex.Lock()
+	defer self.RBMutex.Unlock()
 
-	self.LlamaCppHealthStatusAggregate.RemoveSlotsFrom(llamaCppTarget)
-	element := self.getElementByTarget(llamaCppTarget)
+	for i, target := range self.Targets {
+		if target == llamaCppTarget {
+			self.Targets = append(self.Targets[:i], self.Targets[i+1:]...)
 
-	if element != nil {
-		self.Targets.Remove(element)
+			break
+		}
 	}
 
-	self.elementByTarget.Delete(llamaCppTarget)
-	self.targetByConfiguration.Delete(llamaCppTarget.LlamaCppTargetConfiguration.Id)
+	self.targetById.Delete(llamaCppTarget.LlamaCppTargetConfiguration.Id)
+	self.LlamaCppHealthStatusAggregate.RemoveSlotsFrom(llamaCppTarget)
 }
 
 func (self *LoadBalancerTargetCollection) UpdateTargetWithLlamaCppSlotsAggregatedStatus(
 	llamaCppTarget *LlamaCppTarget,
 	llamaCppSlotsAggregatedStatus *llamacpp.LlamaCppSlotsAggregatedStatus,
 ) {
-	slotsIdleDiff, slotsProcessingDiff := llamaCppTarget.SetTickStatus(time.Now(), llamaCppSlotsAggregatedStatus, 3)
+	self.RBMutex.Lock()
+	defer self.RBMutex.Unlock()
 
+	slotsIdleDiff, slotsProcessingDiff := llamaCppTarget.SetTickStatus(time.Now(), llamaCppSlotsAggregatedStatus, 3)
 	self.LlamaCppHealthStatusAggregate.IncreaseBy(slotsIdleDiff, slotsProcessingDiff)
-	self.FixTargetOrder(llamaCppTarget)
+	self.sort()
 }
 
 func (self *LoadBalancerTargetCollection) UseSlot(llamaCppTarget *LlamaCppTarget) {
-	targetElement := self.getElementByTarget(llamaCppTarget)
+	self.RBMutex.Lock()
+	defer self.RBMutex.Unlock()
 
-	if targetElement == nil {
-		return
-	}
-
-	self.TargetsRBMutex.Lock()
-	defer self.TargetsRBMutex.Unlock()
-
-	nextTarget := targetElement.Next()
-
-	llamaCppTarget.DecrementIdleSlots()
 	self.LlamaCppHealthStatusAggregate.UseSlot()
-
-	if nextTarget != nil && llamaCppTarget.HasLessSlotsThan(nextTarget.Value.(*LlamaCppTarget)) {
-		self.Targets.MoveAfter(targetElement, nextTarget)
-	}
+	llamaCppTarget.DecrementIdleSlots()
+	self.sort()
 }
 
-func (self *LoadBalancerTargetCollection) getElementByTarget(target *LlamaCppTarget) *list.Element {
-	element, ok := self.elementByTarget.Load(target)
-
-	if !ok {
-		return nil
-	}
-
-	return element
-}
-
-func (self *LoadBalancerTargetCollection) setTargetByConfiguration(target *LlamaCppTarget) {
-	targetMutexToken := target.RBMutex.RLock()
-	defer target.RBMutex.RUnlock(targetMutexToken)
-
-	self.targetByConfiguration.Store(target.LlamaCppTargetConfiguration.Id, target)
+func (self *LoadBalancerTargetCollection) sort() {
+	slices.SortFunc(self.Targets, LlamaCppTargetBalancingCompare)
 }

@@ -11,6 +11,7 @@ require (
 	github.com/puzpuzpuz/xsync/v3 v3.4.0
 	github.com/smira/go-statsd v1.3.3
 	github.com/stretchr/testify v1.9.0
+	github.com/tidwall/btree v1.7.0
 	github.com/urfave/cli/v2 v2.27.2
 )
 

@@ -48,6 +48,10 @@ func TestTargetOrderIsPreserved(t *testing.T) {
 
 	assert.NotNil(t, loadBalancerTargetRegistrar.LoadBalancerTargetCollection)
 	assert.Equal(t, 1, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.Len())
+	assert.Equal(t, 10, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetTargetById(target1.Id).LlamaCppSlotsAggregatedStatus.SlotsIdle)
+	assert.Equal(t, 0, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetTargetById(target1.Id).LlamaCppSlotsAggregatedStatus.SlotsProcessing)
+	assert.Equal(t, 10, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.LlamaCppHealthStatusAggregate.AggregatedHealthStatus.SlotsIdle)
+	assert.Equal(t, 0, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.LlamaCppHealthStatusAggregate.AggregatedHealthStatus.SlotsProcessing)
 
 	headTarget := loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetHeadTarget()
 
@@ -76,6 +80,12 @@ func TestTargetOrderIsPreserved(t *testing.T) {
 	)
 
 	assert.Equal(t, 2, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.Len())
+	assert.Equal(t, 10, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetTargetById(target1.Id).LlamaCppSlotsAggregatedStatus.SlotsIdle)
+	assert.Equal(t, 0, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetTargetById(target1.Id).LlamaCppSlotsAggregatedStatus.SlotsProcessing)
+	assert.Equal(t, 8, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetTargetById(target2.Id).LlamaCppSlotsAggregatedStatus.SlotsIdle)
+	assert.Equal(t, 0, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetTargetById(target2.Id).LlamaCppSlotsAggregatedStatus.SlotsProcessing)
+	assert.Equal(t, 18, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.LlamaCppHealthStatusAggregate.AggregatedHealthStatus.SlotsIdle)
+	assert.Equal(t, 0, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.LlamaCppHealthStatusAggregate.AggregatedHealthStatus.SlotsProcessing)
 	assert.Same(
 		t,
 		target1,
@@ -93,6 +103,12 @@ func TestTargetOrderIsPreserved(t *testing.T) {
 	)
 
 	assert.Equal(t, 2, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.Len())
+	assert.Equal(t, 10, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetTargetById(target1.Id).LlamaCppSlotsAggregatedStatus.SlotsIdle)
+	assert.Equal(t, 0, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetTargetById(target1.Id).LlamaCppSlotsAggregatedStatus.SlotsProcessing)
+	assert.Equal(t, 11, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetTargetById(target2.Id).LlamaCppSlotsAggregatedStatus.SlotsIdle)
+	assert.Equal(t, 0, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.GetTargetById(target2.Id).LlamaCppSlotsAggregatedStatus.SlotsProcessing)
+	assert.Equal(t, 21, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.LlamaCppHealthStatusAggregate.AggregatedHealthStatus.SlotsIdle)
+	assert.Equal(t, 0, loadBalancerTargetRegistrar.LoadBalancerTargetCollection.LlamaCppHealthStatusAggregate.AggregatedHealthStatus.SlotsProcessing)
 	assert.Same(
 		t,
 		target2,

@@ -19,7 +19,7 @@ func (self *LoadBalancerTargetRegistrar) RegisterOrUpdateTarget(
 	targetConfiguration *LlamaCppTargetConfiguration,
 	llamaCppSlotsAggregatedStatus *llamacpp.LlamaCppSlotsAggregatedStatus,
 ) {
-	existingTarget := self.LoadBalancerTargetCollection.GetTargetByConfiguration(targetConfiguration)
+	existingTarget := self.LoadBalancerTargetCollection.GetTargetById(targetConfiguration.Id)
 
 	if existingTarget == nil {
 		self.registerTarget(
@@ -27,9 +27,9 @@ func (self *LoadBalancerTargetRegistrar) RegisterOrUpdateTarget(
 			llamaCppSlotsAggregatedStatus,
 		)
 	} else {
-		self.updateTarget(
-			llamaCppSlotsAggregatedStatus,
+		self.LoadBalancerTargetCollection.UpdateTargetWithLlamaCppSlotsAggregatedStatus(
 			existingTarget,
+			llamaCppSlotsAggregatedStatus,
 		)
 	}
 }
@@ -62,14 +62,4 @@ func (self *LoadBalancerTargetRegistrar) registerTarget(
 		RemainingTicksUntilRemoved:    3,
 		ReverseProxy:                  reverseProxy,
 	})
-}
-
-func (self *LoadBalancerTargetRegistrar) updateTarget(
-	llamaCppSlotsAggregatedStatus *llamacpp.LlamaCppSlotsAggregatedStatus,
-	existingTarget *LlamaCppTarget,
-) {
-	self.LoadBalancerTargetCollection.UpdateTargetWithLlamaCppSlotsAggregatedStatus(
-		existingTarget,
-		llamaCppSlotsAggregatedStatus,
-	)
 }

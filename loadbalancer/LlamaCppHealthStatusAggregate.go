@@ -47,5 +47,5 @@ func (self *LlamaCppHealthStatusAggregate) SetTo(slotsIdle int, slotsProcessing 
 }
 
 func (self *LlamaCppHealthStatusAggregate) UseSlot() {
-	self.IncreaseBy(-1, -1)
+	self.IncreaseBy(-1, 1)
 }

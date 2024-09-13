@@ -7,3 +7,11 @@ type LlamaCppSlotsAggregatedStatus struct {
 	SlotsIdle       int                      `json:"slots_idle"`
 	SlotsProcessing int                      `json:"slots_processing"`
 }
+
+func (self *LlamaCppSlotsAggregatedStatus) CopyFrom(other *LlamaCppSlotsAggregatedStatus) {
+	self.Error = other.Error
+	self.ErrorMessage = other.ErrorMessage
+	self.Status = other.Status
+	self.SlotsIdle = other.SlotsIdle
+	self.SlotsProcessing = other.SlotsProcessing
+}
