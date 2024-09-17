@@ -199,6 +199,12 @@ If you want to keep the balancer management address predictable, I recommend usi
 
 ## Changelog
 
+### v0.8.0
+
+#### Features
+
+- Add `--rewrite-host-header` flag to balancer to rewrite the `Host` header in forwarded requests (see: #20)
+
 ### v0.7.1
 
 #### Fixes
