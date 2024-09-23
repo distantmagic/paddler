@@ -70,6 +70,10 @@ func (self *Balancer) Action(cliContext *cli.Context) error {
 			ServerEventsChannel: serverEventsChannel,
 		},
 		RespondToStatic: management.NewRespondToStatic(),
+		RespondToRegisteredAgents: &management.RespondToRegisteredAgents{
+			LoadBalancerTargetCollection: loadBalancerTargetCollection,
+			ServerEventsChannel: 		  serverEventsChannel,
+		},
 	}
 
 	respondToCompletion := &loadbalancer.RespondToCompletion{
