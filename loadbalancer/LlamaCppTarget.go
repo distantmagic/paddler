@@ -9,14 +9,14 @@ import (
 )
 
 type LlamaCppTarget struct {
-	LastUpdate                    time.Time
-	LlamaCppClient                *llamacpp.LlamaCppClient
-	LlamaCppSlotsAggregatedStatus *llamacpp.LlamaCppSlotsAggregatedStatus
-	LlamaCppTargetConfiguration   *LlamaCppTargetConfiguration
-	RBMutex                       xsync.RBMutex
-	RemainingTicksUntilRemoved    int
-	ReverseProxy                  *httputil.ReverseProxy
-	TotalUpdates                  int
+	LastUpdate                    time.Time 						      `json:"last_update"`
+	LlamaCppClient                *llamacpp.LlamaCppClient 				  `json:"-"`
+	LlamaCppSlotsAggregatedStatus *llamacpp.LlamaCppSlotsAggregatedStatus `json:"llamacpp_slots_aggregated_status"`
+	LlamaCppTargetConfiguration   *LlamaCppTargetConfiguration 			  `json:"llamacpp_target_configuration"`
+	RBMutex                       xsync.RBMutex 						  `json:"-"`
+	RemainingTicksUntilRemoved    int 									  `json:"remaining_ticks_until_removed"`
+	ReverseProxy                  *httputil.ReverseProxy 				  `json:"-"`
+	TotalUpdates                  int 									  `json:"total_updates"`
 }
 
 func (self *LlamaCppTarget) DecrementIdleSlots() {

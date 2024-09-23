@@ -14,6 +14,7 @@ type Server struct {
 	RespondToHealth               http.Handler
 	RespondToRegisterTarget       http.Handler
 	RespondToStatic               http.Handler
+	RespondToRegisteredAgents	  http.Handler
 }
 
 func (self *Server) Serve(serverEventsChannel chan<- goroutine.ResultMessage) {
@@ -33,6 +34,7 @@ func (self *Server) Serve(serverEventsChannel chan<- goroutine.ResultMessage) {
 
 	mux.Handle("/health", self.RespondToHealth)
 	mux.Handle("/register/target", self.RespondToRegisterTarget)
+	mux.Handle("/api/v1/agents", self.RespondToRegisteredAgents)
 
 	err := http.ListenAndServe(
 		self.ManagementServerConfiguration.HttpAddress.GetHostWithPort(),

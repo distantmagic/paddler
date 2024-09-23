@@ -5,7 +5,7 @@ import (
 )
 
 type LlamaCppConfiguration struct {
-	HttpAddress *netcfg.HttpAddressConfiguration
+	HttpAddress *netcfg.HttpAddressConfiguration `json:"http_address"`
 }
 
 func (self *LlamaCppConfiguration) String() string {

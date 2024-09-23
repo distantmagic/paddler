@@ -9,11 +9,11 @@ import (
 )
 
 type LoadBalancerTargetCollection struct {
-	LlamaCppHealthStatusAggregate *LlamaCppHealthStatusAggregate
-	Targets                       []*LlamaCppTarget
+	LlamaCppHealthStatusAggregate *LlamaCppHealthStatusAggregate `json:"-"`				
+	Targets                       []*LlamaCppTarget				 `json:"targets"`
 
-	targetById *xsync.MapOf[string, *LlamaCppTarget]
-	RBMutex    xsync.RBMutex
+	targetById *xsync.MapOf[string, *LlamaCppTarget]			 `json:"-"`
+	RBMutex    xsync.RBMutex									 `json:"-"`
 }
 
 func (self *LoadBalancerTargetCollection) GetTargetById(targetId string) *LlamaCppTarget {
