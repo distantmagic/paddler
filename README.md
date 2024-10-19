@@ -52,6 +52,10 @@ Download the latest release for Linux, Mac, or Windows from the
 
 On Linux, if you want Paddler to be accessible system-wide, rename the downloaded executable to `/usr/bin/paddler` (or `/usr/local/bin/paddler`).
 
+### Running llama.cpp
+
+Slots endpoint is required to be enabled in llama.cpp. To do so, run llama.cpp with the `--slots` flag. 
+
 ### Running Agents
 
 The next step is to run Paddler’s agents. Agents register your llama.cpp instances in Paddler and monitor the slots of llama.cpp instances. 
@@ -80,6 +84,13 @@ Run the following to start a Paddler’s agent (replace the hosts and ports with
 > Available since v0.6.0
 
 With the `--name` flag, you can assign each agent a custom name. This name will be displayed in the management dashboard and not used for any other purpose. 
+
+#### API Key
+
+> [!NOTE]
+> Available since v0.9.0
+
+If your llama.cpp instance requires an API key, you can provide it with the `--local-llamacpp-api-key` flag.
 
 ### Running Load Balancer
 
@@ -198,6 +209,12 @@ If you want to keep the balancer management address predictable, I recommend usi
 - [Installing llama.cpp with AWS EC2 Image Builder](https://llmops-handbook.distantmagic.com/deployments/llama.cpp/aws-image-builder/index.html)
 
 ## Changelog
+
+### v0.9.0
+
+#### Features
+
+- Add `--local-llamacpp-api-key` flag to balancer to support llama.cpp API keys (see: [#23](https://github.com/distantmagic/paddler/issues/23))
 
 ### v0.8.0
 
