@@ -1,12 +1,9 @@
 package llamacpp
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 )
 
@@ -21,97 +18,6 @@ var (
 type LlamaCppClient struct {
 	HttpClient            *http.Client
 	LlamaCppConfiguration *LlamaCppConfiguration
-}
-
-func (self *LlamaCppClient) GenerateCompletion(
-	ctx context.Context,
-	responseChannel chan LlamaCppCompletionToken,
-	llamaCppCompletionRequest LlamaCppCompletionRequest,
-) {
-	defer close(responseChannel)
-
-	body, err := json.Marshal(llamaCppCompletionRequest)
-
-	if err != nil {
-		responseChannel <- LlamaCppCompletionToken{
-			Error: err,
-		}
-
-		return
-	}
-
-	request, err := http.NewRequestWithContext(
-		ctx,
-		"POST",
-		self.LlamaCppConfiguration.HttpAddress.BuildUrlWithPath("completion").String(),
-		bytes.NewBuffer(body),
-	)
-
-	if err != nil {
-		responseChannel <- LlamaCppCompletionToken{
-			Error: err,
-		}
-
-		return
-	}
-
-	response, err := self.HttpClient.Do(request)
-
-	if err != nil {
-		responseChannel <- LlamaCppCompletionToken{
-			Error: err,
-		}
-
-		return
-	}
-
-	defer response.Body.Close()
-
-	if http.StatusOK != response.StatusCode {
-		responseChannel <- LlamaCppCompletionToken{
-			Error: ErrorNon200Response,
-		}
-
-		return
-	}
-
-	reader := bufio.NewReader(response.Body)
-
-	for {
-		line, err := reader.ReadBytes('\n')
-
-		if err != nil && err != io.EOF {
-			responseChannel <- LlamaCppCompletionToken{
-				Error: err,
-			}
-
-			return
-		}
-
-		var llamaCppCompletionToken LlamaCppCompletionToken
-
-		trimmedLine := bytes.TrimPrefix(line, []byte(CompletionDataPrefix))
-
-		if len(trimmedLine) < 2 {
-			continue
-		}
-
-		err = json.Unmarshal(trimmedLine, &llamaCppCompletionToken)
-
-		if err != nil {
-			responseChannel <- LlamaCppCompletionToken{
-				Error: err,
-			}
-
-			return
-		}
-
-		responseChannel <- llamaCppCompletionToken
-
-		if llamaCppCompletionToken.IsLast {
-			return
-		}
-	}
 }
 
 func (self *LlamaCppClient) GetHealth(
@@ -197,6 +103,10 @@ func (self *LlamaCppClient) GetSlots(
 		}
 
 		return
+	}
+
+	if self.LlamaCppConfiguration.ApiKey != "" {
+		request.Header.Set("Authorization", "Bearer "+self.LlamaCppConfiguration.ApiKey)
 	}
 
 	response, err := self.HttpClient.Do(request)

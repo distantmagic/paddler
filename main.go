@@ -131,6 +131,11 @@ func main() {
 						Destination: &agent.ExternalLlamaCppConfiguration.HttpAddress.Scheme,
 					},
 					&cli.StringFlag{
+						Name:        "local-llamacpp-api-key",
+						Value:       "",
+						Destination: &agent.LocalLlamaCppConfiguration.ApiKey,
+					},
+					&cli.StringFlag{
 						Name:        "local-llamacpp-host",
 						Value:       "127.0.0.1",
 						Destination: &agent.LocalLlamaCppConfiguration.HttpAddress.Host,
