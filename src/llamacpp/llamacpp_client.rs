@@ -1,8 +1,8 @@
 use reqwest::header;
 use std::time::Duration;
 
-use crate::llamacpp::slot::Slot;
 use crate::errors::result::Result;
+use crate::llamacpp::slot::Slot;
 
 pub struct LlamacppClient {
     addr: url::Url,
@@ -10,10 +10,7 @@ pub struct LlamacppClient {
 }
 
 impl LlamacppClient {
-    pub fn new(
-        addr: url::Url,
-        api_key: Option<String>,
-    ) -> Result<Self> {
+    pub fn new(addr: url::Url, api_key: Option<String>) -> Result<Self> {
         let mut builder = reqwest::Client::builder().timeout(Duration::from_secs(3));
 
         builder = match api_key {
@@ -26,7 +23,7 @@ impl LlamacppClient {
                 headers.insert(header::AUTHORIZATION, auth_value);
 
                 builder.default_headers(headers)
-            },
+            }
             None => builder,
         };
 
@@ -37,7 +34,8 @@ impl LlamacppClient {
     }
 
     pub async fn get_available_slots(&self) -> Result<Vec<Slot>> {
-        let response = self.client
+        let response = self
+            .client
             .get(self.addr.join("/slots")?.as_str())
             .send()
             .await?

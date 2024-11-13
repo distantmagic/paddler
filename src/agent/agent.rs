@@ -10,10 +10,7 @@ pub struct Agent {
 }
 
 impl Agent {
-    pub fn new(
-        llamacpp_client: LlamacppClient,
-        name: Option<String>,
-    ) -> Self {
+    pub fn new(llamacpp_client: LlamacppClient, name: Option<String>) -> Self {
         Self {
             id: uuid::Uuid::new_v4(),
             name,

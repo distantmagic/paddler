@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::llamacpp::slot::Slot;
 
@@ -10,11 +10,7 @@ pub struct StatusUpdate {
 }
 
 impl StatusUpdate {
-    pub fn new(
-        agent_id: uuid::Uuid,
-        agent_name: Option<String>,
-        slots: Vec<Slot>
-    ) -> Self {
+    pub fn new(agent_id: uuid::Uuid, agent_name: Option<String>, slots: Vec<Slot>) -> Self {
         Self {
             agent_id,
             agent_name,

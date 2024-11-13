@@ -2,10 +2,7 @@ use actix::Actor;
 use log::error;
 use tokio::time;
 
-use crate::agent::{
-    agent::Agent,
-    state_reporter::StateReporter,
-};
+use crate::agent::{agent::Agent, state_reporter::StateReporter};
 use crate::errors::result::Result;
 use crate::llamacpp::llamacpp_client::LlamacppClient;
 
@@ -15,11 +12,9 @@ pub async fn handle(
     management_addr: &url::Url,
     name: &Option<String>,
 ) -> Result<()> {
-    let state_reporter_addr = StateReporter::new(management_addr.clone()).start();
-    let llamacpp_client = LlamacppClient::new(
-        local_llamacpp_addr.clone(),
-        local_llamacpp_api_key.clone(),
-    )?;
+    let state_reporter_addr = StateReporter::new(management_addr.clone())?.start();
+    let llamacpp_client =
+        LlamacppClient::new(local_llamacpp_addr.clone(), local_llamacpp_api_key.clone())?;
     let agent = Agent::new(llamacpp_client, name.clone());
     let mut interval = time::interval(time::Duration::from_secs(1));
 

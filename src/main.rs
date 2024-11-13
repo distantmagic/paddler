@@ -5,8 +5,8 @@ use crate::errors::result::Result;
 mod agent;
 mod balancer;
 mod cmd;
-mod llamacpp;
 mod errors;
+mod llamacpp;
 
 fn parse_url(s: &str) -> Result<url::Url> {
     Ok(url::Url::parse(s)?)
@@ -43,7 +43,7 @@ enum Commands {
 
         #[arg(long, value_parser = parse_url)]
         reverseproxy_addr: url::Url,
-    }
+    },
 }
 
 #[actix_web::main]
@@ -53,7 +53,7 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
-        Some(Commands::Agent{
+        Some(Commands::Agent {
             external_llamacpp_addr: _,
             local_llamacpp_addr,
             local_llamacpp_api_key,
@@ -65,16 +65,14 @@ async fn main() -> Result<()> {
                 local_llamacpp_api_key,
                 management_addr,
                 name,
-            ).await?;
+            )
+            .await?;
         }
-        Some(Commands::Balancer{
+        Some(Commands::Balancer {
             management_addr,
             reverseproxy_addr,
         }) => {
-            cmd::balancer::handle(
-                management_addr,
-                reverseproxy_addr,
-            ).await?;
+            cmd::balancer::handle(management_addr, reverseproxy_addr).await?;
         }
         None => {}
     }
