@@ -210,6 +210,10 @@ If you want to keep the balancer management address predictable, I recommend usi
 
 ## Changelog
 
+### v0.10.0
+
+Latest supported llama.cpp release: [b4027](https://github.com/ggerganov/llama.cpp/releases/tag/b4027)
+
 ### v0.9.0
 
 #### Features
@@ -242,12 +246,6 @@ Requires at least [b3606](https://github.com/ggerganov/llama.cpp/releases/tag/b3
 ### v0.6.0
 
 Latest supported llama.cpp release: [b3604](https://github.com/ggerganov/llama.cpp/releases/tag/b3604)
-
-#### Features
-
-- [Name agents with `--name` flag](https://github.com/distantmagic/paddler/issues/15)
-
-### v0.6.0
 
 #### Features
 
