@@ -99,7 +99,7 @@ func (self *LlamaCppClient) GetSlots(
 		responseChannel <- LlamaCppSlotStatus{
 			Error:        err,
 			ErrorMessage: err.Error(),
-			State:        0,
+			IsProcessing: false,
 		}
 
 		return
@@ -115,7 +115,7 @@ func (self *LlamaCppClient) GetSlots(
 		responseChannel <- LlamaCppSlotStatus{
 			Error:        err,
 			ErrorMessage: err.Error(),
-			State:        0,
+			IsProcessing: false,
 		}
 
 		return
@@ -127,7 +127,7 @@ func (self *LlamaCppClient) GetSlots(
 		responseChannel <- LlamaCppSlotStatus{
 			Error:        ErrorNon200Response,
 			ErrorMessage: ErrorNon200Response.Error(),
-			State:        0,
+			IsProcessing: false,
 		}
 
 		return
@@ -141,7 +141,7 @@ func (self *LlamaCppClient) GetSlots(
 		responseChannel <- LlamaCppSlotStatus{
 			Error:        err,
 			ErrorMessage: err.Error(),
-			State:        0,
+			IsProcessing: false,
 		}
 
 		return
@@ -173,7 +173,7 @@ func (self *LlamaCppClient) GetSlotsAggregatedStatus(
 			return
 		}
 
-		if slotStatus.IsProcessing() {
+		if slotStatus.IsProcessing {
 			llamaCppSlotsAggregatedStatus.SlotsProcessing += 1
 		} else {
 			llamaCppSlotsAggregatedStatus.SlotsIdle += 1
