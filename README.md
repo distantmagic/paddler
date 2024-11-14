@@ -214,7 +214,11 @@ If you want to keep the balancer management address predictable, I recommend usi
 
 Latest supported llama.cpp release: [b4027](https://github.com/ggerganov/llama.cpp/releases/tag/b4027)
 
+This update is a minor release to make Paddler compatible with `/slots` endpoint changes introduced in llama.cpp b4027.
+
 ### v0.9.0
+
+Latest supported llama.cpp release: [b4026](https://github.com/ggerganov/llama.cpp/releases/tag/b4026)
 
 #### Features
 
