@@ -67,16 +67,18 @@ impl actix::Handler<StatusUpdate> for StateReporter {
     type Result = ();
 
     fn handle(&mut self, msg: StatusUpdate, _ctx: &mut actix::Context<Self>) {
-        serde_json::to_vec(&msg)
-            .map(|bytes| actix_web::web::Bytes::from(bytes))
-            .map_err(|err| {
-                eprintln!("Error: {}", err);
-            })
-            .and_then(|bytes| {
-                self.status_update_tx.send(bytes).map_err(|err| {
-                    eprintln!("Error: {}", err);
-                })
-            })
-            .ok();
+        let bytes = match serde_json::to_vec(&msg) {
+            Ok(bytes) => bytes,
+            Err(err) => {
+                error!("Could not convert status update to bytes: {}", err);
+                return;
+            }
+        };
+
+        let actix_bytes = actix_web::web::Bytes::from(bytes);
+
+        if let Err(err) = self.status_update_tx.send(actix_bytes) {
+            error!("Could not send status update: {}", err);
+        }
     }
 }

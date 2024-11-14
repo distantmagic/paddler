@@ -16,13 +16,12 @@ pub async fn handle(
     let llamacpp_client =
         LlamacppClient::new(local_llamacpp_addr.clone(), local_llamacpp_api_key.clone())?;
     let agent = Agent::new(llamacpp_client, name.clone());
-    let mut interval = time::interval(time::Duration::from_secs(1));
 
     loop {
-        interval.tick().await;
-
         if let Err(err) = agent.observe_and_report(&state_reporter_addr).await {
-            error!("Error: {}", err);
+            error!("Unable to connect to llamacpp server: {}", err);
         }
+
+        time::sleep(time::Duration::from_secs(1)).await;
     }
 }
