@@ -7,6 +7,8 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 
 #[post("/stream")]
 async fn respond(mut payload: web::Payload) -> Result<HttpResponse, Error> {
+    println!("Stream started");
+
     while let Some(chunk) = payload.next().await {
         println!("Chunk: {:?}", chunk);
     }
