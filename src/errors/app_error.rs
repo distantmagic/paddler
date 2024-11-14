@@ -9,6 +9,9 @@ pub enum AppError {
     #[error("IO Error: {0}")]
     IoError(#[from] std::io::Error),
 
+    #[error("Tokio Join Error: {0}")]
+    JoinError(#[from] tokio::task::JoinError),
+
     #[error("Request error: {0}")]
     RequestError(#[from] reqwest::Error),
 
