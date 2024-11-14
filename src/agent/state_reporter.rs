@@ -2,7 +2,6 @@ use actix::{fut::future::WrapFuture, AsyncContext};
 use log::error;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tokio::time;
 
 use crate::balancer::status_update::StatusUpdate;
 use crate::errors::result::Result;
@@ -33,33 +32,32 @@ impl actix::Actor for StateReporter {
         let stats_endpoint_url = self.stats_endpoint_url.clone();
         let status_update_tx = self.status_update_tx.clone();
 
-        ctx.spawn(
-            async move {
-                loop {
-                    let rx = status_update_tx.subscribe();
-                    let stream = tokio_stream::wrappers::BroadcastStream::new(rx);
-                    let reqwest_body = reqwest::Body::wrap_stream(stream);
+        let fut = async move {
+            let rx = status_update_tx.subscribe();
+            let stream = tokio_stream::wrappers::BroadcastStream::new(rx);
+            let reqwest_body = reqwest::Body::wrap_stream(stream);
 
-                    let result = reqwest::Client::new()
-                        .post(stats_endpoint_url.clone())
-                        .body(reqwest_body)
-                        .send()
-                        .await;
+            let result = reqwest::Client::new()
+                .post(stats_endpoint_url.clone())
+                .body(reqwest_body)
+                .send()
+                .await;
 
-                    match result {
-                        Ok(_) => {
-                            error!("Mangement server connection closed");
-                        }
-                        Err(err) => {
-                            error!("Management server error: {}", err);
-                        }
-                    }
-
-                    time::sleep(time::Duration::from_secs(1)).await;
+            match result {
+                Ok(_) => {
+                    error!("Management server connection closed");
+                }
+                Err(err) => {
+                    error!("Management server error: {}", err);
                 }
             }
-            .into_actor(self),
-        );
+        }
+        .into_actor(self);
+
+        ctx.wait(fut);
+        ctx.run_later(std::time::Duration::from_secs(1), |act, ctx| {
+            act.started(ctx);
+        });
     }
 }
 
