@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../resources/ts/global_stimulus.ts"],
+  "sourcesContent": ["import { Application } from \"@hotwired/stimulus\";\n\nwindow.stimulusApplication = Application.start();\n"],
+  "mappings": "oEAEA,OAAO,oBAAsBA,EAAY,MAAM",
+  "names": ["Application"]
+}

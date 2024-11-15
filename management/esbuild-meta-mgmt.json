@@ -1,0 +1,212 @@
+{
+  "inputs": {
+    "resources/css/_reset.css": {
+      "bytes": 856,
+      "imports": []
+    },
+    "resources/css/mgmt-dashboard.css": {
+      "bytes": 2341,
+      "imports": [
+        {
+          "path": "resources/css/_reset.css",
+          "kind": "import-rule",
+          "original": "./_reset.css"
+        }
+      ]
+    },
+    "node_modules/@hotwired/stimulus/dist/stimulus.js": {
+      "bytes": 88680,
+      "imports": [],
+      "format": "esm"
+    },
+    "resources/ts/global_stimulus.ts": {
+      "bytes": 101,
+      "imports": [
+        {
+          "path": "node_modules/@hotwired/stimulus/dist/stimulus.js",
+          "kind": "import-statement",
+          "original": "@hotwired/stimulus"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/@hotwired/turbo/dist/turbo.es2017-esm.js": {
+      "bytes": 187420,
+      "imports": [],
+      "format": "esm"
+    },
+    "resources/ts/global_turbo.ts": {
+      "bytes": 703,
+      "imports": [
+        {
+          "path": "node_modules/@hotwired/turbo/dist/turbo.es2017-esm.js",
+          "kind": "import-statement",
+          "original": "@hotwired/turbo"
+        }
+      ],
+      "format": "esm"
+    },
+    "resources/ts/stimulus.ts": {
+      "bytes": 1213,
+      "imports": [],
+      "format": "esm"
+    },
+    "resources/ts/controller_refresh_body.ts": {
+      "bytes": 349,
+      "imports": [
+        {
+          "path": "node_modules/@hotwired/stimulus/dist/stimulus.js",
+          "kind": "import-statement",
+          "original": "@hotwired/stimulus"
+        },
+        {
+          "path": "resources/ts/stimulus.ts",
+          "kind": "import-statement",
+          "original": "./stimulus"
+        },
+        {
+          "path": "<runtime>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    }
+  },
+  "outputs": {
+    "static/global_stimulus.js.map": {
+      "imports": [],
+      "exports": [],
+      "inputs": {},
+      "bytes": 278
+    },
+    "static/global_stimulus.js": {
+      "imports": [
+        {
+          "path": "static/chunk-6PVZSBCM.js",
+          "kind": "import-statement"
+        },
+        {
+          "path": "static/chunk-LTEQ7OUJ.js",
+          "kind": "import-statement"
+        }
+      ],
+      "exports": [],
+      "entryPoint": "resources/ts/global_stimulus.ts",
+      "inputs": {
+        "resources/ts/global_stimulus.ts": {
+          "bytesInOutput": 37
+        }
+      },
+      "bytes": 150
+    },
+    "static/global_turbo.js.map": {
+      "imports": [],
+      "exports": [],
+      "inputs": {},
+      "bytes": 299942
+    },
+    "static/global_turbo.js": {
+      "imports": [
+        {
+          "path": "static/chunk-LTEQ7OUJ.js",
+          "kind": "import-statement"
+        }
+      ],
+      "exports": [],
+      "entryPoint": "resources/ts/global_turbo.ts",
+      "inputs": {
+        "node_modules/@hotwired/turbo/dist/turbo.es2017-esm.js": {
+          "bytesInOutput": 89650
+        },
+        "resources/ts/global_turbo.ts": {
+          "bytesInOutput": 496
+        }
+      },
+      "bytes": 90355
+    },
+    "static/controller_refresh_body.js.map": {
+      "imports": [],
+      "exports": [],
+      "inputs": {},
+      "bytes": 2565
+    },
+    "static/controller_refresh_body.js": {
+      "imports": [
+        {
+          "path": "static/chunk-6PVZSBCM.js",
+          "kind": "import-statement"
+        },
+        {
+          "path": "static/chunk-LTEQ7OUJ.js",
+          "kind": "import-statement"
+        }
+      ],
+      "exports": [
+        "controller_refresh_body"
+      ],
+      "entryPoint": "resources/ts/controller_refresh_body.ts",
+      "inputs": {
+        "resources/ts/stimulus.ts": {
+          "bytesInOutput": 503
+        },
+        "resources/ts/controller_refresh_body.ts": {
+          "bytesInOutput": 149
+        }
+      },
+      "bytes": 822
+    },
+    "static/chunk-6PVZSBCM.js.map": {
+      "imports": [],
+      "exports": [],
+      "inputs": {},
+      "bytes": 147592
+    },
+    "static/chunk-6PVZSBCM.js": {
+      "imports": [],
+      "exports": [
+        "a",
+        "b"
+      ],
+      "inputs": {
+        "node_modules/@hotwired/stimulus/dist/stimulus.js": {
+          "bytesInOutput": 44787
+        }
+      },
+      "bytes": 44853
+    },
+    "static/chunk-LTEQ7OUJ.js.map": {
+      "imports": [],
+      "exports": [],
+      "inputs": {},
+      "bytes": 93
+    },
+    "static/chunk-LTEQ7OUJ.js": {
+      "imports": [],
+      "exports": [
+        "a"
+      ],
+      "inputs": {},
+      "bytes": 259
+    },
+    "static/mgmt-dashboard.css.map": {
+      "imports": [],
+      "exports": [],
+      "inputs": {},
+      "bytes": 5584
+    },
+    "static/mgmt-dashboard.css": {
+      "imports": [],
+      "entryPoint": "resources/css/mgmt-dashboard.css",
+      "inputs": {
+        "resources/css/_reset.css": {
+          "bytesInOutput": 704
+        },
+        "resources/css/mgmt-dashboard.css": {
+          "bytesInOutput": 2000
+        }
+      },
+      "bytes": 2752
+    }
+  }
+}

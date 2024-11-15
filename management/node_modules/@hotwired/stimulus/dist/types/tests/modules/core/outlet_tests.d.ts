@@ -1,0 +1,32 @@
+import { OutletController } from "../../controllers/outlet_controller";
+declare const OutletTests_base: import("../../../core/constructor").Constructor<import("../../cases/controller_test_case").ControllerTests<OutletController>>;
+export default class OutletTests extends OutletTests_base {
+    fixtureHTML: string;
+    get identifiers(): string[];
+    "test OutletSet#find"(): void;
+    "test OutletSet#findAll"(): void;
+    "test OutletSet#findAll with multiple arguments"(): void;
+    "test OutletSet#has"(): void;
+    "test OutletSet#has when attribute gets added later"(): void;
+    "test OutletSet#has when no element with selector exists"(): void;
+    "test OutletSet#has when selector matches but element doesn't have the right controller"(): void;
+    "test linked outlet properties"(): void;
+    "test inherited linked outlet properties"(): void;
+    "test singular linked outlet property throws an error when no outlet is found"(): void;
+    "test outlet connected callback fires"(): Promise<void>;
+    "test outlet connected callback fires for namespaced outlets"(): void;
+    "test outlet connected callback when element is inserted"(): Promise<void>;
+    "test outlet connected callback when present element adds matching outlet selector attribute"(): Promise<void>;
+    "test outlet connected callback when present element already has connected controller and adds matching outlet selector attribute"(): Promise<void>;
+    "test outlet connect callback when an outlet present in the document adds a matching data-controller attribute"(): Promise<void>;
+    "test outlet disconnected callback fires when calling disconnect() on the controller"(): Promise<void>;
+    "test outlet disconnected callback when element is removed"(): Promise<void>;
+    "test outlet disconnected callback when element is removed with namespaced outlet"(): Promise<void>;
+    "test outlet disconnected callback when an outlet present in the document removes the selector attribute"(): Promise<void>;
+    "test outlet disconnected callback when an outlet present in the document removes the data-controller attribute"(): Promise<void>;
+    "test outlet connect callback when the controlled element's outlet attribute is added"(): Promise<void>;
+    "test outlet connect callback doesn't get trigged when any attribute gets added to the controller element"(): Promise<void>;
+    "test outlet connect callback when the controlled element's outlet attribute is changed"(): Promise<void>;
+    "test outlet disconnected callback when the controlled element's outlet attribute is removed"(): Promise<void>;
+}
+export {};
