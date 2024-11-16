@@ -1,33 +1,44 @@
-use actix::Actor;
-use log::error;
-use time::{sleep, Duration};
-use tokio::time;
+use actix_web::web::Bytes;
+use pingora::server::configuration::Opt;
+use pingora::server::Server;
+use tokio::sync::broadcast::channel;
+use url::Url;
 
-use crate::agent::{agent::Agent, state_reporter::StateReporter};
+use crate::agent::monitoring_service::MonitoringService;
+use crate::agent::reporting_service::ReportingService;
 use crate::errors::result::Result;
 use crate::llamacpp::llamacpp_client::LlamacppClient;
 
-pub async fn handle(
-    external_llamacpp_addr: &url::Url,
-    local_llamacpp_addr: &url::Url,
-    local_llamacpp_api_key: &Option<String>,
-    management_addr: &url::Url,
-    name: &Option<String>,
+pub fn handle<'a>(
+    external_llamacpp_addr: Url,
+    local_llamacpp_addr: Url,
+    local_llamacpp_api_key: Option<String>,
+    management_addr: Url,
+    name: Option<String>,
 ) -> Result<()> {
-    let state_reporter_addr = StateReporter::new(management_addr.clone())?.start();
-    let llamacpp_client =
-        LlamacppClient::new(local_llamacpp_addr.clone(), local_llamacpp_api_key.clone())?;
-    let agent = Agent::new(
-        external_llamacpp_addr.clone(),
+    let (status_update_tx, _status_update_rx) = channel::<Bytes>(1);
+
+    let llamacpp_client = LlamacppClient::new(local_llamacpp_addr, local_llamacpp_api_key)?;
+
+    let monitoring_service = MonitoringService::new(
+        external_llamacpp_addr,
         llamacpp_client,
-        name.clone(),
-    );
+        name,
+        status_update_tx.clone(),
+    )?;
 
-    loop {
-        if let Err(err) = agent.observe_and_report(&state_reporter_addr).await {
-            error!("Unable to connect to llamacpp server: {}", err);
-        }
+    let reporting_service = ReportingService::new(management_addr, status_update_tx)?;
 
-        sleep(Duration::from_secs(1)).await;
-    }
+    let mut pingora_server = Server::new(Opt {
+        upgrade: false,
+        daemon: false,
+        nocapture: false,
+        test: false,
+        conf: None,
+    })?;
+
+    pingora_server.bootstrap();
+    pingora_server.add_service(monitoring_service);
+    pingora_server.add_service(reporting_service);
+    pingora_server.run_forever();
 }

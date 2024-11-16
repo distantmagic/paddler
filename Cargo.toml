@@ -13,6 +13,8 @@ futures = "0.3.31"
 futures-util = { version = "0.3.31", features = ["tokio-io"] }
 log = "0.4.22"
 pingora = { version = "0.4.0", features = ["proxy"] }
+pingora-core = "0.4.0"
+pingora-runtime = "0.4.0"
 reqwest = { version = "0.12.9", features = ["json", "stream"] }
 serde = { version = "1.0.215", features = ["derive"] }
 serde_json = "1.0.132"

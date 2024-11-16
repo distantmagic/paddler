@@ -1,34 +1,20 @@
-use actix_web::{App, HttpServer};
-use pingora::prelude::*;
-use pingora::upstreams::peer::HttpPeer;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use tokio::task;
+use pingora::server::configuration::Opt;
+use pingora::server::Server;
+use std::net::SocketAddr;
 
-use crate::balancer::http_route;
-use crate::cmd::proxy::ProxyApp;
+use crate::balancer::management_service::ManagementService;
 use crate::errors::result::Result;
 
-pub async fn handle(management_addr: &SocketAddr, reverseproxy_addr: &SocketAddr) -> Result<()> {
-    let mut join_set = task::JoinSet::new();
+pub fn handle(management_addr: &SocketAddr, reverseproxy_addr: &SocketAddr) -> Result<()> {
+    let mut pingora_server = Server::new(Opt {
+        upgrade: false,
+        daemon: false,
+        nocapture: false,
+        test: false,
+        conf: None,
+    })?;
 
-    let management_server =
-        HttpServer::new(move || App::new().configure(http_route::receive_status_update::register))
-            .bind(management_addr)?
-            .run();
-
-    join_set.spawn(management_server);
-    join_set.spawn(async move {
-        let peer = HttpPeer::new(
-            "127.0.0.1:8080".parse::<SocketAddr>().unwrap(),
-            false,
-            "".to_string(),
-        );
-        let proxy_app = ProxyApp::new(peer);
-
-        Ok(())
-    });
-
-    join_set.join_all().await;
-
-    Ok(())
+    pingora_server.bootstrap();
+    pingora_server.add_service(ManagementService::new(*management_addr));
+    pingora_server.run_forever();
 }

@@ -47,8 +47,7 @@ enum Commands {
     },
 }
 
-#[actix_web::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     env_logger::init();
 
     let cli = Cli::parse();
@@ -62,19 +61,18 @@ async fn main() -> Result<()> {
             name,
         }) => {
             cmd::agent::handle(
-                external_llamacpp_addr,
-                local_llamacpp_addr,
-                local_llamacpp_api_key,
-                management_addr,
-                name,
-            )
-            .await?;
+                external_llamacpp_addr.clone(),
+                local_llamacpp_addr.clone(),
+                local_llamacpp_api_key.clone(),
+                management_addr.clone(),
+                name.clone(),
+            )?;
         }
         Some(Commands::Balancer {
             management_socket_addr,
             reverseproxy_socket_addr,
         }) => {
-            cmd::balancer::handle(management_socket_addr, reverseproxy_socket_addr).await?;
+            cmd::balancer::handle(management_socket_addr, reverseproxy_socket_addr)?;
         }
         None => {}
     }

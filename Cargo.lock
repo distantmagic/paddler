@@ -1711,6 +1711,8 @@ dependencies = [
  "futures-util",
  "log",
  "pingora",
+ "pingora-core",
+ "pingora-runtime",
  "reqwest",
  "serde",
  "serde_json",

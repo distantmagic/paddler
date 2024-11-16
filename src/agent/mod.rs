@@ -1,2 +1,2 @@
-pub mod agent;
-pub mod state_reporter;
+pub mod monitoring_service;
+pub mod reporting_service;
