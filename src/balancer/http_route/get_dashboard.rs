@@ -2,9 +2,7 @@ use actix_web::{get, web, Error, HttpResponse, Responder};
 use askama_actix::Template;
 use futures_util::StreamExt as _;
 use log::error;
-use serde::Deserialize;
 
-use crate::balancer::status_update::StatusUpdate;
 use crate::balancer::upstream_peer::UpstreamPeer;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 
@@ -24,7 +22,13 @@ async fn respond(upstream_peer_pool: web::Data<UpstreamPeerPool>) -> Result<impl
         Ok(peers) => {
             let template = DashboardTemplate { peers };
 
-            Ok(HttpResponse::Ok().body(template.render().unwrap()))
+            match template.render() {
+                Ok(rendered_template) => Ok(HttpResponse::Ok().body(rendered_template)),
+                Err(e) => {
+                    error!("Failed to render template: {}", e);
+                    return Ok(HttpResponse::InternalServerError().finish());
+                }
+            }
         }
         Err(e) => {
             error!("Failed to get peers: {}", e);
