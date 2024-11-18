@@ -18,7 +18,7 @@ impl ProxyHttp for ProxyService {
         LlamaCppContext { uses_slots: false }
     }
 
-    async fn request_filter(&self, session: &mut Session, ctx: &mut Self::CTX) -> Result<bool> {
+    async fn request_filter(&self, _session: &mut Session, ctx: &mut Self::CTX) -> Result<bool> {
         // ctx.beta_user = check_beta_user(session.req_header());
         Ok(false)
     }

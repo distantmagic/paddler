@@ -2,7 +2,6 @@ use pingora::server::configuration::Opt;
 use pingora::server::Server;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::sync::RwLock;
 
 use crate::balancer::management_service::ManagementService;
 use crate::balancer::proxy_service::ProxyService;

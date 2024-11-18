@@ -29,7 +29,13 @@ impl UpstreamPeerPool {
     ) -> Result<()> {
         match self.peers.write() {
             Ok(mut peers) => {
-                if let Some(peer) = peers.iter().find(|p| p.agent_id == agent_id) {
+                if let Some(upstream_peer) = peers.iter_mut().find(|p| p.agent_id == agent_id) {
+                    upstream_peer.agent_name = status_update.agent_name.clone();
+                    upstream_peer.external_llamacpp_addr = status_update.external_llamacpp_addr;
+                    upstream_peer.slots_idle = status_update.get_total_slots_idle();
+                    upstream_peer.slots_processing = status_update.get_total_slots_processing();
+
+                    peers.sort();
                 } else {
                     let new_upstream_peer = UpstreamPeer::new(
                         agent_id.to_string(),

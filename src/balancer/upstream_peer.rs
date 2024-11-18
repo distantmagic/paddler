@@ -30,9 +30,10 @@ impl UpstreamPeer {
 
 impl Ord for UpstreamPeer {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.slots_idle
-            .cmp(&other.slots_idle)
-            .then_with(|| other.slots_processing.cmp(&self.slots_processing))
+        other
+            .slots_idle
+            .cmp(&self.slots_idle)
+            .then_with(|| self.slots_processing.cmp(&other.slots_processing))
             // compare by id for stable sorting
             .then_with(|| self.agent_id.cmp(&other.agent_id))
     }

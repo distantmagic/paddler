@@ -1,6 +1,5 @@
 use actix_web::{get, web, Error, HttpResponse, Responder};
 use askama_actix::Template;
-use futures_util::StreamExt as _;
 use log::error;
 
 use crate::balancer::upstream_peer::UpstreamPeer;
