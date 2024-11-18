@@ -15,30 +15,38 @@ impl UpstreamPeerPool {
         }
     }
 
-    pub fn register_status_update(&self, status_update: StatusUpdate) -> Result<()> {
+    pub fn get_cloned_peers(&self) -> Result<Vec<UpstreamPeer>> {
         match self.peers.read() {
-            Ok(peers) => {
-                println!("Received status update: {:?}", status_update);
-                // if let Some(peer) = peers.iter().find(|p| p.agent_id == status_update.agent_id) {
-                //     peer.update_status(status_update.status);
-                // }
-
-                Ok(())
-            }
+            Ok(peers) => Ok(peers.clone()),
             Err(_) => Err("Failed to acquire read lock".into()),
         }
     }
 
-    pub fn add_peer(&self, peer: UpstreamPeer) -> Result<()> {
+    pub fn register_status_update(
+        &self,
+        agent_id: &str,
+        status_update: StatusUpdate,
+    ) -> Result<()> {
         match self.peers.write() {
             Ok(mut peers) => {
-                let pos = peers.partition_point(|inserted| inserted > &peer);
+                if let Some(peer) = peers.iter().find(|p| p.agent_id == agent_id) {
+                } else {
+                    let new_upstream_peer = UpstreamPeer::new(
+                        agent_id.to_string(),
+                        status_update.agent_name.clone(),
+                        status_update.external_llamacpp_addr,
+                        status_update.get_total_slots_idle(),
+                        status_update.get_total_slots_processing(),
+                    );
 
-                peers.insert(pos, peer);
+                    let pos = peers.partition_point(|inserted| inserted > &new_upstream_peer);
+
+                    peers.insert(pos, new_upstream_peer);
+                }
 
                 Ok(())
             }
-            Err(_) => Err("Failed to acquire write lock".into()),
+            Err(_) => Err("Failed to acquire read lock".into()),
         }
     }
 

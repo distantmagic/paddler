@@ -1,1 +1,2 @@
-pub mod receive_status_update;
+pub mod get_dashboard;
+pub mod post_status_update;

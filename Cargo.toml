@@ -6,8 +6,11 @@ edition = "2021"
 [dependencies]
 actix = "0.13.5"
 actix-web = "4.9.0"
+askama = "0.12.1"
+askama_actix = "0.14.0"
 async-trait = "0.1.83"
 clap = { version = "4.5.20", features = ["derive"] }
+crossterm = "0.28.1"
 env_logger = "0.11.5"
 futures = "0.3.31"
 futures-util = { version = "0.3.31", features = ["tokio-io"] }
@@ -16,6 +19,7 @@ pingora = { version = "0.4.0", features = ["proxy"] }
 pingora-core = "0.4.0"
 pingora-proxy = "0.4.0"
 pingora-runtime = "0.4.0"
+ratatui = "0.29.0"
 reqwest = { version = "0.12.9", features = ["json", "stream"] }
 serde = { version = "1.0.215", features = ["derive"] }
 serde_json = "1.0.132"

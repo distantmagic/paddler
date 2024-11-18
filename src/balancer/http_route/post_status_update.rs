@@ -19,12 +19,14 @@ struct PathParams {
 async fn respond(
     path_params: web::Path<PathParams>,
     mut payload: web::Payload,
-    upstream_peers: web::Data<UpstreamPeerPool>,
+    upstream_peer_pool: web::Data<UpstreamPeerPool>,
 ) -> Result<HttpResponse, Error> {
     while let Some(chunk) = payload.next().await {
         match serde_json::from_slice::<StatusUpdate>(&chunk?) {
             Ok(status_update) => {
-                if let Err(e) = upstream_peers.register_status_update(status_update) {
+                if let Err(e) =
+                    upstream_peer_pool.register_status_update(&path_params.agent_id, status_update)
+                {
                     error!("Failed to register status update: {}", e);
 
                     return Err(Error::from(e));
@@ -36,7 +38,7 @@ async fn respond(
         }
     }
 
-    upstream_peers.remove_peer(&path_params.agent_id)?;
+    upstream_peer_pool.remove_peer(&path_params.agent_id)?;
 
     Ok(HttpResponse::Accepted().finish())
 }

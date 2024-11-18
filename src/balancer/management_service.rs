@@ -37,7 +37,8 @@ impl Service for ManagementService {
         HttpServer::new(move || {
             App::new()
                 .app_data(upstream_peers.clone())
-                .configure(http_route::receive_status_update::register)
+                .configure(http_route::get_dashboard::register)
+                .configure(http_route::post_status_update::register)
         })
         .bind(self.addr)
         .expect("Unable to bind server to address")

@@ -3,9 +3,9 @@ use async_trait::async_trait;
 use log::{debug, error};
 use pingora::server::ShutdownWatch;
 use pingora::services::Service;
+use std::net::SocketAddr;
 use tokio::sync::broadcast::Sender;
 use tokio::time::{interval, Duration, MissedTickBehavior};
-use url::Url;
 
 #[cfg(unix)]
 use pingora::server::ListenFds;
@@ -15,7 +15,7 @@ use crate::errors::result::Result;
 use crate::llamacpp::llamacpp_client::LlamacppClient;
 
 pub struct MonitoringService {
-    external_llamacpp_addr: Url,
+    external_llamacpp_addr: SocketAddr,
     llamacpp_client: LlamacppClient,
     name: Option<String>,
     status_update_tx: Sender<Bytes>,
@@ -23,7 +23,7 @@ pub struct MonitoringService {
 
 impl MonitoringService {
     pub fn new(
-        external_llamacpp_addr: Url,
+        external_llamacpp_addr: SocketAddr,
         llamacpp_client: LlamacppClient,
         name: Option<String>,
         status_update_tx: Sender<Bytes>,

@@ -1,19 +1,19 @@
 use std::cmp::{Eq, Ordering, PartialEq};
 use std::net::SocketAddr;
 
-#[derive(Eq)]
+#[derive(Clone, Eq)]
 pub struct UpstreamPeer {
     pub agent_id: String,
-    agent_name: String,
-    external_llamacpp_addr: SocketAddr,
-    slots_idle: usize,
-    slots_processing: usize,
+    pub agent_name: Option<String>,
+    pub external_llamacpp_addr: SocketAddr,
+    pub slots_idle: usize,
+    pub slots_processing: usize,
 }
 
 impl UpstreamPeer {
     pub fn new(
         agent_id: String,
-        agent_name: String,
+        agent_name: Option<String>,
         external_llamacpp_addr: SocketAddr,
         slots_idle: usize,
         slots_processing: usize,

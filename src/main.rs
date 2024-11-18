@@ -23,8 +23,8 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     Agent {
-        #[arg(long, value_parser = parse_url)]
-        external_llamacpp_addr: url::Url,
+        #[arg(long, value_parser = value_parser!(SocketAddr))]
+        external_llamacpp_addr: SocketAddr,
 
         #[arg(long, value_parser = parse_url)]
         local_llamacpp_addr: url::Url,
@@ -40,10 +40,14 @@ enum Commands {
     },
     Balancer {
         #[arg(long, value_parser = value_parser!(SocketAddr))]
-        management_socket_addr: SocketAddr,
+        management_addr: SocketAddr,
 
         #[arg(long, value_parser = value_parser!(SocketAddr))]
-        reverseproxy_socket_addr: SocketAddr,
+        reverseproxy_addr: SocketAddr,
+    },
+    Dashboard {
+        #[arg(long, value_parser = value_parser!(SocketAddr))]
+        management_addr: SocketAddr,
     },
 }
 
@@ -69,11 +73,12 @@ fn main() -> Result<()> {
             )?;
         }
         Some(Commands::Balancer {
-            management_socket_addr,
-            reverseproxy_socket_addr,
+            management_addr,
+            reverseproxy_addr,
         }) => {
-            cmd::balancer::handle(management_socket_addr, reverseproxy_socket_addr)?;
+            cmd::balancer::handle(management_addr, reverseproxy_addr)?;
         }
+        Some(Commands::Dashboard { management_addr }) => {}
         None => {}
     }
 
