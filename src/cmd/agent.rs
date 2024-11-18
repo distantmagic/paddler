@@ -9,7 +9,7 @@ use crate::agent::reporting_service::ReportingService;
 use crate::errors::result::Result;
 use crate::llamacpp::llamacpp_client::LlamacppClient;
 
-pub fn handle<'a>(
+pub fn handle(
     external_llamacpp_addr: Url,
     local_llamacpp_addr: Url,
     local_llamacpp_api_key: Option<String>,

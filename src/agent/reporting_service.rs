@@ -4,9 +4,10 @@ use log::{debug, error, warn};
 use pingora::server::ShutdownWatch;
 use pingora::services::Service;
 use tokio::sync::broadcast::Sender;
-use tokio::time::{sleep, Duration};
+use tokio::time::{interval, Duration, MissedTickBehavior};
 use tokio_stream::wrappers::BroadcastStream;
 use url::Url;
+use uuid::Uuid;
 
 #[cfg(unix)]
 use pingora::server::ListenFds;
@@ -20,8 +21,12 @@ pub struct ReportingService {
 
 impl ReportingService {
     pub fn new(management_addr: Url, status_update_tx: Sender<Bytes>) -> Result<Self> {
+        let agent_id = Uuid::new_v4();
+
         Ok(ReportingService {
-            stats_endpoint_url: management_addr.join("/status_update")?.to_string(),
+            stats_endpoint_url: management_addr
+                .join(&format!("/status_update/{}", agent_id))?
+                .to_string(),
             status_update_tx,
         })
     }
@@ -54,15 +59,19 @@ impl Service for ReportingService {
         #[cfg(unix)] _fds: Option<ListenFds>,
         mut shutdown: ShutdownWatch,
     ) {
+        let mut ticker = interval(Duration::from_secs(1));
+
+        ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
+
         loop {
             tokio::select! {
                 _ = shutdown.changed() => {
-                    debug!("Shutting down reportingservice");
+                    debug!("Shutting down reporting service");
                     return;
                 },
-                _ = sleep(Duration::from_secs(1)) => {
+                _ = ticker.tick() => {
                     if let Err(err) = self.keep_connection_alive().await {
-                        error!("ReportingService: keep_connection_alive failed: {}", err);
+                        error!("Failed to keep the connection alive: {}", err);
                     }
                 }
             }

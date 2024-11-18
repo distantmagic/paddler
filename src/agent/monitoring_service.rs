@@ -4,9 +4,8 @@ use log::{debug, error};
 use pingora::server::ShutdownWatch;
 use pingora::services::Service;
 use tokio::sync::broadcast::Sender;
-use tokio::time::{sleep, Duration};
+use tokio::time::{interval, Duration, MissedTickBehavior};
 use url::Url;
-use uuid::Uuid;
 
 #[cfg(unix)]
 use pingora::server::ListenFds;
@@ -17,7 +16,6 @@ use crate::llamacpp::llamacpp_client::LlamacppClient;
 
 pub struct MonitoringService {
     external_llamacpp_addr: Url,
-    id: Uuid,
     llamacpp_client: LlamacppClient,
     name: Option<String>,
     status_update_tx: Sender<Bytes>,
@@ -32,7 +30,6 @@ impl MonitoringService {
     ) -> Result<Self> {
         Ok(MonitoringService {
             external_llamacpp_addr,
-            id: Uuid::new_v4(),
             llamacpp_client,
             name,
             status_update_tx,
@@ -40,12 +37,18 @@ impl MonitoringService {
     }
 
     async fn fetch_status(&self) -> Result<StatusUpdate> {
-        Ok(StatusUpdate::new(
-            self.id,
-            self.name.clone(),
-            self.external_llamacpp_addr.clone(),
-            self.llamacpp_client.get_available_slots().await?,
-        ))
+        match self.llamacpp_client.get_available_slots().await {
+            Ok(available_slots) => Ok(StatusUpdate::new(
+                self.name.clone(),
+                self.external_llamacpp_addr.clone(),
+                available_slots,
+            )),
+            Err(_) => Ok(StatusUpdate::new(
+                self.name.clone(),
+                self.external_llamacpp_addr.clone(),
+                vec![],
+            )),
+        }
     }
 
     async fn report_status(&self, status: StatusUpdate) -> Result<usize> {
@@ -62,21 +65,25 @@ impl Service for MonitoringService {
         #[cfg(unix)] _fds: Option<ListenFds>,
         mut shutdown: ShutdownWatch,
     ) {
+        let mut ticker = interval(Duration::from_secs(1));
+
+        ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
+
         loop {
             tokio::select! {
                 _ = shutdown.changed() => {
                     debug!("Shutting down monitoring service");
                     return;
                 },
-                _ = sleep(Duration::from_secs(1)) => {
+                _ = ticker.tick() => {
                     match self.fetch_status().await {
                         Ok(status) => {
                             if let Err(err) = self.report_status(status).await {
-                                error!("Unable to report status: {}", err);
+                                error!("Failed to report status: {}", err);
                             }
                         }
                         Err(err) => {
-                            error!("Unable to fetch status: {}", err);
+                            error!("Failed to fetch status: {}", err);
                         }
                     }
                 }

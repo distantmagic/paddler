@@ -29,6 +29,26 @@ pub enum AppError {
         #[from] tokio::sync::broadcast::error::SendError<actix_web::web::Bytes>,
     ),
 
+    #[error("Unexpected error: {0}")]
+    UnexpectedError(String),
+
     #[error("URL parse error: {0}")]
     URLParseError(#[from] url::ParseError),
+}
+
+impl From<&str> for AppError {
+    fn from(error: &str) -> Self {
+        AppError::UnexpectedError(error.to_string())
+    }
+}
+
+impl actix_web::ResponseError for AppError {
+    fn error_response(&self) -> actix_web::HttpResponse {
+        actix_web::HttpResponse::InternalServerError()
+            .body(format!("Internal Server Error: {}", self))
+    }
+
+    fn status_code(&self) -> actix_web::http::StatusCode {
+        actix_web::http::StatusCode::INTERNAL_SERVER_ERROR
+    }
 }

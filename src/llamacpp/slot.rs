@@ -2,6 +2,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Slot {
-    id: i32,
+    id: usize,
     is_processing: bool,
 }

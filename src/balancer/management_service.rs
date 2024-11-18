@@ -1,21 +1,27 @@
-use actix_web::{App, HttpServer};
+use actix_web::{web::Data, App, HttpServer};
 use async_trait::async_trait;
 use pingora::server::ShutdownWatch;
 use pingora::services::Service;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 #[cfg(unix)]
 use pingora::server::ListenFds;
 
 use crate::balancer::http_route;
+use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 
 pub struct ManagementService {
     addr: SocketAddr,
+    upstream_peers: Arc<UpstreamPeerPool>,
 }
 
 impl ManagementService {
-    pub fn new(addr: SocketAddr) -> Self {
-        ManagementService { addr }
+    pub fn new(addr: SocketAddr, upstream_peers: Arc<UpstreamPeerPool>) -> Self {
+        ManagementService {
+            addr,
+            upstream_peers,
+        }
     }
 }
 
@@ -26,18 +32,22 @@ impl Service for ManagementService {
         #[cfg(unix)] _fds: Option<ListenFds>,
         mut _shutdown: ShutdownWatch,
     ) {
-        println!("Starting HTTP service");
+        let upstream_peers: Data<UpstreamPeerPool> = self.upstream_peers.clone().into();
 
-        HttpServer::new(|| App::new().configure(http_route::receive_status_update::register))
-            .bind(self.addr)
-            .expect("Unable to bind server to address")
-            .run()
-            .await
-            .expect("Server unexpectedly stopped");
+        HttpServer::new(move || {
+            App::new()
+                .app_data(upstream_peers.clone())
+                .configure(http_route::receive_status_update::register)
+        })
+        .bind(self.addr)
+        .expect("Unable to bind server to address")
+        .run()
+        .await
+        .expect("Server unexpectedly stopped");
     }
 
     fn name(&self) -> &str {
-        "balancer"
+        "management"
     }
 
     fn threads(&self) -> Option<usize> {
