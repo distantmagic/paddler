@@ -1,5 +1,10 @@
 # Paddler
 
+> [!IMPORTANT]  
+> Big chances are coming! I have finished rewriting Paddler into Rust (from Golang) to use the [Pingora](https://github.com/cloudflare/pingora) framework for the networking stack.
+>
+> Version `1.0.0` will bring some minor API changes and reporting improvements. After that, the next plan is to introduce a supervisor who does not just monitor llamas.cpp instances, but to also manage them (replace models without dropping requests, etc.).
+
 Paddler is an open-source, production-ready, stateful load balancer and reverse proxy designed to optimize servers running [llama.cpp](https://github.com/ggerganov/llama.cpp).
 
 ## Why Paddler
