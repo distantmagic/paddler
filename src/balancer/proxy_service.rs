@@ -63,13 +63,10 @@ impl ProxyHttp for ProxyService {
         };
 
         if ctx.selected_peer.is_some() && ctx.uses_slots {
-            match self.upstream_peer_pool.restore_integrity() {
-                Ok(_) => {}
-                Err(e) => {
-                    info!("Failed to restore integrity: {}", e);
+            if let Err(e) = self.upstream_peer_pool.restore_integrity() {
+                info!("Failed to restore integrity: {}", e);
 
-                    return Ok(true);
-                }
+                return Ok(true);
             }
         }
 
