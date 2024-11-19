@@ -64,7 +64,7 @@ impl UpstreamPeerPool {
         }
     }
 
-    pub fn use_best_peer(&self) -> Result<Option<UpstreamPeer>> {
+    pub fn use_best_peer(&self, uses_slots: bool) -> Result<Option<UpstreamPeer>> {
         match self.agents.write() {
             Ok(mut agents) => {
                 if let Some(peer) = agents.first_mut() {
@@ -72,8 +72,10 @@ impl UpstreamPeerPool {
                         return Ok(None);
                     }
 
-                    peer.slots_idle -= 1;
-                    peer.slots_processing += 1;
+                    if uses_slots {
+                        peer.slots_idle -= 1;
+                        peer.slots_processing += 1;
+                    }
 
                     Ok(Some(peer.clone()))
                 } else {
@@ -81,6 +83,17 @@ impl UpstreamPeerPool {
                 }
             }
             Err(_) => Err("Failed to acquire read lock".into()),
+        }
+    }
+
+    pub fn restore_integrity(&self) -> Result<()> {
+        match self.agents.write() {
+            Ok(mut agents) => {
+                agents.sort();
+
+                Ok(())
+            }
+            Err(_) => Err("Failed to acquire write lock".into()),
         }
     }
 }

@@ -3,7 +3,7 @@ use std::cmp::{Eq, Ordering, PartialEq};
 use std::net::SocketAddr;
 use std::time::SystemTime;
 
-#[derive(Clone, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Serialize, Deserialize)]
 pub struct UpstreamPeer {
     pub agent_id: String,
     pub agent_name: Option<String>,
