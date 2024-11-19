@@ -88,7 +88,6 @@ impl UpstreamPeerPool {
                         return Ok(false);
                     }
 
-                    println!("Releasing slot for peer: {}", agent_id);
                     peer.slots_processing -= 1;
                     peer.slots_idle += 1;
 
