@@ -1,0 +1,115 @@
+:root {
+  --color-agent-background: white;
+  --color-agent-background-error: #ffb8b8;
+  --color-agent-font: #111;
+  --color-body-background: black;
+  --color-body-font: #eee;
+  --color-border: #555;
+  --font-family-body: "Noto Sans", sans-serif;
+  --font-family-monospace: "Noto Sans Mono", monospace;
+  --font-size-l1: calc(1.5 * var(--font-size-base));
+  --font-size-l2: calc(1.5 * var(--font-size-l1));
+  --padding-half: calc(0.5 * var(--padding-base));
+
+  @media screen and (max-height: 1199px) {
+    --font-size-base: 18px;
+    --font-size-code: 16px;
+  }
+  @media screen and (min-height: 1200px) {
+    --font-size-base: 20px;
+    --font-size-code: 18px;
+  }
+  @media screen and (max-width: 1279px) {
+    --padding-base: 20px;
+  }
+  @media screen and (min-width: 1280px) {
+    --padding-base: 32px;
+  }
+}
+
+*,
+* * {
+  box-sizing: border-box;
+}
+
+fieldset,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+pre,
+ol,
+ul {
+  font-size: inherit;
+  font-weight: inherit;
+  margin: 0;
+  padding: 0;
+}
+
+h1 {
+  font-size: var(--font-size-l2);
+}
+
+h2 {
+  font-size: var(--font-size-l1);
+}
+
+button,
+input,
+textarea {
+  appearance: none;
+  border-radius: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+hr {
+  border: none;
+  height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+input,
+textarea {
+  color: inherit;
+}
+
+a:active,
+a.turbo-clicked,
+button:not(:disabled):active {
+  filter: grayscale(0.5);
+  transform: translate3d(1px, 1px, 0);
+}
+
+body {
+  background-color: var(--color-body-background);
+  color: var(--color-body-font);
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+  margin: 0;
+  padding: 0;
+  row-gap: var(--padding-base);
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled,
+input:disabled {
+  cursor: not-allowed;
+  user-select: none;
+}
+
+canvas {
+  image-rendering: pixelated;
+}

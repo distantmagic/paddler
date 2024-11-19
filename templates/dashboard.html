@@ -1,24 +1,14 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html>
 <head>
+    <link rel="stylesheet" type="text/css" href="/static/reset.css">
+    <link rel="stylesheet" type="text/css" href="/static/page-dashboard.css">
     <meta charset="utf-8">
-    <title>Paddler Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script defer src="/static/controller_dashboard.js" type="module"></script>
+    <title>Paddler Dashboard</title>
 </head>
 <body>
-    <table>
-        {% for peer in peers %}
-            <tr>
-                <td>{{ peer.agent_id }}</td>
-                <td>
-                    {% if let Some(agent_name) = peer.agent_name %}
-                        {{ agent_name }}
-                    {% endif %}
-                </td>
-                <td>{{ peer.external_llamacpp_addr }}</td>
-                <td>{{ peer.slots_idle }}</td>
-                <td>{{ peer.slots_processing }}</td>
-            </tr>
-        {% endfor %}
-    </table>
+    <div id="paddler-dashboard"></div>
 </body>
+</html>

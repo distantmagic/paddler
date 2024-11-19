@@ -1,6 +1,6 @@
 use actix_web::web::Bytes;
 use async_trait::async_trait;
-use log::{debug, error, warn};
+use log::{debug, error, info};
 use pingora::server::ShutdownWatch;
 use pingora::services::Service;
 use tokio::sync::broadcast::Sender;
@@ -36,6 +36,8 @@ impl ReportingService {
         let stream = BroadcastStream::new(status_update_rx);
         let reqwest_body = reqwest::Body::wrap_stream(stream);
 
+        info!("Establishing connection with management server");
+
         match reqwest::Client::new()
             .post(self.stats_endpoint_url.clone())
             .body(reqwest_body)
@@ -43,7 +45,7 @@ impl ReportingService {
             .await
         {
             Ok(_) => {
-                warn!("Management server connection closed");
+                error!("Management server connection closed");
 
                 Ok(())
             }

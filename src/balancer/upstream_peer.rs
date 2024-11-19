@@ -1,7 +1,8 @@
+use serde::{Deserialize, Serialize};
 use std::cmp::{Eq, Ordering, PartialEq};
 use std::net::SocketAddr;
 
-#[derive(Clone, Eq)]
+#[derive(Clone, Eq, Serialize, Deserialize)]
 pub struct UpstreamPeer {
     pub agent_id: String,
     pub agent_name: Option<String>,

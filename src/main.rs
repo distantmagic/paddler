@@ -1,5 +1,5 @@
-use clap::{value_parser, Parser, Subcommand};
-use std::net::SocketAddr;
+use clap::{Parser, Subcommand};
+use std::net::{SocketAddr, ToSocketAddrs};
 
 use crate::errors::result::Result;
 
@@ -9,6 +9,30 @@ mod cmd;
 mod errors;
 mod llamacpp;
 
+fn resolve_socket_addr(s: &str) -> Result<SocketAddr> {
+    let addrs: Vec<SocketAddr> = s.to_socket_addrs()?.collect();
+
+    for addr in &addrs {
+        if addr.is_ipv4() {
+            return Ok(*addr);
+        }
+    }
+
+    for addr in addrs {
+        if addr.is_ipv6() {
+            return Ok(addr);
+        }
+    }
+
+    Err("Failed to resolve socket address".into())
+}
+
+fn parse_socket_addr(s: &str) -> Result<SocketAddr> {
+    match s.parse() {
+        Ok(socketaddr) => Ok(socketaddr),
+        Err(_) => Ok(resolve_socket_addr(s)?),
+    }
+}
 fn parse_url(s: &str) -> Result<url::Url> {
     Ok(url::Url::parse(s)?)
 }
@@ -23,7 +47,7 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     Agent {
-        #[arg(long, value_parser = value_parser!(SocketAddr))]
+        #[arg(long, value_parser = parse_socket_addr)]
         external_llamacpp_addr: SocketAddr,
 
         #[arg(long, value_parser = parse_url)]
@@ -39,14 +63,14 @@ enum Commands {
         name: Option<String>,
     },
     Balancer {
-        #[arg(long, value_parser = value_parser!(SocketAddr))]
+        #[arg(long, value_parser = parse_socket_addr)]
         management_addr: SocketAddr,
 
-        #[arg(long, value_parser = value_parser!(SocketAddr))]
+        #[arg(long, value_parser = parse_socket_addr)]
         reverseproxy_addr: SocketAddr,
     },
     Dashboard {
-        #[arg(long, value_parser = value_parser!(SocketAddr))]
+        #[arg(long, value_parser = parse_socket_addr)]
         management_addr: SocketAddr,
     },
 }

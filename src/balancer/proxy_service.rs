@@ -3,12 +3,23 @@ use log::info;
 use pingora_core::upstreams::peer::HttpPeer;
 use pingora_core::Result;
 use pingora_proxy::{ProxyHttp, Session};
+use std::sync::Arc;
+
+use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 
 pub struct LlamaCppContext {
     uses_slots: bool,
 }
 
-pub struct ProxyService {}
+pub struct ProxyService {
+    upstream_peer_pool: Arc<UpstreamPeerPool>,
+}
+
+impl ProxyService {
+    pub fn new(upstream_peer_pool: Arc<UpstreamPeerPool>) -> Self {
+        Self { upstream_peer_pool }
+    }
+}
 
 #[async_trait]
 impl ProxyHttp for ProxyService {

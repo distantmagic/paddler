@@ -1,0 +1,90 @@
+table {
+  border-collapse: collapse;
+  margin: var(--padding-base) 0;
+  table-layout: fixed;
+
+  td,
+  th {
+    border: 1px solid var(--color-border);
+    padding: var(--padding-half) var(--padding-base);
+  }
+
+  .agent-usage {
+    min-width: 100px;
+    padding: 0;
+    position: relative;
+  }
+
+  .agent-usage__progress {
+    background-image: linear-gradient(
+      to right,
+      #0000ff,
+      #0080ff,
+      #00ffff,
+      #80ff80,
+      #ffff00,
+      #ff8000,
+      #ff0000
+    );
+    bottom: var(--padding-half);
+    left: var(--padding-half);
+    position: absolute;
+    right: var(--padding-half);
+    top: var(--padding-half);
+
+    &:after {
+      /* mask the progress bar to show the agent's state */
+      background-color: var(--color-body-background);
+      content: "";
+      display: block;
+      height: 100%;
+      position: absolute;
+      right: 0;
+      transition: width 1s;
+      width: var(--slots-usage);
+    }
+  }
+}
+
+.dashboard {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-height: 100vh;
+}
+
+.dashboard__content {
+  display: flex;
+  flex-direction: column;
+  row-gap: var(--padding-half);
+  padding: var(--padding-base);
+
+  > h1,
+  > h2,
+  > p {
+    /* match the table indent */
+    margin-left: var(--padding-base);
+  }
+}
+
+.dashboard__status-bar {
+  align-items: center;
+  background-color: var(--color-body-background);
+  border-top: 1px solid var(--color-border);
+  bottom: 0;
+  display: flex;
+  height: 70px;
+  justify-content: space-between;
+  padding: 0 var(--padding-base);
+  position: sticky;
+}
+
+.dashobard__status-bar__ticker {
+  align-items: center;
+  column-gap: 1ch;
+  display: flex;
+
+  svg {
+    height: 32px;
+    width: 32px;
+  }
+}

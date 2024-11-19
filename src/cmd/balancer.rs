@@ -20,8 +20,10 @@ pub fn handle(management_addr: &SocketAddr, reverseproxy_addr: &SocketAddr) -> R
     let upstream_peer_pool = Arc::new(UpstreamPeerPool::new());
 
     let management_service = ManagementService::new(*management_addr, upstream_peer_pool.clone());
-    let mut proxy_service =
-        pingora_proxy::http_proxy_service(&pingora_server.configuration, ProxyService {});
+    let mut proxy_service = pingora_proxy::http_proxy_service(
+        &pingora_server.configuration,
+        ProxyService::new(upstream_peer_pool.clone()),
+    );
 
     proxy_service.add_tcp(&reverseproxy_addr.clone().to_string());
 

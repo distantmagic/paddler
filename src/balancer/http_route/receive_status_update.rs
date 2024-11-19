@@ -33,6 +33,8 @@ async fn respond(
                 }
             }
             Err(e) => {
+                error!("Failed toarse status update: {}", e);
+
                 return Err(Error::from(e));
             }
         }
