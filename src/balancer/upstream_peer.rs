@@ -1,12 +1,14 @@
 use serde::{Deserialize, Serialize};
 use std::cmp::{Eq, Ordering, PartialEq};
 use std::net::SocketAddr;
+use std::time::SystemTime;
 
 #[derive(Clone, Eq, Serialize, Deserialize)]
 pub struct UpstreamPeer {
     pub agent_id: String,
     pub agent_name: Option<String>,
     pub external_llamacpp_addr: SocketAddr,
+    pub last_update: SystemTime,
     pub slots_idle: usize,
     pub slots_processing: usize,
 }
@@ -23,6 +25,7 @@ impl UpstreamPeer {
             agent_id,
             agent_name,
             external_llamacpp_addr,
+            last_update: SystemTime::now(),
             slots_idle,
             slots_processing,
         }

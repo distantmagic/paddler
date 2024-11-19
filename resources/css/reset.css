@@ -7,24 +7,11 @@
   --color-border: #555;
   --font-family-body: "Noto Sans", sans-serif;
   --font-family-monospace: "Noto Sans Mono", monospace;
+  --font-size-base: 18px;
   --font-size-l1: calc(1.5 * var(--font-size-base));
   --font-size-l2: calc(1.5 * var(--font-size-l1));
+  --padding-base: 20px;
   --padding-half: calc(0.5 * var(--padding-base));
-
-  @media screen and (max-height: 1199px) {
-    --font-size-base: 18px;
-    --font-size-code: 16px;
-  }
-  @media screen and (min-height: 1200px) {
-    --font-size-base: 20px;
-    --font-size-code: 18px;
-  }
-  @media screen and (max-width: 1279px) {
-    --padding-base: 20px;
-  }
-  @media screen and (min-width: 1280px) {
-    --padding-base: 32px;
-  }
 }
 
 *,

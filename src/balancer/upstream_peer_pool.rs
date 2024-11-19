@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::sync::RwLock;
+use std::time::SystemTime;
 
 use crate::balancer::status_update::StatusUpdate;
 use crate::balancer::upstream_peer::UpstreamPeer;
@@ -27,6 +28,7 @@ impl UpstreamPeerPool {
                 if let Some(upstream_peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
                     upstream_peer.agent_name = status_update.agent_name.clone();
                     upstream_peer.external_llamacpp_addr = status_update.external_llamacpp_addr;
+                    upstream_peer.last_update = SystemTime::now();
                     upstream_peer.slots_idle = status_update.idle_slots_count;
                     upstream_peer.slots_processing = status_update.processing_slots_count;
                 } else {

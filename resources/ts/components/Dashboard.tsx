@@ -7,6 +7,10 @@ const agentSchema = z.object({
   agent_id: z.string(),
   agent_name: z.string().nullable(),
   external_llamacpp_addr: z.string(),
+  last_update: z.object({
+    nanos_since_epoch: z.number(),
+    secs_since_epoch: z.number(),
+  }),
   slots_idle: z.number(),
   slots_processing: z.number(),
 });
@@ -18,6 +22,8 @@ const agentsResponseSchema = z.object({
 // use zod just for the sake of integrity
 type Agent = z.infer<typeof agentSchema>;
 type AgentsResponse = z.infer<typeof agentsResponseSchema>;
+
+const TICK_MS = 500;
 
 export function Dashboard() {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -31,7 +37,7 @@ export function Dashboard() {
         setCurrentTick(function (previousTick) {
           return previousTick + 1;
         });
-      }, 1000);
+      }, TICK_MS);
 
       return function () {
         clearInterval(intervalId);
@@ -98,7 +104,7 @@ export function Dashboard() {
   if (agents.length < 1) {
     return (
       <DashboardLayout currentTick={currentTick}>
-        <h1>Paddler</h1>
+        <h1>Paddler 🏓</h1>
         <h2>Registered Agents</h2>
         <p>No agents registered yet</p>
       </DashboardLayout>
@@ -107,13 +113,14 @@ export function Dashboard() {
 
   return (
     <DashboardLayout currentTick={currentTick}>
-      <h1>Paddler</h1>
+      <h1>Paddler 🏓</h1>
       <h2>Registered Agents</h2>
       <table>
         <thead>
           <tr>
             <th>Name</th>
-            <th>Llama.cpp Address</th>
+            <th>Llama.cpp address</th>
+            <th>Last update</th>
             <th>Idle slots</th>
             <th>Processing slots</th>
           </tr>
@@ -124,6 +131,7 @@ export function Dashboard() {
               <tr key={agent.agent_id}>
                 <td>{agent.agent_name}</td>
                 <td>{agent.external_llamacpp_addr}</td>
+                <td>{(new Date(agent.last_update.secs_since_epoch * 1000)).toLocaleString()}</td>
                 <td>{agent.slots_idle}</td>
                 <td>{agent.slots_processing}</td>
                 <td
