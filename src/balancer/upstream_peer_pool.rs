@@ -76,13 +76,12 @@ impl UpstreamPeerPool {
         }
     }
 
-    pub fn release_slot(&self, agent_id: &str) -> Result<bool> {
-        let now = SystemTime::now();
-
+    pub fn release_slot(&self, agent_id: &str, last_update: SystemTime) -> Result<bool> {
         match self.agents.write() {
             Ok(mut agents) => {
                 if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
-                    if peer.last_update > now {
+                    if peer.last_update < last_update {
+                        println!("Peer last update is older than the one we have, skipping");
                         // edge case, but no need to update anything anyway
                         return Ok(false);
                     }

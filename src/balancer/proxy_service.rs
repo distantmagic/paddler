@@ -88,7 +88,10 @@ impl ProxyHttp for ProxyService {
         if ctx.uses_slots && end_of_stream {
             // now it's time to restore the used slots
             if let Some(peer) = &ctx.selected_peer {
-                match self.upstream_peer_pool.release_slot(&peer.agent_id) {
+                match self
+                    .upstream_peer_pool
+                    .release_slot(&peer.agent_id, peer.last_update)
+                {
                     Ok(released) => {
                         if released {
                             if let Err(e) = self.upstream_peer_pool.restore_integrity() {
