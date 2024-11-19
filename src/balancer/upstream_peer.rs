@@ -43,12 +43,24 @@ impl UpstreamPeer {
         )
     }
 
+    pub fn release_slot(&mut self) {
+        self.last_update = SystemTime::now();
+        self.slots_idle += 1;
+        self.slots_processing -= 1;
+    }
+
     pub fn update_status(&mut self, status_update: StatusUpdate) {
         self.agent_name = status_update.agent_name.clone();
         self.external_llamacpp_addr = status_update.external_llamacpp_addr;
         self.last_update = SystemTime::now();
         self.slots_idle = status_update.idle_slots_count;
         self.slots_processing = status_update.processing_slots_count;
+    }
+
+    pub fn use_slot(&mut self) {
+        self.last_update = SystemTime::now();
+        self.slots_idle -= 1;
+        self.slots_processing += 1;
     }
 }
 

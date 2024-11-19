@@ -64,8 +64,7 @@ impl UpstreamPeerPool {
                     }
 
                     if uses_slots {
-                        peer.slots_idle -= 1;
-                        peer.slots_processing += 1;
+                        peer.use_slot();
                     }
 
                     Ok(Some(peer.clone()))
@@ -88,8 +87,7 @@ impl UpstreamPeerPool {
                         return Ok(false);
                     }
 
-                    peer.slots_processing -= 1;
-                    peer.slots_idle += 1;
+                    peer.release_slot();
 
                     return Ok(true);
                 }
