@@ -77,6 +77,30 @@ impl UpstreamPeerPool {
         }
     }
 
+    pub fn release_slot(&self, agent_id: &str) -> Result<bool> {
+        let now = SystemTime::now();
+
+        match self.agents.write() {
+            Ok(mut agents) => {
+                if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
+                    if peer.last_update > now {
+                        // edge case, but no need to update anything anyway
+                        return Ok(false);
+                    }
+
+                    println!("Releasing slot for peer: {}", agent_id);
+                    peer.slots_processing -= 1;
+                    peer.slots_idle += 1;
+
+                    return Ok(true);
+                }
+
+                Ok(false)
+            }
+            Err(_) => Err("Failed to acquire write lock".into()),
+        }
+    }
+
     pub fn restore_integrity(&self) -> Result<()> {
         match self.agents.write() {
             Ok(mut agents) => {

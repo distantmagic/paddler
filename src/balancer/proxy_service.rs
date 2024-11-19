@@ -1,9 +1,11 @@
 use async_trait::async_trait;
-use log::info;
+use bytes::Bytes;
+use log::{error, info};
 use pingora_core::upstreams::peer::HttpPeer;
 use pingora_core::Result;
 use pingora_proxy::{ProxyHttp, Session};
 use std::sync::Arc;
+use std::time::Duration;
 
 use crate::balancer::upstream_peer::UpstreamPeer;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
@@ -73,6 +75,37 @@ impl ProxyHttp for ProxyService {
         Ok(false)
     }
 
+    fn response_body_filter(
+        &self,
+        _session: &mut Session,
+        _body: &mut Option<Bytes>,
+        end_of_stream: bool,
+        ctx: &mut Self::CTX,
+    ) -> Result<Option<Duration>>
+    where
+        Self::CTX: Send + Sync,
+    {
+        if ctx.uses_slots && end_of_stream {
+            // now it's time to restore the used slots
+            if let Some(peer) = &ctx.selected_peer {
+                match self.upstream_peer_pool.release_slot(&peer.agent_id) {
+                    Ok(released) => {
+                        if released {
+                            if let Err(e) = self.upstream_peer_pool.restore_integrity() {
+                                info!("Failed to restore integrity: {}", e);
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        error!("Failed to release slot: {}", err);
+                    }
+                }
+            }
+        }
+
+        Ok(None)
+    }
+
     async fn upstream_peer(
         &self,
         _session: &mut Session,
@@ -81,7 +114,7 @@ impl ProxyHttp for ProxyService {
         let selected_peer = ctx
             .selected_peer
             .as_ref()
-            .expect("Selected peer is not set");
+            .expect("Unable to get selected peer");
 
         let peer = Box::new(HttpPeer::new(
             selected_peer.external_llamacpp_addr,
