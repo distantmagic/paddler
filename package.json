@@ -1,0 +1,17 @@
+{
+  "devDependencies": {
+    "@types/hotwired__turbo": "^8",
+    "esbuild": "^0.21.3",
+    "tslib": "^2.8.1"
+  },
+  "dependencies": {
+    "@hotwired/stimulus": "^3.2.2",
+    "@hotwired/turbo": "^8.0.4",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typed-css-modules": "^0.9.1",
+    "zod": "^3.23.8"
+  }
+}

@@ -1,28 +1,14 @@
-.DEFAULT_GOAL := paddler-bin-linux-x64
+.DEFAULT_GOAL := build
 
-CSS_SOURCES := \
-	$(wildcard */*.css) \
-	$(wildcard */*/*.css) \
-	$(wildcard */*/*/*.css)
-
-GO_SOURCES := \
-	$(wildcard *.go) \
-	$(wildcard */*.go)
+RUST_LOG ?= debug
 
 # -----------------------------------------------------------------------------
 # Real targets
 # -----------------------------------------------------------------------------
 
-godepgraph.png: $(GO_SOURCES)
-	godepgraph \
-		-p github.com/aws,github.com/hashicorp,github.com/smira,github.com/urfave \
-		-s \
-		-novendor \
-		github.com/distantmagic/paddler | dot -Kfdp -Tpng -o godepgraph.png
-
-paddler-bin-linux-x64: $(CSS_SOURCES) $(GO_SOURCES)
-	$(MAKE) -C management build
-	go build -o paddler-bin-linux-x64
+node_modules: package-lock.json
+	npm install --from-lockfile
+	touch node_modules
 
 # -----------------------------------------------------------------------------
 # Phony targets
@@ -30,21 +16,45 @@ paddler-bin-linux-x64: $(CSS_SOURCES) $(GO_SOURCES)
 
 .PHONY: clean
 clean:
-	$(MAKE) -C management clean
-	rm -f log.db
-	rm -f paddler-bin-linux-x64
-	rm -rf snapshots
-	rm -f stable.db
+	rm -rf esbuild-meta.json
+	rm -rf node_modules
+	rm -rf target
 
-.PHONY: deps
-deps: godepgraph.png
-	open godepgraph.png
+.PHONY: esbuild
+esbuild: node_modules
+	npm exec esbuild -- \
+		--bundle \
+		--asset-names="./[name]" \
+		--entry-names="./[name]" \
+		--format=esm \
+		--loader:.jpg=file \
+		--loader:.otf=file \
+		--loader:.svg=file \
+		--loader:.ttf=file \
+		--loader:.webp=file \
+		--metafile=esbuild-meta.json \
+		--minify \
+		--outdir=static \
+		--sourcemap \
+		--splitting \
+		--target=safari16 \
+		--tree-shaking=true \
+		resources/css/reset.css \
+		resources/css/page-dashboard.css \
+		resources/ts/controller_dashboard.tsx \
+	;
 
-.PHONY: fmt
-fmt:
-	go fmt ./...
-	tofu fmt -recursive infra
+.PHONY: run.agent
+run.agent: esbuild
+	cargo run -- agent \
+		--external-llamacp-addr "127.0.0.1:8081" \
+		--local-llamacpp-addr="http://localhost:8081" \
+		--local-llamacpp-api-key "test" \
+		--management-addr="http://localhost:8095" \
+		--name "wohoo"
 
-.PHONY: lint
-lint:
-	golangci-lint run
+.PHONY: run.balancer
+run.balancer: esbuild
+	cargo run -- balancer \
+		--management-addr="127.0.0.1:8095"  \
+		--reverseproxy-addr="127.0.0.1:8096"
