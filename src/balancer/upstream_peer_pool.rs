@@ -26,19 +26,10 @@ impl UpstreamPeerPool {
         match self.agents.write() {
             Ok(mut agents) => {
                 if let Some(upstream_peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
-                    upstream_peer.agent_name = status_update.agent_name.clone();
-                    upstream_peer.external_llamacpp_addr = status_update.external_llamacpp_addr;
-                    upstream_peer.last_update = SystemTime::now();
-                    upstream_peer.slots_idle = status_update.idle_slots_count;
-                    upstream_peer.slots_processing = status_update.processing_slots_count;
+                    upstream_peer.update_status(status_update);
                 } else {
-                    let new_upstream_peer = UpstreamPeer::new(
-                        agent_id.to_string(),
-                        status_update.agent_name.clone(),
-                        status_update.external_llamacpp_addr,
-                        status_update.idle_slots_count,
-                        status_update.processing_slots_count,
-                    );
+                    let new_upstream_peer =
+                        UpstreamPeer::new_from_status_update(agent_id.to_string(), status_update);
 
                     agents.push(new_upstream_peer);
                 }

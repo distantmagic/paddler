@@ -3,6 +3,8 @@ use std::cmp::{Eq, Ordering, PartialEq};
 use std::net::SocketAddr;
 use std::time::SystemTime;
 
+use crate::balancer::status_update::StatusUpdate;
+
 #[derive(Clone, Debug, Eq, Serialize, Deserialize)]
 pub struct UpstreamPeer {
     pub agent_id: String,
@@ -29,6 +31,24 @@ impl UpstreamPeer {
             slots_idle,
             slots_processing,
         }
+    }
+
+    pub fn new_from_status_update(agent_id: String, status_update: StatusUpdate) -> Self {
+        Self::new(
+            agent_id,
+            status_update.agent_name.clone(),
+            status_update.external_llamacpp_addr,
+            status_update.idle_slots_count,
+            status_update.processing_slots_count,
+        )
+    }
+
+    pub fn update_status(&mut self, status_update: StatusUpdate) {
+        self.agent_name = status_update.agent_name.clone();
+        self.external_llamacpp_addr = status_update.external_llamacpp_addr;
+        self.last_update = SystemTime::now();
+        self.slots_idle = status_update.idle_slots_count;
+        self.slots_processing = status_update.processing_slots_count;
     }
 }
 
