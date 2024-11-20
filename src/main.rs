@@ -55,52 +55,64 @@ struct Cli {
 enum Commands {
     /// Monitors llama.cpp instance and reports their status to the balancer
     Agent {
+        #[arg(long, value_parser = parse_socket_addr)]
         /// Address of llama.cpp instance that the balancer will forward requests to. If not
         /// provided, then `--local-llamacpp-addr` will be used
-        #[arg(long, value_parser = parse_socket_addr)]
         external_llamacpp_addr: Option<SocketAddr>,
 
-        /// Address of the local llama.cpp instance that the agent will monitor
         #[arg(long, value_parser = parse_socket_addr)]
+        /// Address of the local llama.cpp instance that the agent will monitor
         local_llamacpp_addr: SocketAddr,
 
         #[arg(long)]
-        /// API key for the llama.cpp instance
+        /// API key for the llama.cpp instance (optional)
         llamacpp_api_key: Option<String>,
 
         #[arg(long, value_parser = parse_socket_addr)]
+        /// Address of the management server that the agent will report to
         management_addr: SocketAddr,
 
         #[arg(long, default_value = "10", value_parser = parse_duration)]
+        /// Interval (in seconds) at which the agent will report the status of the llama.cpp instance
         monitoring_interval: Duration,
 
         #[arg(long)]
+        /// Name of the agent (optional)
         name: Option<String>,
     },
     /// Balances incoming requests to llama.cpp instances and optionally provides a web dashboard
     Balancer {
         #[arg(long, value_parser = parse_socket_addr)]
+        /// Address of the management server that the balancer will report to
         management_addr: SocketAddr,
 
         #[arg(long)]
+        /// Enable the web management dashboard
         management_dashboard_enable: bool,
 
         #[arg(long, value_parser = parse_socket_addr)]
+        /// Address of the reverse proxy server
         reverseproxy_addr: SocketAddr,
 
         #[arg(long)]
+        /// Rewrite the host header of incoming requests so that it matches the upstream server
+        /// instead of the reverse client server
         rewrite_host_header: bool,
 
         #[arg(long)]
+        /// Enable the slots endpoint (not recommended)
         slots_endpoint_enable: bool,
 
         #[arg(long, value_parser = parse_socket_addr)]
+        /// Address of the statsd server to report metrics to
         statsd_addr: Option<SocketAddr>,
 
         #[arg(long, default_value = "paddler")]
+        /// Prefix for statsd metrics
         statsd_prefix: String,
 
         #[arg(long, default_value = "10", value_parser = parse_duration)]
+        /// Interval (in seconds) at which the balancer will report metrics to statsd
         statsd_reporting_interval: Duration,
     },
     // Command-line dashboard for monitoring the balancer
