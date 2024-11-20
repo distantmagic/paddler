@@ -158,7 +158,7 @@ https://github.com/distantmagic/paddler/assets/1286785/34b93e4c-0746-4eed-8be3-c
 
 Although Paddler integrates with the [StatsD protocol](https://github.com/statsd/statsd), you can preview the cluster's state using a built-in dashboard.
 
-![Paddler State Dashboard](https://github.com/distantmagic/paddler/assets/1286785/251921bf-cfbd-4269-b0c9-b9cc981d4128)
+![Paddler State Dashboard](https://github.com/user-attachments/assets/b12413ca-481b-4d49-9908-5dc38346305a)
 
 ### StatsD Metrics
 
