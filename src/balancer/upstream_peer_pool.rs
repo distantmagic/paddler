@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
-use std::{sync::RwLock, time::SystemTime};
+use std::{
+    sync::RwLock,
+    time::{Duration, SystemTime},
+};
 
 use crate::balancer::status_update::StatusUpdate;
 use crate::balancer::upstream_peer::UpstreamPeer;
@@ -17,122 +20,132 @@ impl UpstreamPeerPool {
         }
     }
 
+    pub fn quarantine_peer(&self, agent_id: &str) -> Result<bool> {
+        self.with_agents_write(|agents| {
+            if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
+                peer.quarantined_until = Some(SystemTime::now() + Duration::from_secs(10));
+
+                return Ok(true);
+            }
+
+            Ok(false)
+        })
+    }
+
     pub fn register_status_update(
         &self,
         agent_id: &str,
         status_update: StatusUpdate,
     ) -> Result<()> {
-        match self.agents.write() {
-            Ok(mut agents) => {
-                if let Some(upstream_peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
-                    upstream_peer.update_status(status_update);
-                } else {
-                    let new_upstream_peer =
-                        UpstreamPeer::new_from_status_update(agent_id.to_string(), status_update);
+        self.with_agents_write(|agents| {
+            if let Some(upstream_peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
+                upstream_peer.update_status(status_update);
+            } else {
+                let new_upstream_peer =
+                    UpstreamPeer::new_from_status_update(agent_id.to_string(), status_update);
 
-                    agents.push(new_upstream_peer);
-                }
-
-                agents.sort();
-
-                Ok(())
+                agents.push(new_upstream_peer);
             }
-            Err(_) => Err("Failed to acquire read lock".into()),
-        }
-    }
 
-    pub fn remove_peer(&self, agent_id: &str) -> Result<()> {
-        match self.agents.write() {
-            Ok(mut agents) => {
-                if let Some(pos) = agents.iter().position(|p| p.agent_id == agent_id) {
-                    agents.remove(pos);
-                }
+            agents.sort();
 
-                Ok(())
-            }
-            Err(_) => Err("Failed to acquire write lock".into()),
-        }
-    }
-
-    pub fn use_best_peer(&self) -> Result<Option<UpstreamPeer>> {
-        match self.agents.write() {
-            Ok(mut agents) => {
-                if let Some(peer) = agents.first_mut() {
-                    if peer.slots_idle < 1 {
-                        return Ok(None);
-                    }
-
-                    Ok(Some(peer.clone()))
-                } else {
-                    Ok(None)
-                }
-            }
-            Err(_) => Err("Failed to acquire read lock".into()),
-        }
+            Ok(())
+        })
     }
 
     pub fn release_slot(&self, agent_id: &str, last_update: SystemTime) -> Result<bool> {
-        match self.agents.write() {
-            Ok(mut agents) => {
-                if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
-                    if peer.last_update < last_update {
-                        println!("Peer last update is older than the one we have, skipping");
-                        // edge case, but no need to update anything anyway
-                        return Ok(false);
-                    }
-
-                    peer.release_slot();
-
-                    return Ok(true);
+        self.with_agents_write(|agents| {
+            if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
+                if peer.last_update < last_update {
+                    // edge case, but no need to update anything anyway
+                    return Ok(false);
                 }
 
-                Ok(false)
+                peer.release_slot();
+
+                return Ok(true);
             }
-            Err(_) => Err("Failed to acquire write lock".into()),
-        }
+
+            Ok(false)
+        })
+    }
+
+    pub fn remove_peer(&self, agent_id: &str) -> Result<()> {
+        self.with_agents_write(|agents| {
+            if let Some(pos) = agents.iter().position(|p| p.agent_id == agent_id) {
+                agents.remove(pos);
+            }
+
+            Ok(())
+        })
     }
 
     pub fn restore_integrity(&self) -> Result<()> {
-        match self.agents.write() {
-            Ok(mut agents) => {
-                agents.sort();
+        self.with_agents_write(|agents| {
+            agents.sort();
 
-                Ok(())
-            }
-            Err(_) => Err("Failed to acquire write lock".into()),
-        }
+            Ok(())
+        })
     }
 
     pub fn take_slot(&self, agent_id: &str) -> Result<bool> {
-        match self.agents.write() {
-            Ok(mut agents) => {
-                if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
-                    peer.take_slot();
+        self.with_agents_write(|agents| {
+            if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
+                peer.take_slot();
 
-                    return Ok(true);
-                }
-
+                Ok(true)
+            } else {
                 Ok(false)
             }
-            Err(_) => Err("Failed to acquire write lock".into()),
-        }
+        })
     }
 
     // returns (slots_idle, slots_processing) tuple
     pub fn total_slots(&self) -> Result<(usize, usize)> {
-        match self.agents.read() {
-            Ok(agents) => {
-                let mut slots_idle = 0;
-                let mut slots_processing = 0;
+        self.with_agents_read(|agents| {
+            let mut slots_idle = 0;
+            let mut slots_processing = 0;
 
-                for peer in agents.iter() {
-                    slots_idle += peer.slots_idle;
-                    slots_processing += peer.slots_processing;
-                }
-
-                Ok((slots_idle, slots_processing))
+            for peer in agents.iter() {
+                slots_idle += peer.slots_idle;
+                slots_processing += peer.slots_processing;
             }
+
+            Ok((slots_idle, slots_processing))
+        })
+    }
+
+    pub fn use_best_peer(&self) -> Result<Option<UpstreamPeer>> {
+        self.with_agents_write(|agents| {
+            for peer in agents.iter_mut() {
+                if peer.is_usable() {
+                    return Ok(Some(peer.clone()));
+                }
+            }
+
+            return Ok(None);
+        })
+    }
+
+    #[inline]
+    fn with_agents_read<TCallback, TResult>(&self, cb: TCallback) -> Result<TResult>
+    where
+        TCallback: FnOnce(&Vec<UpstreamPeer>) -> Result<TResult>,
+    {
+        match self.agents.read() {
+            Ok(agents) => cb(&agents),
             Err(_) => Err("Failed to acquire read lock".into()),
+        }
+    }
+
+    #[inline]
+    fn with_agents_write<TCallback, TResult>(&self, cb: TCallback) -> Result<TResult>
+    where
+        TCallback: FnOnce(&mut Vec<UpstreamPeer>) -> Result<TResult>,
+    {
+        match self.agents.write() {
+            Ok(mut agents) => cb(&mut agents),
+            Err(_) => Err("Failed to acquire write lock".into()),
         }
     }
 }

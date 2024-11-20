@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import React, { useEffect, useState, CSSProperties } from "react";
 import { z } from "zod";
 
@@ -6,11 +7,19 @@ import { DashboardLayout } from "./DashboardLayout";
 const agentSchema = z.object({
   agent_id: z.string(),
   agent_name: z.string().nullable(),
+  error: z.string().nullable(),
   external_llamacpp_addr: z.string(),
+  is_authorized: z.boolean(),
   last_update: z.object({
     nanos_since_epoch: z.number(),
     secs_since_epoch: z.number(),
   }),
+  quarantined_until: z
+    .object({
+      nanos_since_epoch: z.number(),
+      secs_since_epoch: z.number(),
+    })
+    .nullable(),
   slots_idle: z.number(),
   slots_processing: z.number(),
 });
@@ -106,7 +115,11 @@ export function Dashboard() {
       <DashboardLayout currentTick={currentTick}>
         <h1>Paddler 🏓</h1>
         <h2>Registered Agents</h2>
-        <p>No agents registered yet</p>
+        <p>No agents registered yet.</p>
+        <p>
+          If you have an agent running, please wait a few seconds for it to
+          register itself.
+        </p>
       </DashboardLayout>
     );
   }
@@ -119,6 +132,7 @@ export function Dashboard() {
         <thead>
           <tr>
             <th>Name</th>
+            <th>Issues</th>
             <th>Llama.cpp address</th>
             <th>Last update</th>
             <th>Idle slots</th>
@@ -127,11 +141,52 @@ export function Dashboard() {
         </thead>
         <tbody>
           {agents.map(function (agent: Agent) {
+            const hasIssues =
+              agent.error || !agent.is_authorized || agent.quarantined_until;
+
             return (
-              <tr key={agent.agent_id}>
+              <tr
+                className={clsx("agent-row", {
+                  "agent-row--error": hasIssues,
+                })}
+                key={agent.agent_id}
+              >
                 <td>{agent.agent_name}</td>
+                <td>
+                  {agent.error && (
+                    <>
+                      <p>Error</p>
+                      <p>{agent.error}</p>
+                    </>
+                  )}
+                  {!agent.is_authorized && (
+                    <>
+                      <p>Unauthorized</p>
+                      <p>
+                        Probably llama.cpp API key is either invalid or not
+                        present. Pass it to the agent with
+                        `--llamacpp-api-key=YOURKEY` flag.
+                      </p>
+                    </>
+                  )}
+                  {agent.quarantined_until && (
+                    <>
+                      <p>
+                        Quarantined until{" "}
+                        {new Date(
+                          agent.quarantined_until.secs_since_epoch * 1000,
+                        ).toLocaleString()}
+                      </p>
+                    </>
+                  )}
+                  {!hasIssues && <p>None</p>}
+                </td>
                 <td>{agent.external_llamacpp_addr}</td>
-                <td>{(new Date(agent.last_update.secs_since_epoch * 1000)).toLocaleString()}</td>
+                <td>
+                  {new Date(
+                    agent.last_update.secs_since_epoch * 1000,
+                  ).toLocaleString()}
+                </td>
                 <td>{agent.slots_idle}</td>
                 <td>{agent.slots_processing}</td>
                 <td

@@ -11,8 +11,11 @@ use crate::balancer::status_update::StatusUpdate;
 pub struct UpstreamPeer {
     pub agent_id: String,
     pub agent_name: Option<String>,
+    pub error: Option<String>,
     pub external_llamacpp_addr: SocketAddr,
+    pub is_authorized: bool,
     pub last_update: SystemTime,
+    pub quarantined_until: Option<SystemTime>,
     pub slots_idle: usize,
     pub slots_processing: usize,
 }
@@ -21,15 +24,20 @@ impl UpstreamPeer {
     pub fn new(
         agent_id: String,
         agent_name: Option<String>,
+        error: Option<String>,
         external_llamacpp_addr: SocketAddr,
+        is_authorized: bool,
         slots_idle: usize,
         slots_processing: usize,
     ) -> Self {
         UpstreamPeer {
             agent_id,
             agent_name,
+            error,
             external_llamacpp_addr,
+            is_authorized,
             last_update: SystemTime::now(),
+            quarantined_until: None,
             slots_idle,
             slots_processing,
         }
@@ -39,10 +47,19 @@ impl UpstreamPeer {
         Self::new(
             agent_id,
             status_update.agent_name.to_owned(),
+            status_update.error.to_owned(),
             status_update.external_llamacpp_addr,
+            status_update.is_authorized,
             status_update.idle_slots_count,
             status_update.processing_slots_count,
         )
+    }
+
+    pub fn is_usable(&self) -> bool {
+        self.slots_idle > 0
+            && self.quarantined_until.is_none()
+            && self.error.is_none()
+            && self.is_authorized
     }
 
     pub fn release_slot(&mut self) {
@@ -53,8 +70,10 @@ impl UpstreamPeer {
 
     pub fn update_status(&mut self, status_update: StatusUpdate) {
         self.agent_name = status_update.agent_name.to_owned();
+        self.error = status_update.error.to_owned();
         self.external_llamacpp_addr = status_update.external_llamacpp_addr;
         self.last_update = SystemTime::now();
+        self.quarantined_until = None;
         self.slots_idle = status_update.idle_slots_count;
         self.slots_processing = status_update.processing_slots_count;
     }
@@ -69,11 +88,15 @@ impl UpstreamPeer {
 impl Ord for UpstreamPeer {
     fn cmp(&self, other: &Self) -> Ordering {
         other
-            .slots_idle
-            .cmp(&self.slots_idle)
+            .is_usable()
+            .cmp(&self.is_usable())
+            .then_with(|| other.slots_idle.cmp(&self.slots_idle))
             .then_with(|| self.slots_processing.cmp(&other.slots_processing))
-            // compare by id for stable sorting
-            .then_with(|| self.agent_id.cmp(&other.agent_id))
+            // compare by addr for stable sorting
+            .then_with(|| {
+                self.external_llamacpp_addr
+                    .cmp(&other.external_llamacpp_addr)
+            })
     }
 }
 

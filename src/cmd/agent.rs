@@ -11,14 +11,14 @@ use crate::llamacpp::llamacpp_client::LlamacppClient;
 pub fn handle(
     external_llamacpp_addr: SocketAddr,
     local_llamacpp_addr: SocketAddr,
-    local_llamacpp_api_key: Option<String>,
+    llamacpp_api_key: Option<String>,
     management_addr: SocketAddr,
     monitoring_interval: Duration,
     name: Option<String>,
 ) -> Result<()> {
     let (status_update_tx, _status_update_rx) = channel::<Bytes>(1);
 
-    let llamacpp_client = LlamacppClient::new(local_llamacpp_addr, local_llamacpp_api_key)?;
+    let llamacpp_client = LlamacppClient::new(local_llamacpp_addr, llamacpp_api_key)?;
 
     let monitoring_service = MonitoringService::new(
         external_llamacpp_addr,

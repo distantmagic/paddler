@@ -4,6 +4,7 @@ use url::Url;
 
 use crate::errors::result::Result;
 use crate::llamacpp::slot::Slot;
+use crate::llamacpp::slots_response::SlotsResponse;
 
 pub struct LlamacppClient {
     client: reqwest::Client,
@@ -34,16 +35,23 @@ impl LlamacppClient {
         })
     }
 
-    pub async fn get_available_slots(&self) -> Result<Vec<Slot>> {
+    pub async fn get_available_slots(&self) -> Result<SlotsResponse> {
         let response = self
             .client
             .get(self.slots_endpoint_url.to_owned())
             .send()
-            .await?
-            .error_for_status()?
-            .json::<Vec<Slot>>()
             .await?;
 
-        Ok(response)
+        match response.status() {
+            reqwest::StatusCode::OK => Ok(SlotsResponse {
+                is_authorized: true,
+                slots: response.json::<Vec<Slot>>().await?,
+            }),
+            reqwest::StatusCode::UNAUTHORIZED => Ok(SlotsResponse {
+                is_authorized: false,
+                slots: vec![],
+            }),
+            _ => Err("Unexpected response status".into()),
+        }
     }
 }

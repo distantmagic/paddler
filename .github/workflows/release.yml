@@ -11,35 +11,16 @@ jobs:
     name: build
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        include:
-          - goos: darwin
-            goarch: amd64
-            artifact_name: paddler-bin-darwin-amd64
-          - goos: darwin
-            goarch: arm64
-            artifact_name: paddler-bin-darwin-arm64
-          - goos: linux
-            goarch: amd64
-            artifact_name: paddler-bin-linux-amd64
-          - goos: windows
-            goarch: amd64
-            artifact_name: paddler-bin-windows-amd64.exe
-
     steps:
       - name: checkout code
         uses: actions/checkout@v4
 
-      - name: set up go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
+      - name: set up rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Build
+      - name: build
         run: |
-          make -C management build
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o ${{ matrix.artifact_name }}
+          make build
 
       - name: determine tag type
         id: tag_type
@@ -56,8 +37,8 @@ jobs:
         if: steps.tag_type.outputs.tag_type != 'INVALID_TAG'
         uses: svenstaro/upload-release-action@v2
         with:
-          file: ${{ matrix.artifact_name }}
-          asset_name: ${{ matrix.artifact_name }}
+          file: target/release/paddler
+          asset_name: paddler-linux-amd64
           overwrite: true
           prerelease: ${{ steps.tag_type.outputs.tag_type == 'PRE_RELEASE_TAG' }}
           tag: ${{ github.ref }}

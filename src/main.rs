@@ -44,7 +44,8 @@ fn parse_socket_addr(arg: &str) -> Result<SocketAddr> {
 }
 
 #[derive(Parser)]
-#[command(version, about, long_about = None)]
+#[command(arg_required_else_help(true), version, about, long_about = None)]
+/// Stateful load balancer for llama.cpp
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -52,15 +53,20 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Monitors llama.cpp instance and reports their status to the balancer
     Agent {
+        /// Address of llama.cpp instance that the balancer will forward requests to. If not
+        /// provided, then `--local-llamacpp-addr` will be used
         #[arg(long, value_parser = parse_socket_addr)]
-        external_llamacpp_addr: SocketAddr,
+        external_llamacpp_addr: Option<SocketAddr>,
 
+        /// Address of the local llama.cpp instance that the agent will monitor
         #[arg(long, value_parser = parse_socket_addr)]
         local_llamacpp_addr: SocketAddr,
 
         #[arg(long)]
-        local_llamacpp_api_key: Option<String>,
+        /// API key for the llama.cpp instance
+        llamacpp_api_key: Option<String>,
 
         #[arg(long, value_parser = parse_socket_addr)]
         management_addr: SocketAddr,
@@ -71,6 +77,7 @@ enum Commands {
         #[arg(long)]
         name: Option<String>,
     },
+    /// Balances incoming requests to llama.cpp instances and optionally provides a web dashboard
     Balancer {
         #[arg(long, value_parser = parse_socket_addr)]
         management_addr: SocketAddr,
@@ -96,10 +103,11 @@ enum Commands {
         #[arg(long, default_value = "10", value_parser = parse_duration)]
         statsd_reporting_interval: Duration,
     },
-    Dashboard {
-        #[arg(long, value_parser = parse_socket_addr)]
-        management_addr: SocketAddr,
-    },
+    // Command-line dashboard for monitoring the balancer
+    // Dashboard {
+    //     #[arg(long, value_parser = parse_socket_addr)]
+    //     management_addr: SocketAddr,
+    // },
 }
 
 fn main() -> Result<()> {
@@ -111,15 +119,18 @@ fn main() -> Result<()> {
         Some(Commands::Agent {
             external_llamacpp_addr,
             local_llamacpp_addr,
-            local_llamacpp_api_key,
+            llamacpp_api_key,
             management_addr,
             monitoring_interval,
             name,
         }) => {
             cmd::agent::handle(
-                external_llamacpp_addr.to_owned(),
+                match external_llamacpp_addr {
+                    Some(addr) => addr.to_owned(),
+                    None => local_llamacpp_addr.to_owned(),
+                },
                 local_llamacpp_addr.to_owned(),
-                local_llamacpp_api_key.to_owned(),
+                llamacpp_api_key.to_owned(),
                 management_addr.to_owned(),
                 monitoring_interval.to_owned(),
                 name.to_owned(),
@@ -146,7 +157,7 @@ fn main() -> Result<()> {
                 statsd_reporting_interval.to_owned(),
             )?;
         }
-        Some(Commands::Dashboard { management_addr }) => {}
+        // Some(Commands::Dashboard { management_addr }) => {}
         None => {}
     }
 

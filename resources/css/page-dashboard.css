@@ -7,6 +7,14 @@ table {
   th {
     border: 1px solid var(--color-border);
     padding: var(--padding-base);
+
+    p + p {
+      margin-top: var(--padding-half);
+    }
+  }
+
+  .agent-row.agent-row--error {
+    outline: 2px solid red;
   }
 
   .agent-usage {

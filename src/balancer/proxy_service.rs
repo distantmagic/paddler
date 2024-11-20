@@ -124,6 +124,41 @@ impl ProxyHttp for ProxyService {
         e
     }
 
+    fn fail_to_connect(
+        &self,
+        _session: &mut Session,
+        _peer: &HttpPeer,
+        ctx: &mut Self::CTX,
+        mut e: Box<Error>,
+    ) -> Box<Error> {
+        if let Some(peer) = &ctx.selected_peer {
+            match self.upstream_peer_pool.quarantine_peer(&peer.agent_id) {
+                Ok(true) => {
+                    if let Err(err) = self.upstream_peer_pool.restore_integrity() {
+                        error!("Failed to restore integrity: {}", err);
+
+                        return Error::new(pingora::InternalError);
+                    }
+
+                    ctx.selected_peer = None;
+
+                    // ask server to retry, but try a different best peer
+                    e.set_retry(true);
+                }
+                Ok(false) => {
+                    // no need to quarantine for some reason
+                }
+                Err(err) => {
+                    error!("Failed to quarantine peer: {}", err);
+
+                    return Error::new(pingora::InternalError);
+                }
+            }
+        }
+
+        e
+    }
+
     async fn request_filter(&self, session: &mut Session, ctx: &mut Self::CTX) -> Result<bool> {
         ctx.uses_slots = match session.req_header().uri.path() {
             "/slots" => {
@@ -137,15 +172,6 @@ impl ProxyHttp for ProxyService {
             "/completion" => true,
             "/v1/chat/completions" => true,
             _ => false,
-        };
-
-        ctx.selected_peer = match self.upstream_peer_pool.use_best_peer() {
-            Ok(peer) => peer,
-            Err(e) => {
-                error!("Failed to get best peer: {}", e);
-
-                return Err(Error::new(pingora::InternalError));
-            }
         };
 
         Ok(false)
@@ -178,26 +204,33 @@ impl ProxyHttp for ProxyService {
         ctx: &mut Self::CTX,
     ) -> Result<Box<HttpPeer>> {
         if ctx.selected_peer.is_none() {
-            return Err(Error::create(
-                pingora::Custom("No peer available"),
-                ErrorSource::Upstream,
-                None,
-                None,
-            ));
+            ctx.selected_peer = match self.upstream_peer_pool.use_best_peer() {
+                Ok(peer) => peer,
+                Err(e) => {
+                    error!("Failed to get best peer: {}", e);
+
+                    return Err(Error::new(pingora::InternalError));
+                }
+            };
         }
 
-        let selected_peer = ctx
-            .selected_peer
-            .as_ref()
-            .expect("Unable to get selected peer");
+        let selected_peer = match ctx.selected_peer.as_ref() {
+            Some(peer) => peer,
+            None => {
+                return Err(Error::create(
+                    pingora::Custom("No peer available"),
+                    ErrorSource::Upstream,
+                    None,
+                    None,
+                ));
+            }
+        };
 
-        let peer = Box::new(HttpPeer::new(
+        Ok(Box::new(HttpPeer::new(
             selected_peer.external_llamacpp_addr,
             false,
             "".to_string(),
-        ));
-
-        Ok(peer)
+        )))
     }
 
     async fn upstream_request_filter(
