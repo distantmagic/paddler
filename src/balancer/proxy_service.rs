@@ -6,7 +6,7 @@ use pingora::{
     protocols::Digest,
     proxy::{ProxyHttp, Session},
     upstreams::peer::HttpPeer,
-    Error, Result,
+    Error, ErrorSource, Result,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -17,6 +17,7 @@ use crate::errors::result::Result as PaddlerResult;
 
 // unfortunately pingora does not expose the request internals
 // at the moment of writing this there is no wat to get the request path directly
+#[inline]
 fn strip_host_from_request_summary(request_summary: &str) -> Option<&str> {
     let parts: Vec<&str> = request_summary.split(',').collect();
 
@@ -34,17 +35,24 @@ pub struct LlamaCppContext {
 
 pub struct ProxyService {
     rewrite_host_header: bool,
+    slots_endpoint_enable: bool,
     upstream_peer_pool: Arc<UpstreamPeerPool>,
 }
 
 impl ProxyService {
-    pub fn new(rewrite_host_header: bool, upstream_peer_pool: Arc<UpstreamPeerPool>) -> Self {
+    pub fn new(
+        rewrite_host_header: bool,
+        slots_endpoint_enable: bool,
+        upstream_peer_pool: Arc<UpstreamPeerPool>,
+    ) -> Self {
         Self {
             rewrite_host_header,
+            slots_endpoint_enable,
             upstream_peer_pool,
         }
     }
 
+    #[inline]
     fn release_slot(&self, ctx: &mut LlamaCppContext) -> PaddlerResult<()> {
         if let Some(peer) = &ctx.selected_peer {
             self.upstream_peer_pool
@@ -57,6 +65,7 @@ impl ProxyService {
         Ok(())
     }
 
+    #[inline]
     fn take_slot(&self, ctx: &mut LlamaCppContext) -> PaddlerResult<()> {
         if let Some(peer) = &ctx.selected_peer {
             self.upstream_peer_pool.take_slot(&peer.agent_id)?;
@@ -129,6 +138,13 @@ impl ProxyHttp for ProxyService {
 
     async fn request_filter(&self, session: &mut Session, ctx: &mut Self::CTX) -> Result<bool> {
         ctx.uses_slots = match strip_host_from_request_summary(&session.request_summary()) {
+            Some("GET /slots") => {
+                if !self.slots_endpoint_enable {
+                    return Ok(false);
+                }
+
+                false
+            }
             Some("POST /chat/completions") => true,
             Some("POST /completion") => true,
             Some("POST /v1/chat/completions") => true,
@@ -173,6 +189,15 @@ impl ProxyHttp for ProxyService {
         _session: &mut Session,
         ctx: &mut Self::CTX,
     ) -> Result<Box<HttpPeer>> {
+        if ctx.selected_peer.is_none() {
+            return Err(Error::create(
+                pingora::Custom("No peer available"),
+                ErrorSource::Upstream,
+                None,
+                None,
+            ));
+        }
+
         let selected_peer = ctx
             .selected_peer
             .as_ref()

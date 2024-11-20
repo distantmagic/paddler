@@ -14,6 +14,7 @@ pub fn handle(
     management_dashboard_enable: bool,
     reverseproxy_addr: &SocketAddr,
     rewrite_host_header: bool,
+    slots_endpoint_enable: bool,
 ) -> Result<()> {
     let mut pingora_server = Server::new(Opt {
         upgrade: false,
@@ -32,7 +33,11 @@ pub fn handle(
     );
     let mut proxy_service = http_proxy_service(
         &pingora_server.configuration,
-        ProxyService::new(rewrite_host_header, upstream_peer_pool.clone()),
+        ProxyService::new(
+            rewrite_host_header,
+            slots_endpoint_enable,
+            upstream_peer_pool.clone(),
+        ),
     );
 
     proxy_service.add_tcp(&reverseproxy_addr.clone().to_string());

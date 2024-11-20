@@ -83,6 +83,9 @@ enum Commands {
 
         #[arg(long)]
         rewrite_host_header: bool,
+
+        #[arg(long)]
+        slots_endpoint_enable: bool,
     },
     Dashboard {
         #[arg(long, value_parser = parse_socket_addr)]
@@ -118,12 +121,14 @@ fn main() -> Result<()> {
             management_dashboard_enable,
             reverseproxy_addr,
             rewrite_host_header,
+            slots_endpoint_enable,
         }) => {
             cmd::balancer::handle(
                 management_addr,
                 management_dashboard_enable.clone(),
                 reverseproxy_addr,
                 rewrite_host_header.clone(),
+                slots_endpoint_enable.clone(),
             )?;
         }
         Some(Commands::Dashboard { management_addr }) => {}
