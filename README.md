@@ -1,9 +1,11 @@
 # Paddler
 
 > [!IMPORTANT]  
-> Big chances! I have finished rewriting Paddler into Rust (from Golang) to use the [Pingora](https://github.com/cloudflare/pingora) framework for the networking stack.
+> Big chances! Paddler is rewritten into Rust (from Golang) and uses [Pingora](https://github.com/cloudflare/pingora) framework for the networking stack.
 >
-> Version `1.0.0` will bring some minor API changes and reporting improvements. After that, the next plan is to introduce a supervisor who does not just monitor llamas.cpp instances, but to also manage them (replace models without dropping requests, etc.).
+> Version `1.0.0` brings some minor API changes and reporting improvements. 
+> 
+> The next plan is to introduce a supervisor who does not just monitor llamas.cpp instances, but to also manage them (replace models without dropping requests, etc.).
 
 Paddler is an open-source, production-ready, stateful load balancer and reverse proxy designed to optimize servers running [llama.cpp](https://github.com/ggerganov/llama.cpp).
 
@@ -192,6 +194,12 @@ If you do not provide the `--statsd-addr` flag, the StatsD metrics will not be c
 - [Installing llama.cpp with AWS EC2 Image Builder](https://llmops-handbook.distantmagic.com/deployments/llama.cpp/aws-image-builder/index.html)
 
 ## Changelog
+
+### v1.0.0
+
+The first stable release! Paddler is now rewritten in Rust and uses the [Pingora](https://github.com/cloudflare/pingora) framework for the networking stack. A few minor API changes and reporting improvements are introduced (documented in the README). API and configuration are now stable, and won't be changed until version `2.0.0`.
+
+This is a stability/quality release. The next plan is to introduce a supervisor who does not just monitor llama.cpp instances, but to also manage them.
 
 ### v0.10.0
 

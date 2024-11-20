@@ -65,7 +65,7 @@ enum Commands {
         #[arg(long, value_parser = parse_socket_addr)]
         management_addr: SocketAddr,
 
-        #[arg(long, default_value = "20", value_parser = parse_duration)]
+        #[arg(long, default_value = "10", value_parser = parse_duration)]
         monitoring_interval: Duration,
 
         #[arg(long)]
