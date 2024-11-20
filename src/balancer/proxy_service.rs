@@ -107,6 +107,7 @@ impl ProxyHttp for ProxyService {
         ctx: &mut Self::CTX,
         client_reused: bool,
     ) -> Box<Error> {
+        error!("Error while proxying: {}", e);
         if ctx.slot_taken {
             if let Err(err) = self.release_slot(ctx) {
                 error!("Failed to release slot: {}", err);
@@ -131,6 +132,7 @@ impl ProxyHttp for ProxyService {
         ctx: &mut Self::CTX,
         mut e: Box<Error>,
     ) -> Box<Error> {
+        error!("Failed to connect: {}", e);
         if let Some(peer) = &ctx.selected_peer {
             match self.upstream_peer_pool.quarantine_peer(&peer.agent_id) {
                 Ok(true) => {
@@ -140,9 +142,8 @@ impl ProxyHttp for ProxyService {
                         return Error::new(pingora::InternalError);
                     }
 
-                    ctx.selected_peer = None;
-
                     // ask server to retry, but try a different best peer
+                    ctx.selected_peer = None;
                     e.set_retry(true);
                 }
                 Ok(false) => {
@@ -163,7 +164,12 @@ impl ProxyHttp for ProxyService {
         ctx.uses_slots = match session.req_header().uri.path() {
             "/slots" => {
                 if !self.slots_endpoint_enable {
-                    return Ok(false);
+                    return Err(Error::create(
+                        pingora::Custom("Slots endpoint is disabled"),
+                        ErrorSource::Downstream,
+                        None,
+                        None,
+                    ));
                 }
 
                 false
