@@ -15,18 +15,6 @@ use crate::balancer::upstream_peer::UpstreamPeer;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 use crate::errors::result::Result as PaddlerResult;
 
-// unfortunately pingora does not expose the request internals
-// at the moment of writing this there is no wat to get the request path directly
-#[inline]
-fn strip_host_from_request_summary(request_summary: &str) -> Option<&str> {
-    let parts: Vec<&str> = request_summary.split(',').collect();
-
-    return match parts.get(0) {
-        Some(part) => Some(part),
-        None => None,
-    };
-}
-
 pub struct LlamaCppContext {
     slot_taken: bool,
     selected_peer: Option<UpstreamPeer>,
@@ -137,17 +125,17 @@ impl ProxyHttp for ProxyService {
     }
 
     async fn request_filter(&self, session: &mut Session, ctx: &mut Self::CTX) -> Result<bool> {
-        ctx.uses_slots = match strip_host_from_request_summary(&session.request_summary()) {
-            Some("GET /slots") => {
+        ctx.uses_slots = match session.req_header().uri.path() {
+            "/slots" => {
                 if !self.slots_endpoint_enable {
                     return Ok(false);
                 }
 
                 false
             }
-            Some("POST /chat/completions") => true,
-            Some("POST /completion") => true,
-            Some("POST /v1/chat/completions") => true,
+            "/chat/completions" => true,
+            "/completion" => true,
+            "/v1/chat/completions" => true,
             _ => false,
         };
 

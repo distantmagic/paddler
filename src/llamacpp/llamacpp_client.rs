@@ -37,7 +37,7 @@ impl LlamacppClient {
     pub async fn get_available_slots(&self) -> Result<Vec<Slot>> {
         let response = self
             .client
-            .get(self.slots_endpoint_url.clone())
+            .get(self.slots_endpoint_url.to_owned())
             .send()
             .await?
             .error_for_status()?

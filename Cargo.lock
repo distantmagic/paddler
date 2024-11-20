@@ -584,6 +584,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cadence"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62fd689c825a93386a2ac05a46f88342c6df9ec3e79416f665650614e92e7475"
+dependencies = [
+ "crossbeam-channel",
+]
+
+[[package]]
 name = "cassowary"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1948,6 +1957,7 @@ dependencies = [
  "askama_actix",
  "async-trait",
  "bytes 1.8.0",
+ "cadence",
  "clap 4.5.21",
  "crossterm",
  "env_logger",

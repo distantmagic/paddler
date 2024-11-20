@@ -38,7 +38,7 @@ impl UpstreamPeer {
     pub fn new_from_status_update(agent_id: String, status_update: StatusUpdate) -> Self {
         Self::new(
             agent_id,
-            status_update.agent_name.clone(),
+            status_update.agent_name.to_owned(),
             status_update.external_llamacpp_addr,
             status_update.idle_slots_count,
             status_update.processing_slots_count,
@@ -52,7 +52,7 @@ impl UpstreamPeer {
     }
 
     pub fn update_status(&mut self, status_update: StatusUpdate) {
-        self.agent_name = status_update.agent_name.clone();
+        self.agent_name = status_update.agent_name.to_owned();
         self.external_llamacpp_addr = status_update.external_llamacpp_addr;
         self.last_update = SystemTime::now();
         self.slots_idle = status_update.idle_slots_count;

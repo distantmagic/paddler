@@ -43,13 +43,13 @@ impl MonitoringService {
     async fn fetch_status(&self) -> Result<StatusUpdate> {
         match self.llamacpp_client.get_available_slots().await {
             Ok(available_slots) => Ok(StatusUpdate::new(
-                self.name.clone(),
-                self.external_llamacpp_addr.clone(),
+                self.name.to_owned(),
+                self.external_llamacpp_addr.to_owned(),
                 available_slots,
             )),
             Err(_) => Ok(StatusUpdate::new(
-                self.name.clone(),
-                self.external_llamacpp_addr.clone(),
+                self.name.to_owned(),
+                self.external_llamacpp_addr.to_owned(),
                 vec![],
             )),
         }

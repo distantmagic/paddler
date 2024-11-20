@@ -86,6 +86,15 @@ enum Commands {
 
         #[arg(long)]
         slots_endpoint_enable: bool,
+
+        #[arg(long, value_parser = parse_socket_addr)]
+        statsd_addr: Option<SocketAddr>,
+
+        #[arg(long, default_value = "paddler")]
+        statsd_prefix: String,
+
+        #[arg(long, default_value = "10", value_parser = parse_duration)]
+        statsd_reporting_interval: Duration,
     },
     Dashboard {
         #[arg(long, value_parser = parse_socket_addr)]
@@ -108,12 +117,12 @@ fn main() -> Result<()> {
             name,
         }) => {
             cmd::agent::handle(
-                external_llamacpp_addr.clone(),
-                local_llamacpp_addr.clone(),
-                local_llamacpp_api_key.clone(),
-                management_addr.clone(),
-                monitoring_interval.clone(),
-                name.clone(),
+                external_llamacpp_addr.to_owned(),
+                local_llamacpp_addr.to_owned(),
+                local_llamacpp_api_key.to_owned(),
+                management_addr.to_owned(),
+                monitoring_interval.to_owned(),
+                name.to_owned(),
             )?;
         }
         Some(Commands::Balancer {
@@ -122,13 +131,19 @@ fn main() -> Result<()> {
             reverseproxy_addr,
             rewrite_host_header,
             slots_endpoint_enable,
+            statsd_addr,
+            statsd_prefix,
+            statsd_reporting_interval,
         }) => {
             cmd::balancer::handle(
                 management_addr,
-                management_dashboard_enable.clone(),
+                management_dashboard_enable.to_owned(),
                 reverseproxy_addr,
-                rewrite_host_header.clone(),
-                slots_endpoint_enable.clone(),
+                rewrite_host_header.to_owned(),
+                slots_endpoint_enable.to_owned(),
+                statsd_addr.to_owned(),
+                statsd_prefix.to_owned(),
+                statsd_reporting_interval.to_owned(),
             )?;
         }
         Some(Commands::Dashboard { management_addr }) => {}

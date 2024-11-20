@@ -1,7 +1,7 @@
 # Paddler
 
 > [!IMPORTANT]  
-> Big chances are coming! I have finished rewriting Paddler into Rust (from Golang) to use the [Pingora](https://github.com/cloudflare/pingora) framework for the networking stack.
+> Big chances! I have finished rewriting Paddler into Rust (from Golang) to use the [Pingora](https://github.com/cloudflare/pingora) framework for the networking stack.
 >
 > Version `1.0.0` will bring some minor API changes and reporting improvements. After that, the next plan is to introduce a supervisor who does not just monitor llamas.cpp instances, but to also manage them (replace models without dropping requests, etc.).
 
@@ -111,6 +111,13 @@ You can enable dashboard to see the status of the agents with
 `--management-dashboard-enable` flag. If enabled, it is available at the 
 management server address under `/dashboard` path.
 
+#### Enabling Slots Endpoint
+
+> [!NOTE]
+> Available since v1.0.0
+
+By default, Paddler blocks access to `/slots` endpoint, even if it is enabled in `llama.cpp`, because it exposes a lot of sensistive information about the server, and should only be used internally. If you want to expose it anyway, you can use the `--slots-endpoint-enable` flag.
+
 #### Rewriting the `Host` Header
 .
 > [!NOTE]
@@ -124,7 +131,9 @@ In such cases, you can use the `--rewrite-host-header` flag. If used, Paddler wi
 
 ### Aggregated Health Status
 
-Paddler balancer endpoint aggregates the `/health` endpoints of `llama.cpp` and reports the total number of available and processing slots.
+Paddler balancer endpoint aggregates the slots of all `llama.cpp` instances and reports the total number of available and processing slots.
+
+Aggregated health status is available at the `/api/v1/agents` endpoint of the management server.
 
 ![Aggregated Health Status](https://github.com/distantmagic/paddler/assets/1286785/01f2fb39-ccc5-4bfa-896f-919b66318b2c)
 
@@ -133,7 +142,7 @@ Paddler balancer endpoint aggregates the `/health` endpoints of `llama.cpp` and 
 > [!NOTE]
 > Available since v0.3.0
 
-Load balancer's buffered requests allow your infrastructure to scale from zero hosts by providing an additional metric (requests waiting to be handled). 
+Load balancer's buffered requests allow your infrastructure to scale from zero hosts by providing an additional metric (unhandled requests). 
 
 It also gives your infrastructure some additional time to add additional hosts. For example, if your autoscaler is setting up an additional server, putting an incoming request on hold for 60 seconds might give it a chance to be handled even though there might be no available llama.cpp instances at the moment of issuing it.
 
@@ -161,9 +170,9 @@ Although Paddler integrates with the [StatsD protocol](https://github.com/statsd
 > This feature works with [AWS CloudWatch Agent](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Agent-custom-metrics-statsd.html) as well.
 
 Paddler supports the following StatsD metrics:
-- `paddler.requests_buffered` number of buffered requests since the last report (resets after each report)
-- `paddler.slots_idle` total idle slots
-- `paddler.slots_processing` total slots processing requests
+- `requests_buffered` number of buffered requests since the last report (resets after each report)
+- `slots_idle` total idle slots
+- `slots_processing` total slots processing requests
 
 All of them use `gauge` internally.
 
@@ -172,30 +181,10 @@ StatsD metrics need to be enabled with the following flags:
 ```shell
 ./paddler balancer \
     # .. put all the other flags here ...
-    --statsd-enable=true \
-    --statsd-host=127.0.0.1 \
-    --statsd-port=8125 \
-    --statsd-scheme=http
+    --statsd-addr=127.0.0.1:8125
 ```
 
-### AWS Integration
-
-> [!NOTE]
-> Available since v0.3.0
-
-When running on AWS EC2, you can replace `--local-llamacpp-host` with `aws:metadata:local-ipv4`. In that case, Paddler will use [EC2 instance metadata](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html) to fetch the local IP address (from the local network):
-
-If you want to keep the balancer management address predictable, I recommend using [Route 53](https://aws.amazon.com/route53/) to create a record that always points to your load balancer (for example `paddler_balancer.example.com`), which makes it something like that in the end:
-
-```shell
-./paddler agent \
-    --external-llamacpp-host aws:metadata:local-ipv4 \
-    --external-llamacpp-port 8088 \
-    --local-llamacpp-host 127.0.0.1 \
-    --local-llamacpp-port 8088 \
-    --management-host paddler_balancer.example.com \
-    --management-port 8085
-```
+If you do not provide the `--statsd-addr` flag, the StatsD metrics will not be collected.
 
 ## Tutorials
 

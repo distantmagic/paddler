@@ -117,4 +117,22 @@ impl UpstreamPeerPool {
             Err(_) => Err("Failed to acquire write lock".into()),
         }
     }
+
+    // returns (slots_idle, slots_processing) tuple
+    pub fn total_slots(&self) -> Result<(usize, usize)> {
+        match self.agents.read() {
+            Ok(agents) => {
+                let mut slots_idle = 0;
+                let mut slots_processing = 0;
+
+                for peer in agents.iter() {
+                    slots_idle += peer.slots_idle;
+                    slots_processing += peer.slots_processing;
+                }
+
+                Ok((slots_idle, slots_processing))
+            }
+            Err(_) => Err("Failed to acquire read lock".into()),
+        }
+    }
 }

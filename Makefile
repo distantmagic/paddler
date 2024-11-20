@@ -14,6 +14,10 @@ node_modules: package-lock.json
 # Phony targets
 # -----------------------------------------------------------------------------
 
+.PHONY: build
+build: esbuild
+	cargo build --release
+
 .PHONY: clean
 clean:
 	rm -rf esbuild-meta.json

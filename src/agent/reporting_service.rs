@@ -38,7 +38,7 @@ impl ReportingService {
         info!("Establishing connection with management server");
 
         match reqwest::Client::new()
-            .post(self.stats_endpoint_url.clone())
+            .post(self.stats_endpoint_url.to_owned())
             .body(reqwest_body)
             .send()
             .await

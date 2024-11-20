@@ -6,6 +6,9 @@ pub enum AppError {
     #[error("Unable to communicate with actor: {0}")]
     ActixActorMailboxError(#[from] actix::MailboxError),
 
+    #[error("Cadence error: {0}")]
+    CadenceMetrixError(#[from] cadence::MetricError),
+
     #[error("Invalid request header: {0}")]
     InvalidHeaderError(#[from] reqwest::header::InvalidHeaderValue),
 
