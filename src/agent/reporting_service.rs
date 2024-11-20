@@ -3,10 +3,10 @@ use async_trait::async_trait;
 use log::{debug, error, info};
 use pingora::server::ShutdownWatch;
 use pingora::services::Service;
+use std::net::SocketAddr;
 use tokio::sync::broadcast::Sender;
 use tokio::time::{interval, Duration, MissedTickBehavior};
 use tokio_stream::wrappers::BroadcastStream;
-use url::Url;
 use uuid::Uuid;
 
 #[cfg(unix)]
@@ -20,13 +20,11 @@ pub struct ReportingService {
 }
 
 impl ReportingService {
-    pub fn new(management_addr: Url, status_update_tx: Sender<Bytes>) -> Result<Self> {
+    pub fn new(management_addr: SocketAddr, status_update_tx: Sender<Bytes>) -> Result<Self> {
         let agent_id = Uuid::new_v4();
 
         Ok(ReportingService {
-            stats_endpoint_url: management_addr
-                .join(&format!("/status_update/{}", agent_id))?
-                .to_string(),
+            stats_endpoint_url: format!("http://{}/status_update/{}", management_addr, agent_id),
             status_update_tx,
         })
     }

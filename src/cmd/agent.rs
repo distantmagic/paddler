@@ -3,7 +3,6 @@ use pingora::server::configuration::Opt;
 use pingora::server::Server;
 use std::net::SocketAddr;
 use tokio::sync::broadcast::channel;
-use url::Url;
 
 use crate::agent::monitoring_service::MonitoringService;
 use crate::agent::reporting_service::ReportingService;
@@ -12,9 +11,9 @@ use crate::llamacpp::llamacpp_client::LlamacppClient;
 
 pub fn handle(
     external_llamacpp_addr: SocketAddr,
-    local_llamacpp_addr: Url,
+    local_llamacpp_addr: SocketAddr,
     local_llamacpp_api_key: Option<String>,
-    management_addr: Url,
+    management_addr: SocketAddr,
     name: Option<String>,
 ) -> Result<()> {
     let (status_update_tx, _status_update_rx) = channel::<Bytes>(1);

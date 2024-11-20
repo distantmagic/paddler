@@ -33,9 +33,6 @@ fn parse_socket_addr(s: &str) -> Result<SocketAddr> {
         Err(_) => Ok(resolve_socket_addr(s)?),
     }
 }
-fn parse_url(s: &str) -> Result<url::Url> {
-    Ok(url::Url::parse(s)?)
-}
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -50,14 +47,14 @@ enum Commands {
         #[arg(long, value_parser = parse_socket_addr)]
         external_llamacpp_addr: SocketAddr,
 
-        #[arg(long, value_parser = parse_url)]
-        local_llamacpp_addr: url::Url,
+        #[arg(long, value_parser = parse_socket_addr)]
+        local_llamacpp_addr: SocketAddr,
 
         #[arg(long)]
         local_llamacpp_api_key: Option<String>,
 
-        #[arg(long, value_parser = parse_url)]
-        management_addr: url::Url,
+        #[arg(long, value_parser = parse_socket_addr)]
+        management_addr: SocketAddr,
 
         #[arg(long)]
         name: Option<String>,
