@@ -18,9 +18,6 @@ futures-util = { version = "0.3.31", features = ["tokio-io"] }
 log = "0.4.22"
 mime_guess = "2.0.5"
 pingora = { version = "0.4.0", features = ["proxy"] }
-pingora-core = "0.4.0"
-pingora-proxy = "0.4.0"
-pingora-runtime = "0.4.0"
 ratatui = "0.29.0"
 reqwest = { version = "0.12.9", features = ["json", "stream"] }
 rust-embed = "8.5.0"

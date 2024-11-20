@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
-use std::cmp::{Eq, Ordering, PartialEq};
-use std::net::SocketAddr;
-use std::time::SystemTime;
+use std::{
+    cmp::{Eq, Ordering, PartialEq},
+    net::SocketAddr,
+    time::SystemTime,
+};
 
 use crate::balancer::status_update::StatusUpdate;
 
@@ -57,7 +59,7 @@ impl UpstreamPeer {
         self.slots_processing = status_update.processing_slots_count;
     }
 
-    pub fn use_slot(&mut self) {
+    pub fn take_slot(&mut self) {
         self.last_update = SystemTime::now();
         self.slots_idle -= 1;
         self.slots_processing += 1;

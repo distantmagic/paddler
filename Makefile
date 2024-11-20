@@ -57,4 +57,5 @@ run.agent: esbuild
 run.balancer: esbuild
 	cargo run -- balancer \
 		--management-addr="127.0.0.1:8095"  \
+		--management-dashboard-enable \
 		--reverseproxy-addr="127.0.0.1:8096"

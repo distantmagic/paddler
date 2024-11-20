@@ -1,9 +1,7 @@
 use actix_web::{web::Data, App, HttpServer};
 use async_trait::async_trait;
-use pingora::server::ShutdownWatch;
-use pingora::services::Service;
-use std::net::SocketAddr;
-use std::sync::Arc;
+use pingora::{server::ShutdownWatch, services::Service};
+use std::{net::SocketAddr, sync::Arc};
 
 #[cfg(unix)]
 use pingora::server::ListenFds;
@@ -13,13 +11,19 @@ use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 
 pub struct ManagementService {
     addr: SocketAddr,
+    management_dashboard_enable: bool,
     upstream_peers: Arc<UpstreamPeerPool>,
 }
 
 impl ManagementService {
-    pub fn new(addr: SocketAddr, upstream_peers: Arc<UpstreamPeerPool>) -> Self {
+    pub fn new(
+        addr: SocketAddr,
+        management_dashboard_enable: bool,
+        upstream_peers: Arc<UpstreamPeerPool>,
+    ) -> Self {
         ManagementService {
             addr,
+            management_dashboard_enable,
             upstream_peers,
         }
     }
@@ -32,15 +36,21 @@ impl Service for ManagementService {
         #[cfg(unix)] _fds: Option<ListenFds>,
         mut _shutdown: ShutdownWatch,
     ) {
+        let management_dashboard_enable = self.management_dashboard_enable;
         let upstream_peers: Data<UpstreamPeerPool> = self.upstream_peers.clone().into();
 
         HttpServer::new(move || {
-            App::new()
+            let mut app = App::new()
                 .app_data(upstream_peers.clone())
-                .configure(http_route::dashboard::register)
                 .configure(http_route::registered_agents::register)
                 .configure(http_route::receive_status_update::register)
-                .configure(http_route::static_files::register)
+                .configure(http_route::static_files::register);
+
+            if management_dashboard_enable {
+                app = app.configure(http_route::dashboard::register);
+            }
+
+            app
         })
         .bind(self.addr)
         .expect("Unable to bind server to address")

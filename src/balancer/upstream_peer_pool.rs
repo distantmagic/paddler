@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::sync::RwLock;
-use std::time::SystemTime;
+use std::{sync::RwLock, time::SystemTime};
 
 use crate::balancer::status_update::StatusUpdate;
 use crate::balancer::upstream_peer::UpstreamPeer;
@@ -55,16 +54,12 @@ impl UpstreamPeerPool {
         }
     }
 
-    pub fn use_best_peer(&self, uses_slots: bool) -> Result<Option<UpstreamPeer>> {
+    pub fn use_best_peer(&self) -> Result<Option<UpstreamPeer>> {
         match self.agents.write() {
             Ok(mut agents) => {
                 if let Some(peer) = agents.first_mut() {
                     if peer.slots_idle < 1 {
                         return Ok(None);
-                    }
-
-                    if uses_slots {
-                        peer.use_slot();
                     }
 
                     Ok(Some(peer.clone()))
@@ -103,6 +98,21 @@ impl UpstreamPeerPool {
                 agents.sort();
 
                 Ok(())
+            }
+            Err(_) => Err("Failed to acquire write lock".into()),
+        }
+    }
+
+    pub fn take_slot(&self, agent_id: &str) -> Result<bool> {
+        match self.agents.write() {
+            Ok(mut agents) => {
+                if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
+                    peer.take_slot();
+
+                    return Ok(true);
+                }
+
+                Ok(false)
             }
             Err(_) => Err("Failed to acquire write lock".into()),
         }

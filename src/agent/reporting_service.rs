@@ -1,11 +1,12 @@
 use actix_web::web::Bytes;
 use async_trait::async_trait;
 use log::{debug, error, info};
-use pingora::server::ShutdownWatch;
-use pingora::services::Service;
+use pingora::{server::ShutdownWatch, services::Service};
 use std::net::SocketAddr;
-use tokio::sync::broadcast::Sender;
-use tokio::time::{interval, Duration, MissedTickBehavior};
+use tokio::{
+    sync::broadcast::Sender,
+    time::{interval, Duration, MissedTickBehavior},
+};
 use tokio_stream::wrappers::BroadcastStream;
 use uuid::Uuid;
 

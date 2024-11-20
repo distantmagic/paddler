@@ -18,6 +18,9 @@ pub enum AppError {
     #[error("Pingora error: {0}")]
     BoxedPingoraError(#[from] Box<pingora::Error>),
 
+    #[error("Parse int error: {0}")]
+    ParseIntError(#[from] std::num::ParseIntError),
+
     #[error("Request error: {0}")]
     RequestError(#[from] reqwest::Error),
 

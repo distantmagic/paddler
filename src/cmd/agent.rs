@@ -1,7 +1,6 @@
 use actix_web::web::Bytes;
-use pingora::server::configuration::Opt;
-use pingora::server::Server;
-use std::net::SocketAddr;
+use pingora::server::{configuration::Opt, Server};
+use std::{net::SocketAddr, time::Duration};
 use tokio::sync::broadcast::channel;
 
 use crate::agent::monitoring_service::MonitoringService;
@@ -14,6 +13,7 @@ pub fn handle(
     local_llamacpp_addr: SocketAddr,
     local_llamacpp_api_key: Option<String>,
     management_addr: SocketAddr,
+    monitoring_interval: Duration,
     name: Option<String>,
 ) -> Result<()> {
     let (status_update_tx, _status_update_rx) = channel::<Bytes>(1);
@@ -23,6 +23,7 @@ pub fn handle(
     let monitoring_service = MonitoringService::new(
         external_llamacpp_addr,
         llamacpp_client,
+        monitoring_interval,
         name,
         status_update_tx.clone(),
     )?;

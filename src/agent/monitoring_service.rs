@@ -1,11 +1,12 @@
 use actix_web::web::Bytes;
 use async_trait::async_trait;
 use log::{debug, error};
-use pingora::server::ShutdownWatch;
-use pingora::services::Service;
+use pingora::{server::ShutdownWatch, services::Service};
 use std::net::SocketAddr;
-use tokio::sync::broadcast::Sender;
-use tokio::time::{interval, Duration, MissedTickBehavior};
+use tokio::{
+    sync::broadcast::Sender,
+    time::{interval, Duration, MissedTickBehavior},
+};
 
 #[cfg(unix)]
 use pingora::server::ListenFds;
@@ -17,6 +18,7 @@ use crate::llamacpp::llamacpp_client::LlamacppClient;
 pub struct MonitoringService {
     external_llamacpp_addr: SocketAddr,
     llamacpp_client: LlamacppClient,
+    monitoring_interval: Duration,
     name: Option<String>,
     status_update_tx: Sender<Bytes>,
 }
@@ -25,12 +27,14 @@ impl MonitoringService {
     pub fn new(
         external_llamacpp_addr: SocketAddr,
         llamacpp_client: LlamacppClient,
+        monitoring_interval: Duration,
         name: Option<String>,
         status_update_tx: Sender<Bytes>,
     ) -> Result<Self> {
         Ok(MonitoringService {
             external_llamacpp_addr,
             llamacpp_client,
+            monitoring_interval,
             name,
             status_update_tx,
         })
@@ -65,7 +69,7 @@ impl Service for MonitoringService {
         #[cfg(unix)] _fds: Option<ListenFds>,
         mut shutdown: ShutdownWatch,
     ) {
-        let mut ticker = interval(Duration::from_secs(1));
+        let mut ticker = interval(self.monitoring_interval);
 
         ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
 

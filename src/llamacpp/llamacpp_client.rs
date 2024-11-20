@@ -1,6 +1,5 @@
 use reqwest::header;
-use std::net::SocketAddr;
-use std::time::Duration;
+use std::{net::SocketAddr, time::Duration};
 use url::Url;
 
 use crate::errors::result::Result;

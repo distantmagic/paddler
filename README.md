@@ -67,33 +67,24 @@ The next step is to run Paddler’s agents. Agents register your llama.cpp insta
 They should be installed on the same host as your server that runs [llama.cpp](https://github.com/ggerganov/llama.cpp).
 
 An agent needs a few pieces of information:
-1. `external-*` tells how the load balancer can connect to the llama.cpp instance
-2. `local-*` tells how the agent can connect to the llama.cpp instance
-3. `management-*` tell where the agent should report the slots status
+1. `external-llamacpp-addr` tells how the load balancer can connect to the llama.cpp instance
+2. `local-llamacpp-addr` tells how the agent can connect to the llama.cpp instance
+3. `management-addr` tell where the agent should report the slots status
 
 Run the following to start a Paddler’s agent (replace the hosts and ports with your own server addresses when deploying):
 
 ```shell
 ./paddler agent \
-    --external-llamacpp-host 127.0.0.1 \
-    --external-llamacpp-port 8088 \
-    --local-llamacpp-host 127.0.0.1 \
-    --local-llamacpp-port 8088 \
-    --management-host 127.0.0.1 \
-    --management-port 8085
+    --external-llamacpp-addr 127.0.0.1:8088 \
+    --local-llamacpp-addr 127.0.0.1:8088 \
+    --management-addr 127.0.0.1:8085
 ```
 
 #### Naming the Agents
 
-> [!NOTE]
-> Available since v0.6.0
-
 With the `--name` flag, you can assign each agent a custom name. This name will be displayed in the management dashboard and not used for any other purpose. 
 
 #### API Key
-
-> [!NOTE]
-> Available since v0.9.0
 
 If your llama.cpp instance requires an API key, you can provide it with the `--local-llamacpp-api-key` flag.
 
@@ -102,16 +93,14 @@ If your llama.cpp instance requires an API key, you can provide it with the `--l
 Load balancer collects data from agents and exposes reverse proxy to the outside world.
 
 It requires two sets of flags:
-1. `management-*` tells where the load balancer should listen for updates from agents
-2. `reverseproxy-*` tells how load balancer can be reached from the outside hosts
+1. `management-addr` tells where the load balancer should listen for updates from agents
+2. `reverseproxy-addr` tells how load balancer can be reached from the outside hosts
 
 To start the load balancer, run:
 ```shell
 ./paddler balancer \
-    --management-host 127.0.0.1 \
-    --management-port 8085 \
-    --reverseproxy-host 196.168.2.10 \
-    --reverseproxy-port 8080
+    --management-addr 127.0.0.1:8085 \
+    --reverseproxy-addr 196.168.2.10:8080
 ```
 
 `management-host` and `management-port` in agents should be the same as in the load balancer.
@@ -119,11 +108,11 @@ To start the load balancer, run:
 #### Enabling Dashboard
 
 You can enable dashboard to see the status of the agents with 
-`--management-dashboard-enable=true` flag. If enabled, it is available at the 
+`--management-dashboard-enable` flag. If enabled, it is available at the 
 management server address under `/dashboard` path.
 
 #### Rewriting the `Host` Header
-
+.
 > [!NOTE]
 > Available since v0.8.0
 
