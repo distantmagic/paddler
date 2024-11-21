@@ -11,9 +11,10 @@ use tokio::{
 #[cfg(unix)]
 use pingora::server::ListenFds;
 
-use crate::balancer::status_update::StatusUpdate;
-use crate::errors::result::Result;
-use crate::llamacpp::llamacpp_client::LlamacppClient;
+use crate::{
+    balancer::status_update::StatusUpdate, errors::result::Result,
+    llamacpp::llamacpp_client::LlamacppClient,
+};
 
 pub struct MonitoringService {
     external_llamacpp_addr: SocketAddr,

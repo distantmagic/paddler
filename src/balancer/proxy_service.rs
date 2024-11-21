@@ -8,12 +8,12 @@ use pingora::{
     upstreams::peer::HttpPeer,
     Error, ErrorSource, Result,
 };
-use std::sync::Arc;
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
-use crate::balancer::upstream_peer::UpstreamPeer;
-use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
-use crate::errors::result::Result as PaddlerResult;
+use crate::{
+    balancer::{upstream_peer::UpstreamPeer, upstream_peer_pool::UpstreamPeerPool},
+    errors::result::Result as PaddlerResult,
+};
 
 pub struct LlamaCppContext {
     slot_taken: bool,

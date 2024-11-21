@@ -11,8 +11,7 @@ use tokio::time::{interval, Duration, MissedTickBehavior};
 #[cfg(unix)]
 use pingora::server::ListenFds;
 
-use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
-use crate::errors::result::Result;
+use crate::{balancer::upstream_peer_pool::UpstreamPeerPool, errors::result::Result};
 
 pub struct StatsdService {
     statsd_addr: SocketAddr,

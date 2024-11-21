@@ -3,8 +3,7 @@ use futures_util::StreamExt as _;
 use log::{error, info};
 use serde::Deserialize;
 
-use crate::balancer::status_update::StatusUpdate;
-use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
+use crate::balancer::{status_update::StatusUpdate, upstream_peer_pool::UpstreamPeerPool};
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);

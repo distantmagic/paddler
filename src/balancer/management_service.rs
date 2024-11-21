@@ -6,8 +6,7 @@ use std::{net::SocketAddr, sync::Arc};
 #[cfg(unix)]
 use pingora::server::ListenFds;
 
-use crate::balancer::http_route;
-use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
+use crate::balancer::{http_route, upstream_peer_pool::UpstreamPeerPool};
 
 pub struct ManagementService {
     addr: SocketAddr,

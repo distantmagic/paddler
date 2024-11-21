@@ -4,9 +4,10 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use crate::balancer::status_update::StatusUpdate;
-use crate::balancer::upstream_peer::UpstreamPeer;
-use crate::errors::result::Result;
+use crate::{
+    balancer::{status_update::StatusUpdate, upstream_peer::UpstreamPeer},
+    errors::result::Result,
+};
 
 #[derive(Serialize, Deserialize)]
 pub struct UpstreamPeerPool {

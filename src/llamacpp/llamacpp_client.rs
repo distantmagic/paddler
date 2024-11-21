@@ -2,9 +2,10 @@ use reqwest::header;
 use std::{net::SocketAddr, time::Duration};
 use url::Url;
 
-use crate::errors::result::Result;
-use crate::llamacpp::slot::Slot;
-use crate::llamacpp::slots_response::SlotsResponse;
+use crate::{
+    errors::result::Result,
+    llamacpp::{slot::Slot, slots_response::SlotsResponse},
+};
 
 pub struct LlamacppClient {
     client: reqwest::Client,
