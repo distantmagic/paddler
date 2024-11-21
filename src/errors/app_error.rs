@@ -6,6 +6,7 @@ pub enum AppError {
     #[error("Unable to communicate with actor: {0}")]
     ActixActorMailboxError(#[from] actix::MailboxError),
 
+    #[cfg(feature = "statsd_reporter")]
     #[error("Cadence error: {0}")]
     CadenceMetrixError(#[from] cadence::MetricError),
 

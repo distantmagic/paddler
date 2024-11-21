@@ -100,6 +100,7 @@ impl UpstreamPeerPool {
         })
     }
 
+    #[cfg(feature = "statsd_reporter")]
     // returns (slots_idle, slots_processing) tuple
     pub fn total_slots(&self) -> Result<(usize, usize)> {
         self.with_agents_read(|agents| {
@@ -127,6 +128,7 @@ impl UpstreamPeerPool {
         })
     }
 
+    #[cfg(feature = "statsd_reporter")]
     #[inline]
     fn with_agents_read<TCallback, TResult>(&self, cb: TCallback) -> Result<TResult>
     where

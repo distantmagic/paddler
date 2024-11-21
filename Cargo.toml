@@ -10,16 +10,16 @@ askama = "0.12.1"
 askama_actix = "0.14.0"
 async-trait = "0.1.83"
 bytes = "1.8.0"
-cadence = "1.5.0"
+cadence = { version = "1.5.0", optional = true }
 clap = { version = "4.5.20", features = ["derive"] }
-crossterm = "0.28.1"
+crossterm = { version = "0.28.1", optional = true }
 env_logger = "0.11.5"
 futures = "0.3.31"
 futures-util = { version = "0.3.31", features = ["tokio-io"] }
 log = "0.4.22"
 mime_guess = "2.0.5"
 pingora = { version = "0.4.0", features = ["proxy"] }
-ratatui = "0.29.0"
+ratatui = { version = "0.29.0", optional = true }
 reqwest = { version = "0.12.9", features = ["json", "stream"] }
 rust-embed = "8.5.0"
 serde = { version = "1.0.215", features = ["derive"] }
@@ -30,3 +30,7 @@ tokio-stream = { version = "0.1.16", features = ["sync"] }
 url = { version = "2.5.3", features = ["serde"] }
 uuid = { version = "1.11.0", features = ["serde", "v4"] }
 
+[features]
+default = ["ratatui_dashboard", "statsd_reporter"]
+ratatui_dashboard = ["dep:crossterm", "dep:ratatui"]
+statsd_reporter = ["dep:cadence"]

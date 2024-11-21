@@ -103,23 +103,28 @@ enum Commands {
         /// Enable the slots endpoint (not recommended)
         slots_endpoint_enable: bool,
 
+        #[cfg(feature = "statsd_reporter")]
         #[arg(long, value_parser = parse_socket_addr)]
         /// Address of the statsd server to report metrics to
         statsd_addr: Option<SocketAddr>,
 
+        #[cfg(feature = "statsd_reporter")]
         #[arg(long, default_value = "paddler")]
         /// Prefix for statsd metrics
         statsd_prefix: String,
 
+        #[cfg(feature = "statsd_reporter")]
         #[arg(long, default_value = "10", value_parser = parse_duration)]
         /// Interval (in seconds) at which the balancer will report metrics to statsd
         statsd_reporting_interval: Duration,
     },
-    // Command-line dashboard for monitoring the balancer
-    // Dashboard {
-    //     #[arg(long, value_parser = parse_socket_addr)]
-    //     management_addr: SocketAddr,
-    // },
+    #[cfg(feature = "ratatui_dashboard")]
+    /// Command-line dashboard for monitoring the balancer
+    Dashboard {
+        #[arg(long, value_parser = parse_socket_addr)]
+        /// Address of the management server that the dashboard will connect to
+        management_addr: SocketAddr,
+    },
 }
 
 fn main() -> Result<()> {
@@ -154,8 +159,11 @@ fn main() -> Result<()> {
             reverseproxy_addr,
             rewrite_host_header,
             slots_endpoint_enable,
+            #[cfg(feature = "statsd_reporter")]
             statsd_addr,
+            #[cfg(feature = "statsd_reporter")]
             statsd_prefix,
+            #[cfg(feature = "statsd_reporter")]
             statsd_reporting_interval,
         }) => {
             cmd::balancer::handle(
@@ -164,12 +172,16 @@ fn main() -> Result<()> {
                 reverseproxy_addr,
                 rewrite_host_header.to_owned(),
                 slots_endpoint_enable.to_owned(),
+                #[cfg(feature = "statsd_reporter")]
                 statsd_addr.to_owned(),
+                #[cfg(feature = "statsd_reporter")]
                 statsd_prefix.to_owned(),
+                #[cfg(feature = "statsd_reporter")]
                 statsd_reporting_interval.to_owned(),
             )?;
         }
-        // Some(Commands::Dashboard { management_addr }) => {}
+        #[cfg(feature = "ratatui_dashboard")]
+        Some(Commands::Dashboard { management_addr }) => {}
         None => {}
     }
 
