@@ -16,7 +16,7 @@ node_modules: package-lock.json
 
 .PHONY: build
 build: esbuild
-	cargo build --release
+	cargo build --features web_dashboard --release
 
 .PHONY: clean
 clean:
@@ -59,7 +59,8 @@ run.agent: esbuild
 
 .PHONY: run.balancer
 run.balancer: esbuild
-	cargo run -- balancer \
+	cargo run --features web_dashboard \
+		-- balancer \
 		--management-addr="127.0.0.1:8095"  \
 		--management-dashboard-enable \
 		--reverseproxy-addr="127.0.0.1:8096"

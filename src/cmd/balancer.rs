@@ -17,7 +17,7 @@ use crate::balancer::statsd_service::StatsdService;
 
 pub fn handle(
     management_addr: &SocketAddr,
-    management_dashboard_enable: bool,
+    #[cfg(feature = "web_dashboard")] management_dashboard_enable: bool,
     reverseproxy_addr: &SocketAddr,
     rewrite_host_header: bool,
     slots_endpoint_enable: bool,
@@ -51,6 +51,7 @@ pub fn handle(
     pingora_server.add_service(proxy_service);
     pingora_server.add_service(ManagementService::new(
         *management_addr,
+        #[cfg(feature = "web_dashboard")]
         management_dashboard_enable,
         upstream_peer_pool.clone(),
     ));

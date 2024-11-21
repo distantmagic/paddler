@@ -86,6 +86,7 @@ enum Commands {
         /// Address of the management server that the balancer will report to
         management_addr: SocketAddr,
 
+        #[cfg(feature = "web_dashboard")]
         #[arg(long)]
         /// Enable the web management dashboard
         management_dashboard_enable: bool,
@@ -153,6 +154,7 @@ fn main() -> Result<()> {
         ),
         Some(Commands::Balancer {
             management_addr,
+            #[cfg(feature = "web_dashboard")]
             management_dashboard_enable,
             reverseproxy_addr,
             rewrite_host_header,
@@ -165,6 +167,7 @@ fn main() -> Result<()> {
             statsd_reporting_interval,
         }) => cmd::balancer::handle(
             management_addr,
+            #[cfg(feature = "web_dashboard")]
             management_dashboard_enable.to_owned(),
             reverseproxy_addr,
             rewrite_host_header.to_owned(),

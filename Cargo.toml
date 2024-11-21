@@ -34,3 +34,4 @@ uuid = { version = "1.11.0", features = ["serde", "v4"] }
 default = ["statsd_reporter"]
 ratatui_dashboard = ["dep:crossterm", "dep:ratatui"]
 statsd_reporter = ["dep:cadence"]
+web_dashboard = []
