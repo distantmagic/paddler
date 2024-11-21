@@ -140,19 +140,17 @@ fn main() -> Result<()> {
             management_addr,
             monitoring_interval,
             name,
-        }) => {
-            cmd::agent::handle(
-                match external_llamacpp_addr {
-                    Some(addr) => addr.to_owned(),
-                    None => local_llamacpp_addr.to_owned(),
-                },
-                local_llamacpp_addr.to_owned(),
-                llamacpp_api_key.to_owned(),
-                management_addr.to_owned(),
-                monitoring_interval.to_owned(),
-                name.to_owned(),
-            )?;
-        }
+        }) => cmd::agent::handle(
+            match external_llamacpp_addr {
+                Some(addr) => addr.to_owned(),
+                None => local_llamacpp_addr.to_owned(),
+            },
+            local_llamacpp_addr.to_owned(),
+            llamacpp_api_key.to_owned(),
+            management_addr.to_owned(),
+            monitoring_interval.to_owned(),
+            name.to_owned(),
+        ),
         Some(Commands::Balancer {
             management_addr,
             management_dashboard_enable,
@@ -165,25 +163,21 @@ fn main() -> Result<()> {
             statsd_prefix,
             #[cfg(feature = "statsd_reporter")]
             statsd_reporting_interval,
-        }) => {
-            cmd::balancer::handle(
-                management_addr,
-                management_dashboard_enable.to_owned(),
-                reverseproxy_addr,
-                rewrite_host_header.to_owned(),
-                slots_endpoint_enable.to_owned(),
-                #[cfg(feature = "statsd_reporter")]
-                statsd_addr.to_owned(),
-                #[cfg(feature = "statsd_reporter")]
-                statsd_prefix.to_owned(),
-                #[cfg(feature = "statsd_reporter")]
-                statsd_reporting_interval.to_owned(),
-            )?;
-        }
+        }) => cmd::balancer::handle(
+            management_addr,
+            management_dashboard_enable.to_owned(),
+            reverseproxy_addr,
+            rewrite_host_header.to_owned(),
+            slots_endpoint_enable.to_owned(),
+            #[cfg(feature = "statsd_reporter")]
+            statsd_addr.to_owned(),
+            #[cfg(feature = "statsd_reporter")]
+            statsd_prefix.to_owned(),
+            #[cfg(feature = "statsd_reporter")]
+            statsd_reporting_interval.to_owned(),
+        ),
         #[cfg(feature = "ratatui_dashboard")]
-        Some(Commands::Dashboard { management_addr }) => {}
-        None => {}
+        Some(Commands::Dashboard { management_addr }) => cmd::dashboard::handle(management_addr),
+        None => Ok(()),
     }
-
-    Ok(())
 }

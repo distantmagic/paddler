@@ -12,7 +12,7 @@ async-trait = "0.1.83"
 bytes = "1.8.0"
 cadence = { version = "1.5.0", optional = true }
 clap = { version = "4.5.20", features = ["derive"] }
-crossterm = { version = "0.28.1", optional = true }
+crossterm = { version = "0.28.1", features = ["event-stream"], optional = true }
 env_logger = "0.11.5"
 futures = "0.3.31"
 futures-util = { version = "0.3.31", features = ["tokio-io"] }
@@ -31,6 +31,6 @@ url = { version = "2.5.3", features = ["serde"] }
 uuid = { version = "1.11.0", features = ["serde", "v4"] }
 
 [features]
-default = ["ratatui_dashboard", "statsd_reporter"]
+default = ["statsd_reporter"]
 ratatui_dashboard = ["dep:crossterm", "dep:ratatui"]
 statsd_reporter = ["dep:cadence"]
