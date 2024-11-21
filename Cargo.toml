@@ -1,5 +1,8 @@
 [package]
+description = "Stateful load balancer custom-tailored for llama.cpp"
+license-file = "LICENSE"
 name = "paddler"
+repository = "https://github.com/distantmagic/paddler"
 version = "1.0.0"
 edition = "2021"
 
