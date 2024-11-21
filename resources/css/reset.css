@@ -33,6 +33,14 @@ ul {
   padding: 0;
 }
 
+a {
+  color: inherit;
+  text-decoration-line: underline;
+  text-decoration-style: solid;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+
 h1 {
   font-size: var(--font-size-l2);
 }
@@ -65,7 +73,6 @@ textarea {
 }
 
 a:active,
-a.turbo-clicked,
 button:not(:disabled):active {
   filter: grayscale(0.5);
   transform: translate3d(1px, 1px, 0);

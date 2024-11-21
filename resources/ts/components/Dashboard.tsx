@@ -34,6 +34,10 @@ type AgentsResponse = z.infer<typeof agentsResponseSchema>;
 
 const TICK_MS = 500;
 
+function formatTimestamp(timestamp: number): string {
+  return new Date(timestamp * 1000).toLocaleString();
+}
+
 export function Dashboard() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [isError, setIsError] = useState(false);
@@ -173,20 +177,20 @@ export function Dashboard() {
                     <>
                       <p>
                         Quarantined until{" "}
-                        {new Date(
-                          agent.quarantined_until.secs_since_epoch * 1000,
-                        ).toLocaleString()}
+                        {formatTimestamp(
+                          agent.quarantined_until.secs_since_epoch,
+                        )}
                       </p>
                     </>
                   )}
                   {!hasIssues && <p>None</p>}
                 </td>
-                <td>{agent.external_llamacpp_addr}</td>
                 <td>
-                  {new Date(
-                    agent.last_update.secs_since_epoch * 1000,
-                  ).toLocaleString()}
+                  <a href={`http://${agent.external_llamacpp_addr}`}>
+                    {agent.external_llamacpp_addr}
+                  </a>
                 </td>
+                <td>{formatTimestamp(agent.last_update.secs_since_epoch)}</td>
                 <td>{agent.slots_idle}</td>
                 <td>{agent.slots_processing}</td>
                 <td
