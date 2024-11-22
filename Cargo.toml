@@ -44,3 +44,6 @@ default = ["statsd_reporter"]
 ratatui_dashboard = ["dep:crossterm", "dep:ratatui"]
 statsd_reporter = ["dep:cadence"]
 web_dashboard = ["dep:askama", "dep:askama_actix", "dep:mime_guess", "dep:rust-embed"]
+
+[profile.release]
+lto = true
