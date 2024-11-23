@@ -195,6 +195,12 @@ If you do not provide the `--statsd-addr` flag, the StatsD metrics will not be c
 
 ## Changelog
 
+### v1.1.0
+
+- More meaningful error messages when the agent can't connect to the llama.cpp slot endpoint, or when slot endpoint is not enabled in llama.cpp
+- Set default logging level to `info` for agents and balancer to increase the amount of information in the logs (it wasn't clean if the agent was running or not)
+- Enable LTO optimization for the release builds (see [#28](https://github.com/distantmagic/paddler/issues/28))
+
 ### v1.0.0
 
 The first stable release! Paddler is now rewritten in Rust and uses the [Pingora](https://github.com/cloudflare/pingora) framework for the networking stack. A few minor API changes and reporting improvements are introduced (documented in the README). API and configuration are now stable, and won't be changed until version `2.0.0`.
