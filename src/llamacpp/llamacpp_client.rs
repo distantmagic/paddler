@@ -22,18 +22,16 @@ impl LlamacppClient {
             header::HeaderValue::from_static("application/json"),
         );
 
-        builder = match api_key {
-            Some(api_key) => {
-                let mut auth_value = header::HeaderValue::from_str(&format!("Bearer {}", api_key))?;
+        if let Some(api_key_value) = api_key {
+            let mut auth_value =
+                header::HeaderValue::from_str(&format!("Bearer {}", api_key_value))?;
 
-                auth_value.set_sensitive(true);
+            auth_value.set_sensitive(true);
 
-                headers.insert(header::AUTHORIZATION, auth_value);
+            headers.insert(header::AUTHORIZATION, auth_value);
+        }
 
-                builder.default_headers(headers)
-            }
-            None => builder,
-        };
+        builder = builder.default_headers(headers);
 
         Ok(Self {
             client: builder.build()?,
