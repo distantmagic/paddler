@@ -48,13 +48,15 @@ impl MonitoringService {
                 None,
                 self.external_llamacpp_addr.to_owned(),
                 slots_response.is_authorized,
+                slots_response.is_slot_endpoint_enabled,
                 slots_response.slots,
             )),
             Err(err) => Ok(StatusUpdate::new(
                 self.name.to_owned(),
                 Some(err.to_string()),
                 self.external_llamacpp_addr.to_owned(),
-                true,
+                None,
+                None,
                 vec![],
             )),
         }

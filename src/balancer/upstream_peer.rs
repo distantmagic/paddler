@@ -13,7 +13,10 @@ pub struct UpstreamPeer {
     pub agent_name: Option<String>,
     pub error: Option<String>,
     pub external_llamacpp_addr: SocketAddr,
-    pub is_authorized: bool,
+    /// None means undetermined, probably due to an error
+    pub is_authorized: Option<bool>,
+    /// None means undetermined, probably due to an error
+    pub is_slots_endpoint_enabled: Option<bool>,
     pub last_update: SystemTime,
     pub quarantined_until: Option<SystemTime>,
     pub slots_idle: usize,
@@ -26,7 +29,8 @@ impl UpstreamPeer {
         agent_name: Option<String>,
         error: Option<String>,
         external_llamacpp_addr: SocketAddr,
-        is_authorized: bool,
+        is_authorized: Option<bool>,
+        is_slots_endpoint_enabled: Option<bool>,
         slots_idle: usize,
         slots_processing: usize,
     ) -> Self {
@@ -36,6 +40,7 @@ impl UpstreamPeer {
             error,
             external_llamacpp_addr,
             is_authorized,
+            is_slots_endpoint_enabled,
             last_update: SystemTime::now(),
             quarantined_until: None,
             slots_idle,
@@ -50,6 +55,7 @@ impl UpstreamPeer {
             status_update.error.to_owned(),
             status_update.external_llamacpp_addr,
             status_update.is_authorized,
+            status_update.is_slots_endpoint_enabled,
             status_update.idle_slots_count,
             status_update.processing_slots_count,
         )
@@ -59,7 +65,7 @@ impl UpstreamPeer {
         self.slots_idle > 0
             && self.quarantined_until.is_none()
             && self.error.is_none()
-            && self.is_authorized
+            && matches!(self.is_authorized, Some(true))
     }
 
     pub fn release_slot(&mut self) {
@@ -72,6 +78,8 @@ impl UpstreamPeer {
         self.agent_name = status_update.agent_name.to_owned();
         self.error = status_update.error.to_owned();
         self.external_llamacpp_addr = status_update.external_llamacpp_addr;
+        self.is_authorized = status_update.is_authorized;
+        self.is_slots_endpoint_enabled = status_update.is_slots_endpoint_enabled;
         self.last_update = SystemTime::now();
         self.quarantined_until = None;
         self.slots_idle = status_update.idle_slots_count;
