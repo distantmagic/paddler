@@ -33,7 +33,7 @@ const agentsResponseSchema = z.object({
 type Agent = z.infer<typeof agentSchema>;
 type AgentsResponse = z.infer<typeof agentsResponseSchema>;
 
-const TICK_MS = 1000;
+const TICK_MS = 500;
 
 function formatTimestamp(timestamp: number): string {
   return new Date(timestamp * 1000).toLocaleString();
