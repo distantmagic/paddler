@@ -119,7 +119,6 @@ enum Commands {
         /// Interval (in seconds) at which the balancer will report metrics to statsd
         statsd_reporting_interval: Duration,
     },
-    #[cfg(feature = "ratatui_dashboard")]
     /// Command-line dashboard for monitoring the balancer
     Dashboard {
         #[arg(long, value_parser = parse_socket_addr)]
@@ -151,7 +150,7 @@ fn main() -> Result<()> {
             management_addr.to_owned(),
             monitoring_interval.to_owned(),
             name.to_owned(),
-        ),
+        ),  
         Some(Commands::Balancer {
             management_addr,
             #[cfg(feature = "web_dashboard")]
@@ -179,7 +178,6 @@ fn main() -> Result<()> {
             #[cfg(feature = "statsd_reporter")]
             statsd_reporting_interval.to_owned(),
         ),
-        #[cfg(feature = "ratatui_dashboard")]
         Some(Commands::Dashboard { management_addr }) => cmd::dashboard::handle(management_addr),
         None => Ok(()),
     }

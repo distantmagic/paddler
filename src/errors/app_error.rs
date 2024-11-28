@@ -1,3 +1,5 @@
+use std::{sync::PoisonError, time::SystemTimeError};
+
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
     #[error("Address parse error: {0}")]
@@ -41,6 +43,12 @@ pub enum AppError {
 
     #[error("URL parse error: {0}")]
     URLParseError(#[from] url::ParseError),
+
+    #[error("Time parse error: {0}")]
+    TimeParseError(#[from] SystemTimeError),
+
+    #[error("RwLock poison error: {0}")]
+    RwLockPoisonError(String),
 }
 
 impl From<&str> for AppError {
@@ -57,5 +65,11 @@ impl actix_web::ResponseError for AppError {
 
     fn status_code(&self) -> actix_web::http::StatusCode {
         actix_web::http::StatusCode::INTERNAL_SERVER_ERROR
+    }
+}
+
+impl<T> From<std::sync::PoisonError<T>> for AppError {
+    fn from(err: std::sync::PoisonError<T>) -> Self {
+        AppError::RwLockPoisonError(err.to_string())
     }
 }

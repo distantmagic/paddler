@@ -43,3 +43,4 @@ pub fn handle(
     pingora_server.add_service(reporting_service);
     pingora_server.run_forever();
 }
+

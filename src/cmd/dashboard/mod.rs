@@ -1,58 +1,33 @@
-use crossterm::event::{Event, EventStream, KeyEventKind};
-use futures::{FutureExt, StreamExt};
-use ratatui::{backend::CrosstermBackend, Terminal};
-use std::{io, net::SocketAddr, time::Duration};
-use tokio::{
-    runtime::Runtime,
-    time::{interval, MissedTickBehavior},
-};
+use std::net::SocketAddr;
+use tokio::runtime::Runtime;
 
 use crate::{
-    cmd::dashboard::{app::App, render::render, tui::Tui},
+    cmd::dashboard::app::App,
     errors::result::Result,
+    balancer::upstream_peer_pool::UpstreamPeerPool,
 };
 
 pub mod app;
 pub mod render;
-pub mod tui;
+pub mod ui;
 
-async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
-    let mut app = App::new(management_addr);
-    let mut ticker = interval(Duration::from_millis(100));
+pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
+    let agents = get_registered_agents(management_addr).await?;
 
-    ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
-
-    let mut reader = EventStream::new();
-
-    let backend = CrosstermBackend::new(io::stdout());
-    let terminal = Terminal::new(backend)?;
-    let mut tui = Tui::new(terminal);
-
-    tui.init()?;
-
-    while app.running {
-        tui.draw(|frame| render(&mut app, frame))?;
-
-        tokio::select! {
-          _ = ticker.tick() => app.tick().await?,
-          Some(Ok(evt)) = reader.next().fuse() => {
-            match evt {
-              Event::Key(key) => {
-                if key.kind == KeyEventKind::Press {
-                    app.handle_key_event(key)?;
-                }
-              },
-              _ => {}
-            }
-          }
-        };
-    }
-
-    tui.exit()
+    let terminal = ratatui::init();
+    let app_result = App::new(agents)?.run(terminal);
+    ratatui::restore();
+    app_result
 }
 
 pub fn handle(management_addr: &SocketAddr) -> Result<()> {
     Runtime::new()?.block_on(ratatui_main(management_addr))?;
-
     Ok(())
+}
+
+pub async fn get_registered_agents(management_addr: &SocketAddr) -> Result<UpstreamPeerPool> {
+    let response_string = reqwest::get(management_addr.to_string().as_str()).await?.text().await?;
+    let deserialized: UpstreamPeerPool = serde_json::from_str(response_string.as_str())?;
+
+    Ok(deserialized)
 }
