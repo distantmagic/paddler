@@ -1,5 +1,3 @@
-use std::{sync::PoisonError, time::SystemTimeError};
-
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
     #[error("Address parse error: {0}")]
@@ -45,7 +43,7 @@ pub enum AppError {
     URLParseError(#[from] url::ParseError),
 
     #[error("Time parse error: {0}")]
-    TimeParseError(#[from] SystemTimeError),
+    TimeParseError(#[from] std::time::SystemTimeError),
 
     #[error("RwLock poison error: {0}")]
     RwLockPoisonError(String),

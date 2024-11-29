@@ -6,7 +6,7 @@
 //         Block, BorderType, Cell, HighlightSpacing, Paragraph, Row, Scrollbar, ScrollbarOrientation, Table,
 //     },
 //     Frame,
-// };                      
+// };
 
 // const INFO_TEXT: [&str; 1] = [
 //     "(Esc) quit | (↑) move up | (↓) move down"
@@ -49,7 +49,7 @@
 
 //     let rows = self.items.iter().enumerate().map(|(_i, agent)| {
 //         let color = self.colors.normal_row_color;
-    
+
 //         let item = agent.ref_array();
 //         item.into_iter()
 //             .map(|content| Cell::from(Text::from(format!("\n{content}\n")).white()))
@@ -57,7 +57,7 @@
 //             .style(Style::new().fg(self.colors.row_fg).bg(color))
 //             .height(4)
 //     });
-    
+
 //     let bar = " █ ";
 //     let t = Table::new(
 //         rows,

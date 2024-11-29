@@ -3,6 +3,7 @@ const INFO_TEXT: [&str; 1] = [
     "(Esc) quit | (↑) move up | (↓) move down"
 ];
 
+use std::io;
 use std::time::{SystemTime, UNIX_EPOCH};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::layout::{Constraint, Layout, Margin, Rect};
@@ -10,6 +11,7 @@ use ratatui::style::{Modifier, Style, Stylize};
 use ratatui::text::Text;
 use ratatui::widgets::{Block, BorderType, Cell, HighlightSpacing, Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table, TableState};
 use ratatui::{DefaultTerminal, Frame};
+use io::Result as ioResult;
 
 use crate::balancer::upstream_peer::UpstreamPeer;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
@@ -71,13 +73,9 @@ impl App {
         self.colors = TableColors::new();
     }
 
-    pub fn run(mut self, mut terminal: DefaultTerminal) -> Result<()> {
+    pub fn run(mut self, mut terminal: DefaultTerminal) -> ioResult<()> {
         loop {
-            terminal.draw(|frame| { 
-                Ok(
-                    self.draw(frame)?
-                );
-        });
+            terminal.try_draw(|frame| self.draw(frame))?;
 
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
@@ -92,7 +90,7 @@ impl App {
         }
     }
 
-    pub fn draw(&mut self, frame: &mut Frame) -> Result<()> {
+    pub fn draw(&mut self, frame: &mut Frame) -> ioResult<()> {
         let vertical = &Layout::vertical([Constraint::Min(5), Constraint::Length(3), Constraint::Length(3)]);
         let rects = vertical.split(frame.area());
 
@@ -125,7 +123,7 @@ impl App {
         frame.render_widget(info_footer, area);
     }
     
-    fn render_table(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
+    fn render_table(&mut self, frame: &mut Frame, area: Rect) -> ioResult<()> {
         let header_style = Style::default()
             .fg(self.colors.header_fg)
             .bg(self.colors.header_bg);
@@ -290,7 +288,7 @@ pub fn ref_array(peer: UpstreamPeer) -> Result<[String; 6]> {
 
     let has_name = match peer.agent_name.clone() {
         Some(issue) => issue,
-        None => String::from("None"),
+        None => String::from(""),
     };
 
     let date_as_string = systemtime_strftime(peer.last_update)?;

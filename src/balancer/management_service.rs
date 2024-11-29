@@ -10,7 +10,6 @@ use crate::balancer::{http_route, upstream_peer_pool::UpstreamPeerPool};
 
 pub struct ManagementService {
     addr: SocketAddr,
-    #[cfg(feature = "web_dashboard")]
     management_dashboard_enable: bool,
     upstream_peers: Arc<UpstreamPeerPool>,
 }
@@ -18,12 +17,11 @@ pub struct ManagementService {
 impl ManagementService {
     pub fn new(
         addr: SocketAddr,
-        #[cfg(feature = "web_dashboard")] management_dashboard_enable: bool,
+        management_dashboard_enable: bool,
         upstream_peers: Arc<UpstreamPeerPool>,
     ) -> Self {
         ManagementService {
             addr,
-            #[cfg(feature = "web_dashboard")]
             management_dashboard_enable,
             upstream_peers,
         }
