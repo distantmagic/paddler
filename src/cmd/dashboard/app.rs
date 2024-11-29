@@ -30,6 +30,7 @@ pub struct App {
 impl App {
     pub fn new(upstream_peer_pool: UpstreamPeerPool) -> Result<Self> {
         let agents = upstream_peer_pool.agents.read().map(|agents_guard| agents_guard.clone())?;
+        
         Ok(Self {
             state: TableState::default().with_selected(0),
             longest_item_lens: constraint_len_calculator(agents.clone())?,
