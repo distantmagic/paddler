@@ -30,11 +30,18 @@ pub struct App {
 impl App {
     pub fn new(upstream_peer_pool: UpstreamPeerPool) -> Result<Self> {
         let agents = upstream_peer_pool.agents.read().map(|agents_guard| agents_guard.clone())?;
+        let mut agents_len: usize = 0;
+
+        if agents.len() == 0 {
+            agents_len = 0
+        } else {
+            agents_len = agents.len() - 1
+        }
         
         Ok(Self {
             state: TableState::default().with_selected(0),
             longest_item_lens: constraint_len_calculator(agents.clone())?,
-            scroll_state: ScrollbarState::new((agents.len() - 1) * ITEM_HEIGHT),
+            scroll_state: ScrollbarState::new(agents_len * ITEM_HEIGHT),
             colors: TableColors::new(),
             items: agents,
         })
