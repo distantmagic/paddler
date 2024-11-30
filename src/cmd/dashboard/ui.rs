@@ -1,5 +1,6 @@
 use ratatui::style::{palette::tailwind, Color};
 
+#[derive(Clone, Copy)]
 pub struct TableColors {
     pub buffer_bg: Color,
     pub header_bg: Color,

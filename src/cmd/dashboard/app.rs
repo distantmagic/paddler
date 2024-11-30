@@ -1,17 +1,19 @@
 const ITEM_HEIGHT: usize = 6;
-const INFO_TEXT: [&str; 1] = [
-    "(Esc) quit | (↑) move up | (↓) move down"
-];
+const INFO_TEXT: [&str; 1] = ["(Esc) quit | (↑) move up | (↓) move down"];
 
-use std::io;
-use std::time::{SystemTime, UNIX_EPOCH};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use io::Result as ioResult;
 use ratatui::layout::{Constraint, Layout, Margin, Rect};
 use ratatui::style::{Modifier, Style, Stylize};
 use ratatui::text::Text;
-use ratatui::widgets::{Block, BorderType, Cell, HighlightSpacing, Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table, TableState};
+use ratatui::widgets::{
+    Block, BorderType, Cell, HighlightSpacing, Paragraph, Row, Scrollbar, ScrollbarOrientation,
+    ScrollbarState, Table, TableState,
+};
 use ratatui::{DefaultTerminal, Frame};
-use io::Result as ioResult;
+use std::io;
+use std::net::SocketAddr;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::balancer::upstream_peer::UpstreamPeer;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
@@ -19,39 +21,35 @@ use crate::errors::result::Result;
 
 use super::ui::TableColors;
 
+#[derive(Clone)]
 pub struct App {
     pub state: TableState,
-    items: Vec<UpstreamPeer>,
+    pub items: Option<Vec<UpstreamPeer>>,
     pub longest_item_lens: (u16, u16, u16, u16, u16, u16),
     pub scroll_state: ScrollbarState,
     pub colors: TableColors,
 }
 
 impl App {
-    pub fn new(upstream_peer_pool: UpstreamPeerPool) -> Result<Self> {
-        let agents = upstream_peer_pool.agents.read().map(|agents_guard| agents_guard.clone())?;
-        let mut agents_len: usize = 0;
-
-        if agents.len() == 0 {
-            agents_len = 0
-        } else {
-            agents_len = agents.len() - 1
-        }
-        
+    pub fn new() -> Result<Self> {
         Ok(Self {
             state: TableState::default().with_selected(0),
-            longest_item_lens: constraint_len_calculator(agents.clone())?,
-            scroll_state: ScrollbarState::new(agents_len * ITEM_HEIGHT),
+            longest_item_lens: (0, 0, 0, 0, 0, 0),
+            scroll_state: ScrollbarState::new(0),
             colors: TableColors::new(),
-            items: agents,
+            items: None,
         })
     }
 
     pub fn next_row(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
-                if i >= self.items.len() - 1 {
-                    0
+                if let Some(items) = self.items.clone() {
+                    if i >= items.len() - 1 {
+                        0
+                    } else {
+                        i + 1
+                    }
                 } else {
                     i + 1
                 }
@@ -65,8 +63,12 @@ impl App {
     pub fn previous_row(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
-                if i == 0 {
-                    self.items.len() - 1
+                if let Some(items) = self.items.clone() {
+                    if i == 0 {
+                        items.len() - 1
+                    } else {
+                        i - 1
+                    }
                 } else {
                     i - 1
                 }
@@ -81,8 +83,11 @@ impl App {
         self.colors = TableColors::new();
     }
 
-    pub fn run(mut self, mut terminal: DefaultTerminal) -> ioResult<()> {
-        loop {
+    pub async fn run(
+        mut self,
+        mut terminal: DefaultTerminal,
+    ) -> Result<()> {       
+        loop {            
             terminal.try_draw(|frame| self.draw(frame))?;
 
             if let Event::Key(key) = event::read()? {
@@ -99,7 +104,11 @@ impl App {
     }
 
     pub fn draw(&mut self, frame: &mut Frame) -> ioResult<()> {
-        let vertical = &Layout::vertical([Constraint::Min(5), Constraint::Length(3), Constraint::Length(3)]);
+        let vertical = &Layout::vertical([
+            Constraint::Min(5),
+            Constraint::Length(3),
+            Constraint::Length(3),
+        ]);
         let rects = vertical.split(frame.area());
 
         self.set_colors();
@@ -114,7 +123,7 @@ impl App {
 
     fn render_ticks(&mut self, frame: &mut Frame, area: Rect) {
         let tick = 0;
-    
+
         let info_footer = Paragraph::new(format!("current tick: {}", tick))
             .style(
                 Style::new()
@@ -130,67 +139,86 @@ impl App {
             );
         frame.render_widget(info_footer, area);
     }
-    
+
     fn render_table(&mut self, frame: &mut Frame, area: Rect) -> ioResult<()> {
-        let header_style = Style::default()
-            .fg(self.colors.header_fg)
-            .bg(self.colors.header_bg);
-        let selected_row_style = Style::default()
-            .add_modifier(Modifier::REVERSED)
-            .fg(self.colors.selected_row_style_fg);
-    
-        let header = ["Name", "Issue", "Llamacpp address", "Last update", "Idle slots", "Processing slots"]
-            .into_iter()
-            .map(Cell::from)
-            .collect::<Row>()
-            .style(header_style)
-            .height(1)
-            .white();
-    
-        let rows = self.items.iter().enumerate().map(|(_i, agent)| {
-            let color = self.colors.normal_row_color;
-            let mut items: [String; 6] = Default::default();
+        match self.items.clone() {
+            Some(items) => {
+                let header_style = Style::default()
+                    .fg(self.colors.header_fg)
+                    .bg(self.colors.header_bg);
+                let selected_row_style = Style::default()
+                    .add_modifier(Modifier::REVERSED)
+                    .fg(self.colors.selected_row_style_fg);
 
-            match ref_array(agent.clone()) {
-                Ok(array) => items = array,
-                _ => ()
-            }
-
-            items.into_iter()
-                .map(|content| Cell::from(Text::from(format!("\n{content}\n")).white()))
+                let header = [
+                    "Name",
+                    "Issue",
+                    "Llamacpp address",
+                    "Last update",
+                    "Idle slots",
+                    "Processing slots",
+                ]
+                .into_iter()
+                .map(Cell::from)
                 .collect::<Row>()
-                .style(Style::new().fg(self.colors.row_fg).bg(color))
-                .height(4)
-        });
-        
-        let bar = " █ ";
-        let t = Table::new(
-            rows,
-            [
-                Constraint::Min(self.longest_item_lens.0),
-                Constraint::Min(self.longest_item_lens.1),
-                Constraint::Min(self.longest_item_lens.2),
-                Constraint::Min(self.longest_item_lens.3),
-                Constraint::Min(self.longest_item_lens.4),
-                Constraint::Min(self.longest_item_lens.5),
-            ],
-        )
-        .header(header)
-        .row_highlight_style(selected_row_style)
-        .highlight_symbol(Text::from(vec![
-            "".into(),
-            bar.into(),
-            bar.into(),
-            "".into(),
-        ]))
-        .bg(self.colors.buffer_bg)
-        .highlight_spacing(HighlightSpacing::Always)
-        .column_spacing(10);
-        frame.render_stateful_widget(t, area, &mut self.state);
+                .style(header_style)
+                .height(1)
+                .white();
+
+                let rows = items.iter().enumerate().map(|(_i, agent)| {
+                    let color = self.colors.normal_row_color;
+                    let mut items: [String; 6] = Default::default();
+
+                    match ref_array(agent.clone()) {
+                        Ok(array) => items = array,
+                        _ => (),
+                    }
+
+                    items
+                        .into_iter()
+                        .map(|content| Cell::from(Text::from(format!("\n{content}\n")).white()))
+                        .collect::<Row>()
+                        .style(Style::new().fg(self.colors.row_fg).bg(color))
+                        .height(4)
+                });
+
+                let bar = " █ ";
+                let t = Table::new(
+                    rows,
+                    [
+                        Constraint::Min(self.longest_item_lens.0),
+                        Constraint::Min(self.longest_item_lens.1),
+                        Constraint::Min(self.longest_item_lens.2),
+                        Constraint::Min(self.longest_item_lens.3),
+                        Constraint::Min(self.longest_item_lens.4),
+                        Constraint::Min(self.longest_item_lens.5),
+                    ],
+                )
+                .header(header)
+                .row_highlight_style(selected_row_style)
+                .highlight_symbol(Text::from(vec![
+                    "".into(),
+                    bar.into(),
+                    bar.into(),
+                    "".into(),
+                ]))
+                .bg(self.colors.buffer_bg)
+                .highlight_spacing(HighlightSpacing::Always)
+                .column_spacing(10);
+                frame.render_stateful_widget(t, area, &mut self.state);
+            }
+            None => {
+                let t = Paragraph::new("There are no agents registered. If agents are running, please give them a few seconds to register.".white())
+                    .centered()
+                    .bg(self.colors.buffer_bg);
+
+                frame.render_widget(t, area);
+            }
+        }
 
         Ok(())
     }
-    
+
     fn render_scrollbar(&mut self, frame: &mut Frame, area: Rect) {
         frame.render_stateful_widget(
             Scrollbar::default()
@@ -204,7 +232,7 @@ impl App {
             &mut self.scroll_state,
         );
     }
-    
+
     fn render_footer(&self, frame: &mut Frame, area: Rect) {
         let info_footer = Paragraph::new(Text::from_iter(INFO_TEXT))
             .style(
@@ -221,71 +249,83 @@ impl App {
             );
         frame.render_widget(info_footer, area);
     }
-    
+
+    pub async fn update_registered_agents(&mut self, management_addr: &SocketAddr) -> Result<()> {
+        let upstream_peer_pool = fetch_registered_agents(management_addr).await?;
+
+        let registered_agents = upstream_peer_pool
+            .agents
+            .read()
+            .map(|agents_guard| agents_guard.clone())?;
+
+        self.items = Some(registered_agents);
+
+        Ok(())
+    }
 }
 
-fn constraint_len_calculator(items: Vec<UpstreamPeer>) -> Result<(u16, u16, u16, u16, u16, u16)> {
-    let mut name = 0;
-    for item in &items {
-        if let Some(agent_name) = item.agent_name.clone() {
-            if agent_name.len() > name {
-                name += agent_name.len()
-            }
-        }
-    }
+// fn constraint_len_calculator(items: Vec<UpstreamPeer>) -> Result<(u16, u16, u16, u16, u16, u16)> {
+//     let mut name = 0;
+//     for item in &items {
+//         if let Some(agent_name) = item.agent_name.clone() {
+//             if agent_name.len() > name {
+//                 name += agent_name.len()
+//             }
+//         }
+//     }
 
-    let mut error = 0;
-    for item in &items {
-        if let Some(agent_error) = item.error.clone() {
-            if agent_error.len() > error {
-                error += agent_error.len()
-            }
-        }
-    }
+//     let mut error = 0;
+//     for item in &items {
+//         if let Some(agent_error) = item.error.clone() {
+//             if agent_error.len() > error {
+//                 error += agent_error.len()
+//             }
+//         }
+//     }
 
-    let mut addr = 0;
-    for item in &items {
-        if item.external_llamacpp_addr.to_string().len() > addr {
-            addr += item.external_llamacpp_addr.to_string().len()
-        }
-    }
+//     let mut addr = 0;
+//     for item in &items {
+//         if item.external_llamacpp_addr.to_string().len() > addr {
+//             addr += item.external_llamacpp_addr.to_string().len()
+//         }
+//     }
 
-    let mut slots_idle = 0;
-    for item in &items {
-        if item.slots_idle.to_string().len() > slots_idle {
-            slots_idle += item.slots_idle.to_string().len()
-        }
-    }
+//     let mut slots_idle = 0;
+//     for item in &items {
+//         if item.slots_idle.to_string().len() > slots_idle {
+//             slots_idle += item.slots_idle.to_string().len()
+//         }
+//     }
 
-    let mut slots_processing = 0;
-    for item in &items {
-        if item.slots_processing.to_string().len() > slots_processing {
-            slots_processing += item.slots_processing.to_string().len()
-        }
-    }
+//     let mut slots_processing = 0;
+//     for item in &items {
+//         if item.slots_processing.to_string().len() > slots_processing {
+//             slots_processing += item.slots_processing.to_string().len()
+//         }
+//     }
 
-    let mut last_update = 0;
-    for item in &items {
-        if systemtime_strftime(item.last_update)?.len() > last_update {
-            last_update += systemtime_strftime(item.last_update)?.len()
-        }
-    }
+//     let mut last_update = 0;
+//     for item in &items {
+//         if systemtime_strftime(item.last_update)?.len() > last_update {
+//             last_update += systemtime_strftime(item.last_update)?.len()
+//         }
+//     }
 
-    #[allow(clippy::cast_possible_truncation)]
-    Ok((
-        name as u16,
-        error as u16,
-        last_update as u16,
-        addr as u16,
-        slots_idle as u16,
-        slots_processing as u16,
-    ))
-}
+//     #[allow(clippy::cast_possible_truncation)]
+//     Ok((
+//         name as u16,
+//         error as u16,
+//         last_update as u16,
+//         addr as u16,
+//         slots_idle as u16,
+//         slots_processing as u16,
+//     ))
+// }
 
 fn systemtime_strftime(dt: SystemTime) -> Result<String> {
     let date_as_secs = dt.duration_since(UNIX_EPOCH)?.as_secs().to_string();
 
-    return Ok(date_as_secs);   
+    return Ok(date_as_secs);
 }
 
 pub fn ref_array(peer: UpstreamPeer) -> Result<[String; 6]> {
@@ -309,4 +349,48 @@ pub fn ref_array(peer: UpstreamPeer) -> Result<[String; 6]> {
         peer.slots_idle.to_string(),
         peer.slots_processing.to_string(),
     ])
+}
+
+async fn fetch_registered_agents(management_addr: &SocketAddr) -> Result<UpstreamPeerPool> {
+    let response_string = reqwest::get(format!(
+        "http://{}/api/v1/agents",
+        management_addr.to_string().as_str()
+    ))
+    .await?
+    .text()
+    .await?;
+
+    let upstream_peer_pool: UpstreamPeerPool = serde_json::from_str(response_string.as_str())?;
+
+    // let addr_str = "127.0.0.1:8080";
+    // let socket = addr_str.parse::<SocketAddr>().unwrap();
+
+    // let upstream_peer_pool = UpstreamPeerPool {
+    //     agents: RwLock::new(vec![
+    //         UpstreamPeer {
+    //             agent_id: String::from("123123123123123123123"),
+    //             agent_name: None,
+    //             error: None,
+    //             external_llamacpp_addr: socket,
+    //             is_authorized: true,
+    //             last_update: SystemTime::now(),
+    //             quarantined_until: Some(SystemTime::now()),
+    //             slots_idle: 0,
+    //             slots_processing: 0,
+    //         },
+    //         UpstreamPeer {
+    //             agent_id: String::from("123123123123123123123"),
+    //             agent_name: None,
+    //             error: None,
+    //             external_llamacpp_addr: socket,
+    //             is_authorized: true,
+    //             last_update: SystemTime::now(),
+    //             quarantined_until: Some(SystemTime::now()),
+    //             slots_idle: 0,
+    //             slots_processing: 0,
+    //         },
+    //     ]),
+    // };
+
+    Ok(upstream_peer_pool)
 }

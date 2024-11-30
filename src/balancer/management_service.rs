@@ -18,8 +18,7 @@ pub struct ManagementService {
 impl ManagementService {
     pub fn new(
         addr: SocketAddr,
-        #[cfg(feature = "web_dashboard")]
-        management_dashboard_enable: bool,
+        #[cfg(feature = "web_dashboard")] management_dashboard_enable: bool,
         upstream_peers: Arc<UpstreamPeerPool>,
     ) -> Self {
         ManagementService {

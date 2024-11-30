@@ -152,4 +152,3 @@ impl UpstreamPeerPool {
         }
     }
 }
-

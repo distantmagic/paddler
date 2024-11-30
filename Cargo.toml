@@ -44,7 +44,7 @@ time = "0.3.36"
 chrono = "0.4.38"
 
 [features]
-default = ["statsd_reporter"]
+default = ["statsd_reporter", "ratatui_dashboard"]
 ratatui_dashboard = ["dep:crossterm", "dep:ratatui"]
 statsd_reporter = ["dep:cadence"]
 web_dashboard = ["dep:askama", "dep:askama_actix", "dep:mime_guess", "dep:rust-embed"]

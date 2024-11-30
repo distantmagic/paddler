@@ -17,8 +17,7 @@ use crate::balancer::statsd_service::StatsdService;
 
 pub fn handle(
     management_addr: &SocketAddr,
-    #[cfg(feature = "web_dashboard")]
-    management_dashboard_enable: bool,
+    #[cfg(feature = "web_dashboard")] management_dashboard_enable: bool,
     reverseproxy_addr: &SocketAddr,
     rewrite_host_header: bool,
     slots_endpoint_enable: bool,
