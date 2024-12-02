@@ -1,20 +1,82 @@
-use std::net::SocketAddr;
-use tokio::runtime::Runtime;
+use crossterm::{event::{self, Event, KeyCode, KeyEventKind}, execute, terminal::{disable_raw_mode, LeaveAlternateScreen}};
+use std::{io::stdout, net::SocketAddr, sync::Arc, time::Duration};
+use tokio::{runtime::Runtime, sync::Mutex, time::sleep};
 
-use crate::{cmd::dashboard::app::App, errors::result::Result};
+use crate::{
+    cmd::dashboard::app::App,
+    errors::{app_error::AppError, result::Result},
+};
 
 pub mod app;
 pub mod ui;
 
 pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
-    // let agents = get_registered_agents(management_addr).await?;
+    let mut terminal = ratatui::init();
+    let app = App::new()?;
 
-    let terminal = ratatui::init();
-    let mut app = App::new()?;
-    let app_result = app.clone().run(terminal).await?;
-    app.update_registered_agents(management_addr).await?;
+    let app = Arc::new(Mutex::new(app));
+
+    let update_app_state: Arc<Mutex<App>> = Arc::clone(&app);
+    let management_clone = management_addr.clone();
+    let update_handle = tokio::spawn(async move {
+        let update_interval = Duration::from_secs(1);
+        loop {
+            sleep(update_interval.clone()).await;
+            let mut app = update_app_state.lock().await;
+            if app.needs_to_stop {
+                break Ok::<(), AppError>(())
+            }
+            app.update_registered_agents(management_clone).await.ok();
+            app.set_needs_rendering_to_true().ok();
+        }
+    });
+
+    let render_app_state: Arc<Mutex<App>> = Arc::clone(&app);
+    let render_handle = tokio::spawn(async move {
+        let render_interval = Duration::from_millis(100);
+        loop {
+            sleep(render_interval.clone()).await; 
+
+            let mut app = render_app_state.lock().await;
+
+            if app.needs_to_stop {
+                terminal.clear()?;
+                let mut stdout = stdout();
+                execute!(stdout, LeaveAlternateScreen)?;
+                disable_raw_mode()?;
+                terminal.show_cursor()?;
+                break Ok::<(), AppError>(())
+            }
+
+            if app.needs_rendering()? {
+                terminal.try_draw(|frame| app.draw(frame))?;
+                app.set_needs_rendering_to_false()?;
+            }
+        }
+    });
+
+    let render_keyboard_app: Arc<Mutex<App>> = Arc::clone(&app);
+    let events_handle = tokio::spawn(async move {
+        loop {
+            if let Event::Key(key) = event::read()? {
+                let mut app = render_keyboard_app.lock().await;
+                if key.kind == KeyEventKind::Press {
+                    match key.code {
+                        KeyCode::Char('q') | KeyCode::Esc => {app.needs_to_stop = true; return Ok::<(), AppError>(())},
+                        KeyCode::Char('j') | KeyCode::Down => app.next_row(),
+                        KeyCode::Char('k') | KeyCode::Up => app.previous_row(),
+                        _ => {}
+                    }
+                }
+            }
+        }
+    });
+
+    let join = tokio::try_join!(update_handle, render_handle, events_handle)?;
+
     ratatui::restore();
-    Ok(app_result)
+
+    join.1
 }
 
 pub fn handle(management_addr: &SocketAddr) -> Result<()> {
