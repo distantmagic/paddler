@@ -37,7 +37,7 @@ impl App {
     pub fn new() -> Result<Self> {
         Ok(Self {
             state: TableState::default().with_selected(0),
-            longest_item_lens: (35, 0, 21, 17, 17, 29),
+            longest_item_lens: (30, 0, 21, 17, 17, 27),
             scroll_state: ScrollbarState::new(0),
             colors: TableColors::new(),
             items: None,
