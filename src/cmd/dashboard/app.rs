@@ -93,60 +93,6 @@ impl App {
         self.colors = TableColors::new();
     }
 
-    // pub async fn run(
-    //     &mut self,
-    //     mut terminal: DefaultTerminal,
-    // ) -> Result<()> {
-    //     // let management_addr = *management_addr;
-    //     // let app = Arc::new(Mutex::new(self));
-
-    //     // let update_app = Arc::clone(&app);
-    //     // let update_handle = tokio::spawn(async move {
-    //     //     let update_interval = Duration::from_secs(5);
-    //     //     loop {
-    //     //         sleep(update_interval.clone()).await;
-    //     //         let mut app = update_app.lock().await;
-    //     //         app.update_registered_agents(management_addr).await.ok();
-    //     //     }
-    //     // });
-
-    //     // let render_app = Arc::clone(&app);
-    //     // let render_handle = tokio::spawn(async move {
-    //     //     loop {
-    //     //         let mut app = render_app.lock().await;
-    //     //         terminal.try_draw(|frame| app.draw(frame))?;
-
-    //     //         if let Event::Key(key) = event::read()? {
-    //     //             if key.kind == KeyEventKind::Press {
-    //     //                 match key.code {
-    //     //                     KeyCode::Char('q') | KeyCode::Esc => return Ok::<(), AppError>(()),
-    //     //                     KeyCode::Char('j') | KeyCode::Down => app.next_row(),
-    //     //                     KeyCode::Char('k') | KeyCode::Up => app.previous_row(),
-    //     //                     _ => {}
-    //     //                 }
-    //     //             }
-    //     //         }
-    //     //     }
-    //     // });
-
-    //     // tokio::try_join!(update_handle, render_handle)?;
-
-    //     loop {
-    //         terminal.try_draw(|frame| self.draw(frame))?;
-
-    //         if let Event::Key(key) = event::read()? {
-    //             if key.kind == KeyEventKind::Press {
-    //                 match key.code {
-    //                     KeyCode::Char('q') | KeyCode::Esc => return Ok::<(), AppError>(()),
-    //                     KeyCode::Char('j') | KeyCode::Down => self.next_row(),
-    //                     KeyCode::Char('k') | KeyCode::Up => self.previous_row(),
-    //                     _ => {}
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-
     pub fn draw(&mut self, frame: &mut Frame) -> ioResult<()> {
         let vertical = &Layout::vertical([
             Constraint::Min(5),
