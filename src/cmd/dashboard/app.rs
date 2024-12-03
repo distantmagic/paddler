@@ -4,6 +4,7 @@ const INFO_TEXT: [&str; 1] = ["(Esc) quit | (↑) move up | (↓) move down"];
 use crate::balancer::upstream_peer::UpstreamPeer;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 use crate::errors::result::Result;
+use chrono::{DateTime, Utc};
 use io::Result as ioResult;
 use ratatui::layout::{Constraint, Layout, Margin, Rect};
 use ratatui::style::{Modifier, Style, Stylize};
@@ -37,7 +38,7 @@ impl App {
     pub fn new() -> Result<Self> {
         Ok(Self {
             state: TableState::default().with_selected(0),
-            longest_item_lens: (30, 0, 21, 17, 17, 27),
+            longest_item_lens: (30, 0, 21, 20, 17, 27),
             scroll_state: ScrollbarState::new(0),
             colors: TableColors::new(),
             items: None,
@@ -352,9 +353,11 @@ fn ref_array(peer: UpstreamPeer) -> Result<[String; 6]> {
 }
 
 fn systemtime_strftime(dt: SystemTime) -> Result<String> {
-    let date_as_secs = dt.duration_since(UNIX_EPOCH)?;
+    let daration_epoch = dt.duration_since(UNIX_EPOCH)?;
+    let datetime: DateTime<Utc> = DateTime::<Utc>::from(UNIX_EPOCH + daration_epoch);
+    let formated_date = datetime.format("%Y/%m/%d, %H:%M:%S").to_string();
 
-    return Ok(date_as_secs.as_secs().to_string());
+    Ok(formated_date)
 }
 
 async fn fetch_registered_agents(management_addr: SocketAddr) -> Result<UpstreamPeerPool> {
