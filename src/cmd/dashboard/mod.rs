@@ -9,7 +9,6 @@ use std::io::Stdout;
 use std::{io::stdout, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{runtime::Runtime, sync::Mutex, time::interval};
 
-
 use crate::{
     cmd::dashboard::app::App,
     errors::{app_error::AppError, result::Result},
@@ -28,8 +27,9 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
     let management_clone = management_addr.clone();
     let update_handle = tokio::spawn(async move {
         let update_interval = Duration::from_millis(100);
+        let mut interval = interval(update_interval);
         loop {
-            interval(update_interval.clone());
+            interval.tick().await;
             let mut app = update_app_state.lock().await;
             if app.needs_to_stop {
                 break Ok::<(), AppError>(());
@@ -42,8 +42,9 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
     let render_app_state: Arc<Mutex<App>> = Arc::clone(&app);
     let render_handle = tokio::spawn(async move {
         let render_interval = Duration::from_millis(100);
+        let mut interval = interval(render_interval);
         loop {
-            interval(render_interval.clone());
+            interval.tick().await;
 
             let mut app = render_app_state.lock().await;
 
@@ -82,8 +83,9 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
     let increase_ticks_app: Arc<Mutex<App>> = Arc::clone(&app);
     let ticks_handle = tokio::spawn(async move {
         let time_duration = Duration::from_millis(500);
+        let mut interval = interval(time_duration);
         loop {
-            interval(time_duration);
+            interval.tick().await;
             let mut app = increase_ticks_app.lock().await;
 
             if app.needs_to_stop {
