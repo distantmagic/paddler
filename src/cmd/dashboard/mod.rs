@@ -7,7 +7,8 @@ use ratatui::prelude::CrosstermBackend;
 use ratatui::Terminal;
 use std::io::Stdout;
 use std::{io::stdout, net::SocketAddr, sync::Arc, time::Duration};
-use tokio::{runtime::Runtime, sync::Mutex, time::sleep};
+use tokio::{runtime::Runtime, sync::Mutex, time::interval};
+
 
 use crate::{
     cmd::dashboard::app::App,
@@ -28,7 +29,7 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
     let update_handle = tokio::spawn(async move {
         let update_interval = Duration::from_millis(100);
         loop {
-            sleep(update_interval.clone()).await;
+            interval(update_interval.clone());
             let mut app = update_app_state.lock().await;
             if app.needs_to_stop {
                 break Ok::<(), AppError>(());
@@ -42,7 +43,7 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
     let render_handle = tokio::spawn(async move {
         let render_interval = Duration::from_millis(100);
         loop {
-            sleep(render_interval.clone()).await;
+            interval(render_interval.clone());
 
             let mut app = render_app_state.lock().await;
 
@@ -82,7 +83,7 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
     let ticks_handle = tokio::spawn(async move {
         let time_duration = Duration::from_millis(500);
         loop {
-            sleep(time_duration).await;
+            interval(time_duration);
             let mut app = increase_ticks_app.lock().await;
 
             if app.needs_to_stop {
