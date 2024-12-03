@@ -29,7 +29,7 @@ pub struct App {
     pub longest_item_lens: (u16, u16, u16, u16, u16, u16),
     pub scroll_state: ScrollbarState,
     pub colors: TableColors,
-    pub needs_rendering: Mutex<bool>,
+    pub needs_rendering: bool,
     pub needs_to_stop: bool,
     pub ticks: u128,
 }
@@ -42,7 +42,7 @@ impl App {
             scroll_state: ScrollbarState::new(0),
             colors: TableColors::new(),
             items: None,
-            needs_rendering: Mutex::new(true),
+            needs_rendering: true,
             needs_to_stop: false,
             ticks: 0,
         })
@@ -253,13 +253,13 @@ impl App {
     }
 
     pub fn set_needs_rendering(&mut self, option: bool) -> Result<()> {
-        *self.needs_rendering.lock()? = option;
+        self.needs_rendering = option;
 
         Ok(())
     }
 
     pub fn needs_rendering(&mut self) -> Result<bool> {
-        let needs_rendering = *self.needs_rendering.lock()?;
+        let needs_rendering = self.needs_rendering;
 
         Ok(needs_rendering)
     }
