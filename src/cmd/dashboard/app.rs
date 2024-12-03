@@ -1,6 +1,9 @@
 const ITEM_HEIGHT: usize = 6;
 const INFO_TEXT: [&str; 1] = ["(Esc) quit | (↑) move up | (↓) move down"];
 
+use crate::balancer::upstream_peer::UpstreamPeer;
+use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
+use crate::errors::result::Result;
 use io::Result as ioResult;
 use ratatui::layout::{Constraint, Layout, Margin, Rect};
 use ratatui::style::{Modifier, Style, Stylize};
@@ -12,13 +15,10 @@ use ratatui::widgets::{
 use ratatui::Frame;
 use std::sync::Mutex;
 use std::{
-    net::SocketAddr, 
-    time::{SystemTime, UNIX_EPOCH}, 
-    io
+    io,
+    net::SocketAddr,
+    time::{SystemTime, UNIX_EPOCH},
 };
-use crate::balancer::upstream_peer::UpstreamPeer;
-use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
-use crate::errors::result::Result;
 
 use super::ui::TableColors;
 
@@ -30,19 +30,25 @@ pub struct App {
     pub colors: TableColors,
     pub needs_rendering: Mutex<bool>,
     pub needs_to_stop: bool,
+    pub ticks: u128,
 }
 
 impl App {
     pub fn new() -> Result<Self> {
         Ok(Self {
             state: TableState::default().with_selected(0),
-            longest_item_lens: (0, 0, 16, 12, 12, 24),
+            longest_item_lens: (35, 0, 21, 17, 17, 29),
             scroll_state: ScrollbarState::new(0),
             colors: TableColors::new(),
             items: None,
             needs_rendering: Mutex::new(true),
             needs_to_stop: false,
+            ticks: 0,
         })
+    }
+
+    pub fn increase_ticks(&mut self) {
+        self.ticks += 1
     }
 
     pub fn next_row(&mut self) {
@@ -160,9 +166,7 @@ impl App {
     }
 
     fn render_ticks(&mut self, frame: &mut Frame, area: Rect) {
-        let tick = 0;
-
-        let info_footer = Paragraph::new(format!("current tick: {}", tick))
+        let info_footer = Paragraph::new(format!("current tick: {}", self.ticks))
             .style(
                 Style::new()
                     .fg(self.colors.row_fg)
@@ -224,7 +228,7 @@ impl App {
                 let t = Table::new(
                     rows,
                     [
-                        Constraint::Min(self.longest_item_lens.0),
+                        Constraint::Length(self.longest_item_lens.0),
                         Constraint::Min(self.longest_item_lens.1),
                         Constraint::Length(self.longest_item_lens.2),
                         Constraint::Length(self.longest_item_lens.3),
@@ -320,71 +324,65 @@ impl App {
     }
 }
 
-pub fn constraint_len_calculator(items: Vec<UpstreamPeer>) -> Result<(u16, u16, u16, u16, u16, u16)> {
-    let mut name = 0;
-    for item in &items {
-        if let Some(agent_name) = item.agent_name.clone() {
-            if agent_name.len() > name {
-                name += agent_name.len()
-            }
-        }
-    }
+// pub fn constraint_len_calculator(items: Vec<UpstreamPeer>) -> Result<(u16, u16, u16, u16, u16, u16)> {
+//     let mut name = 0;
+//     for item in &items {
+//         if let Some(agent_name) = item.agent_name.clone() {
+//             if agent_name.len() > name {
+//                 name += agent_name.len()
+//             }
+//         }
+//     }
 
-    let mut error = 0;
-    for item in &items {
-        if let Some(agent_error) = item.error.clone() {
-            if agent_error.len() > error {
-                error += agent_error.len()
-            }
-        }
-    }
+//     let mut error = 0;
+//     for item in &items {
+//         if let Some(agent_error) = item.error.clone() {
+//             if agent_error.len() > error {
+//                 error += agent_error.len()
+//             }
+//         }
+//     }
 
-    let mut addr = 0;
-    for item in &items {
-        if item.external_llamacpp_addr.to_string().len() > addr {
-            addr += item.external_llamacpp_addr.to_string().len()
-        }
-    }
+//     let mut addr = 0;
+//     for item in &items {
+//         if item.external_llamacpp_addr.to_string().len() > addr {
+//             addr += item.external_llamacpp_addr.to_string().len()
+//         }
+//     }
 
-    let mut slots_idle = 0;
-    for item in &items {
-        if item.slots_idle.to_string().len() > slots_idle {
-            slots_idle += item.slots_idle.to_string().len()
-        }
-    }
+//     let mut slots_idle = 0;
+//     for item in &items {
+//         if item.slots_idle.to_string().len() > slots_idle {
+//             slots_idle += item.slots_idle.to_string().len()
+//         }
+//     }
 
-    let mut slots_processing = 0;
-    for item in &items {
-        if item.slots_processing.to_string().len() > slots_processing {
-            slots_processing += item.slots_processing.to_string().len()
-        }
-    }
+//     let mut slots_processing = 0;
+//     for item in &items {
+//         if item.slots_processing.to_string().len() > slots_processing {
+//             slots_processing += item.slots_processing.to_string().len()
+//         }
+//     }
 
-    let mut last_update = 0;
-    for item in &items {
-        if systemtime_strftime(item.last_update)?.len() > last_update {
-            last_update += systemtime_strftime(item.last_update)?.len()
-        }
-    }
+//     let mut last_update = 0;
+//     for item in &items {
+//         if systemtime_strftime(item.last_update)?.len() > last_update {
+//             last_update += systemtime_strftime(item.last_update)?.len()
+//         }
+//     }
 
-    #[allow(clippy::cast_possible_truncation)]
-    Ok((
-        name as u16,
-        error as u16,
-        last_update as u16,
-        addr as u16,
-        slots_idle as u16,
-        slots_processing as u16,
-    ))
-}
+//     #[allow(clippy::cast_possible_truncation)]
+//     Ok((
+//         name as u16,
+//         error as u16,
+//         last_update as u16,
+//         addr as u16,
+//         slots_idle as u16,
+//         slots_processing as u16,
+//     ))
+// }
 
-fn systemtime_strftime(dt: SystemTime) -> Result<String> {
-    let date_as_secs = dt.duration_since(UNIX_EPOCH)?.as_secs().to_string();
-
-    return Ok(date_as_secs);
-}
-
-pub fn ref_array(peer: UpstreamPeer) -> Result<[String; 6]> {
+fn ref_array(peer: UpstreamPeer) -> Result<[String; 6]> {
     let has_issue = match peer.error.clone() {
         Some(issue) => issue,
         None => String::from("None"),
@@ -407,6 +405,12 @@ pub fn ref_array(peer: UpstreamPeer) -> Result<[String; 6]> {
     ])
 }
 
+fn systemtime_strftime(dt: SystemTime) -> Result<String> {
+    let date_as_secs = dt.duration_since(UNIX_EPOCH)?;
+
+    return Ok(date_as_secs.as_secs().to_string());
+}
+
 async fn fetch_registered_agents(management_addr: SocketAddr) -> Result<UpstreamPeerPool> {
     let response_string = reqwest::get(format!(
         "http://{}/api/v1/agents",
@@ -420,5 +424,3 @@ async fn fetch_registered_agents(management_addr: SocketAddr) -> Result<Upstream
 
     Ok(upstream_peer_pool)
 }
-
-
