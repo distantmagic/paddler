@@ -35,7 +35,7 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
                 break Ok::<(), AppError>(());
             }
             app.update_registered_agents(management_clone).await.ok();
-            app.set_needs_rendering(true).ok();
+            app.set_needs_rendering(true);
         }
     });
 
@@ -52,9 +52,9 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
                 break Ok::<(), AppError>(());
             }
 
-            if app.needs_rendering()? {
+            if app.needs_rendering() {
                 terminal.try_draw(|frame| app.draw(frame))?;
-                app.set_needs_rendering(false)?;
+                app.set_needs_rendering(false);
             }
         }
     });
@@ -70,8 +70,8 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
                             app.needs_to_stop = true;
                             return Ok::<(), AppError>(());
                         }
-                        KeyCode::Char('j') | KeyCode::Down => app.next_row(),
-                        KeyCode::Char('k') | KeyCode::Up => app.previous_row(),
+                        KeyCode::Char('j') | KeyCode::Down => {app.next_row();},
+                        KeyCode::Char('k') | KeyCode::Up => {app.previous_row();},
                         _ => {}
                     }
                 }

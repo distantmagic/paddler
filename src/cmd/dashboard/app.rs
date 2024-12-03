@@ -14,7 +14,6 @@ use ratatui::widgets::{
     ScrollbarState, Table, TableState,
 };
 use ratatui::Frame;
-use std::sync::Mutex;
 use std::{
     io,
     net::SocketAddr,
@@ -252,16 +251,12 @@ impl App {
         Ok(())
     }
 
-    pub fn set_needs_rendering(&mut self, option: bool) -> Result<()> {
+    pub fn set_needs_rendering(&mut self, option: bool) {
         self.needs_rendering = option;
-
-        Ok(())
     }
 
-    pub fn needs_rendering(&mut self) -> Result<bool> {
-        let needs_rendering = self.needs_rendering;
-
-        Ok(needs_rendering)
+    pub fn needs_rendering(&mut self) -> bool {
+        self.needs_rendering
     }
 }
 
