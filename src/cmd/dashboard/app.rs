@@ -252,14 +252,8 @@ impl App {
         Ok(())
     }
 
-    pub fn set_needs_rendering_to_true(&mut self) -> Result<()> {
-        *self.needs_rendering.lock()? = true;
-
-        Ok(())
-    }
-
-    pub fn set_needs_rendering_to_false(&mut self) -> Result<()> {
-        *self.needs_rendering.lock()? = false;
+    pub fn set_needs_rendering(&mut self, option: bool) -> Result<()> {
+        *self.needs_rendering.lock()? = option;
 
         Ok(())
     }

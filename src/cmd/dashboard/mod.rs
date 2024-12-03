@@ -34,7 +34,7 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
                 break Ok::<(), AppError>(());
             }
             app.update_registered_agents(management_clone).await.ok();
-            app.set_needs_rendering_to_true().ok();
+            app.set_needs_rendering(true).ok();
         }
     });
 
@@ -53,7 +53,7 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
 
             if app.needs_rendering()? {
                 terminal.try_draw(|frame| app.draw(frame))?;
-                app.set_needs_rendering_to_false()?;
+                app.set_needs_rendering(false)?;
             }
         }
     });
