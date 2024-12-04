@@ -1,5 +1,5 @@
 const ITEM_HEIGHT: usize = 6;
-const INFO_TEXT: [&str; 1] = ["(Esc) quit | (↑) move up | (↓) move down"];
+const INFO_TEXT: [&str; 1] = ["(Esc|q) quit | (↑) move up | (↓) move down"];
 
 use crate::balancer::upstream_peer::UpstreamPeer;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
@@ -16,56 +16,50 @@ use ratatui::widgets::{
 use ratatui::Frame;
 use std::{
     io,
-    net::SocketAddr,
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use super::ui::TableColors;
 
 pub struct App {
-    pub state: TableState,
+    pub colors: TableColors,
+    pub is_initial_load: bool,
     pub items: Option<Vec<UpstreamPeer>>,
     pub longest_item_lens: (u16, u16, u16, u16, u16, u16),
     pub scroll_state: ScrollbarState,
-    pub colors: TableColors,
-    pub needs_rendering: bool,
-    pub needs_to_stop: bool,
+    pub state: TableState,
     pub ticks: u128,
 }
 
 impl App {
     pub fn new() -> Result<Self> {
         Ok(Self {
-            state: TableState::default().with_selected(0),
+            colors: TableColors::new(),
+            is_initial_load: true,
+            items: None,
             longest_item_lens: (30, 0, 21, 20, 17, 27),
             scroll_state: ScrollbarState::new(0),
-            colors: TableColors::new(),
-            items: None,
-            needs_rendering: true,
-            needs_to_stop: false,
+            state: TableState::default().with_selected(0),
             ticks: 0,
         })
-    }
-
-    pub fn increase_ticks(&mut self) {
-        self.ticks += 1
     }
 
     pub fn next_row(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
-                if let Some(items) = self.items.clone() {
+                if let Some(items) = &self.items {
                     if i >= items.len() - 1 {
                         0
                     } else {
                         i + 1
                     }
                 } else {
-                    i + 1
+                    0
                 }
             }
             None => 0,
         };
+
         self.state.select(Some(i));
         self.scroll_state = self.scroll_state.position(i * ITEM_HEIGHT);
     }
@@ -73,18 +67,19 @@ impl App {
     pub fn previous_row(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
-                if let Some(items) = self.items.clone() {
+                if let Some(items) = &self.items {
                     if i == 0 {
                         items.len() - 1
                     } else {
                         i - 1
                     }
                 } else {
-                    i - 1
+                    0
                 }
             }
             None => 0,
         };
+
         self.state.select(Some(i));
         self.scroll_state = self.scroll_state.position(i * ITEM_HEIGHT);
     }
@@ -196,9 +191,13 @@ impl App {
                 frame.render_stateful_widget(t, area, &mut self.state);
             }
             None => {
-                let t = Paragraph::new("There are no agents registered. If agents are running, please give them a few seconds to register.".white())
-                        .centered()
-                        .bg(self.colors.buffer_bg);
+                let t = Paragraph::new(if self.is_initial_load {
+                    "Loading agents..."
+                } else {
+                    "There are no agents registered. If agents are running, please give them a few seconds to register."
+                }.white())
+                    .centered()
+                    .bg(self.colors.buffer_bg);
 
                 frame.render_widget(t, area);
             }
@@ -238,85 +237,19 @@ impl App {
         frame.render_widget(info_footer, area);
     }
 
-    pub async fn update_registered_agents(&mut self, management_addr: SocketAddr) -> Result<()> {
-        let upstream_peer_pool = fetch_registered_agents(management_addr).await?;
-
+    pub fn set_registered_agents(&mut self, upstream_peer_pool: UpstreamPeerPool) -> Result<()> {
         let registered_agents = upstream_peer_pool
             .agents
             .read()
             .map(|agents_guard| agents_guard.clone())?;
 
         self.items = Some(registered_agents);
+        self.is_initial_load = false;
+        self.ticks += 1;
 
         Ok(())
     }
-
-    pub fn set_needs_rendering(&mut self, option: bool) {
-        self.needs_rendering = option;
-    }
-
-    pub fn needs_rendering(&mut self) -> bool {
-        self.needs_rendering
-    }
 }
-
-// pub fn constraint_len_calculator(items: Vec<UpstreamPeer>) -> Result<(u16, u16, u16, u16, u16, u16)> {
-//     let mut name = 0;
-//     for item in &items {
-//         if let Some(agent_name) = item.agent_name.clone() {
-//             if agent_name.len() > name {
-//                 name += agent_name.len()
-//             }
-//         }
-//     }
-
-//     let mut error = 0;
-//     for item in &items {
-//         if let Some(agent_error) = item.error.clone() {
-//             if agent_error.len() > error {
-//                 error += agent_error.len()
-//             }
-//         }
-//     }
-
-//     let mut addr = 0;
-//     for item in &items {
-//         if item.external_llamacpp_addr.to_string().len() > addr {
-//             addr += item.external_llamacpp_addr.to_string().len()
-//         }
-//     }
-
-//     let mut slots_idle = 0;
-//     for item in &items {
-//         if item.slots_idle.to_string().len() > slots_idle {
-//             slots_idle += item.slots_idle.to_string().len()
-//         }
-//     }
-
-//     let mut slots_processing = 0;
-//     for item in &items {
-//         if item.slots_processing.to_string().len() > slots_processing {
-//             slots_processing += item.slots_processing.to_string().len()
-//         }
-//     }
-
-//     let mut last_update = 0;
-//     for item in &items {
-//         if systemtime_strftime(item.last_update)?.len() > last_update {
-//             last_update += systemtime_strftime(item.last_update)?.len()
-//         }
-//     }
-
-//     #[allow(clippy::cast_possible_truncation)]
-//     Ok((
-//         name as u16,
-//         error as u16,
-//         last_update as u16,
-//         addr as u16,
-//         slots_idle as u16,
-//         slots_processing as u16,
-//     ))
-// }
 
 fn ref_array(peer: UpstreamPeer) -> Result<[String; 6]> {
     let has_issue = match peer.error.clone() {
@@ -347,18 +280,4 @@ fn systemtime_strftime(dt: SystemTime) -> Result<String> {
     let formated_date = datetime.format("%Y/%m/%d, %H:%M:%S").to_string();
 
     Ok(formated_date)
-}
-
-async fn fetch_registered_agents(management_addr: SocketAddr) -> Result<UpstreamPeerPool> {
-    let response_string = reqwest::get(format!(
-        "http://{}/api/v1/agents",
-        management_addr.to_string().as_str()
-    ))
-    .await?
-    .text()
-    .await?;
-
-    let upstream_peer_pool: UpstreamPeerPool = serde_json::from_str(response_string.as_str())?;
-
-    Ok(upstream_peer_pool)
 }

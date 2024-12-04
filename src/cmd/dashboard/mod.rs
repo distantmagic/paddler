@@ -1,78 +1,110 @@
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEventKind},
+    event::{Event, EventStream, KeyCode, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, LeaveAlternateScreen},
 };
+use futures::{FutureExt, StreamExt};
+use log::error;
 use ratatui::prelude::CrosstermBackend;
 use ratatui::Terminal;
 use std::io::Stdout;
-use std::{io::stdout, net::SocketAddr, sync::Arc, time::Duration};
-use tokio::{runtime::Runtime, sync::Mutex, time::interval};
+use std::{io::stdout, net::SocketAddr};
+use tokio::{
+    runtime::Runtime,
+    sync::{broadcast, mpsc},
+    task::JoinHandle,
+    time::{interval, Duration, MissedTickBehavior},
+};
 
 use crate::{
-    cmd::dashboard::app::App,
-    errors::{app_error::AppError, result::Result},
+    balancer::upstream_peer_pool::UpstreamPeerPool, cmd::dashboard::app::App,
+    errors::result::Result,
 };
 
 pub mod app;
 pub mod ui;
 
+async fn fetch_registered_agents(management_addr: SocketAddr) -> Result<UpstreamPeerPool> {
+    let response_string = reqwest::get(format!(
+        "http://{}/api/v1/agents",
+        management_addr.to_string().as_str()
+    ))
+    .await?
+    .text()
+    .await?;
+
+    Ok(serde_json::from_str(response_string.as_str())?)
+}
+
 pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
     let mut terminal = ratatui::init();
-    let app = App::new()?;
 
-    let app = Arc::new(Mutex::new(app));
-
-    let update_app_state: Arc<Mutex<App>> = Arc::clone(&app);
     let management_clone = management_addr.clone();
-    let update_handle = tokio::spawn(async move {
-        let update_interval = Duration::from_millis(100);
-        let mut interval = interval(update_interval);
+
+    let (app_needs_to_stop_tx, mut app_needs_to_stop_rx_update) = broadcast::channel::<bool>(1);
+    let (upstream_peer_pool_tx, mut upstream_peer_pool_rx) = mpsc::channel::<UpstreamPeerPool>(1);
+
+    let update_handle: JoinHandle<Result<()>> = tokio::spawn(async move {
+        let mut ticker = interval(Duration::from_millis(500));
+
+        ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
+
         loop {
-            interval.tick().await;
-            let mut app = update_app_state.lock().await;
-            if app.needs_to_stop {
-                break Ok::<(), AppError>(());
-            }
-            app.update_registered_agents(management_clone).await.ok();
-            app.set_needs_rendering(true);
-        }
-    });
+            tokio::select! {
+                _ = app_needs_to_stop_rx_update.recv() => {
+                    return Ok(())
+                },
+                _ = ticker.tick() => {
+                    let upstream_peer_pool = fetch_registered_agents(management_clone).await;
 
-    let render_app_state: Arc<Mutex<App>> = Arc::clone(&app);
-    let render_handle = tokio::spawn(async move {
-        let render_interval = Duration::from_millis(100);
-        let mut interval = interval(render_interval);
-        loop {
-            interval.tick().await;
-
-            let mut app = render_app_state.lock().await;
-
-            if app.needs_to_stop {
-                stops_rendering(&mut terminal)?;
-                break Ok::<(), AppError>(());
-            }
-
-            if app.needs_rendering() {
-                terminal.try_draw(|frame| app.draw(frame))?;
-                app.set_needs_rendering(false);
-            }
-        }
-    });
-
-    let render_keyboard_app: Arc<Mutex<App>> = Arc::clone(&app);
-    let events_handle = tokio::spawn(async move {
-        loop {
-            if let Event::Key(key) = event::read()? {
-                let mut app = render_keyboard_app.lock().await;
-                if key.kind == KeyEventKind::Press {
-                    match key.code {
-                        KeyCode::Char('q') | KeyCode::Esc => {
-                            app.needs_to_stop = true;
-                            return Ok::<(), AppError>(());
+                    match upstream_peer_pool {
+                        Ok(upstream_peer_pool) => {
+                            if let Err(err) = upstream_peer_pool_tx.send(upstream_peer_pool).await {
+                                error!("Error sending upstream peer pool: {}", err);
+                            }
+                        },
+                        Err(err) => {
+                            error!("Error fetching agents: {}", err);
                         }
-                        KeyCode::Char('j') | KeyCode::Down => {app.next_row();},
-                        KeyCode::Char('k') | KeyCode::Up => {app.previous_row();},
+                    }
+                }
+            }
+        }
+    });
+
+    let mut app_needs_to_stop_rx_render = app_needs_to_stop_tx.subscribe();
+
+    let render_handle = tokio::spawn(async move {
+        let mut app = App::new()?;
+        let mut reader = EventStream::new();
+
+        loop {
+            terminal.try_draw(|frame| app.draw(frame))?;
+
+            tokio::select! {
+                _ = app_needs_to_stop_rx_render.recv() => {
+                    stop_rendering(&mut terminal)?;
+
+                    return Ok(())
+                },
+                Some(upstream_peer_pool) = upstream_peer_pool_rx.recv() => {
+                    app.set_registered_agents(upstream_peer_pool)?;
+                },
+                Some(Ok(evt)) = reader.next().fuse() => {
+                    match evt {
+                        Event::Resize(_, _) => {},
+                        Event::Key(key) => {
+                            if key.kind == KeyEventKind::Press {
+                                match key.code {
+                                    KeyCode::Char('q') | KeyCode::Esc => {
+                                        app_needs_to_stop_tx.send(true).ok();
+                                    }
+                                    KeyCode::Char('j') | KeyCode::Down => app.next_row(),
+                                    KeyCode::Char('k') | KeyCode::Up => app.previous_row(),
+                                    _ => {}
+                                }
+                            }
+                        },
                         _ => {}
                     }
                 }
@@ -80,40 +112,24 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
         }
     });
 
-    let increase_ticks_app: Arc<Mutex<App>> = Arc::clone(&app);
-    let ticks_handle = tokio::spawn(async move {
-        let time_duration = Duration::from_millis(500);
-        let mut interval = interval(time_duration);
-        loop {
-            interval.tick().await;
-            let mut app = increase_ticks_app.lock().await;
-
-            if app.needs_to_stop {
-                break Ok::<(), AppError>(());
-            }
-
-            app.increase_ticks();
-        }
-    });
-
-    let join = tokio::try_join!(update_handle, render_handle, events_handle, ticks_handle)?;
+    let join = tokio::try_join!(update_handle, render_handle)?;
 
     ratatui::restore();
 
     join.1
 }
 
-pub fn handle(management_addr: &SocketAddr) -> Result<()> {
-    Runtime::new()?.block_on(ratatui_main(management_addr))?;
-    Ok(())
-}
-
-fn stops_rendering(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
+fn stop_rendering(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
     terminal.clear()?;
     let mut stdout = stdout();
     execute!(stdout, LeaveAlternateScreen)?;
     disable_raw_mode()?;
     terminal.show_cursor()?;
 
+    Ok(())
+}
+
+pub fn handle(management_addr: &SocketAddr) -> Result<()> {
+    Runtime::new()?.block_on(ratatui_main(management_addr))?;
     Ok(())
 }
