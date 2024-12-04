@@ -135,69 +135,80 @@ impl App {
         }
         match self.items.clone() {
             Some(items) => {
-                let header_style = Style::default()
-                    .fg(self.colors.header_fg)
-                    .bg(self.colors.header_bg);
-                let selected_row_style = Style::default()
-                    .add_modifier(Modifier::REVERSED)
-                    .fg(self.colors.selected_row_style_fg);
-
-                let header = [
-                    "Name",
-                    "Issue",
-                    "Llamacpp address",
-                    "Last update",
-                    "Idle slots",
-                    "Processing slots",
-                ]
-                .into_iter()
-                .map(Cell::from)
-                .collect::<Row>()
-                .style(header_style)
-                .height(1)
-                .white();
-
-                let rows = items.iter().enumerate().map(|(_i, agent)| {
-                    let color = self.colors.normal_row_color;
-                    let mut items: [String; 6] = Default::default();
-
-                    match ref_array(agent.clone()) {
-                        Ok(array) => items = array,
-                        _ => (),
+                match items.is_empty() {
+                    true => {
+                        let t = Paragraph::new("There are no agents registered. If agents are running, please give them a few seconds to register.".to_string().white())
+                        .centered()
+                        .bg(self.colors.buffer_bg);
+    
+                    frame.render_widget(t, area);
                     }
+                    false => {
+                        let header_style = Style::default()
+                        .fg(self.colors.header_fg)
+                        .bg(self.colors.header_bg);
+                    let selected_row_style = Style::default()
+                        .add_modifier(Modifier::REVERSED)
+                        .fg(self.colors.selected_row_style_fg);
 
-                    items
-                        .into_iter()
-                        .map(|content| Cell::from(Text::from(format!("\n{content}\n")).white()))
-                        .collect::<Row>()
-                        .style(Style::new().fg(self.colors.row_fg).bg(color))
-                        .height(4)
-                });
+                    let header = [
+                        "Name",
+                        "Issue",
+                        "Llamacpp address",
+                        "Last update",
+                        "Idle slots",
+                        "Processing slots",
+                    ]
+                    .into_iter()
+                    .map(Cell::from)
+                    .collect::<Row>()
+                    .style(header_style)
+                    .height(1)
+                    .white();
 
-                let bar = " █ ";
-                let t = Table::new(
-                    rows,
-                    [
-                        Constraint::Length(self.longest_item_lens.0),
-                        Constraint::Min(self.longest_item_lens.1),
-                        Constraint::Length(self.longest_item_lens.2),
-                        Constraint::Length(self.longest_item_lens.3),
-                        Constraint::Length(self.longest_item_lens.4),
-                        Constraint::Length(self.longest_item_lens.5),
-                    ],
-                )
-                .header(header)
-                .row_highlight_style(selected_row_style)
-                .highlight_symbol(Text::from(vec![
-                    "".into(),
-                    bar.into(),
-                    bar.into(),
-                    "".into(),
-                ]))
-                .bg(self.colors.buffer_bg)
-                .highlight_spacing(HighlightSpacing::Always)
-                .column_spacing(10);
-                frame.render_stateful_widget(t, area, &mut self.state);
+                    let rows = items.iter().enumerate().map(|(_i, agent)| {
+                        let color = self.colors.normal_row_color;
+                        let mut items: [String; 6] = Default::default();
+
+                        match ref_array(agent.clone()) {
+                            Ok(array) => items = array,
+                            _ => (),
+                        }
+
+                        items
+                            .into_iter()
+                            .map(|content| Cell::from(Text::from(format!("\n{content}\n")).white()))
+                            .collect::<Row>()
+                            .style(Style::new().fg(self.colors.row_fg).bg(color))
+                            .height(4)
+                    });
+
+                    let bar = " █ ";
+                    let t = Table::new(
+                        rows,
+                        [
+                            Constraint::Length(self.longest_item_lens.0),
+                            Constraint::Min(self.longest_item_lens.1),
+                            Constraint::Length(self.longest_item_lens.2),
+                            Constraint::Length(self.longest_item_lens.3),
+                            Constraint::Length(self.longest_item_lens.4),
+                            Constraint::Length(self.longest_item_lens.5),
+                        ],
+                    )
+                    .header(header)
+                    .row_highlight_style(selected_row_style)
+                    .highlight_symbol(Text::from(vec![
+                        "".into(),
+                        bar.into(),
+                        bar.into(),
+                        "".into(),
+                    ]))
+                    .bg(self.colors.buffer_bg)
+                    .highlight_spacing(HighlightSpacing::Always)
+                    .column_spacing(10);
+                    frame.render_stateful_widget(t, area, &mut self.state);
+                    }
+                }
             }
             None => {
                 let message = if self.is_initial_load {
