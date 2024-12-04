@@ -4,23 +4,20 @@ use crossterm::{
     terminal::{disable_raw_mode, LeaveAlternateScreen},
 };
 use futures::{FutureExt, StreamExt};
+use log::error;
 use ratatui::prelude::CrosstermBackend;
 use ratatui::Terminal;
 use std::io::Stdout;
 use std::{io::stdout, net::SocketAddr};
 use tokio::{
     runtime::Runtime,
-    sync::{
-        broadcast,
-        mpsc::{self},
-    },
+    sync::{broadcast, mpsc},
     task::JoinHandle,
     time::{interval, Duration, MissedTickBehavior},
 };
 
 use crate::{
-    balancer::upstream_peer_pool::UpstreamPeerPool,
-    cmd::dashboard::app::App,
+    balancer::upstream_peer_pool::UpstreamPeerPool, cmd::dashboard::app::App,
     errors::result::Result,
 };
 
@@ -46,10 +43,6 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
 
     let (app_needs_to_stop_tx, mut app_needs_to_stop_rx_update) = broadcast::channel::<bool>(1);
     let (upstream_peer_pool_tx, mut upstream_peer_pool_rx) = mpsc::channel::<UpstreamPeerPool>(1);
-    let (app_needs_to_render_error_tx, mut app_needs_to_render_error_rx) =
-        mpsc::channel::<String>(1);
-
-    let app_needs_to_render_error_app_error_tx = app_needs_to_render_error_tx.clone();
 
     let update_handle: JoinHandle<Result<()>> = tokio::spawn(async move {
         let mut ticker = interval(Duration::from_millis(500));
@@ -59,19 +52,19 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
         loop {
             tokio::select! {
                 _ = app_needs_to_stop_rx_update.recv() => {
-                    break Ok(())
+                    return Ok(())
                 },
                 _ = ticker.tick() => {
                     let upstream_peer_pool = fetch_registered_agents(management_clone).await;
 
                     match upstream_peer_pool {
                         Ok(upstream_peer_pool) => {
-                            if let Err(_) = upstream_peer_pool_tx.send(upstream_peer_pool).await {
-                                app_needs_to_render_error_tx.send("Error sending upstream peer pool".to_string()).await.ok();
+                            if let Err(err) = upstream_peer_pool_tx.send(upstream_peer_pool).await {
+                                error!("Error sending upstream peer pool: {}", err);
                             }
                         },
-                        Err(_) => {
-                            app_needs_to_render_error_app_error_tx.send("Error fetching agents. Is the management address correct?".to_string()).await.ok();
+                        Err(err) => {
+                            error!("Error fetching agents: {}", err);
                         }
                     }
                 }
@@ -93,9 +86,6 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
                     stop_rendering(&mut terminal)?;
 
                     return Ok(())
-                },
-                Some(app_error) = app_needs_to_render_error_rx.recv() => {
-                    app.error = Some(app_error);
                 },
                 Some(upstream_peer_pool) = upstream_peer_pool_rx.recv() => {
                     app.set_registered_agents(upstream_peer_pool)?;
