@@ -9,7 +9,8 @@ pub struct StatusUpdate {
     pub error: Option<String>,
     pub external_llamacpp_addr: SocketAddr,
     pub idle_slots_count: usize,
-    pub is_authorized: bool,
+    pub is_authorized: Option<bool>,
+    pub is_slots_endpoint_enabled: Option<bool>,
     pub processing_slots_count: usize,
     slots: Vec<Slot>,
 }
@@ -19,7 +20,8 @@ impl StatusUpdate {
         agent_name: Option<String>,
         error: Option<String>,
         external_llamacpp_addr: SocketAddr,
-        is_authorized: bool,
+        is_authorized: Option<bool>,
+        is_slots_endpoint_enabled: Option<bool>,
         slots: Vec<Slot>,
     ) -> Self {
         let idle_slots_count = slots.iter().filter(|slot| !slot.is_processing).count();
@@ -30,6 +32,7 @@ impl StatusUpdate {
             external_llamacpp_addr,
             idle_slots_count,
             is_authorized,
+            is_slots_endpoint_enabled,
             processing_slots_count: slots.len() - idle_slots_count,
             slots,
         }

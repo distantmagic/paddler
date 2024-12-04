@@ -9,7 +9,8 @@ const agentSchema = z.object({
   agent_name: z.string().nullable(),
   error: z.string().nullable(),
   external_llamacpp_addr: z.string(),
-  is_authorized: z.boolean(),
+  is_authorized: z.boolean().nullable(),
+  is_slots_endpoint_enabled: z.boolean().nullable(),
   last_update: z.object({
     nanos_since_epoch: z.number(),
     secs_since_epoch: z.number(),
@@ -146,7 +147,10 @@ export function Dashboard() {
         <tbody>
           {agents.map(function (agent: Agent) {
             const hasIssues =
-              agent.error || !agent.is_authorized || agent.quarantined_until;
+              agent.error ||
+              true !== agent.is_authorized ||
+              true !== agent.is_slots_endpoint_enabled ||
+              agent.quarantined_until;
 
             return (
               <tr
@@ -159,17 +163,26 @@ export function Dashboard() {
                 <td>
                   {agent.error && (
                     <>
-                      <p>Error</p>
+                      <p>Agent reported an Error</p>
                       <p>{agent.error}</p>
                     </>
                   )}
-                  {!agent.is_authorized && (
+                  {false === agent.is_authorized && (
                     <>
                       <p>Unauthorized</p>
                       <p>
                         Probably llama.cpp API key is either invalid or not
                         present. Pass it to the agent with
                         `--llamacpp-api-key=YOURKEY` flag.
+                      </p>
+                    </>
+                  )}
+                  {false === agent.is_slots_endpoint_enabled && (
+                    <>
+                      <p>Slots endpoint is not enabled</p>
+                      <p>
+                        Probably llama.cpp server is running without the
+                        `--slots` flag.
                       </p>
                     </>
                   )}
