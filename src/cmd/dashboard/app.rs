@@ -29,6 +29,7 @@ pub struct App {
     pub scroll_state: ScrollbarState,
     pub state: TableState,
     pub ticks: u128,
+    pub error: Option<String>,
 }
 
 impl App {
@@ -41,6 +42,7 @@ impl App {
             scroll_state: ScrollbarState::new(0),
             state: TableState::default().with_selected(0),
             ticks: 0,
+            error: None,
         })
     }
 
@@ -124,6 +126,7 @@ impl App {
     }
 
     fn render_table(&mut self, frame: &mut Frame, area: Rect) -> ioResult<()> {
+  
         match self.items.clone() {
             Some(items) => {
                 let header_style = Style::default()
@@ -191,11 +194,15 @@ impl App {
                 frame.render_stateful_widget(t, area, &mut self.state);
             }
             None => {
-                let t = Paragraph::new(if self.is_initial_load {
-                    "Loading agents..."
+                let message = if let Some(error) = &self.error {
+                    error.to_string()
+                } else if self.is_initial_load {
+                    "Loading agents...".to_string()
                 } else {
-                    "There are no agents registered. If agents are running, please give them a few seconds to register."
-                }.white())
+                    "There are no agents registered. If agents are running, please give them a few seconds to register.".to_string()
+                };
+
+                let t = Paragraph::new(message.white())
                     .centered()
                     .bg(self.colors.buffer_bg);
 
@@ -249,6 +256,10 @@ impl App {
 
         Ok(())
     }
+
+    // pub fn render_app_error(&mut self, app_error: AppError) {
+
+    // }
 }
 
 fn ref_array(peer: UpstreamPeer) -> Result<[String; 6]> {
