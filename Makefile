@@ -46,7 +46,6 @@ esbuild: node_modules
 		resources/css/reset.css \
 		resources/css/page-dashboard.css \
 		resources/ts/controller_dashboard.tsx \
-	;
 
 .PHONY: run.agent
 run.agent: esbuild

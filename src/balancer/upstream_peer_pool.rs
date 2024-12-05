@@ -11,7 +11,7 @@ use crate::{
 
 #[derive(Serialize, Deserialize)]
 pub struct UpstreamPeerPool {
-    agents: RwLock<Vec<UpstreamPeer>>,
+    pub agents: RwLock<Vec<UpstreamPeer>>,
 }
 
 impl UpstreamPeerPool {
