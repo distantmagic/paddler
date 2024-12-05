@@ -38,7 +38,7 @@ impl App {
             colors: TableColors::new(),
             is_initial_load: true,
             items: None,
-            longest_item_lens: (30, 0, 21, 20, 17, 27),
+            longest_item_lens: (0, 0, 0, 0, 0, 0),
             scroll_state: ScrollbarState::new(0),
             state: TableState::default().with_selected(0),
             ticks: 0,
