@@ -134,17 +134,16 @@ impl App {
             frame.render_widget(t, area);
         }
         match self.items.clone() {
-            Some(items) => {
-                match items.is_empty() {
-                    true => {
-                        let t = Paragraph::new("There are no agents registered. If agents are running, please give them a few seconds to register.".to_string().white())
+            Some(items) => match items.is_empty() {
+                true => {
+                    let t = Paragraph::new("There are no agents registered. If agents are running, please give them a few seconds to register.".to_string().white())
                         .centered()
                         .bg(self.colors.buffer_bg);
-    
+
                     frame.render_widget(t, area);
-                    }
-                    false => {
-                        let header_style = Style::default()
+                }
+                false => {
+                    let header_style = Style::default()
                         .fg(self.colors.header_fg)
                         .bg(self.colors.header_bg);
                     let selected_row_style = Style::default()
@@ -183,16 +182,19 @@ impl App {
                             .height(4)
                     });
 
+                    self.longest_item_lens = constraint_len_calculator(items.clone())
+                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+
                     let bar = " █ ";
                     let t = Table::new(
                         rows,
                         [
-                            Constraint::Length(self.longest_item_lens.0),
+                            Constraint::Min(self.longest_item_lens.0),
                             Constraint::Min(self.longest_item_lens.1),
-                            Constraint::Length(self.longest_item_lens.2),
-                            Constraint::Length(self.longest_item_lens.3),
-                            Constraint::Length(self.longest_item_lens.4),
-                            Constraint::Length(self.longest_item_lens.5),
+                            Constraint::Min(self.longest_item_lens.2),
+                            Constraint::Min(self.longest_item_lens.3),
+                            Constraint::Min(self.longest_item_lens.4),
+                            Constraint::Min(self.longest_item_lens.5),
                         ],
                     )
                     .header(header)
@@ -207,9 +209,8 @@ impl App {
                     .highlight_spacing(HighlightSpacing::Always)
                     .column_spacing(10);
                     frame.render_stateful_widget(t, area, &mut self.state);
-                    }
                 }
-            }
+            },
             None => {
                 let message = if self.is_initial_load {
                     "Loading agents...".to_string()
@@ -271,6 +272,64 @@ impl App {
 
         Ok(())
     }
+}
+
+fn constraint_len_calculator(items: Vec<UpstreamPeer>) -> Result<(u16, u16, u16, u16, u16, u16)> {
+    let mut name = 0;
+    for item in &items {
+        if let Some(agent_name) = item.agent_name.clone() {
+            if agent_name.len() > name {
+                name += agent_name.len()
+            }
+        }
+    }
+
+    let mut error = 0;
+    for item in &items {
+        if let Some(agent_error) = item.error.clone() {
+            if agent_error.len() > error {
+                error += agent_error.len()
+            }
+        }
+    }
+
+    let mut addr = 0;
+    for item in &items {
+        if item.external_llamacpp_addr.to_string().len() > addr {
+            addr += item.external_llamacpp_addr.to_string().len()
+        }
+    }
+
+    let mut slots_idle = 0;
+    for item in &items {
+        if item.slots_idle.to_string().len() > slots_idle {
+            slots_idle += item.slots_idle.to_string().len()
+        }
+    }
+
+    let mut slots_processing = 0;
+    for item in &items {
+        if item.slots_processing.to_string().len() > slots_processing {
+            slots_processing += item.slots_processing.to_string().len()
+        }
+    }
+
+    let mut last_update = 0;
+    for item in &items {
+        if systemtime_strftime(item.last_update)?.len() > last_update {
+            last_update += systemtime_strftime(item.last_update)?.len()
+        }
+    }
+
+    #[allow(clippy::cast_possible_truncation)]
+    Ok((
+        name as u16,
+        error as u16,
+        addr as u16,
+        last_update as u16,
+        slots_idle as u16,
+        slots_processing as u16,
+    ))
 }
 
 fn ref_array(peer: UpstreamPeer) -> Result<[String; 6]> {
