@@ -5,6 +5,8 @@ use crate::balancer::upstream_peer::UpstreamPeer;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 use crate::errors::result::Result;
 use chrono::{DateTime, Utc};
+use crossterm::execute;
+use crossterm::terminal::{Clear, ClearType};
 use io::Result as ioResult;
 use ratatui::layout::{Constraint, Layout, Margin, Rect};
 use ratatui::style::{Modifier, Style, Stylize};
@@ -14,6 +16,7 @@ use ratatui::widgets::{
     ScrollbarState, Table, TableState,
 };
 use ratatui::Frame;
+use std::io::stdout;
 use std::{
     io,
     time::{SystemTime, UNIX_EPOCH},
@@ -132,97 +135,100 @@ impl App {
                 .bg(self.colors.buffer_bg);
 
             frame.render_widget(t, area);
-        }
-        match self.items.clone() {
-            Some(items) => match items.is_empty() {
-                true => {
-                    let t = Paragraph::new("There are no agents registered. If agents are running, please give them a few seconds to register.".to_string().white())
+        } else {
+            match self.items.clone() {
+                Some(items) => match items.is_empty() {
+                    true => {
+                        let t = Paragraph::new("There are no agents registered. If agents are running, please give them a few seconds to register.".to_string().white())
+                            .centered()
+                            .bg(self.colors.buffer_bg);
+
+                        frame.render_widget(t, area);
+                    }
+                    false => {
+                        let header_style = Style::default()
+                            .fg(self.colors.header_fg)
+                            .bg(self.colors.header_bg);
+                        let selected_row_style = Style::default()
+                            .add_modifier(Modifier::REVERSED)
+                            .fg(self.colors.selected_row_style_fg);
+
+                        let header = [
+                            "Name",
+                            "Issue",
+                            "Llamacpp address",
+                            "Last update",
+                            "Idle slots",
+                            "Processing slots",
+                        ]
+                        .into_iter()
+                        .map(Cell::from)
+                        .collect::<Row>()
+                        .style(header_style)
+                        .height(1)
+                        .white();
+
+                        let rows = items.iter().enumerate().map(|(_i, agent)| {
+                            let color = self.colors.normal_row_color;
+                            let mut items: [String; 6] = Default::default();
+
+                            match ref_array(agent.clone()) {
+                                Ok(array) => items = array,
+                                _ => (),
+                            }
+
+                            items
+                                .into_iter()
+                                .map(|content| {
+                                    Cell::from(Text::from(format!("\n{content}\n")).white())
+                                })
+                                .collect::<Row>()
+                                .style(Style::new().fg(self.colors.row_fg).bg(color))
+                                .height(4)
+                        });
+
+                        self.longest_item_lens = constraint_len_calculator(items.clone())
+                            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+
+                        let bar = " █ ";
+                        let t = Table::new(
+                            rows,
+                            [
+                                Constraint::Min(self.longest_item_lens.0),
+                                Constraint::Min(self.longest_item_lens.1),
+                                Constraint::Min(self.longest_item_lens.2),
+                                Constraint::Min(self.longest_item_lens.3),
+                                Constraint::Min(self.longest_item_lens.4),
+                                Constraint::Min(self.longest_item_lens.5),
+                            ],
+                        )
+                        .header(header)
+                        .row_highlight_style(selected_row_style)
+                        .highlight_symbol(Text::from(vec![
+                            "".into(),
+                            bar.into(),
+                            bar.into(),
+                            "".into(),
+                        ]))
+                        .bg(self.colors.buffer_bg)
+                        .highlight_spacing(HighlightSpacing::Always)
+                        .column_spacing(10);
+                        frame.render_stateful_widget(t, area, &mut self.state);
+                    }
+                },
+                None => {
+                    let message = if self.is_initial_load {
+                        "Loading agents...".to_string()
+                    } else {
+                        "There are no agents registered. If agents are running, please give them a few seconds to register.".to_string()
+                    };
+
+                    let t = Paragraph::new(message.white())
                         .centered()
                         .bg(self.colors.buffer_bg);
 
                     frame.render_widget(t, area);
                 }
-                false => {
-                    let header_style = Style::default()
-                        .fg(self.colors.header_fg)
-                        .bg(self.colors.header_bg);
-                    let selected_row_style = Style::default()
-                        .add_modifier(Modifier::REVERSED)
-                        .fg(self.colors.selected_row_style_fg);
-
-                    let header = [
-                        "Name",
-                        "Issue",
-                        "Llamacpp address",
-                        "Last update",
-                        "Idle slots",
-                        "Processing slots",
-                    ]
-                    .into_iter()
-                    .map(Cell::from)
-                    .collect::<Row>()
-                    .style(header_style)
-                    .height(1)
-                    .white();
-
-                    let rows = items.iter().enumerate().map(|(_i, agent)| {
-                        let color = self.colors.normal_row_color;
-                        let mut items: [String; 6] = Default::default();
-
-                        match ref_array(agent.clone()) {
-                            Ok(array) => items = array,
-                            _ => (),
-                        }
-
-                        items
-                            .into_iter()
-                            .map(|content| Cell::from(Text::from(format!("\n{content}\n")).white()))
-                            .collect::<Row>()
-                            .style(Style::new().fg(self.colors.row_fg).bg(color))
-                            .height(4)
-                    });
-
-                    self.longest_item_lens = constraint_len_calculator(items.clone())
-                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-
-                    let bar = " █ ";
-                    let t = Table::new(
-                        rows,
-                        [
-                            Constraint::Min(self.longest_item_lens.0),
-                            Constraint::Min(self.longest_item_lens.1),
-                            Constraint::Min(self.longest_item_lens.2),
-                            Constraint::Min(self.longest_item_lens.3),
-                            Constraint::Min(self.longest_item_lens.4),
-                            Constraint::Min(self.longest_item_lens.5),
-                        ],
-                    )
-                    .header(header)
-                    .row_highlight_style(selected_row_style)
-                    .highlight_symbol(Text::from(vec![
-                        "".into(),
-                        bar.into(),
-                        bar.into(),
-                        "".into(),
-                    ]))
-                    .bg(self.colors.buffer_bg)
-                    .highlight_spacing(HighlightSpacing::Always)
-                    .column_spacing(10);
-                    frame.render_stateful_widget(t, area, &mut self.state);
-                }
-            },
-            None => {
-                let message = if self.is_initial_load {
-                    "Loading agents...".to_string()
-                } else {
-                    "There are no agents registered. If agents are running, please give them a few seconds to register.".to_string()
-                };
-
-                let t = Paragraph::new(message.white())
-                    .centered()
-                    .bg(self.colors.buffer_bg);
-
-                frame.render_widget(t, area);
             }
         }
 
@@ -268,6 +274,7 @@ impl App {
 
         self.items = Some(registered_agents);
         self.is_initial_load = false;
+        self.error = None;
         self.ticks += 1;
 
         Ok(())
