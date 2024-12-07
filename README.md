@@ -158,7 +158,24 @@ https://github.com/distantmagic/paddler/assets/1286785/34b93e4c-0746-4eed-8be3-c
 
 Although Paddler integrates with the [StatsD protocol](https://github.com/statsd/statsd), you can preview the cluster's state using a built-in dashboard.
 
-![Paddler State Dashboard](https://github.com/user-attachments/assets/b12413ca-481b-4d49-9908-5dc38346305a)
+#### Web Dashboard
+
+Paddler needs to be compiled with the `web_dashboard` feature flag enabled (enabled by default in GitHub releases).
+
+To start the dashboard, run `paddler balancer` with the `--management-dashboard-enable` flag.
+
+![Paddler Web Dashboard](https://github.com/user-attachments/assets/b12413ca-481b-4d49-9908-5dc38346305a)
+
+#### TUI Dashobard
+
+> [!NOTE]
+> Available since v1.2.0
+
+You can connect to any running Paddler instance with `paddler dashboard --management-addr [HOST]:[PORT]`.
+
+![Paddler TUI Dashboard](https://github.com/user-attachments/assets/55dc8cfe-4b82-4619-871f-0bb79cb44d01)
+
+Thank you [@Propfend](https://github.com/Propfend) for [contributing](https://github.com/distantmagic/paddler/pull/31) the TUI Dashboard!
 
 ### StatsD Metrics
 
@@ -194,6 +211,12 @@ If you do not provide the `--statsd-addr` flag, the StatsD metrics will not be c
 - [Installing llama.cpp with AWS EC2 Image Builder](https://llmops-handbook.distantmagic.com/deployments/llama.cpp/aws-image-builder/index.html)
 
 ## Changelog
+
+### v1.2.0
+
+#### Features
+
+- Add TUI dashboard (`paddler dashboard --management-addr [HOST]:[PORT]`) to be able to easily observe balancer instances from the terminal level
 
 ### v1.1.0
 
