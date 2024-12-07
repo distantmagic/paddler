@@ -5,8 +5,6 @@ use crate::balancer::upstream_peer::UpstreamPeer;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 use crate::errors::result::Result;
 use chrono::{DateTime, Utc};
-use crossterm::execute;
-use crossterm::terminal::{Clear, ClearType};
 use io::Result as ioResult;
 use ratatui::layout::{Constraint, Layout, Margin, Rect};
 use ratatui::style::{Modifier, Style, Stylize};
@@ -16,7 +14,6 @@ use ratatui::widgets::{
     ScrollbarState, Table, TableState,
 };
 use ratatui::Frame;
-use std::io::stdout;
 use std::{
     io,
     time::{SystemTime, UNIX_EPOCH},
@@ -155,8 +152,8 @@ impl App {
 
                         let header = [
                             "Name",
-                            "Issue",
-                            "Llamacpp address",
+                            "Issues",
+                            "Llama.cpp address",
                             "Last update",
                             "Idle slots",
                             "Processing slots",
