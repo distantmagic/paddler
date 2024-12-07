@@ -1,19 +1,18 @@
 const ITEM_HEIGHT: usize = 6;
 const INFO_TEXT: [&str; 1] = ["(Esc|q) quit | (↑) move up | (↓) move down"];
 
-use crate::balancer::upstream_peer::UpstreamPeer;
-use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
-use crate::errors::result::Result;
 use chrono::{DateTime, Utc};
 use io::Result as ioResult;
-use ratatui::layout::{Constraint, Layout, Margin, Rect};
-use ratatui::style::{Modifier, Style, Stylize};
-use ratatui::text::Text;
-use ratatui::widgets::{
-    Block, BorderType, Cell, HighlightSpacing, Paragraph, Row, Scrollbar, ScrollbarOrientation,
-    ScrollbarState, Table, TableState,
+use ratatui::{
+    layout::{Constraint, Layout, Margin, Rect},
+    style::{Modifier, Style, Stylize},
+    text::Text,
+    widgets::{
+        Cell, HighlightSpacing, Paragraph, Row, Scrollbar, ScrollbarOrientation,
+        ScrollbarState, Table, TableState,
+    },
+    Frame,
 };
-use ratatui::Frame;
 use std::{
     io,
     time::{SystemTime, UNIX_EPOCH},
@@ -21,11 +20,18 @@ use std::{
 
 use super::ui::TableColors;
 
+use crate::{
+    balancer::{
+        upstream_peer::UpstreamPeer,
+        upstream_peer_pool::UpstreamPeerPool,
+    },
+    errors::result::Result,
+};
+
 pub struct App {
     pub colors: TableColors,
     pub is_initial_load: bool,
     pub items: Option<Vec<UpstreamPeer>>,
-    pub longest_item_lens: (u16, u16, u16, u16, u16, u16),
     pub scroll_state: ScrollbarState,
     pub state: TableState,
     pub ticks: u128,
@@ -38,7 +44,6 @@ impl App {
             colors: TableColors::new(),
             is_initial_load: true,
             items: None,
-            longest_item_lens: (0, 0, 0, 0, 0, 0),
             scroll_state: ScrollbarState::new(0),
             state: TableState::default().with_selected(0),
             ticks: 0,
@@ -93,8 +98,8 @@ impl App {
     pub fn draw(&mut self, frame: &mut Frame) -> ioResult<()> {
         let vertical = &Layout::vertical([
             Constraint::Min(5),
-            Constraint::Length(3),
-            Constraint::Length(3),
+            Constraint::Length(1),
+            Constraint::Length(1),
         ]);
         let rects = vertical.split(frame.area());
 
@@ -116,12 +121,7 @@ impl App {
                     .bg(self.colors.buffer_bg)
                     .white(),
             )
-            .centered()
-            .block(
-                Block::bordered()
-                    .border_type(BorderType::Double)
-                    .border_style(Style::new().fg(self.colors.footer_border_color)),
-            );
+            .centered();
         frame.render_widget(info_footer, area);
     }
 
@@ -133,7 +133,7 @@ impl App {
 
             frame.render_widget(t, area);
         } else {
-            match self.items.clone() {
+            match &self.items {
                 Some(items) => match items.is_empty() {
                     true => {
                         let t = Paragraph::new("There are no agents registered. If agents are running, please give them a few seconds to register.".to_string().white())
@@ -177,35 +177,22 @@ impl App {
                             items
                                 .into_iter()
                                 .map(|content| {
-                                    Cell::from(Text::from(format!("\n{content}\n")).white())
+                                    Cell::from(Text::from(content).white())
                                 })
                                 .collect::<Row>()
                                 .style(Style::new().fg(self.colors.row_fg).bg(color))
-                                .height(4)
+                                .height(1)
                         });
-
-                        self.longest_item_lens = constraint_len_calculator(items.clone())
-                            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
                         let bar = " █ ";
                         let t = Table::new(
                             rows,
-                            [
-                                Constraint::Min(self.longest_item_lens.0),
-                                Constraint::Min(self.longest_item_lens.1),
-                                Constraint::Min(self.longest_item_lens.2),
-                                Constraint::Min(self.longest_item_lens.3),
-                                Constraint::Min(self.longest_item_lens.4),
-                                Constraint::Min(self.longest_item_lens.5),
-                            ],
+                            [Constraint::Ratio(1, 6); 6],
                         )
                         .header(header)
                         .row_highlight_style(selected_row_style)
                         .highlight_symbol(Text::from(vec![
-                            "".into(),
                             bar.into(),
-                            bar.into(),
-                            "".into(),
                         ]))
                         .bg(self.colors.buffer_bg)
                         .highlight_spacing(HighlightSpacing::Always)
@@ -254,12 +241,7 @@ impl App {
                     .bg(self.colors.buffer_bg)
                     .white(),
             )
-            .centered()
-            .block(
-                Block::bordered()
-                    .border_type(BorderType::Double)
-                    .border_style(Style::new().fg(self.colors.footer_border_color)),
-            );
+            .centered();
         frame.render_widget(info_footer, area);
     }
 
@@ -276,64 +258,6 @@ impl App {
 
         Ok(())
     }
-}
-
-fn constraint_len_calculator(items: Vec<UpstreamPeer>) -> Result<(u16, u16, u16, u16, u16, u16)> {
-    let mut name = 0;
-    for item in &items {
-        if let Some(agent_name) = item.agent_name.clone() {
-            if agent_name.len() > name {
-                name += agent_name.len()
-            }
-        }
-    }
-
-    let mut error = 0;
-    for item in &items {
-        if let Some(agent_error) = item.error.clone() {
-            if agent_error.len() > error {
-                error += agent_error.len()
-            }
-        }
-    }
-
-    let mut addr = 0;
-    for item in &items {
-        if item.external_llamacpp_addr.to_string().len() > addr {
-            addr += item.external_llamacpp_addr.to_string().len()
-        }
-    }
-
-    let mut slots_idle = 0;
-    for item in &items {
-        if item.slots_idle.to_string().len() > slots_idle {
-            slots_idle += item.slots_idle.to_string().len()
-        }
-    }
-
-    let mut slots_processing = 0;
-    for item in &items {
-        if item.slots_processing.to_string().len() > slots_processing {
-            slots_processing += item.slots_processing.to_string().len()
-        }
-    }
-
-    let mut last_update = 0;
-    for item in &items {
-        if systemtime_strftime(item.last_update)?.len() > last_update {
-            last_update += systemtime_strftime(item.last_update)?.len()
-        }
-    }
-
-    #[allow(clippy::cast_possible_truncation)]
-    Ok((
-        name as u16,
-        error as u16,
-        addr as u16,
-        last_update as u16,
-        slots_idle as u16,
-        slots_processing as u16,
-    ))
 }
 
 fn ref_array(peer: UpstreamPeer) -> Result<[String; 6]> {
