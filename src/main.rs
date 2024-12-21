@@ -7,6 +7,7 @@ use std::{
 use crate::errors::result::Result;
 
 mod agent;
+mod supervisor;
 mod balancer;
 mod cmd;
 mod errors;
@@ -126,6 +127,32 @@ enum Commands {
         /// Address of the management server that the dashboard will connect to
         management_addr: SocketAddr,
     },
+    /// Supervises llama.cpp instance and manages their configuration
+    Supervise {
+        #[arg(long)]
+        /// Path of the llama.cpp binary that the supervisor will use
+        llama_server_path: String,
+
+        #[arg(long, value_parser = parse_socket_addr)]
+        /// Address of the local llama.cpp instance that the supervisor will supervises
+        local_llamacpp_addr: SocketAddr,
+
+        #[arg(long, value_parser = parse_socket_addr)]
+        /// Address of the management server that the agent will report to
+        management_addr: SocketAddr,
+
+        #[arg(long)]
+        /// API key for the llama.cpp instance (optional)
+        llamacpp_api_key: Option<String>,
+
+        #[arg(long, default_value = "10", value_parser = parse_duration)]
+        /// Interval (in seconds) at which the supervisor will monitor liveness of the llama.cpp instance
+        monitoring_interval: Duration,
+
+        #[arg(long)]
+        /// Name of the agent (optional)
+        name: Option<String>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -178,6 +205,21 @@ fn main() -> Result<()> {
             statsd_prefix.to_owned(),
             #[cfg(feature = "statsd_reporter")]
             statsd_reporting_interval.to_owned(),
+        ),
+        Some(Commands::Supervise {
+            llama_server_path,
+            local_llamacpp_addr,
+            management_addr,
+            name,
+            monitoring_interval,
+            llamacpp_api_key,
+        }) => cmd::supervisor::handle(
+            local_llamacpp_addr,
+            llama_server_path.to_owned(),
+            llamacpp_api_key,
+            management_addr,
+            monitoring_interval,
+            name,
         ),
         #[cfg(feature = "ratatui_dashboard")]
         Some(Commands::Dashboard { management_addr }) => cmd::dashboard::handle(management_addr),
