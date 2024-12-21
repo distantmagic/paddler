@@ -7,11 +7,11 @@ use std::{
 use crate::errors::result::Result;
 
 mod agent;
-mod supervisor;
 mod balancer;
 mod cmd;
 mod errors;
 mod llamacpp;
+mod supervisor;
 
 fn resolve_socket_addr(s: &str) -> Result<SocketAddr> {
     let addrs: Vec<SocketAddr> = s.to_socket_addrs()?.collect();
@@ -214,12 +214,12 @@ fn main() -> Result<()> {
             monitoring_interval,
             llamacpp_api_key,
         }) => cmd::supervisor::handle(
-            local_llamacpp_addr,
+            local_llamacpp_addr.to_owned(),
             llama_server_path.to_owned(),
-            llamacpp_api_key,
-            management_addr,
-            monitoring_interval,
-            name,
+            llamacpp_api_key.to_owned(),
+            management_addr.to_owned(),
+            monitoring_interval.to_owned(),
+            name.to_owned(),
         ),
         #[cfg(feature = "ratatui_dashboard")]
         Some(Commands::Dashboard { management_addr }) => cmd::dashboard::handle(management_addr),

@@ -8,8 +8,8 @@ use ratatui::{
     style::{Modifier, Style, Stylize},
     text::Text,
     widgets::{
-        Cell, HighlightSpacing, Paragraph, Row, Scrollbar, ScrollbarOrientation,
-        ScrollbarState, Table, TableState,
+        Cell, HighlightSpacing, Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState,
+        Table, TableState,
     },
     Frame,
 };
@@ -21,10 +21,7 @@ use std::{
 use super::ui::TableColors;
 
 use crate::{
-    balancer::{
-        upstream_peer::UpstreamPeer,
-        upstream_peer_pool::UpstreamPeerPool,
-    },
+    balancer::{upstream_peer::UpstreamPeer, upstream_peer_pool::UpstreamPeerPool},
     errors::result::Result,
 };
 
@@ -176,27 +173,20 @@ impl App {
 
                             items
                                 .into_iter()
-                                .map(|content| {
-                                    Cell::from(Text::from(content).white())
-                                })
+                                .map(|content| Cell::from(Text::from(content).white()))
                                 .collect::<Row>()
                                 .style(Style::new().fg(self.colors.row_fg).bg(color))
                                 .height(1)
                         });
 
                         let bar = " █ ";
-                        let t = Table::new(
-                            rows,
-                            [Constraint::Ratio(1, 6); 6],
-                        )
-                        .header(header)
-                        .row_highlight_style(selected_row_style)
-                        .highlight_symbol(Text::from(vec![
-                            bar.into(),
-                        ]))
-                        .bg(self.colors.buffer_bg)
-                        .highlight_spacing(HighlightSpacing::Always)
-                        .column_spacing(10);
+                        let t = Table::new(rows, [Constraint::Ratio(1, 6); 6])
+                            .header(header)
+                            .row_highlight_style(selected_row_style)
+                            .highlight_symbol(Text::from(vec![bar.into()]))
+                            .bg(self.colors.buffer_bg)
+                            .highlight_spacing(HighlightSpacing::Always)
+                            .column_spacing(10);
                         frame.render_stateful_widget(t, area, &mut self.state);
                     }
                 },

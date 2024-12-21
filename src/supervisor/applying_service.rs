@@ -21,7 +21,11 @@ pub struct ApplyingService {
 }
 
 impl ApplyingService {
-    pub fn new(management_addr: &SocketAddr, _llama_server_path: String, status_update_tx: Sender<Bytes>) -> Result<Self> {
+    pub fn new(
+        management_addr: SocketAddr,
+        _llama_server_path: String,
+        status_update_tx: Sender<Bytes>,
+    ) -> Result<Self> {
         let agent_id = Uuid::new_v4();
 
         Ok(ApplyingService {
