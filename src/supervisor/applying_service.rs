@@ -13,48 +13,46 @@ use uuid::Uuid;
 #[cfg(unix)]
 use pingora::server::ListenFds;
 
-use crate::errors::result::Result;
+use crate::{errors::result::Result, llamacpp::llamacpp_client::LlamacppClient};
 
 pub struct ApplyingService {
-    stats_endpoint_url: String,
-    status_update_tx: Sender<Bytes>,
+    llamacpp_client: LlamacppClient,
+    llama_server_path: String,
+    monitoring_interval: Duration
 }
 
 impl ApplyingService {
-    pub fn new(
-        management_addr: SocketAddr,
-        _llama_server_path: String,
-        status_update_tx: Sender<Bytes>,
-    ) -> Result<Self> {
-        let agent_id = Uuid::new_v4();
+    pub fn new(llamacpp_client: LlamacppClient, llama_server_path: String, monitoring_interval: Duration) -> Result<Self> {
+        // let agent_id = Uuid::new_v4();
 
         Ok(ApplyingService {
-            stats_endpoint_url: format!("http://{}/status_update/{}", management_addr, agent_id),
-            status_update_tx,
+            llamacpp_client,
+            llama_server_path,
+            monitoring_interval,
         })
     }
 
-    async fn keep_connection_alive(&self) -> Result<()> {
-        let status_update_rx = self.status_update_tx.subscribe();
-        let stream = BroadcastStream::new(status_update_rx);
-        let reqwest_body = reqwest::Body::wrap_stream(stream);
+    // async fn keep_connection_alive(&self) -> Result<()> {
+    //     let status_update_rx = self.status_update_tx.subscribe();
+    //     let stream = BroadcastStream::new(status_update_rx);
+    //     let reqwest_body = reqwest::Body::wrap_stream(stream);
 
-        info!("Establishing connection with management server");
+    //     info!("Establishing connection with management server");
 
-        match reqwest::Client::new()
-            .post(self.stats_endpoint_url.to_owned())
-            .body(reqwest_body)
-            .send()
-            .await
-        {
-            Ok(_) => {
-                error!("Management server connection closed");
+    //     match reqwest::Client::new()
+    //         .post(self.stats_endpoint_url.to_owned())
+    //         .body(reqwest_body)
+    //         .send()
+    //         .await
+    //     {
+    //         Ok(_) => {
+    //             error!("Management server connection closed");
 
-                Ok(())
-            }
-            Err(err) => Err(err.into()),
-        }
-    }
+    //             Ok(())
+    //         }
+    //         Err(err) => Err(err.into()),
+    //     }
+    // }
 }
 
 #[async_trait]
@@ -64,7 +62,7 @@ impl Service for ApplyingService {
         #[cfg(unix)] _fds: Option<ListenFds>,
         mut shutdown: ShutdownWatch,
     ) {
-        let mut ticker = interval(Duration::from_secs(1));
+        let mut ticker = interval(self.monitoring_interval);
 
         ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
@@ -74,17 +72,15 @@ impl Service for ApplyingService {
                     debug!("Shutting down reporting service");
                     return;
                 },
-                _ = ticker.tick() => {
-                    if let Err(err) = self.keep_connection_alive().await {
-                        error!("Failed to keep the connection alive: {}", err);
-                    }
-                }
+                // _ = ticker.tick() => {
+                //     eprintln!("{}", "Tick Passed")
+                // }
             }
         }
     }
 
     fn name(&self) -> &str {
-        "reporting"
+        "applying"
     }
 
     fn threads(&self) -> Option<usize> {
