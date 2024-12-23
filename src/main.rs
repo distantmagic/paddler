@@ -137,6 +137,10 @@ enum Commands {
         /// Address of the local llama.cpp instance that the supervisor will supervises
         local_llamacpp_addr: SocketAddr,
 
+        #[arg(long)]
+        /// Path of the model that the llamacpp will run
+        model_path: String,
+
         #[arg(long, value_parser = parse_socket_addr)]
         /// Address of the management server that the agent will report to
         supervisor_management_addr: SocketAddr,
@@ -209,6 +213,7 @@ fn main() -> Result<()> {
         Some(Commands::Supervise {
             llama_server_path,
             local_llamacpp_addr,
+            model_path,
             supervisor_management_addr,
             name,
             monitoring_interval,
@@ -216,6 +221,7 @@ fn main() -> Result<()> {
         }) => cmd::supervisor::handle(
             local_llamacpp_addr.to_owned(),
             llama_server_path.to_owned(),
+            model_path.to_owned(),
             llamacpp_api_key.to_owned(),
             supervisor_management_addr.to_owned(),
             monitoring_interval.to_owned(),

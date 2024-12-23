@@ -7,7 +7,9 @@ use crate::{
     llamacpp::{slot::Slot, slots_response::SlotsResponse},
 };
 
+#[derive(Clone)]
 pub struct LlamacppClient {
+    addr: SocketAddr,
     client: reqwest::Client,
     slots_endpoint_url: String,
 }
@@ -34,6 +36,7 @@ impl LlamacppClient {
         builder = builder.default_headers(headers);
 
         Ok(Self {
+            addr,
             client: builder.build()?,
             slots_endpoint_url: Url::parse(&format!("http://{}/slots", addr))?.to_string(),
         })
@@ -64,5 +67,9 @@ impl LlamacppClient {
             }),
             _ => Err("Unexpected response status".into()),
         }
+    }
+
+    pub fn get_address(self) -> SocketAddr {
+        self.addr
     }
 }
