@@ -139,7 +139,7 @@ enum Commands {
 
         #[arg(long)]
         /// Path of the model that the llamacpp will run
-        model_path: String,
+        default_llamacpp_model: String,
 
         #[arg(long, value_parser = parse_socket_addr)]
         /// Address of the management server that the agent will report to
@@ -209,14 +209,14 @@ fn main() -> Result<()> {
         Some(Commands::Supervise {
             llama_server_path,
             local_llamacpp_addr,
-            model_path,
+            default_llamacpp_model,
             supervisor_management_addr,
             name,
             monitoring_interval,
         }) => cmd::supervisor::handle(
             local_llamacpp_addr.to_owned(),
             llama_server_path.to_owned(),
-            model_path.to_owned(),
+            default_llamacpp_model.to_owned(),
             supervisor_management_addr.to_owned(),
             monitoring_interval.to_owned(),
             name.to_owned(),

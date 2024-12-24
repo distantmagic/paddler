@@ -13,7 +13,7 @@ use tokio::time::{interval, Duration, MissedTickBehavior};
 #[cfg(unix)]
 use pingora::server::ListenFds;
 
-use crate::{errors::result::Result, llamacpp::llamacpp_client::LlamacppClient};
+use crate::errors::result::Result;
 
 pub struct ApplyingService {
     port: String,

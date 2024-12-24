@@ -11,7 +11,7 @@ use crate::supervisor::managing_service::ManagingService;
 pub fn handle(
     local_llamacpp_addr: SocketAddr,
     llama_server_path: String,
-    model_path: String,
+    default_llamacpp_model: String,
     supervisor_management_addr: SocketAddr,
     monitoring_interval: Duration,
     _name: Option<String>,
@@ -21,7 +21,7 @@ pub fn handle(
     let applying_service = ApplyingService::new(
         local_llamacpp_addr,
         llama_server_path,
-        model_path,
+        default_llamacpp_model,
         monitoring_interval,
         // status_update_tx.clone(),
     )?;
