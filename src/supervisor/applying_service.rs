@@ -1,6 +1,10 @@
-use std::{os::unix::process::CommandExt, process::{Child, Command, Stdio}};
+use std::{
+    os::unix::process::CommandExt,
+    process::{Child, Command, Stdio},
+};
 
 use async_trait::async_trait;
+use log::warn;
 use log::{debug, error};
 use pingora::{server::ShutdownWatch, services::Service};
 use tokio::time::{interval, Duration, MissedTickBehavior};
@@ -63,7 +67,7 @@ impl ApplyingService {
 
                 Ok(())
             });
-            
+
             let child = cmd.spawn()?;
             self.llama_process = Some(child);
         }
@@ -100,7 +104,7 @@ impl Service for ApplyingService {
         loop {
             tokio::select! {
                 _ = shutdown.changed() => {
-                    debug!("Shutting down monitoring service");
+                    debug!("Shutting down supervising service");
                     return;
                 },
                 _ = ticker.tick() => {
@@ -108,6 +112,7 @@ impl Service for ApplyingService {
                         if let Err(e) = self.start_llamacpp_server().await {
                             error!("Failed to start llama server: {}", e);
                         }
+                        warn!("Llamacpp server fell off. Restarting server");
                     };
                 }
             }
