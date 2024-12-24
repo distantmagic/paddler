@@ -1,4 +1,5 @@
 use std::{
+    net::SocketAddr,
     os::unix::process::CommandExt,
     process::{Child, Command, Stdio},
 };
@@ -15,7 +16,7 @@ use pingora::server::ListenFds;
 use crate::{errors::result::Result, llamacpp::llamacpp_client::LlamacppClient};
 
 pub struct ApplyingService {
-    llamacpp_client: LlamacppClient,
+    port: String,
     llama_server_path: String,
     model_path: String,
     monitoring_interval: Duration,
@@ -24,13 +25,14 @@ pub struct ApplyingService {
 
 impl ApplyingService {
     pub fn new(
-        llamacpp_client: LlamacppClient,
+        addr: SocketAddr,
         llama_server_path: String,
         model_path: String,
         monitoring_interval: Duration,
     ) -> Result<Self> {
+        let port = get_port(addr.to_string());
         Ok(ApplyingService {
-            llamacpp_client,
+            port,
             llama_server_path,
             model_path,
             monitoring_interval,
@@ -40,22 +42,12 @@ impl ApplyingService {
 
     async fn start_llamacpp_server(&mut self) -> Result<()> {
         unsafe {
-            let port = self
-                .llamacpp_client
-                .clone()
-                .get_address()
-                .to_string()
-                .split(':')
-                .nth(1)
-                .unwrap_unchecked()
-                .parse::<u16>()?;
-
             let mut cmd = Command::new(self.llama_server_path.to_owned());
             cmd.args(&[
                 "-m",
                 self.model_path.as_str(),
                 "--port",
-                &port.to_string(),
+                &self.port,
                 "--slots",
             ])
             .stdout(Stdio::null())
@@ -125,5 +117,15 @@ impl Service for ApplyingService {
 
     fn threads(&self) -> Option<usize> {
         None
+    }
+}
+
+fn get_port(addr: String) -> String {
+    unsafe {
+        addr.split(':')
+            .nth(1)
+            .unwrap_unchecked()
+            .parse::<String>()
+            .unwrap_unchecked()
     }
 }

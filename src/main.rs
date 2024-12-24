@@ -145,10 +145,6 @@ enum Commands {
         /// Address of the management server that the agent will report to
         supervisor_management_addr: SocketAddr,
 
-        #[arg(long)]
-        /// API key for the llama.cpp instance (optional)
-        llamacpp_api_key: Option<String>,
-
         #[arg(long, default_value = "10", value_parser = parse_duration)]
         /// Interval (in seconds) at which the supervisor will monitor liveness of the llama.cpp instance
         monitoring_interval: Duration,
@@ -217,12 +213,10 @@ fn main() -> Result<()> {
             supervisor_management_addr,
             name,
             monitoring_interval,
-            llamacpp_api_key,
         }) => cmd::supervisor::handle(
             local_llamacpp_addr.to_owned(),
             llama_server_path.to_owned(),
             model_path.to_owned(),
-            llamacpp_api_key.to_owned(),
             supervisor_management_addr.to_owned(),
             monitoring_interval.to_owned(),
             name.to_owned(),
