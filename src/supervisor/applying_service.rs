@@ -1,6 +1,5 @@
-use std::process::Stdio;
+use std::{os::unix::process::CommandExt, process::{Child, Command, Stdio}};
 
-use async_process::{Child, Command};
 use async_trait::async_trait;
 use log::{debug, error};
 use pingora::{server::ShutdownWatch, services::Service};
@@ -58,6 +57,13 @@ impl ApplyingService {
             .stdout(Stdio::null())
             .stderr(Stdio::null());
 
+            #[cfg(unix)]
+            cmd.pre_exec(|| {
+                libc::setsid();
+
+                Ok(())
+            });
+            
             let child = cmd.spawn()?;
             self.llama_process = Some(child);
         }
@@ -67,7 +73,7 @@ impl ApplyingService {
 
     fn server_is_running(&mut self) -> bool {
         if let Some(child) = &mut self.llama_process {
-            match child.try_status() {
+            match child.try_wait() {
                 Ok(Some(_)) => false,
                 Ok(None) => true,
                 Err(e) => {
