@@ -1,6 +1,7 @@
 use std::{
     net::SocketAddr,
     os::unix::process::CommandExt,
+    path::Path,
     process::{Child, Command, Stdio},
 };
 
@@ -13,7 +14,7 @@ use tokio::time::{interval, Duration, MissedTickBehavior};
 #[cfg(unix)]
 use pingora::server::ListenFds;
 
-use crate::errors::result::Result;
+use crate::errors::{app_error::AppError, result::Result};
 
 pub struct ApplyingService {
     port: String,
@@ -43,6 +44,13 @@ impl ApplyingService {
     async fn start_llamacpp_server(&mut self) -> Result<()> {
         unsafe {
             let mut cmd = Command::new(self.llama_server_path.to_owned());
+
+            if !is_a_gguf_file(self.model_path.to_string()) {
+                return Err(AppError::InvalidFileError(
+                    "Insert a Valid gguf file for a model.".to_owned(),
+                ));
+            }
+
             cmd.args(&[
                 "-m",
                 self.model_path.as_str(),
@@ -128,4 +136,21 @@ fn get_port(addr: String) -> String {
             .parse::<String>()
             .unwrap_unchecked()
     }
+}
+
+fn is_a_gguf_file(path: String) -> bool {
+    let file = Path::new(&path);
+
+    if file.exists() {
+        if let Some(ext) = file.extension() {
+            if ext.to_str() == Some("gguf") {
+                return true;
+            }
+
+            return false;
+        }
+        return false;
+    }
+
+    false
 }
