@@ -1,3 +1,4 @@
+use actix_web::web::Bytes;
 use pingora::server::{configuration::Opt, Server};
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -15,7 +16,7 @@ pub fn handle(
     monitoring_interval: Duration,
     _name: Option<String>,
 ) -> Result<()> {
-    let (status_update_tx, status_update_rx) = channel::<String>(1);
+    let (status_update_tx, status_update_rx) = channel::<Bytes>(1);
 
     let applying_service = ApplyingService::new(
         local_llamacpp_addr,

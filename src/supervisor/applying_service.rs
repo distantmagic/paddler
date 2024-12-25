@@ -3,13 +3,18 @@ use std::{
     os::unix::process::CommandExt,
     path::Path,
     process::{Child, Command, Stdio},
+    str,
 };
 
+use actix_web::web::Bytes;
 use async_trait::async_trait;
 use log::warn;
 use log::{debug, error};
 use pingora::{server::ShutdownWatch, services::Service};
-use tokio::{sync::broadcast::Receiver, time::{interval, Duration, MissedTickBehavior}};
+use tokio::{
+    sync::broadcast::Receiver,
+    time::{interval, Duration, MissedTickBehavior},
+};
 
 #[cfg(unix)]
 use pingora::server::ListenFds;
@@ -22,7 +27,7 @@ pub struct ApplyingService {
     model_path: String,
     monitoring_interval: Duration,
     llama_process: Option<Child>,
-    status_update_rx: Receiver<String>
+    status_update_rx: Receiver<Bytes>,
 }
 
 impl ApplyingService {
@@ -31,7 +36,7 @@ impl ApplyingService {
         llama_server_path: String,
         model_path: String,
         monitoring_interval: Duration,
-        status_update_rx: Receiver<String>
+        status_update_rx: Receiver<Bytes>,
     ) -> Result<Self> {
         let port = get_port(addr.to_string());
         Ok(ApplyingService {
@@ -40,7 +45,7 @@ impl ApplyingService {
             model_path,
             monitoring_interval,
             llama_process: None,
-            status_update_rx
+            status_update_rx,
         })
     }
 
@@ -116,7 +121,29 @@ impl Service for ApplyingService {
                             error!("Failed to start llama server: {}", e);
                         }
                         warn!("Llamacpp server fell off. Restarting server");
-                    };
+                    }
+                },
+                input_path = self.status_update_rx.recv() => {
+                    match input_path {
+                        Ok(bytes_path) => {
+                            match str::from_utf8(&bytes_path) {
+                                Ok(string_path) => {
+                                    self.model_path = string_path.to_string();
+
+                                    match self.start_llamacpp_server().await {
+                                        Ok(_) => {warn!("Model Path was updated. Restarting server");},
+                                        Err(e) => {error!("Failed to start llama server: {}", e);}
+                                    }
+                                },
+                                Err(e) => {
+                                    error!("Failed to receive parse path into a valid: {}", e);
+                                }
+                            }
+                        },
+                        Err(e) => {
+                            error!("Failed to receive model path: {}", e);
+                        }
+                    }
                 }
             }
         }
