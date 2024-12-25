@@ -1,33 +1,27 @@
-use actix_web::web::Bytes;
+use actix_web::{App, HttpServer};
 use async_trait::async_trait;
-use log::{debug, error, info};
 use pingora::{server::ShutdownWatch, services::Service};
+use tokio::sync::broadcast::Sender;
 use std::net::SocketAddr;
-use tokio::{
-    sync::broadcast::Sender,
-    time::{interval, Duration, MissedTickBehavior},
-};
-use tokio_stream::wrappers::BroadcastStream;
-use uuid::Uuid;
 
 #[cfg(unix)]
 use pingora::server::ListenFds;
 
-use crate::errors::result::Result;
+use crate::{balancer::http_route, errors::result::Result};
 
 pub struct ManagingService {
     supervisor_management_addr: String,
+    status_update_tx: Sender<String>,
 }
 
 impl ManagingService {
-    pub fn new(supervisor_management_addr: SocketAddr) -> Result<Self> {
-        let agent_id = Uuid::new_v4();
-
+    pub fn new(
+        supervisor_management_addr: SocketAddr,
+        status_update_tx: Sender<String>,
+    ) -> Result<Self> {
         Ok(ManagingService {
-            supervisor_management_addr: format!(
-                "http://{}/",
-                supervisor_management_addr.to_string()
-            ),
+            supervisor_management_addr: supervisor_management_addr.to_string(),
+            status_update_tx,
         })
     }
 }
@@ -37,20 +31,22 @@ impl Service for ManagingService {
     async fn start_service(
         &mut self,
         #[cfg(unix)] _fds: Option<ListenFds>,
-        mut shutdown: ShutdownWatch,
+        mut _shutdown: ShutdownWatch,
     ) {
-        let mut ticker = interval(Duration::from_secs(1));
+        let status_update_tx = self.status_update_tx.clone();
 
-        ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
+        HttpServer::new(move || {
+            let app = App::new()
+                .app_data(status_update_tx.clone())
+                .configure(http_route::supervisor::model_path::register);
 
-        loop {
-            tokio::select! {
-                _ = shutdown.changed() => {
-                    debug!("Shutting down reporting service");
-                    return;
-                },
-            }
-        }
+            app
+        })
+        .bind(self.supervisor_management_addr.to_owned())
+        .expect("Unable to bind server to address")
+        .run()
+        .await
+        .expect("Server unexpectedly stopped");
     }
 
     fn name(&self) -> &str {
@@ -58,6 +54,6 @@ impl Service for ManagingService {
     }
 
     fn threads(&self) -> Option<usize> {
-        None
+        Some(1)
     }
 }

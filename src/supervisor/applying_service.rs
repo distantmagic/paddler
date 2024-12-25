@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use log::warn;
 use log::{debug, error};
 use pingora::{server::ShutdownWatch, services::Service};
-use tokio::time::{interval, Duration, MissedTickBehavior};
+use tokio::{sync::broadcast::Receiver, time::{interval, Duration, MissedTickBehavior}};
 
 #[cfg(unix)]
 use pingora::server::ListenFds;
@@ -22,6 +22,7 @@ pub struct ApplyingService {
     model_path: String,
     monitoring_interval: Duration,
     llama_process: Option<Child>,
+    status_update_rx: Receiver<String>
 }
 
 impl ApplyingService {
@@ -30,6 +31,7 @@ impl ApplyingService {
         llama_server_path: String,
         model_path: String,
         monitoring_interval: Duration,
+        status_update_rx: Receiver<String>
     ) -> Result<Self> {
         let port = get_port(addr.to_string());
         Ok(ApplyingService {
@@ -38,6 +40,7 @@ impl ApplyingService {
             model_path,
             monitoring_interval,
             llama_process: None,
+            status_update_rx
         })
     }
 
