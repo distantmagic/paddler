@@ -14,13 +14,13 @@ use crate::{errors::result::Result, supervisor::http_route};
 
 pub struct ManagingService {
     supervisor_management_addr: String,
-    status_update_tx: Sender<Bytes>,
+    status_update_tx: Sender<String>,
 }
 
 impl ManagingService {
     pub fn new(
         supervisor_management_addr: SocketAddr,
-        status_update_tx: Sender<Bytes>,
+        status_update_tx: Sender<String>,
     ) -> Result<Self> {
         Ok(ManagingService {
             supervisor_management_addr: supervisor_management_addr.to_string(),

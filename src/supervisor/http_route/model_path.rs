@@ -13,12 +13,12 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 
 #[get("llamacpp/model/{path:.*}")]
 async fn respond(
-    status_update_tx: web::Data<Sender<Bytes>>,
-    path: web::Path<(String)>,
+    status_update_tx: web::Data<Sender<String>>,
+    path: web::Path<String>,
 ) -> Result<HttpResponse> {
     let model_path = path.into_inner();
 
-    status_update_tx.send(Bytes::from(model_path))?;
+    status_update_tx.send(string)?;
 
     Ok(HttpResponse::Ok().finish())
 }

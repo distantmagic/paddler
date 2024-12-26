@@ -6,7 +6,6 @@ use std::{
     str,
 };
 
-use actix_web::web::Bytes;
 use async_trait::async_trait;
 use log::warn;
 use log::{debug, error};
@@ -27,7 +26,7 @@ pub struct ApplyingService {
     model_path: String,
     monitoring_interval: Duration,
     llama_process: Option<Child>,
-    status_update_rx: Receiver<Bytes>,
+    status_update_rx: Receiver<String>,
 }
 
 impl ApplyingService {
@@ -36,7 +35,7 @@ impl ApplyingService {
         llama_server_path: String,
         model_path: String,
         monitoring_interval: Duration,
-        status_update_rx: Receiver<Bytes>,
+        status_update_rx: Receiver<String>,
     ) -> Result<Self> {
         let port = get_port(addr.to_string());
         Ok(ApplyingService {
@@ -123,21 +122,14 @@ impl Service for ApplyingService {
                         warn!("Llamacpp server fell off. Restarting server");
                     }
                 },
-                input_path = self.status_update_rx.recv() => {
-                    match input_path {
-                        Ok(bytes_path) => {
-                            match str::from_utf8(&bytes_path) {
-                                Ok(string_path) => {
-                                    self.model_path = string_path.to_string();
+                path = self.status_update_rx.recv() => {
+                    match path {
+                        Ok(model_path) => {
+                            self.model_path = model_path;
 
-                                    match self.start_llamacpp_server().await {
-                                        Ok(_) => {warn!("Model Path was updated. Restarting server");},
-                                        Err(e) => {error!("Failed to start llama server: {}", e);}
-                                    }
-                                },
-                                Err(e) => {
-                                    error!("Failed to receive parse path into a valid: {}", e);
-                                }
+                            match self.start_llamacpp_server().await {
+                                Ok(_) => {warn!("Model Path was updated. Restarting server");},
+                                Err(e) => {error!("Failed to start llama server: {}", e);}
                             }
                         },
                         Err(e) => {
