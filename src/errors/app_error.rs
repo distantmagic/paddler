@@ -32,9 +32,7 @@ pub enum AppError {
     SerdeJsonError(#[from] serde_json::Error),
 
     #[error("Tokio broadcast receive error: {0}")]
-    TokioBroadcastSendBytesError(
-        #[from] tokio::sync::broadcast::error::SendError<String>,
-    ),
+    TokioBroadcastSendBytesError(#[from] tokio::sync::broadcast::error::SendError<String>),
 
     #[error("Unexpected error: {0}")]
     UnexpectedError(String),

@@ -1,7 +1,4 @@
-use actix_web::{
-    web::{Data},
-    App, HttpServer,
-};
+use actix_web::{web::Data, App, HttpServer};
 use async_trait::async_trait;
 use pingora::{server::ShutdownWatch, services::Service};
 use std::net::SocketAddr;
@@ -9,10 +6,7 @@ use std::net::SocketAddr;
 #[cfg(unix)]
 use pingora::server::ListenFds;
 
-use crate::{
-    cmd::supervisor::UpdateLlamacpp, 
-    errors::result::Result, supervisor::http_route
-};
+use crate::{cmd::supervisor::UpdateLlamacpp, errors::result::Result, supervisor::http_route};
 
 pub struct ManagingService {
     supervisor_management_addr: String,

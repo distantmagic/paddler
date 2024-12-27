@@ -7,7 +7,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use log::{debug, error, warn, info};
+use log::{debug, error, info, warn};
 use pingora::{server::ShutdownWatch, services::Service};
 use tokio::{
     sync::broadcast::Receiver,
@@ -27,6 +27,7 @@ pub struct ApplyingService {
     llama_process: Option<Child>,
     update_model: Receiver<String>,
     update_binary: Receiver<String>,
+    update_addr_rx: Receiver<String>,
 }
 
 impl ApplyingService {
@@ -36,7 +37,8 @@ impl ApplyingService {
         model_path: String,
         monitoring_interval: Duration,
         update_model: Receiver<String>,
-        update_binary: Receiver<String>
+        update_binary: Receiver<String>,
+        update_addr_rx: Receiver<String>,
     ) -> Result<Self> {
         let port = get_port(addr.to_string());
         Ok(ApplyingService {
@@ -46,7 +48,8 @@ impl ApplyingService {
             monitoring_interval,
             llama_process: None,
             update_model,
-            update_binary
+            update_binary,
+            update_addr_rx,
         })
     }
 
@@ -110,10 +113,6 @@ impl Service for ApplyingService {
         let mut ticker = interval(self.monitoring_interval);
         ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
-        // let mut needs_to_update_model = self.status_update_rx.subscribe();
-        // let mut needs_to_update_binary = self.status_update_rx.subscribe();
-        // let mut needs_to_update_llama_addr = self.status_update_rx.subscribe();
-
         loop {
             tokio::select! {
                 _ = shutdown.changed() => {
@@ -134,11 +133,11 @@ impl Service for ApplyingService {
                             self.model_path = path;
                             match self.start_llamacpp_server().await {
                                 Ok(_) => {info!("Model Path was updated. Restarting server");},
-                                Err(e) => {warn!("1Failed to start llama server. Changes were not applied {}", e);}
+                                Err(e) => {warn!("Failed to start llama server. Changes were not applied {}", e);}
                             }
                         },
                         Err(e) => {
-                            error!("2Failed to receive model path: {}", e);
+                            error!("Failed to receive model path: {}", e);
                         }
                     }
                 },
@@ -148,11 +147,11 @@ impl Service for ApplyingService {
                             self.llama_path = path;
                             match self.start_llamacpp_server().await {
                                 Ok(_) => {info!("Binary path was updated. Restarting server");},
-                                Err(e) => {warn!("2Failed to start llama server. Changes were not applied {}", e);}
+                                Err(e) => {warn!("Failed to start llama server. Changes were not applied {}", e);}
                             }
                         },
                         Err(e) => {
-                            error!("4Failed to receive binary path: {}", e);
+                            error!("Failed to receive binary path: {}", e);
                         }
                     }
                 }

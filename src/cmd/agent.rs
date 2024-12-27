@@ -1,4 +1,3 @@
-use actix_web::web::Bytes;
 use pingora::server::{configuration::Opt, Server};
 use std::{net::SocketAddr, time::Duration};
 use tokio::sync::broadcast::channel;

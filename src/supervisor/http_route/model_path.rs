@@ -1,9 +1,4 @@
-use actix_web::{
-    get,
-    web::{self, Bytes},
-    HttpResponse,
-};
-use tokio::sync::broadcast::Sender;
+use actix_web::{get, web, HttpResponse};
 
 use crate::{cmd::supervisor::UpdateLlamacpp, errors::result::Result};
 

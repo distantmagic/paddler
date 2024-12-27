@@ -1,4 +1,3 @@
-use actix_web::web::Bytes;
 use pingora::server::{configuration::Opt, Server};
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -12,13 +11,7 @@ use crate::supervisor::managing_service::ManagingService;
 pub struct UpdateLlamacpp {
     pub update_binary_tx: Sender<String>,
     pub update_model_tx: Sender<String>,
-    pub update_addr: Sender<String>
-}
-
-pub struct ReceiveUpdate {
-    update_binary_tx: Sender<String>,
-    update_model_tx: Sender<String>,
-    update_addr: Sender<String>
+    pub update_addr: Sender<String>,
 }
 
 pub fn handle(
@@ -36,7 +29,7 @@ pub fn handle(
     let update_channels = UpdateLlamacpp {
         update_binary_tx,
         update_model_tx,
-        update_addr
+        update_addr,
     };
 
     let manager_service = ManagingService::new(supervisor_management_addr, update_channels)?;
@@ -47,7 +40,8 @@ pub fn handle(
         default_llamacpp_model,
         monitoring_interval,
         update_model_rx,
-        update_binary_rx
+        update_binary_rx,
+        update_addr_rx,
     )?;
 
     let mut pingora_server = Server::new(Opt {
