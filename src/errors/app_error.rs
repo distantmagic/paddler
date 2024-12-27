@@ -33,12 +33,7 @@ pub enum AppError {
 
     #[error("Tokio broadcast receive error: {0}")]
     TokioBroadcastSendBytesError(
-        #[from] tokio::sync::broadcast::error::SendError<actix_web::web::Bytes>
-    ),
-
-    #[error("Tokio broadcast receive error: {0}")]
-    TokioBroadcastSendStringError(
-        #[from] tokio::sync::broadcast::error::SendError<actix_web::web::Bytes>
+        #[from] tokio::sync::broadcast::error::SendError<String>,
     ),
 
     #[error("Unexpected error: {0}")]
@@ -54,7 +49,7 @@ pub enum AppError {
     RwLockPoisonError(String),
 
     #[error("Invalid file error: {0}")]
-    InvalidFileError,
+    InvalidFileError(String),
 }
 
 impl From<&str> for AppError {
@@ -81,19 +76,7 @@ impl<T> From<std::sync::PoisonError<T>> for AppError {
 }
 
 impl From<String> for AppError {
-    fn from(err: String) -> AppError {
-        AppError::InvalidFileError(err)
-    }
-}
-
-impl From<actix_web::web::Bytes> for AppError {
-    fn from(err: actix_web::web::Bytes) -> Self {
-        AppError::TokioBroadcastSendBytesError(tokio::sync::broadcast::error::SendError(err))
-    }
-}
-
-impl From<String> for AppError {
     fn from(err: String) -> Self {
-        AppError::TokioBroadcastSendStringError(tokio::sync::broadcast::error::SendError(err))
+        AppError::InvalidFileError(err)
     }
 }

@@ -7,8 +7,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use log::warn;
-use log::{debug, error};
+use log::{debug, error, warn, info};
 use pingora::{server::ShutdownWatch, services::Service};
 use tokio::{
     sync::broadcast::Receiver,
@@ -22,39 +21,42 @@ use crate::errors::{app_error::AppError, result::Result};
 
 pub struct ApplyingService {
     port: String,
-    llama_server_path: String,
+    llama_path: String,
     model_path: String,
     monitoring_interval: Duration,
     llama_process: Option<Child>,
-    status_update_rx: Receiver<String>,
+    update_model: Receiver<String>,
+    update_binary: Receiver<String>,
 }
 
 impl ApplyingService {
     pub fn new(
         addr: SocketAddr,
-        llama_server_path: String,
+        llama_path: String,
         model_path: String,
         monitoring_interval: Duration,
-        status_update_rx: Receiver<String>,
+        update_model: Receiver<String>,
+        update_binary: Receiver<String>
     ) -> Result<Self> {
         let port = get_port(addr.to_string());
         Ok(ApplyingService {
             port,
-            llama_server_path,
+            llama_path,
             model_path,
             monitoring_interval,
             llama_process: None,
-            status_update_rx,
+            update_model,
+            update_binary
         })
     }
 
     async fn start_llamacpp_server(&mut self) -> Result<()> {
         unsafe {
-            let mut cmd = Command::new(self.llama_server_path.to_owned());
+            let mut cmd = Command::new(self.llama_path.to_owned());
 
             if !is_a_gguf_file(self.model_path.to_string()) {
                 return Err(AppError::InvalidFileError(
-                    "Insert a Valid gguf file for a model.".to_owned(),
+                    "Insert a an existent gguf file for a model.".to_owned(),
                 ));
             }
 
@@ -108,6 +110,10 @@ impl Service for ApplyingService {
         let mut ticker = interval(self.monitoring_interval);
         ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
+        // let mut needs_to_update_model = self.status_update_rx.subscribe();
+        // let mut needs_to_update_binary = self.status_update_rx.subscribe();
+        // let mut needs_to_update_llama_addr = self.status_update_rx.subscribe();
+
         loop {
             tokio::select! {
                 _ = shutdown.changed() => {
@@ -119,21 +125,34 @@ impl Service for ApplyingService {
                         if let Err(e) = self.start_llamacpp_server().await {
                             error!("Failed to start llama server: {}", e);
                         }
-                        warn!("Llamacpp server fell off. Restarting server");
+                        info!("Llamacpp server fell off. Restarting server");
                     }
                 },
-                path = self.status_update_rx.recv() => {
-                    match path {
-                        Ok(model_path) => {
-                            self.model_path = model_path;
-
+                input_path = self.update_model.recv() => {
+                    match input_path {
+                        Ok(path) => {
+                            self.model_path = path;
                             match self.start_llamacpp_server().await {
-                                Ok(_) => {warn!("Model Path was updated. Restarting server");},
-                                Err(e) => {error!("Failed to start llama server: {}", e);}
+                                Ok(_) => {info!("Model Path was updated. Restarting server");},
+                                Err(e) => {warn!("1Failed to start llama server. Changes were not applied {}", e);}
                             }
                         },
                         Err(e) => {
-                            error!("Failed to receive model path: {}", e);
+                            error!("2Failed to receive model path: {}", e);
+                        }
+                    }
+                },
+                input_path = self.update_binary.recv() => {
+                    match input_path {
+                        Ok(path) => {
+                            self.llama_path = path;
+                            match self.start_llamacpp_server().await {
+                                Ok(_) => {info!("Binary path was updated. Restarting server");},
+                                Err(e) => {warn!("2Failed to start llama server. Changes were not applied {}", e);}
+                            }
+                        },
+                        Err(e) => {
+                            error!("4Failed to receive binary path: {}", e);
                         }
                     }
                 }

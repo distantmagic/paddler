@@ -2,11 +2,24 @@ use actix_web::web::Bytes;
 use pingora::server::{configuration::Opt, Server};
 use std::net::SocketAddr;
 use std::time::Duration;
-use tokio::sync::broadcast::channel;
+use tokio::sync::broadcast::{channel, Sender};
 
 use crate::errors::result::Result;
 use crate::supervisor::applying_service::ApplyingService;
 use crate::supervisor::managing_service::ManagingService;
+
+#[derive(Clone)]
+pub struct UpdateLlamacpp {
+    pub update_binary_tx: Sender<String>,
+    pub update_model_tx: Sender<String>,
+    pub update_addr: Sender<String>
+}
+
+pub struct ReceiveUpdate {
+    update_binary_tx: Sender<String>,
+    update_model_tx: Sender<String>,
+    update_addr: Sender<String>
+}
 
 pub fn handle(
     local_llamacpp_addr: SocketAddr,
@@ -16,17 +29,26 @@ pub fn handle(
     monitoring_interval: Duration,
     _name: Option<String>,
 ) -> Result<()> {
-    let (status_update_tx, status_update_rx) = channel::<String>(1);
+    let (update_binary_tx, update_binary_rx) = channel::<String>(1);
+    let (update_model_tx, update_model_rx) = channel::<String>(1);
+    let (update_addr, update_addr_rx) = channel::<String>(1);
+
+    let update_channels = UpdateLlamacpp {
+        update_binary_tx,
+        update_model_tx,
+        update_addr
+    };
+
+    let manager_service = ManagingService::new(supervisor_management_addr, update_channels)?;
 
     let applying_service = ApplyingService::new(
         local_llamacpp_addr,
         llama_server_path,
         default_llamacpp_model,
         monitoring_interval,
-        status_update_rx,
+        update_model_rx,
+        update_binary_rx
     )?;
-
-    let manager_service = ManagingService::new(supervisor_management_addr, status_update_tx)?;
 
     let mut pingora_server = Server::new(Opt {
         upgrade: false,
