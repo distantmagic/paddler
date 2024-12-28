@@ -9,7 +9,7 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 #[get("v1/model/{path:.*}")]
 async fn respond(
     status_update_tx: web::Data<UpdateLlamacpp>,
-    path: web::Path<(String)>,
+    path: web::Path<String>,
 ) -> Result<HttpResponse> {
     let model_path = path.into_inner();
 

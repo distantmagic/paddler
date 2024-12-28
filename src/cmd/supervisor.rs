@@ -11,7 +11,7 @@ use crate::supervisor::managing_service::ManagingService;
 pub struct UpdateLlamacpp {
     pub update_binary_tx: Sender<String>,
     pub update_model_tx: Sender<String>,
-    pub update_addr: Sender<String>,
+    pub update_addr_tx: Sender<String>,
 }
 
 pub fn handle(
@@ -24,12 +24,12 @@ pub fn handle(
 ) -> Result<()> {
     let (update_binary_tx, update_binary_rx) = channel::<String>(1);
     let (update_model_tx, update_model_rx) = channel::<String>(1);
-    let (update_addr, update_addr_rx) = channel::<String>(1);
+    let (update_addr_tx, update_addr_rx) = channel::<String>(1);
 
     let update_channels = UpdateLlamacpp {
         update_binary_tx,
         update_model_tx,
-        update_addr,
+        update_addr_tx,
     };
 
     let manager_service = ManagingService::new(supervisor_management_addr, update_channels)?;

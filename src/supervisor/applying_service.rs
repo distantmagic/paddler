@@ -20,14 +20,14 @@ use pingora::server::ListenFds;
 use crate::errors::{app_error::AppError, result::Result};
 
 pub struct ApplyingService {
-    port: String,
+    addr: String,
     llama_path: String,
     model_path: String,
     monitoring_interval: Duration,
     llama_process: Option<Child>,
     update_model: Receiver<String>,
     update_binary: Receiver<String>,
-    update_addr_rx: Receiver<String>,
+    update_addr: Receiver<String>,
 }
 
 impl ApplyingService {
@@ -38,18 +38,17 @@ impl ApplyingService {
         monitoring_interval: Duration,
         update_model: Receiver<String>,
         update_binary: Receiver<String>,
-        update_addr_rx: Receiver<String>,
+        update_addr: Receiver<String>,
     ) -> Result<Self> {
-        let port = get_port(addr.to_string());
         Ok(ApplyingService {
-            port,
+            addr: addr.to_string(),
             llama_path,
             model_path,
             monitoring_interval,
             llama_process: None,
             update_model,
             update_binary,
-            update_addr_rx,
+            update_addr,
         })
     }
 
@@ -63,11 +62,16 @@ impl ApplyingService {
                 ));
             }
 
+            let port = get_port(self.addr.clone());
+            let host = get_host(self.addr.clone());
+
             cmd.args(&[
                 "-m",
                 self.model_path.as_str(),
+                "--host",
+                &host,
                 "--port",
-                &self.port,
+                &port,
                 "--slots",
             ])
             .stdout(Stdio::null())
@@ -155,6 +159,26 @@ impl Service for ApplyingService {
                         }
                     }
                 }
+                input_addr = self.update_addr.recv() => {
+                    match input_addr {
+                        Ok(addr) => {
+                            if let Some(llama_process) = &mut self.llama_process {
+                                match llama_process.kill() {
+                                    Err(err) => {warn!("Failed to kill process. Changes were not applied: {}", err); break},
+                                    _ => (),
+                                }
+                                self.addr = addr;
+                            }
+                            match self.start_llamacpp_server().await {
+                                Ok(_) => {info!("Address was updated. Restarting server")},
+                                Err(e) => {warn!("Failed to start llama server. Changes were not applied {}", e)}
+                            }
+                        },
+                        Err(e) => {
+                            error!("Failed to receive binary path: {}", e);
+                        }
+                    }
+                }
             }
         }
     }
@@ -172,6 +196,16 @@ fn get_port(addr: String) -> String {
     unsafe {
         addr.split(':')
             .nth(1)
+            .unwrap_unchecked()
+            .parse::<String>()
+            .unwrap_unchecked()
+    }
+}
+
+fn get_host(addr: String) -> String {
+    unsafe {
+        addr.split(':')
+            .nth(0)
             .unwrap_unchecked()
             .parse::<String>()
             .unwrap_unchecked()

@@ -38,7 +38,8 @@ impl Service for ManagingService {
             let app = App::new()
                 .app_data(update_channels.clone())
                 .configure(http_route::model_path::register)
-                .configure(http_route::binary_path::register);
+                .configure(http_route::binary_path::register)
+                .configure(http_route::address::register);
 
             app
         })

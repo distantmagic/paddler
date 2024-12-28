@@ -6,14 +6,14 @@ pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
 }
 
-#[get("v1/binary/{path:.*}")]
+#[get("v1/address/{path:.*}")]
 async fn respond(
-    status_update: web::Data<UpdateLlamacpp>,
+    status_update_tx: web::Data<UpdateLlamacpp>,
     path: web::Path<String>,
 ) -> Result<HttpResponse> {
     let binary_path = path.into_inner();
 
-    status_update.update_binary_tx.send(binary_path)?;
+    status_update_tx.update_addr_tx.send(binary_path)?;
 
     Ok(HttpResponse::Ok().finish())
 }
