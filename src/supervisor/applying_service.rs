@@ -163,10 +163,15 @@ impl Service for ApplyingService {
                     match input_addr {
                         Ok(addr) => {
                             if let Some(llama_process) = &mut self.llama_process {
-                                match llama_process.kill() {
-                                    Err(err) => {warn!("Failed to kill process. Changes were not applied: {}", err); break},
-                                    _ => (),
+                                let pid = llama_process.id();
+                                #[cfg(unix)]
+                                unsafe {
+                                    if libc::kill(-(pid as i32), libc::SIGKILL) != 0 {
+                                        warn!("Failed to kill process group. Changes were not applied");
+                                        break;
+                                    }
                                 }
+
                                 self.addr = addr;
                             }
                             match self.start_llamacpp_server().await {
