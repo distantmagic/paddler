@@ -1,6 +1,11 @@
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
+
 use std::{
     net::SocketAddr,
-    os::unix::process::CommandExt,
     path::Path,
     process::{Child, Command, Stdio},
     str,
@@ -117,6 +122,26 @@ impl Service for ApplyingService {
         let mut ticker = interval(self.monitoring_interval);
         ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
+        unsafe {
+            if let Ok(listeners) = listeners::get_processes_by_port(
+                str::parse(get_port(self.addr.clone()).as_str()).unwrap_unchecked(),
+            ) {
+                for process in listeners {
+                    kill_llamacpp_server(process.pid);
+                }
+            }
+        }
+
+        match self.start_llamacpp_server().await {
+            Err(e) => {
+                warn!(
+                    "Failed to get control over running llamacpp instance: {}",
+                    e
+                );
+            }
+            Ok(_) => (),
+        }
+
         loop {
             tokio::select! {
                 _ = shutdown.changed() => {
@@ -164,13 +189,9 @@ impl Service for ApplyingService {
                         Ok(addr) => {
                             if let Some(llama_process) = &mut self.llama_process {
                                 let pid = llama_process.id();
+
                                 #[cfg(unix)]
-                                unsafe {
-                                    if libc::kill(-(pid as i32), libc::SIGKILL) != 0 {
-                                        warn!("Failed to kill process group. Changes were not applied");
-                                        break;
-                                    }
-                                }
+                                kill_llamacpp_server(pid);
 
                                 self.addr = addr;
                             }
@@ -232,4 +253,12 @@ fn is_a_gguf_file(path: String) -> bool {
     }
 
     false
+}
+
+fn kill_llamacpp_server(pid: u32) {
+    unsafe {
+        if libc::kill(-(pid as i32), libc::SIGKILL) != 0 {
+            warn!("Failed to kill process group. Changes were not applied");
+        }
+    }
 }
