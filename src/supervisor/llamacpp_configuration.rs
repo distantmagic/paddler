@@ -69,18 +69,6 @@ impl LlamacppConfiguration {
         }
     }
 
-    pub fn get_model_path(self) -> String {
-        self.model
-    }
-
-    pub fn get_binary_path(self) -> String {
-        self.binary
-    }
-
-    pub fn get_threads_number(self) -> i8 {
-        self.threads
-    }
-
     pub fn is_a_gguf_file(model: String) -> Result<()> {
         let file = Path::new(&model);
 
