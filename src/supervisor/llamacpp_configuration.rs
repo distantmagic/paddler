@@ -7,23 +7,41 @@ use crate::{errors::app_error::AppError, errors::result::Result};
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct LlamacppConfiguration {
     address: SocketAddr,
-    llama_path: String,
-    model_path: String,
-    threads_number: i8,
+    pub binary: String,
+    pub model: String,
+    pub threads: i8,
+    pub no_webui: bool,
+    pub slots: bool,
+    pub predict: i8,
+    pub ctx_size: i8,
+    pub temperature: i8,
+    pub props: bool,
 }
 
 impl LlamacppConfiguration {
     pub fn new(
         address: SocketAddr,
-        llama_path: String,
-        model_path: String,
-        threads_number: i8,
+        binary: String,
+        model: String,
+        threads: i8,
+        no_webui: bool,
+        slots: bool,
+        predict: i8,
+        ctx_size: i8,
+        temperature: i8,
+        props: bool,
     ) -> Self {
         LlamacppConfiguration {
             address,
-            llama_path,
-            model_path,
-            threads_number,
+            binary,
+            model,
+            threads,
+            no_webui,
+            slots,
+            predict,
+            ctx_size,
+            temperature,
+            props,
         }
     }
 
@@ -52,19 +70,19 @@ impl LlamacppConfiguration {
     }
 
     pub fn get_model_path(self) -> String {
-        self.model_path
+        self.model
     }
 
     pub fn get_binary_path(self) -> String {
-        self.llama_path
+        self.binary
     }
 
     pub fn get_threads_number(self) -> i8 {
-        self.threads_number
+        self.threads
     }
 
-    pub fn is_a_gguf_file(self) -> Result<()> {
-        let file = Path::new(&self.model_path);
+    pub fn is_a_gguf_file(model: String) -> Result<()> {
+        let file = Path::new(&model);
 
         if file.exists() {
             if let Some(ext) = file.extension() {

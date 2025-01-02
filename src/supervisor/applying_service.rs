@@ -40,26 +40,29 @@ impl ApplyingService {
     }
 
     async fn start_llamacpp_server(&mut self) -> Result<()> {
-        let mut cmd = Command::new(self.llamacpp_options.clone().get_binary_path());
+        let mut cmd = Command::new(self.llamacpp_options.clone().binary);
 
-        self.llamacpp_options.clone().is_a_gguf_file()?;
+        LlamacppConfiguration::is_a_gguf_file(self.llamacpp_options.clone().model)?;
 
         let port = self.llamacpp_options.clone().get_port();
         let host = self.llamacpp_options.clone().get_host();
 
         cmd.args(&[
             "-m",
-            self.llamacpp_options.clone().get_model_path().as_str(),
+            &self.llamacpp_options.model,
             "--host",
             &host,
             "--port",
             &port,
             "-t",
-            self.llamacpp_options
-                .clone()
-                .get_threads_number()
-                .to_string()
-                .as_str(),
+            &self.llamacpp_options.threads.to_string(),
+            "-n",
+            &self.llamacpp_options.predict.to_string(),
+            "--temp",
+            &self.llamacpp_options.temperature.to_string(),
+            "-c",
+            &self.llamacpp_options.ctx_size.to_string(),
+            "--props",
             "--slots",
         ])
         .stdout(Stdio::null())

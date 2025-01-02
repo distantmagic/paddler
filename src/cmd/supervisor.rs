@@ -10,18 +10,19 @@ use crate::supervisor::managing_service::ManagingService;
 
 pub fn handle(
     addr: SocketAddr,
-    llama_path: String,
-    model_path: String,
-    threads_number: i8,
-    supervisor_management_addr: SocketAddr,
+    binary: String,
+    model: String,
+    threads: i8,
+    supervisor_addr: SocketAddr,
     monitoring_interval: Duration,
     _name: Option<String>,
 ) -> Result<()> {
     let (update_llamacpp_tx, update_llamacpp_rx) = channel::<LlamacppConfiguration>(1);
 
-    let manager_service = ManagingService::new(supervisor_management_addr, update_llamacpp_tx)?;
+    let manager_service = ManagingService::new(supervisor_addr, update_llamacpp_tx)?;
 
-    let llamacpp_options = LlamacppConfiguration::new(addr, llama_path, model_path, threads_number);
+    let llamacpp_options =
+        LlamacppConfiguration::new(addr, binary, model, threads, false, false, 0, 0, 0, false);
 
     let applying_service =
         ApplyingService::new(llamacpp_options, monitoring_interval, update_llamacpp_rx)?;
