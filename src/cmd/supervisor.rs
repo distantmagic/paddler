@@ -1,47 +1,37 @@
 use pingora::server::{configuration::Opt, Server};
 use std::net::SocketAddr;
 use std::time::Duration;
-use tokio::sync::broadcast::{channel, Sender};
+use tokio::sync::broadcast::{channel};
 
 use crate::errors::result::Result;
 use crate::supervisor::applying_service::ApplyingService;
+use crate::supervisor::llamacpp_configuration::LlamacppConfiguration;
 use crate::supervisor::managing_service::ManagingService;
 
-#[derive(Clone)]
-pub struct UpdateLlamacpp {
-    pub update_binary_tx: Sender<String>,
-    pub update_model_tx: Sender<String>,
-    pub update_addr_tx: Sender<String>,
-}
-
 pub fn handle(
-    local_llamacpp_addr: SocketAddr,
-    llama_server_path: String,
-    default_llamacpp_model: String,
+    addr: SocketAddr,
+    llama_path: String,
+    model_path: String,
+    threads_number: i8,
     supervisor_management_addr: SocketAddr,
     monitoring_interval: Duration,
     _name: Option<String>,
 ) -> Result<()> {
-    let (update_binary_tx, update_binary_rx) = channel::<String>(1);
-    let (update_model_tx, update_model_rx) = channel::<String>(1);
-    let (update_addr_tx, update_addr_rx) = channel::<String>(1);
+    let (update_llamacpp_tx, update_llamacpp_rx) = channel::<String>(1);
 
-    let update_channels = UpdateLlamacpp {
-        update_binary_tx,
-        update_model_tx,
-        update_addr_tx,
-    };
+    let manager_service = ManagingService::new(supervisor_management_addr, update_llamacpp_tx)?;
 
-    let manager_service = ManagingService::new(supervisor_management_addr, update_channels)?;
-
+    let llamacpp_options = LlamacppConfiguration::new(
+        addr,
+        llama_path,
+        model_path,
+        threads_number
+    );
+    
     let applying_service = ApplyingService::new(
-        local_llamacpp_addr,
-        llama_server_path,
-        default_llamacpp_model,
+        llamacpp_options,
         monitoring_interval,
-        update_model_rx,
-        update_binary_rx,
-        update_addr_rx,
+        update_llamacpp_rx,
     )?;
 
     let mut pingora_server = Server::new(Opt {

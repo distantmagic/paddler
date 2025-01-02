@@ -1,26 +1,27 @@
 use actix_web::{web::Data, App, HttpServer};
 use async_trait::async_trait;
 use pingora::{server::ShutdownWatch, services::Service};
+use tokio::sync::broadcast::Sender;
 use std::net::SocketAddr;
 
 #[cfg(unix)]
 use pingora::server::ListenFds;
 
-use crate::{cmd::supervisor::UpdateLlamacpp, errors::result::Result, supervisor::http_route};
+use crate::{errors::result::Result, supervisor::http_route};
 
 pub struct ManagingService {
     supervisor_management_addr: String,
-    update_channels: UpdateLlamacpp,
+    update_llamacpp_tx: Sender<String>
 }
 
 impl ManagingService {
     pub fn new(
         supervisor_management_addr: SocketAddr,
-        update_channels: UpdateLlamacpp,
+        update_llamacpp_tx: Sender<String>,
     ) -> Result<Self> {
         Ok(ManagingService {
             supervisor_management_addr: supervisor_management_addr.to_string(),
-            update_channels,
+            update_llamacpp_tx,
         })
     }
 }
@@ -32,14 +33,12 @@ impl Service for ManagingService {
         #[cfg(unix)] _fds: Option<ListenFds>,
         mut _shutdown: ShutdownWatch,
     ) {
-        let update_channels = Data::new(self.update_channels.clone());
+        let update_llamacpp_tx = Data::new(self.update_llamacpp_tx.clone());
 
         HttpServer::new(move || {
             let app = App::new()
-                .app_data(update_channels.clone())
-                .configure(http_route::model_path::register)
-                .configure(http_route::binary_path::register)
-                .configure(http_route::address::register);
+                .app_data(update_llamacpp_tx.clone())
+                .configure(http_route::update::register);
 
             app
         })

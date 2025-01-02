@@ -131,15 +131,19 @@ enum Commands {
     Supervise {
         #[arg(long)]
         /// Path of the llama.cpp binary that the supervisor will use
-        default_llama_server_path: String,
+        default_llama_path: String,
 
         #[arg(long, value_parser = parse_socket_addr)]
         /// Address of the local llama.cpp instance that the supervisor will supervises
-        default_local_llamacpp_addr: SocketAddr,
+        default_llama_addr: SocketAddr,
 
         #[arg(long)]
         /// Path of the model that the llamacpp will run
-        default_llamacpp_model: String,
+        default_llama_model: String,
+
+        #[arg(long)]
+        /// Path of the model that the llamacpp will run
+        default_threads_number: i8,
 
         #[arg(long, value_parser = parse_socket_addr)]
         /// Address of the management server that the agent will report to
@@ -207,16 +211,18 @@ fn main() -> Result<()> {
             statsd_reporting_interval.to_owned(),
         ),
         Some(Commands::Supervise {
-            default_llama_server_path,
-            default_local_llamacpp_addr,
-            default_llamacpp_model,
+            default_llama_path,
+            default_llama_addr,
+            default_llama_model,
+            default_threads_number,
             supervisor_management_addr,
             name,
             monitoring_interval,
         }) => cmd::supervisor::handle(
-            default_local_llamacpp_addr.to_owned(),
-            default_llama_server_path.to_owned(),
-            default_llamacpp_model.to_owned(),
+            default_llama_addr.to_owned(),
+            default_llama_path.to_owned(),
+            default_llama_model.to_owned(),
+            default_threads_number.to_owned(),
             supervisor_management_addr.to_owned(),
             monitoring_interval.to_owned(),
             name.to_owned(),
