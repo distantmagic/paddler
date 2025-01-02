@@ -1,3 +1,5 @@
+use crate::supervisor::llamacpp_configuration::LlamacppConfiguration;
+
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
     #[error("Address parse error: {0}")]
@@ -32,7 +34,14 @@ pub enum AppError {
     SerdeJsonError(#[from] serde_json::Error),
 
     #[error("Tokio broadcast receive error: {0}")]
-    TokioBroadcastSendBytesError(#[from] tokio::sync::broadcast::error::SendError<String>),
+    TokioBroadcastSendBytesError(
+        #[from] tokio::sync::broadcast::error::SendError<actix_web::web::Bytes>,
+    ),
+
+    #[error("Tokio broadcast receive error: {0}")]
+    TokioBroadcastSendOptionsError(
+        #[from] tokio::sync::broadcast::error::SendError<LlamacppConfiguration>,
+    ),
 
     #[error("Unexpected error: {0}")]
     UnexpectedError(String),

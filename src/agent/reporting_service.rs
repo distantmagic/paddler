@@ -17,11 +17,11 @@ use crate::errors::result::Result;
 
 pub struct ReportingService {
     stats_endpoint_url: String,
-    status_update_tx: Sender<String>,
+    status_update_tx: Sender<Bytes>,
 }
 
 impl ReportingService {
-    pub fn new(management_addr: SocketAddr, status_update_tx: Sender<String>) -> Result<Self> {
+    pub fn new(management_addr: SocketAddr, status_update_tx: Sender<Bytes>) -> Result<Self> {
         let agent_id = Uuid::new_v4();
 
         Ok(ReportingService {

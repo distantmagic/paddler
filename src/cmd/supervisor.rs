@@ -1,7 +1,7 @@
 use pingora::server::{configuration::Opt, Server};
 use std::net::SocketAddr;
 use std::time::Duration;
-use tokio::sync::broadcast::{channel};
+use tokio::sync::broadcast::channel;
 
 use crate::errors::result::Result;
 use crate::supervisor::applying_service::ApplyingService;
@@ -17,22 +17,14 @@ pub fn handle(
     monitoring_interval: Duration,
     _name: Option<String>,
 ) -> Result<()> {
-    let (update_llamacpp_tx, update_llamacpp_rx) = channel::<String>(1);
+    let (update_llamacpp_tx, update_llamacpp_rx) = channel::<LlamacppConfiguration>(1);
 
     let manager_service = ManagingService::new(supervisor_management_addr, update_llamacpp_tx)?;
 
-    let llamacpp_options = LlamacppConfiguration::new(
-        addr,
-        llama_path,
-        model_path,
-        threads_number
-    );
-    
-    let applying_service = ApplyingService::new(
-        llamacpp_options,
-        monitoring_interval,
-        update_llamacpp_rx,
-    )?;
+    let llamacpp_options = LlamacppConfiguration::new(addr, llama_path, model_path, threads_number);
+
+    let applying_service =
+        ApplyingService::new(llamacpp_options, monitoring_interval, update_llamacpp_rx)?;
 
     let mut pingora_server = Server::new(Opt {
         upgrade: false,

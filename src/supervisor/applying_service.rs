@@ -1,9 +1,3 @@
-// #[cfg(windows)]
-// use std::os::windows::process::CommandExt;
-
-// #[cfg(unix)]
-// use std::os::unix::process::CommandExt;
-
 use std::{
     process::{Child, Command, Stdio},
     str,
@@ -28,14 +22,14 @@ pub struct ApplyingService {
     llamacpp_options: LlamacppConfiguration,
     monitoring_interval: Duration,
     llama_process: Option<Child>,
-    update_llamacpp: Receiver<String>,
+    update_llamacpp: Receiver<LlamacppConfiguration>,
 }
 
 impl ApplyingService {
     pub fn new(
         llamacpp_options: LlamacppConfiguration,
         monitoring_interval: Duration,
-        update_llamacpp: Receiver<String>,
+        update_llamacpp: Receiver<LlamacppConfiguration>,
     ) -> Result<Self> {
         Ok(ApplyingService {
             llamacpp_options,
@@ -44,7 +38,7 @@ impl ApplyingService {
             update_llamacpp,
         })
     }
-    
+
     async fn start_llamacpp_server(&mut self) -> Result<()> {
         let mut cmd = Command::new(self.llamacpp_options.clone().get_binary_path());
 
@@ -61,13 +55,15 @@ impl ApplyingService {
             "--port",
             &port,
             "-t",
-            self.llamacpp_options.clone().get_threads_number().to_string().as_str(),
+            self.llamacpp_options
+                .clone()
+                .get_threads_number()
+                .to_string()
+                .as_str(),
             "--slots",
         ])
         .stdout(Stdio::null())
         .stderr(Stdio::null());
-
-        // detach_process(&mut cmd);
 
         let child = cmd.spawn()?;
         self.llama_process = Some(child);
@@ -88,6 +84,10 @@ impl ApplyingService {
         } else {
             false
         }
+    }
+
+    fn set_options(&mut self, options: LlamacppConfiguration) {
+        self.llamacpp_options = options;
     }
 }
 
@@ -118,7 +118,12 @@ impl Service for ApplyingService {
                 input = self.update_llamacpp.recv() => {
                     match input {
                         Ok(options) => {
-                            self.llamacpp_options.set_configuration(options);
+                            if let Some(process) = &mut self.llama_process {
+                                let _ = process.kill();
+                                let _ = process.wait();
+                            }
+
+                            self.set_options(options);
                             match self.start_llamacpp_server().await {
                                 Ok(_) => {info!("Configuration was updated. Restarting server");},
                                 Err(e) => {warn!("Failed to start llama server. Changes were not applied {}", e);}
@@ -141,20 +146,3 @@ impl Service for ApplyingService {
         None
     }
 }
-
-// fn detach_process(cmd: &mut Command) {
-//     unsafe {
-//         #[cfg(unix)]
-//         cmd.pre_exec(|| {
-//             libc::setsid();
-
-//             Ok(())
-//         });
-
-//         #[cfg(target_family = "windows")]
-//         {
-//             const DETACHED_PROCESS: u32 = 0x00000008;
-//             cmd.creation_flags(DETACHED_PROCESS);
-//         }
-//     }
-// }

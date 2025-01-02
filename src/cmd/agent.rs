@@ -1,3 +1,4 @@
+use actix_web::web::Bytes;
 use pingora::server::{configuration::Opt, Server};
 use std::{net::SocketAddr, time::Duration};
 use tokio::sync::broadcast::channel;
@@ -15,7 +16,7 @@ pub fn handle(
     monitoring_interval: Duration,
     name: Option<String>,
 ) -> Result<()> {
-    let (status_update_tx, _status_update_rx) = channel::<String>(1);
+    let (status_update_tx, _status_update_rx) = channel::<Bytes>(1);
 
     let llamacpp_client = LlamacppClient::new(local_llamacpp_addr, llamacpp_api_key)?;
 

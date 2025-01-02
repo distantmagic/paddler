@@ -21,7 +21,7 @@ pub struct MonitoringService {
     llamacpp_client: LlamacppClient,
     monitoring_interval: Duration,
     name: Option<String>,
-    status_update_tx: Sender<String>,
+    status_update_tx: Sender<Bytes>,
 }
 
 impl MonitoringService {
@@ -30,7 +30,7 @@ impl MonitoringService {
         llamacpp_client: LlamacppClient,
         monitoring_interval: Duration,
         name: Option<String>,
-        status_update_tx: Sender<String>,
+        status_update_tx: Sender<Bytes>,
     ) -> Result<Self> {
         Ok(MonitoringService {
             external_llamacpp_addr,
@@ -63,7 +63,7 @@ impl MonitoringService {
     }
 
     async fn report_status(&self, status: StatusUpdate) -> Result<usize> {
-        let status = serde_json::to_string(&status)?;
+        let status = Bytes::from(serde_json::to_vec(&status)?);
 
         Ok(self.status_update_tx.send(status)?)
     }
