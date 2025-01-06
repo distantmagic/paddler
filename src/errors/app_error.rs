@@ -1,5 +1,3 @@
-use crate::supervisor::config::Config;
-
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
     #[error("Address parse error: {0}")]
@@ -40,6 +38,9 @@ pub enum AppError {
 
     #[error("Tokio broadcast receive error: {0}")]
     TokioBroadcastSendConfigError(#[from] tokio::sync::broadcast::error::SendError<Vec<String>>),
+
+    #[error("Tokio broadcast receive error: {0}")]
+    MapToVecParseError(#[from] mavec::error::MavecError),
 
     #[error("Unexpected error: {0}")]
     UnexpectedError(String),

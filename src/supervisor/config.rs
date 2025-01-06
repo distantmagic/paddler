@@ -1,7 +1,5 @@
 use std::collections::VecDeque;
 
-use serde_json::Value;
-
 use crate::errors::{app_error::AppError, result::Result};
 
 #[derive(Clone, Debug)]
@@ -22,27 +20,4 @@ impl Config {
             "No binary found in JSON struct".to_string(),
         ))
     }
-}
-
-pub fn to_vec(value: Value) -> Result<Config> {
-    if let Some(object) = value.as_object() {
-        if let Some(args) = object["args"].as_object() {
-            let result: VecDeque<String> = args
-                .iter()
-                .flat_map(|(key, value)| {
-                    let value = match value {
-                        Value::Number(number) => number.to_string(),
-                        Value::String(string) => string.clone(),
-                        _ => "".to_string(),
-                    };
-                    VecDeque::from([key.to_owned(), value.to_string()])
-                })
-                .collect();
-            return Ok(Config(result));
-        }
-    }
-
-    Err(AppError::UnexpectedError(
-        "JSON structure could be parsed into an object".to_string(),
-    ))
 }

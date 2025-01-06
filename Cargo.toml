@@ -44,6 +44,7 @@ color-eyre = "0.6.3"
 time = "0.3.36"
 chrono = "0.4.38"
 libc = "0.2.169"
+mavec = "0.1.2"
 
 [features]
 default = ["statsd_reporter", "ratatui_dashboard"]
@@ -53,6 +54,3 @@ web_dashboard = ["dep:askama", "dep:askama_actix", "dep:mime_guess", "dep:rust-e
 
 [profile.release]
 lto = false
-
-[profile.dev]
-incremental = true
