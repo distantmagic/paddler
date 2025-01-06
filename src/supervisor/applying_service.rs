@@ -38,7 +38,6 @@ impl ApplyingService {
     }
 
     async fn start_llamacpp_server(&mut self) -> Result<()> {
-        eprintln!("Command to be ran: {:#?}", self.args);
         let mut cmd = Command::new(&self.args[1]);
 
         cmd.args(&self.args[2..])
