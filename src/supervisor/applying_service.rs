@@ -16,23 +16,21 @@ use pingora::server::ListenFds;
 
 use crate::errors::result::Result;
 
-use super::llamacpp_configuration::LlamacppConfiguration;
-
 pub struct ApplyingService {
-    llamacpp_options: LlamacppConfiguration,
+    args: Vec<String>,
     monitoring_interval: Duration,
     llama_process: Option<Child>,
-    update_llamacpp: Receiver<LlamacppConfiguration>,
+    update_llamacpp: Receiver<Vec<String>>,
 }
 
 impl ApplyingService {
     pub fn new(
-        llamacpp_options: LlamacppConfiguration,
+        args: Vec<String>,
         monitoring_interval: Duration,
-        update_llamacpp: Receiver<LlamacppConfiguration>,
+        update_llamacpp: Receiver<Vec<String>>,
     ) -> Result<Self> {
         Ok(ApplyingService {
-            llamacpp_options,
+            args,
             monitoring_interval,
             llama_process: None,
             update_llamacpp,
@@ -40,33 +38,11 @@ impl ApplyingService {
     }
 
     async fn start_llamacpp_server(&mut self) -> Result<()> {
-        let mut cmd = Command::new(self.llamacpp_options.clone().binary);
+        let mut cmd = Command::new(&self.args[1]);
 
-        LlamacppConfiguration::is_a_gguf_file(self.llamacpp_options.clone().model)?;
-
-        let port = self.llamacpp_options.clone().get_port();
-        let host = self.llamacpp_options.clone().get_host();
-
-        cmd.args(&[
-            "-m",
-            &self.llamacpp_options.model,
-            "--host",
-            &host,
-            "--port",
-            &port,
-            "-t",
-            &self.llamacpp_options.threads.to_string(),
-            "-n",
-            &self.llamacpp_options.predict.to_string(),
-            "--temp",
-            &self.llamacpp_options.temperature.to_string(),
-            "-c",
-            &self.llamacpp_options.ctx_size.to_string(),
-            "--props",
-            "--slots",
-        ])
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        cmd.args(&self.args[2..])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
 
         let child = cmd.spawn()?;
         self.llama_process = Some(child);
@@ -87,10 +63,6 @@ impl ApplyingService {
         } else {
             false
         }
-    }
-
-    fn set_options(&mut self, options: LlamacppConfiguration) {
-        self.llamacpp_options = options;
     }
 }
 
@@ -118,15 +90,15 @@ impl Service for ApplyingService {
                         info!("Llamacpp server fell off. Restarting server");
                     }
                 },
-                input = self.update_llamacpp.recv() => {
-                    match input {
-                        Ok(options) => {
+                args = self.update_llamacpp.recv() => {
+                    match args {
+                        Ok(args) => {
+                            self.args = args;
                             if let Some(process) = &mut self.llama_process {
                                 let _ = process.kill();
                                 let _ = process.wait();
                             }
 
-                            self.set_options(options);
                             match self.start_llamacpp_server().await {
                                 Ok(_) => {info!("Configuration was updated. Restarting server");},
                                 Err(e) => {warn!("Failed to start llama server. Changes were not applied {}", e);}

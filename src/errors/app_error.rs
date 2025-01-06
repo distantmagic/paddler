@@ -1,4 +1,4 @@
-use crate::supervisor::llamacpp_configuration::LlamacppConfiguration;
+use crate::supervisor::config::Config;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
@@ -39,9 +39,7 @@ pub enum AppError {
     ),
 
     #[error("Tokio broadcast receive error: {0}")]
-    TokioBroadcastSendOptionsError(
-        #[from] tokio::sync::broadcast::error::SendError<LlamacppConfiguration>,
-    ),
+    TokioBroadcastSendConfigError(#[from] tokio::sync::broadcast::error::SendError<Vec<String>>),
 
     #[error("Unexpected error: {0}")]
     UnexpectedError(String),

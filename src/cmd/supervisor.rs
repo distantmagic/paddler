@@ -5,27 +5,18 @@ use tokio::sync::broadcast::channel;
 
 use crate::errors::result::Result;
 use crate::supervisor::applying_service::ApplyingService;
-use crate::supervisor::llamacpp_configuration::LlamacppConfiguration;
 use crate::supervisor::managing_service::ManagingService;
 
 pub fn handle(
-    addr: SocketAddr,
-    binary: String,
-    model: String,
-    threads: i8,
+    args: Vec<String>,
     supervisor_addr: SocketAddr,
     monitoring_interval: Duration,
-    _name: Option<String>,
 ) -> Result<()> {
-    let (update_llamacpp_tx, update_llamacpp_rx) = channel::<LlamacppConfiguration>(1);
+    let (update_llamacpp_tx, update_llamacpp_rx) = channel::<Vec<String>>(1);
 
     let manager_service = ManagingService::new(supervisor_addr, update_llamacpp_tx)?;
 
-    let llamacpp_options =
-        LlamacppConfiguration::new(addr, binary, model, threads, false, false, 0, 0, 0, false);
-
-    let applying_service =
-        ApplyingService::new(llamacpp_options, monitoring_interval, update_llamacpp_rx)?;
+    let applying_service = ApplyingService::new(args, monitoring_interval, update_llamacpp_rx)?;
 
     let mut pingora_server = Server::new(Opt {
         upgrade: false,

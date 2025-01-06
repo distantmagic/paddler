@@ -9,20 +9,18 @@ use pingora::server::ListenFds;
 
 use crate::{errors::result::Result, supervisor::http_route};
 
-use super::llamacpp_configuration::LlamacppConfiguration;
-
 pub struct ManagingService {
-    supervisor_management_addr: String,
-    update_llamacpp_tx: Sender<LlamacppConfiguration>,
+    supervisor_addr: String,
+    update_llamacpp_tx: Sender<Vec<String>>,
 }
 
 impl ManagingService {
     pub fn new(
-        supervisor_management_addr: SocketAddr,
-        update_llamacpp_tx: Sender<LlamacppConfiguration>,
+        supervisor_addr: SocketAddr,
+        update_llamacpp_tx: Sender<Vec<String>>,
     ) -> Result<Self> {
         Ok(ManagingService {
-            supervisor_management_addr: supervisor_management_addr.to_string(),
+            supervisor_addr: supervisor_addr.to_string(),
             update_llamacpp_tx,
         })
     }
@@ -44,7 +42,7 @@ impl Service for ManagingService {
 
             app
         })
-        .bind(self.supervisor_management_addr.to_owned())
+        .bind(self.supervisor_addr.to_owned())
         .expect("Unable to bind server to address")
         .run()
         .await
