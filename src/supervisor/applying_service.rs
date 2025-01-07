@@ -1,7 +1,7 @@
-use std::process::{Child, Command, Stdio};
 use async_trait::async_trait;
 use log::{debug, error, info, warn};
 use pingora::{server::ShutdownWatch, services::Service};
+use std::process::{Child, Command, Stdio};
 use tokio::{
     sync::broadcast::Receiver,
     time::{interval, Duration, MissedTickBehavior},
@@ -39,11 +39,11 @@ impl ApplyingService {
                 return Ok(());
             }
         }
-        
+
         if let Some(old_args) = self.args.1.clone() {
             self.spawn_llama_process(&old_args)?;
         }
-        
+
         Ok(())
     }
 
@@ -73,7 +73,7 @@ impl ApplyingService {
     async fn handle_new_arguments(&mut self, args: Vec<String>) {
         let primary = self.args.0.take();
         self.args.0 = Some(args);
-    
+
         if let Err(e) = self.start_llamacpp_server().await {
             warn!("Failed to start server with new configuration: {}", e);
             self.args.0 = primary;
@@ -85,7 +85,7 @@ impl ApplyingService {
 
     fn server_is_running(&mut self) -> bool {
         if let Some(child) = &mut self.llama_process {
-            match child.try_wait() {  
+            match child.try_wait() {
                 Ok(Some(_)) => false,
                 Ok(None) => true,
                 Err(e) => {
