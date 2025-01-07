@@ -11,6 +11,7 @@ mod balancer;
 mod cmd;
 mod errors;
 mod llamacpp;
+mod supervisor;
 
 fn resolve_socket_addr(s: &str) -> Result<SocketAddr> {
     let addrs: Vec<SocketAddr> = s.to_socket_addrs()?.collect();
@@ -126,6 +127,20 @@ enum Commands {
         /// Address of the management server that the dashboard will connect to
         management_addr: SocketAddr,
     },
+    /// Supervises llama.cpp instance and manages their configuration
+    Supervise {
+        #[arg(action = clap::ArgAction::Append, allow_hyphen_values = true)]
+        /// Arguments to the llama.cpp server
+        args: Vec<String>,
+
+        #[arg(long, value_parser = parse_socket_addr)]
+        /// Address of the management server which will configure llamacpp
+        supervisor_addr: SocketAddr,
+
+        #[arg(long, default_value = "10", value_parser = parse_duration)]
+        /// Interval (in seconds) at which the supervisor will monitor liveness of the llama.cpp instance
+        monitoring_interval: Duration,
+    },
 }
 
 fn main() -> Result<()> {
@@ -178,6 +193,15 @@ fn main() -> Result<()> {
             statsd_prefix.to_owned(),
             #[cfg(feature = "statsd_reporter")]
             statsd_reporting_interval.to_owned(),
+        ),
+        Some(Commands::Supervise {
+            args,
+            supervisor_addr,
+            monitoring_interval,
+        }) => cmd::supervisor::handle(
+            args.to_owned(),
+            supervisor_addr.to_owned(),
+            monitoring_interval.to_owned(),
         ),
         #[cfg(feature = "ratatui_dashboard")]
         Some(Commands::Dashboard { management_addr }) => cmd::dashboard::handle(management_addr),

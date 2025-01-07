@@ -25,6 +25,7 @@ tokio = { version = "1.41.1", features = ["full"] }
 tokio-stream = { version = "0.1.16", features = ["sync"] }
 url = { version = "2.5.3", features = ["serde"] }
 uuid = { version = "1.11.0", features = ["serde", "v4"] }
+listeners = "0.2"
 
 # ratatui dashboard deps
 crossterm = { version = "0.28.1", features = ["event-stream"], optional = true }
@@ -42,6 +43,8 @@ itertools = "0.13.0"
 color-eyre = "0.6.3"
 time = "0.3.36"
 chrono = "0.4.38"
+libc = "0.2.169"
+mavec = "0.1.2"
 
 [features]
 default = ["statsd_reporter", "ratatui_dashboard"]
@@ -50,4 +53,4 @@ statsd_reporter = ["dep:cadence"]
 web_dashboard = ["dep:askama", "dep:askama_actix", "dep:mime_guess", "dep:rust-embed"]
 
 [profile.release]
-lto = true
+lto = false
