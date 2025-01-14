@@ -76,7 +76,6 @@ enum Commands {
         /// Interval (in seconds) at which the agent will report the status of the llama.cpp instance
         monitoring_interval: Duration,
 
-        
         #[arg(long)]
         /// Name of the agent (optional)
         name: Option<String>,
