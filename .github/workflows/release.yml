@@ -1,14 +1,10 @@
-name: Deploy
-
-env:
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+name: release
 
 on:
-  workflow_dispatch:
   push:
     tags:
       - v[0-9].[0-9]+.[0-9]+
-      - v[0-9].[0-9]+.[0-9]+-rc[0-9]+
+      - v[0-9].[0-9]+.[0-9]+-rc[0-9]+      
 
 jobs:
   build:
