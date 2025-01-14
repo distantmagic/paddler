@@ -1,14 +1,10 @@
-name: Deploy
-
-env:
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+name: release
 
 on:
-  workflow_dispatch:
   push:
     tags:
       - v[0-9].[0-9]+.[0-9]+
-      - v[0-9].[0-9]+.[0-9]+-rc[0-9]+
+      - v[0-9].[0-9]+.[0-9]+-rc[0-9]+      
 
 jobs:
   build:
@@ -34,10 +30,13 @@ jobs:
 
     - name: Install target for cross-compilation
       run: rustup target add ${{ matrix.rust_target }}
+
+    - name: Generate static files
+      run: make esbuild
       
     - name: Build the binary
       run: |
-        cargo build --release --target ${{ matrix.rust_target }}
+        cargo build --features web_dashboard --release --target ${{ matrix.rust_target }}
         if [[ "${{ matrix.artifact_name }}" == *.exe ]]; then
           mv target/${{ matrix.rust_target }}/release/paddler.exe ${{ matrix.artifact_name }}
         else
