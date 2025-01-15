@@ -4,7 +4,7 @@ on:
   push:
     tags:
       - v[0-9].[0-9]+.[0-9]+
-      - v[0-9].[0-9]+.[0-9]+-rc[0-9]+      
+      - v[0-9].[0-9]+.[0-9]+-rc[0-9]+   
 
 jobs:
   build:
@@ -16,7 +16,7 @@ jobs:
           - rust_target: x86_64-unknown-linux-gnu
             artifact_name: paddler-bin-linux-amd64
           - rust_target: x86_64-pc-windows-gnu
-            artifact_name: paddler-bin-windows-amd64.exe
+            artifact_name: paddler-bin-windows-amd64.exe       
 
     steps:
     - name: checkout code
@@ -46,15 +46,16 @@ jobs:
     - name: determine tag type
       id: tag_type
       run: |
-        if [[ ${{ github.ref }} =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$ ]]; then
+        if [[ ${GITHUB_REF} =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$ ]]; then
           echo "tag_type=PRE_RELEASE_TAG" >> $GITHUB_OUTPUT
-        elif [[ ${{ github.ref }} =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        elif [[ "${GITHUB_REF}" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
           echo "tag_type=RELEASE_TAG" >> $GITHUB_OUTPUT
         else
           echo "tag_type=INVALID_TAG" >> $GITHUB_OUTPUT
         fi
-
+      
     - name: upload binaries to release
+      # id: create_release
       if: steps.tag_type.outputs.tag_type != 'INVALID_TAG'
       uses: svenstaro/upload-release-action@v2
       with:
@@ -63,3 +64,6 @@ jobs:
         overwrite: true
         prerelease: ${{ steps.tag_type.outputs.tag_type == 'PRE_RELEASE_TAG' }}
         tag: ${{ github.ref }}
+      # env:
+      #   GITHUB_TOKEN: ${{ github.token }}
+      
