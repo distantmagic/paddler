@@ -153,7 +153,6 @@
 #       env:
 #         GITHUB_TOKEN: ${{ github.token }}
 
-      
 name: release
 
 on:
@@ -230,6 +229,9 @@ jobs:
         artifacts: "paddler-bin-*"
         overwrite: true
         prerelease: ${{ steps.tag_type.outputs.tag_type == 'PRE_RELEASE_TAG' }}
+        files: |
+          artifacts/paddler-bin-linux-amd64
+          artifacts/paddler-bin-windows-amd64.exe
         tag: ${{ github.ref }}
       env:
         GITHUB_TOKEN: ${{ github.token }}
