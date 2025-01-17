@@ -230,6 +230,7 @@ jobs:
       if: steps.tag_type.outputs.tag_type != 'INVALID_TAG'
       uses: ncipollo/release-action@v1
       with:
+        artifacts: "paddler-bin-*"
         overwrite: true
         prerelease: ${{ steps.tag_type.outputs.tag_type == 'PRE_RELEASE_TAG' }}
         files: |
