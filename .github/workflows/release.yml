@@ -225,6 +225,7 @@ jobs:
           echo "tag_type=RELEASE_TAG" >> $GITHUB_OUTPUT
         else
           echo "tag_type=INVALID_TAG" >> $GITHUB_OUTPUT 
+        fi
 
     - name: Upload binaries to release
       if: steps.tag_type.outputs.tag_type != 'INVALID_TAG'
