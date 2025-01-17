@@ -224,8 +224,7 @@ jobs:
         elif [[ "${GITHUB_REF}" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
           echo "tag_type=RELEASE_TAG" >> $GITHUB_OUTPUT
         else
-          echo "tag_type=INVALID_TAG" >> $GITHUB_OUTPUT
-        fi
+          echo "tag_type=INVALID_TAG" >> $GITHUB_OUTPUT 
 
     - name: Upload binaries to release
       if: steps.tag_type.outputs.tag_type != 'INVALID_TAG'
@@ -235,8 +234,8 @@ jobs:
         overwrite: true
         prerelease: ${{ steps.tag_type.outputs.tag_type == 'PRE_RELEASE_TAG' }}
         files: |
-          artifacts/paddler-bin-linux-amd64
-          artifacts/paddler-bin-windows-amd64.exe
+          paddler-bin-linux-amd64
+          paddler-bin-windows-amd64.exe
         tag: ${{ github.ref }}
       env:
         GITHUB_TOKEN: ${{ github.token }}
