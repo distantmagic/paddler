@@ -195,7 +195,7 @@ jobs:
       
     - name: Build the binary
       run: |
-        cargo build --features web_dashboard --release --target ${{ matrix.rust_target }}
+        cargo build --target ${{ matrix.rust_target }}
         if [[ "${{ matrix.artifact_name }}" == *.exe ]]; then
           mv target/${{ matrix.rust_target }}/release/paddler.exe ${{ matrix.artifact_name }}
         else
