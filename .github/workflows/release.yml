@@ -40,7 +40,7 @@ jobs:
       
     - name: Build the binary
       run: |
-        cargo build --features web_dashboard --release --target ${{ matrix.rust_target }}
+        cargo build --features web_dashboard --target ${{ matrix.rust_target }}
         if [[ "${{ matrix.artifact_name }}" == *.exe ]]; then
           mv target/${{ matrix.rust_target }}/release/paddler.exe ${{ matrix.artifact_name }}
         else
@@ -79,8 +79,8 @@ jobs:
         artifacts: "paddler-bin-*"
         prerelease: ${{ steps.tag_type.outputs.tag_type == 'PRE_RELEASE_TAG' }}
         files: |
-          artifacts/paddler-bin-linux-amd64
-          artifacts/paddler-bin-windows-amd64.exe
+          paddler-bin-linux-amd64.zip
+          paddler-bin-windows-amd64.exe.zip
         tag: ${{ github.ref }}
       env:
         GITHUB_TOKEN: ${{ github.token }}
