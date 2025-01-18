@@ -112,7 +112,7 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
-          targets: ${{ matrix.rust_target }}
+          target: ${{ matrix.rust_target }}
           
       # - name: Install mingw for Windows cross-compilation
       #   if: matrix.rust_target == 'x86_64-pc-windows-gnu'
