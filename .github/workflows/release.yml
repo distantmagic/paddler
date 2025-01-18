@@ -187,9 +187,9 @@ jobs:
     - name: Install target for cross-compilation
       run: rustup target add ${{ matrix.rust_target }}
 
-    # - name: Install mingw for Windows cross-compilation
-    #   if: matrix.rust_target == 'x86_64-pc-windows-gnu'
-    #   run: sudo apt-get install -y gcc-mingw-w64-x86-64
+    - name: Install mingw for Windows cross-compilation
+      if: matrix.rust_target == 'x86_64-pc-windows-gnu'
+      run: sudo apt-get install -y gcc-mingw-w64-x86-64
 
     - name: Generate static folder
       run: make esbuild
@@ -227,7 +227,7 @@ jobs:
         else
           echo "tag_type=INVALID_TAG" >> $GITHUB_OUTPUT
         fi
-        
+
     - name: Upload binaries to release
       if: steps.tag_type.outputs.tag_type != 'INVALID_TAG'
       uses: ncipollo/release-action@v1
