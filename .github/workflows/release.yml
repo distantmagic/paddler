@@ -42,9 +42,9 @@ jobs:
       run: |
         cargo build --features web_dashboard --release --target ${{ matrix.rust_target }}
         if [[ "${{ matrix.artifact_name }}" == *.exe ]]; then
-          mv target/${{ matrix.rust_target }}/release/paddler.exe ${{ matrix.artifact_name }}
+          mv target/${{ matrix.rust_target }}/release/paddler.exe artifacts/${{ matrix.artifact_name }}
         else
-          mv target/${{ matrix.rust_target }}/release/paddler ${{ matrix.artifact_name }}
+          mv target/${{ matrix.rust_target }}/release/paddler artifacts/${{ matrix.artifact_name }}
         fi
 
     - name: Upload binary as artifact
@@ -53,6 +53,11 @@ jobs:
         name: ${{ matrix.artifact_name }}
         path: ${{ matrix.artifact_name }}
 
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
     - name: Download artifacts
       uses: actions/download-artifact@v4
 
@@ -67,28 +72,16 @@ jobs:
           echo "tag_type=INVALID_TAG" >> $GITHUB_OUTPUT
         fi
 
-    # - name: upload binaries to release
-    #   if: steps.tag_type.outputs.tag_type != 'INVALID_TAG'
-    #   uses: svenstaro/upload-release-action@v2
-    #   with:
-    #     file: ${{ matrix.artifact_name }}
-    #     asset_name: ${{ matrix.artifact_name }}
-    #     overwrite: true
-    #     prerelease: ${{ steps.tag_type.outputs.tag_type == 'PRE_RELEASE_TAG' }}
-    #     tag: ${{ github.ref }}
-
-    - name: ipload binaries to release
+    - name: Upload binaries to release
       if: steps.tag_type.outputs.tag_type != 'INVALID_TAG'
       uses: ncipollo/release-action@v1
       with:
-        file: ${{ matrix.artifact_name }}
-        asset_name: ${{ matrix.artifact_name }}
-        overwrite: true
+        artifacts: "paddler-bin-*"
         prerelease: ${{ steps.tag_type.outputs.tag_type == 'PRE_RELEASE_TAG' }}
+        file: artifacts/*
         tag: ${{ github.ref }}
       env:
         GITHUB_TOKEN: ${{ github.token }}
-
 
 # name: release
 
