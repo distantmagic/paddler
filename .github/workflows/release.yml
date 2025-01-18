@@ -108,15 +108,15 @@ jobs:
       - name: checkout code
         uses: actions/checkout@v4
 
-      - name: set up Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           target: ${{ matrix.rust_target }}
           
-      # - name: Install mingw for Windows cross-compilation
-      #   if: matrix.rust_target == 'x86_64-pc-windows-gnu'
-      #   run: sudo apt-get install -y gcc-mingw-w64-x86-64
+      - name: Install mingw for Windows cross-compilation
+        if: matrix.rust_target == 'x86_64-pc-windows-gnu'
+        run: sudo apt-get install -y gcc-mingw-w64-x86-64
 
       - name: build static
         run: |
