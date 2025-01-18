@@ -78,9 +78,10 @@ jobs:
       with:
         artifacts: "paddler-bin-*"
         prerelease: ${{ steps.tag_type.outputs.tag_type == 'PRE_RELEASE_TAG' }}
-        files: |
-          paddler-bin-linux-amd64.zip
-          paddler-bin-windows-amd64.exe.zip
+        file: target/release/paddler
+        asset_name: [paddler-bin-linux-amd64, paddler-bin-windows-amd64.exe]
         tag: ${{ github.ref }}
       env:
         GITHUB_TOKEN: ${{ github.token }}
+
+        
