@@ -77,7 +77,6 @@ jobs:
       uses: ncipollo/release-action@v1
       with:
         artifacts: "paddler-bin-*"
-        overwrite: true
         prerelease: ${{ steps.tag_type.outputs.tag_type == 'PRE_RELEASE_TAG' }}
         files: |
           artifacts/paddler-bin-linux-amd64
