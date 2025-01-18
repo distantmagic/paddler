@@ -153,6 +153,7 @@
 #       env:
 #         GITHUB_TOKEN: ${{ github.token }}
 
+
 name: release
 
 on:
@@ -186,16 +187,16 @@ jobs:
     - name: Install target for cross-compilation
       run: rustup target add ${{ matrix.rust_target }}
 
-    - name: Install mingw for Windows cross-compilation
-      if: matrix.rust_target == 'x86_64-pc-windows-gnu'
-      run: sudo apt-get install -y gcc-mingw-w64-x86-64
+    # - name: Install mingw for Windows cross-compilation
+    #   if: matrix.rust_target == 'x86_64-pc-windows-gnu'
+    #   run: sudo apt-get install -y gcc-mingw-w64-x86-64
 
     - name: Generate static folder
       run: make esbuild
       
     - name: Build the binary
       run: |
-        cargo build --target ${{ matrix.rust_target }}
+        cargo build --features web_dashboard --release --target ${{ matrix.rust_target }}
         if [[ "${{ matrix.artifact_name }}" == *.exe ]]; then
           mv target/${{ matrix.rust_target }}/release/paddler.exe ${{ matrix.artifact_name }}
         else
@@ -224,9 +225,9 @@ jobs:
         elif [[ "${GITHUB_REF}" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
           echo "tag_type=RELEASE_TAG" >> $GITHUB_OUTPUT
         else
-          echo "tag_type=INVALID_TAG" >> $GITHUB_OUTPUT 
+          echo "tag_type=INVALID_TAG" >> $GITHUB_OUTPUT
         fi
-
+        
     - name: Upload binaries to release
       if: steps.tag_type.outputs.tag_type != 'INVALID_TAG'
       uses: ncipollo/release-action@v1
@@ -236,7 +237,7 @@ jobs:
         prerelease: ${{ steps.tag_type.outputs.tag_type == 'PRE_RELEASE_TAG' }}
         files: |
           artifacts/paddler-bin-linux-amd64
-          artifacts/ paddler-bin-windows-amd64.exe
+          artifacts/paddler-bin-windows-amd64.exe
         tag: ${{ github.ref }}
       env:
         GITHUB_TOKEN: ${{ github.token }}
