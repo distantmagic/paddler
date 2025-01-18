@@ -23,13 +23,13 @@ jobs:
       - name: checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Rust
+      - name: set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           target: ${{ matrix.rust_target }}
           
-      - name: Install mingw for Windows cross-compilation
+      - name: install mingw for Windows cross-compilation
         if: matrix.rust_target == 'x86_64-pc-windows-gnu'
         run: sudo apt-get install -y gcc-mingw-w64-x86-64
 
@@ -37,7 +37,7 @@ jobs:
         run: |
           make esbuild
 
-      - name: Build the binary
+      - name: build the binary
         run: |
           cargo build --features web_dashboard --release --target ${{ matrix.rust_target }}
           if [[ "${{ matrix.artifact_name }}" == *.exe ]]; then
