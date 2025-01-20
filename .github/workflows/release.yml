@@ -28,15 +28,14 @@ jobs:
         with:
           toolchain: stable
           target: ${{ matrix.rust_target }}
-        
-      - name: set up MinGW
-        uses: egor-tensin/setup-mingw@v2
-        with:
-          platform: x64
-
+          
       - name: build static
         run: |
           make esbuild
+
+      - name: install mingw for Windows cross-compilation
+        if: matrix.rust_target == 'x86_64-pc-windows-gnu'
+        run: sudo apt-get install -y gcc-mingw-w64-x86-64
 
       - name: build the binary
         run: |
