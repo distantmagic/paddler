@@ -28,10 +28,12 @@ jobs:
         with:
           toolchain: stable
           target: ${{ matrix.rust_target }}
-          
-      - name: install mingw for Windows cross-compilation
-        if: matrix.rust_target == 'x86_64-pc-windows-gnu'
-        run: sudo apt-get install -y gcc-mingw-w64-x86-64
+        
+      - name: set up GCC
+        uses: egor-tensin/setup-gcc@v1
+        with:
+          version: latest
+          platform: x64
 
       - name: build static
         run: |
