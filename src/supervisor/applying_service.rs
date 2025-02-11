@@ -14,7 +14,6 @@ use crate::errors::result::Result;
 
 pub struct ApplyingService {
     args: (Option<Vec<String>>, Option<Vec<String>>),
-    monitoring_interval: Duration,
     llama_process: Option<Child>,
     update_llamacpp: Receiver<Vec<String>>,
 }
@@ -22,12 +21,10 @@ pub struct ApplyingService {
 impl ApplyingService {
     pub fn new(
         args: Vec<String>,
-        monitoring_interval: Duration,
         update_llamacpp: Receiver<Vec<String>>,
     ) -> Result<Self> {
         Ok(ApplyingService {
             args: (Some(args), None),
-            monitoring_interval,
             llama_process: None,
             update_llamacpp,
         })
@@ -83,7 +80,7 @@ impl ApplyingService {
         }
     }
 
-    fn server_is_running(&mut self) -> bool {
+    async fn server_is_running(&mut self) -> bool {
         if let Some(child) = &mut self.llama_process {
             match child.try_wait() {
                 Ok(Some(_)) => false,
@@ -106,17 +103,14 @@ impl Service for ApplyingService {
         #[cfg(unix)] _fds: Option<ListenFds>,
         mut shutdown: ShutdownWatch,
     ) {
-        let mut ticker = interval(self.monitoring_interval);
-        ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
-
         loop {
             tokio::select! {
                 _ = shutdown.changed() => {
                     debug!("Shutting down supervising service");
                     return;
                 },
-                _ = ticker.tick() => {
-                    if !self.server_is_running() {
+                running = self.server_is_running() => {
+                    if !running {
                         if let Err(e) = self.start_llamacpp_server().await {
                             error!("Failed to start llama server: {}", e);
                         } else {
@@ -124,8 +118,8 @@ impl Service for ApplyingService {
                         }
                     }
                 },
-                args = self.update_llamacpp.recv() => {
-                    match args {
+                else => {
+                    match self.update_llamacpp.recv().await {
                         Ok(new_args) => {
                             self.handle_new_arguments(new_args).await;
                         },

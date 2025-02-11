@@ -136,10 +136,6 @@ enum Commands {
         #[arg(long, value_parser = parse_socket_addr)]
         /// Address of the management server which will configure llamacpp
         supervisor_addr: SocketAddr,
-
-        #[arg(long, default_value = "10", value_parser = parse_duration)]
-        /// Interval (in seconds) at which the supervisor will monitor liveness of the llama.cpp instance
-        monitoring_interval: Duration,
     },
 }
 
@@ -197,11 +193,9 @@ fn main() -> Result<()> {
         Some(Commands::Supervise {
             args,
             supervisor_addr,
-            monitoring_interval,
         }) => cmd::supervisor::handle(
             args.to_owned(),
             supervisor_addr.to_owned(),
-            monitoring_interval.to_owned(),
         ),
         #[cfg(feature = "ratatui_dashboard")]
         Some(Commands::Dashboard { management_addr }) => cmd::dashboard::handle(management_addr),

@@ -10,13 +10,12 @@ use crate::supervisor::managing_service::ManagingService;
 pub fn handle(
     args: Vec<String>,
     supervisor_addr: SocketAddr,
-    monitoring_interval: Duration,
 ) -> Result<()> {
     let (update_llamacpp_tx, update_llamacpp_rx) = channel::<Vec<String>>(1);
 
     let manager_service = ManagingService::new(supervisor_addr, update_llamacpp_tx)?;
 
-    let applying_service = ApplyingService::new(args, monitoring_interval, update_llamacpp_rx)?;
+    let applying_service = ApplyingService::new(args, update_llamacpp_rx)?;
 
     let mut pingora_server = Server::new(Opt {
         upgrade: false,
