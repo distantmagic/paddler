@@ -16,10 +16,7 @@ pub struct ApplyingService {
 }
 
 impl ApplyingService {
-    pub fn new(
-        args: Vec<String>,
-        update_llamacpp: Receiver<Vec<String>>,
-    ) -> Result<Self> {
+    pub fn new(args: Vec<String>, update_llamacpp: Receiver<Vec<String>>) -> Result<Self> {
         Ok(ApplyingService {
             args: (Some(args), None),
             llama_process: None,

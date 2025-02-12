@@ -193,10 +193,7 @@ fn main() -> Result<()> {
         Some(Commands::Supervise {
             args,
             supervisor_addr,
-        }) => cmd::supervisor::handle(
-            args.to_owned(),
-            supervisor_addr.to_owned(),
-        ),
+        }) => cmd::supervisor::handle(args.to_owned(), supervisor_addr.to_owned()),
         #[cfg(feature = "ratatui_dashboard")]
         Some(Commands::Dashboard { management_addr }) => cmd::dashboard::handle(management_addr),
         None => Ok(()),

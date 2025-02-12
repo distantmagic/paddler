@@ -6,10 +6,7 @@ use crate::errors::result::Result;
 use crate::supervisor::applying_service::ApplyingService;
 use crate::supervisor::managing_service::ManagingService;
 
-pub fn handle(
-    args: Vec<String>,
-    supervisor_addr: SocketAddr,
-) -> Result<()> {
+pub fn handle(args: Vec<String>, supervisor_addr: SocketAddr) -> Result<()> {
     let (update_llamacpp_tx, update_llamacpp_rx) = channel::<Vec<String>>(1);
 
     let manager_service = ManagingService::new(supervisor_addr, update_llamacpp_tx)?;

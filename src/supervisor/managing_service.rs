@@ -50,7 +50,7 @@ impl Service for ManagingService {
     }
 
     fn name(&self) -> &str {
-        "applying"
+        "managing"
     }
 
     fn threads(&self) -> Option<usize> {
