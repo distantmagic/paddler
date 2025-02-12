@@ -2,10 +2,7 @@ use async_trait::async_trait;
 use log::{debug, error, info, warn};
 use pingora::{server::ShutdownWatch, services::Service};
 use std::process::{Child, Command, Stdio};
-use tokio::{
-    sync::broadcast::Receiver,
-    time::{interval, Duration, MissedTickBehavior},
-};
+use tokio::sync::broadcast::Receiver;
 
 #[cfg(unix)]
 use pingora::server::ListenFds;

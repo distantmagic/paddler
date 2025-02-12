@@ -1,6 +1,5 @@
 use pingora::server::{configuration::Opt, Server};
 use std::net::SocketAddr;
-use std::time::Duration;
 use tokio::sync::broadcast::channel;
 
 use crate::errors::result::Result;
