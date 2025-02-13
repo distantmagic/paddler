@@ -18,14 +18,14 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 
 #[post("v1/params")]
 async fn respond(
-    status_update_tx: web::Data<Sender<Vec<String>>>,
+    update_llamacpp_tx: web::Data<Sender<Vec<String>>>,
     config: web::Json<Value>,
 ) -> Result<HttpResponse> {
     match config.0.as_object() {
         Some(object) => match object["args"].as_object() {
             Some(args) => {
                 let args = Config(to_vec(Value::Object(args.clone()))?.into()).to_llamacpp_arg()?;
-                status_update_tx.send(args)?;
+                update_llamacpp_tx.send(args)?;
             }
             None => {
                 return Err(AppError::MapToVecParseError(

@@ -97,6 +97,8 @@ impl Service for ApplyingService {
         #[cfg(unix)] _fds: Option<ListenFds>,
         mut shutdown: ShutdownWatch,
     ) {
+        let mut receiver = self.update_llamacpp.resubscribe();
+
         loop {
             tokio::select! {
                 _ = shutdown.changed() => {
@@ -112,8 +114,8 @@ impl Service for ApplyingService {
                         }
                     }
                 },
-                else => {
-                    match self.update_llamacpp.recv().await {
+                args = receiver.recv() => {
+                    match args {
                         Ok(new_args) => {
                             self.handle_new_arguments(new_args).await;
                         },
