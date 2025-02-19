@@ -17,7 +17,7 @@ jobs:
             artifact_name: paddler-bin-linux-amd64
 
           - rust_target: x86_64-pc-windows-gnu
-            artifact_name: paddler-bin-windows-amd64.exe       
+            artifact_name: paddler-bin-windows-amd64.exe
 
     steps:
       - name: checkout code
