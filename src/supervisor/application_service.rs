@@ -1,7 +1,11 @@
 use async_trait::async_trait;
 use log::{debug, error, info, warn};
 use pingora::{server::ShutdownWatch, services::Service};
-use std::process::{Child, Command, Stdio};
+use reqwest::Client;
+use std::{
+    net::SocketAddr,
+    process::{Child, Command, Stdio},
+};
 use tokio::sync::broadcast::Receiver;
 
 #[cfg(unix)]
@@ -13,37 +17,43 @@ pub struct ApplyingService {
     args: (Option<Vec<String>>, Option<Vec<String>>),
     llama_process: Option<Child>,
     update_llamacpp: Receiver<Vec<String>>,
+    supervisor_addr: SocketAddr,
 }
 
 impl ApplyingService {
-    pub fn new(args: Vec<String>, update_llamacpp: Receiver<Vec<String>>) -> Result<Self> {
+    pub fn new(
+        args: Vec<String>,
+        update_llamacpp: Receiver<Vec<String>>,
+        supervisor_addr: SocketAddr,
+    ) -> Result<Self> {
         Ok(ApplyingService {
             args: (Some(args), None),
             llama_process: None,
             update_llamacpp,
+            supervisor_addr,
         })
     }
 
     async fn start_llamacpp_server(&mut self) -> Result<()> {
         if let Some(args) = self.args.0.clone() {
-            if self.spawn_llama_process(&args).is_ok() {
+            if self.spawn_llama_process(&args).await.is_ok() {
                 return Ok(());
             }
         }
 
         if let Some(old_args) = self.args.1.clone() {
-            self.spawn_llama_process(&old_args)?;
+            self.spawn_llama_process(&old_args).await?;
         }
 
         Ok(())
     }
 
-    fn spawn_llama_process(&mut self, args: &Vec<String>) -> Result<()> {
+    async fn spawn_llama_process(&mut self, args: &Vec<String>) -> Result<()> {
+        
         let mut cmd = Command::new(&args[1]);
         cmd.args(&args[2..])
             .stdout(Stdio::null())
             .stderr(Stdio::null());
-
         match cmd.spawn() {
             Ok(child) => {
                 if let Some(process) = &mut self.llama_process {
@@ -51,6 +61,8 @@ impl ApplyingService {
                     let _ = process.wait();
                 }
                 self.llama_process = Some(child);
+                self.persist_config(args).await?;
+                // self.update_config.send(args.to_vec())?;
                 Ok(())
             }
             Err(e) => {
@@ -87,6 +99,18 @@ impl ApplyingService {
         } else {
             false
         }
+    }
+
+    async fn persist_config(&self, args: &Vec<String>) -> Result<()> {
+        let client = Client::new();
+
+        client
+            .post(format!("http://{:#?}/v1/config", self.supervisor_addr))
+            .json(args)
+            .send()
+            .await?;
+
+        Ok(())
     }
 }
 

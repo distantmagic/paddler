@@ -44,7 +44,9 @@ color-eyre = "0.6.3"
 time = "0.3.36"
 chrono = "0.4.38"
 libc = "0.2.169"
-mavec = "0.1.2"
+mavec = "0.2.1"
+throttle = "0.1.0"
+debounce = "0.2.2"
 
 [features]
 default = ["statsd_reporter", "ratatui_dashboard"]

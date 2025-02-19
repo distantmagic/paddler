@@ -1,4 +1,4 @@
-pub mod applying_service;
-pub mod config;
+pub mod application_service;
+pub mod debounce;
 pub mod http_route;
-pub mod managing_service;
+pub mod management_service;
