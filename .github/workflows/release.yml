@@ -4,7 +4,7 @@ on:
   push:
     tags:
       - v[0-9].[0-9]+.[0-9]+
-      - v[0-9].[0-9]+.[0-9]+-rc[0-9]+   
+      - v[0-9].[0-9]+.[0-9]+-rc[0-9]+
 
 jobs:
   build:
@@ -13,57 +13,55 @@ jobs:
     strategy:
       matrix:
         include:
-          - rust_target: x86_64-unknown-linux-gnu
+          - rust_target: x86_64-unknown-linux-gnu 
             artifact_name: paddler-bin-linux-amd64
+
           - rust_target: x86_64-pc-windows-gnu
             artifact_name: paddler-bin-windows-amd64.exe       
 
     steps:
-    - name: checkout code
-      uses: actions/checkout@v4
+      - name: checkout code
+        uses: actions/checkout@v4
 
-    - name: set up Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: stable
-        targets: x86_64-pc-windows-gnu
+      - name: set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          target: ${{ matrix.rust_target }}
+          
+      - name: build static
+        run: |
+          make esbuild
 
-    - name: Install target for cross-compilation
-      run: rustup target add ${{ matrix.rust_target }}
+      - name: install mingw for Windows cross-compilation
+        if: matrix.rust_target == 'x86_64-pc-windows-gnu'
+        run: sudo apt-get install -y gcc-mingw-w64-x86-64
 
-    - name: Generate static files
-      run: make esbuild
-      
-    - name: Build the binary
-      run: |
-        cargo build --features web_dashboard --release --target ${{ matrix.rust_target }}
-        if [[ "${{ matrix.artifact_name }}" == *.exe ]]; then
-          mv target/${{ matrix.rust_target }}/release/paddler.exe ${{ matrix.artifact_name }}
-        else
-          mv target/${{ matrix.rust_target }}/release/paddler ${{ matrix.artifact_name }}
-        fi
+      - name: build the binary
+        run: |
+          cargo build --features web_dashboard --release --target ${{ matrix.rust_target }}
+          if [[ "${{ matrix.artifact_name }}" == *.exe ]]; then
+            mv target/${{ matrix.rust_target }}/release/paddler.exe ${{ matrix.artifact_name }}
+          else
+            mv target/${{ matrix.rust_target }}/release/paddler ${{ matrix.artifact_name }}
+          fi
 
-    - name: determine tag type
-      id: tag_type
-      run: |
-        if [[ ${GITHUB_REF} =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$ ]]; then
-          echo "tag_type=PRE_RELEASE_TAG" >> $GITHUB_OUTPUT
-        elif [[ "${GITHUB_REF}" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          echo "tag_type=RELEASE_TAG" >> $GITHUB_OUTPUT
-        else
-          echo "tag_type=INVALID_TAG" >> $GITHUB_OUTPUT
-        fi
-      
-    - name: upload binaries to release
-      # id: create_release
-      if: steps.tag_type.outputs.tag_type != 'INVALID_TAG'
-      uses: svenstaro/upload-release-action@v2
-      with:
-        file: target/release/paddler
-        asset_name: paddler-bin-linux-amd64
-        overwrite: true
-        prerelease: ${{ steps.tag_type.outputs.tag_type == 'PRE_RELEASE_TAG' }}
-        tag: ${{ github.ref }}
-      # env:
-      #   GITHUB_TOKEN: ${{ github.token }}
-      
+      - name: determine tag type
+        id: tag_type
+        run: |
+          if [[ ${{ github.ref }} =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$ ]]; then
+            echo "tag_type=PRE_RELEASE_TAG" >> $GITHUB_OUTPUT
+          elif [[ ${{ github.ref }} =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "tag_type=RELEASE_TAG" >> $GITHUB_OUTPUT
+          else
+            echo "tag_type=INVALID_TAG" >> $GITHUB_OUTPUT
+          fi
+
+      - name: upload binaries to release
+        if: steps.tag_type.outputs.tag_type != 'INVALID_TAG'
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: ${{ matrix.artifact_name }}
+          overwrite: true
+          prerelease: ${{ steps.tag_type.outputs.tag_type == 'PRE_RELEASE_TAG' }}
+          tag: ${{ github.ref }}
