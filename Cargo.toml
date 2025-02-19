@@ -55,4 +55,9 @@ statsd_reporter = ["dep:cadence"]
 web_dashboard = ["dep:askama", "dep:askama_actix", "dep:mime_guess", "dep:rust-embed"]
 
 [profile.release]
+<<<<<<< HEAD
 lto = false
+=======
+lto = true
+codegen-units = 1
+>>>>>>> workflow

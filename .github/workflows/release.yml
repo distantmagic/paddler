@@ -10,17 +10,41 @@ jobs:
   build:
     name: build
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - rust_target: x86_64-unknown-linux-gnu 
+            artifact_name: paddler-bin-linux-amd64
+
+          - rust_target: x86_64-pc-windows-gnu
+            artifact_name: paddler-bin-windows-amd64.exe
 
     steps:
       - name: checkout code
         uses: actions/checkout@v4
 
-      # - name: set up rust
-      #   uses: dtolnay/rust-toolchain@stable
-
-      - name: build
+      - name: set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          target: ${{ matrix.rust_target }}
+          
+      - name: build static
         run: |
-          make build
+          make esbuild
+
+      - name: install mingw for Windows cross-compilation
+        if: matrix.rust_target == 'x86_64-pc-windows-gnu'
+        run: sudo apt-get install -y gcc-mingw-w64-x86-64
+
+      - name: build the binary
+        run: |
+          cargo build --features web_dashboard --release --target ${{ matrix.rust_target }}
+          if [[ "${{ matrix.artifact_name }}" == *.exe ]]; then
+            mv target/${{ matrix.rust_target }}/release/paddler.exe ${{ matrix.artifact_name }}
+          else
+            mv target/${{ matrix.rust_target }}/release/paddler ${{ matrix.artifact_name }}
+          fi
 
       - name: determine tag type
         id: tag_type
@@ -37,8 +61,7 @@ jobs:
         if: steps.tag_type.outputs.tag_type != 'INVALID_TAG'
         uses: svenstaro/upload-release-action@v2
         with:
-          file: target/release/paddler
-          asset_name: paddler-bin-linux-amd64
+          file: ${{ matrix.artifact_name }}
           overwrite: true
           prerelease: ${{ steps.tag_type.outputs.tag_type == 'PRE_RELEASE_TAG' }}
           tag: ${{ github.ref }}
