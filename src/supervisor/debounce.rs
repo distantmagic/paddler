@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, VecDeque},
+    collections::VecDeque,
     sync::{atomic::Ordering, Arc, Mutex},
     thread::sleep,
     time::Duration,
@@ -23,10 +23,10 @@ pub fn handle_throttle(state: Data<State>) -> Result<()> {
     let state = state.clone();
     tokio::spawn(async move {
         loop {
-            tokio::time::sleep(Duration::from_millis(1500)).await;
+            tokio::time::sleep(Duration::from_millis(10)).await;
 
             if let Some(last_request) = state.last_request.lock().ok().and_then(|lr| *lr) {
-                if last_request.elapsed() >= Duration::from_millis(1500) {
+                if last_request.elapsed() >= Duration::from_millis(1000) {
                     let mut args = match state.args.lock() {
                         Ok(guard) => guard,
                         Err(e) => {
@@ -39,7 +39,7 @@ pub fn handle_throttle(state: Data<State>) -> Result<()> {
                         let llama_args = debounce_args(args.to_vec())
                             .and_then(|rebounced_args| Ok(to_vec(Value::Object(rebounced_args))?))
                             .and_then(|vec| to_llamacpp_arg(vec.into()))
-                            .and_then(|llama_args| { eprintln!("what was sent: {:#?}", llama_args); Ok(state.update_llamacpp.send(llama_args))} );
+                            .and_then(|llama_args| Ok(state.update_llamacpp.send(llama_args)));
 
                         match llama_args {
                             Ok(_) => args.clear(),
@@ -70,7 +70,7 @@ pub fn to_llamacpp_arg(mut vec: VecDeque<String>) -> Result<Vec<String>> {
 }
 
 pub fn debounce_args(maps: Vec<Map<String, Value>>) -> Result<Map<String, Value>> {
-    let delay = Duration::from_millis(100);
+    let delay = Duration::from_millis(10);
     let debounced_btreemap = Arc::new(Mutex::new(Map::new()));
     let debounced_btreemap_clone = Arc::clone(&debounced_btreemap);
 
@@ -91,7 +91,7 @@ pub fn debounce_args(maps: Vec<Map<String, Value>>) -> Result<Map<String, Value>
         }
     }
 
-    sleep(Duration::from_millis(2000));
+    sleep(Duration::from_millis(100));
 
     let map = debounced_btreemap.lock()?.clone();
     Ok(map)

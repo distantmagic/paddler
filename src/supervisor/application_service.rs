@@ -49,7 +49,6 @@ impl ApplyingService {
     }
 
     async fn spawn_llama_process(&mut self, args: &Vec<String>) -> Result<()> {
-        
         let mut cmd = Command::new(&args[1]);
         cmd.args(&args[2..])
             .stdout(Stdio::null())

@@ -8,7 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 use throttle::Throttle;
-use tokio::{sync::broadcast::Sender, time::sleep};
+use tokio::sync::broadcast::Sender;
 
 #[cfg(unix)]
 use pingora::server::ListenFds;

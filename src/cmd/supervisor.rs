@@ -11,8 +11,7 @@ pub fn handle(args: Vec<String>, supervisor_addr: SocketAddr) -> Result<()> {
 
     let manager_service = ManagingService::new(supervisor_addr, update_llamacpp_tx)?;
 
-    let applying_service =
-        ApplyingService::new(args, update_llamacpp_rx, supervisor_addr)?;
+    let applying_service = ApplyingService::new(args, update_llamacpp_rx, supervisor_addr)?;
 
     let mut pingora_server = Server::new(Opt {
         upgrade: false,
