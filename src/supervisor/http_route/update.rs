@@ -16,7 +16,7 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 async fn respond(config: web::Json<Value>) -> Result<HttpResponse> {
     match config.0.as_array() {
         Some(_array) => {
-            // eprintln!("{:#?}", array);
+            // eprintln!("{:#?}", to_vec(Value::Array(array.to_vec()))?);
         }
         None => {
             return Err(AppError::MapToVecParseError(

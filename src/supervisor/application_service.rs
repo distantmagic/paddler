@@ -1,12 +1,8 @@
 use async_trait::async_trait;
 use log::{debug, error, info, warn};
 use pingora::{server::ShutdownWatch, services::Service};
-use reqwest::Client;
-use std::{
-    net::SocketAddr,
-    process::{Child, Command, Stdio},
-};
-use tokio::sync::broadcast::Receiver;
+use std::process::{Child, Command, Stdio};
+use tokio::sync::broadcast::{Receiver, Sender};
 
 #[cfg(unix)]
 use pingora::server::ListenFds;
@@ -14,34 +10,34 @@ use pingora::server::ListenFds;
 use crate::errors::result::Result;
 
 pub struct ApplyingService {
-    args: (Option<Vec<String>>, Option<Vec<String>>),
+    working_args: (Option<Vec<String>>, Option<Vec<String>>),
     llama_process: Option<Child>,
     update_llamacpp: Receiver<Vec<String>>,
-    supervisor_addr: SocketAddr,
+    update_config: Sender<Vec<String>>,
 }
 
 impl ApplyingService {
     pub fn new(
         args: Vec<String>,
         update_llamacpp: Receiver<Vec<String>>,
-        supervisor_addr: SocketAddr,
+        update_config: Sender<Vec<String>>,
     ) -> Result<Self> {
         Ok(ApplyingService {
-            args: (Some(args), None),
+            working_args: (Some(args), None),
             llama_process: None,
             update_llamacpp,
-            supervisor_addr,
+            update_config,
         })
     }
 
     async fn start_llamacpp_server(&mut self) -> Result<()> {
-        if let Some(args) = self.args.0.clone() {
+        if let Some(args) = self.working_args.0.clone() {
             if self.spawn_llama_process(&args).await.is_ok() {
                 return Ok(());
             }
         }
 
-        if let Some(old_args) = self.args.1.clone() {
+        if let Some(old_args) = self.working_args.1.clone() {
             self.spawn_llama_process(&old_args).await?;
         }
 
@@ -60,8 +56,7 @@ impl ApplyingService {
                     let _ = process.wait();
                 }
                 self.llama_process = Some(child);
-                self.persist_config(args).await?;
-                // self.update_config.send(args.to_vec())?;
+                self.update_config.send(args.to_vec())?;
                 Ok(())
             }
             Err(e) => {
@@ -73,14 +68,14 @@ impl ApplyingService {
     }
 
     async fn handle_new_arguments(&mut self, args: Vec<String>) {
-        let primary = self.args.0.take();
-        self.args.0 = Some(args);
+        let primary = self.working_args.0.take();
+        self.working_args.0 = Some(args);
 
         if let Err(e) = self.start_llamacpp_server().await {
             warn!("Failed to start server with new configuration: {}", e);
-            self.args.0 = primary;
+            self.working_args.0 = primary;
         } else {
-            self.args.1 = primary;
+            self.working_args.1 = primary;
             info!("Configuration updated and server restarted.");
         }
     }
@@ -98,18 +93,6 @@ impl ApplyingService {
         } else {
             false
         }
-    }
-
-    async fn persist_config(&self, args: &Vec<String>) -> Result<()> {
-        let client = Client::new();
-
-        client
-            .post(format!("http://{:#?}/v1/config", self.supervisor_addr))
-            .json(args)
-            .send()
-            .await?;
-
-        Ok(())
     }
 }
 

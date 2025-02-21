@@ -56,6 +56,9 @@ pub enum AppError {
 
     #[error("Invalid file error: {0}")]
     InvalidFileError(String),
+
+    #[error("Invalid file error: {0}")]
+    ConfigurationServerError(#[from] etcd_client::Error),
 }
 
 impl From<&str> for AppError {

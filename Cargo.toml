@@ -47,6 +47,7 @@ libc = "0.2.169"
 mavec = "0.2.1"
 throttle = "0.1.0"
 debounce = "0.2.2"
+etcd-client = "0.14.1"
 
 [features]
 default = ["statsd_reporter", "ratatui_dashboard"]
