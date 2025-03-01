@@ -63,7 +63,6 @@ impl Service for ManagementService {
             App::new()
                 .app_data(state.clone())
                 .configure(http_route::restart::register)
-                .configure(http_route::update::register)
         })
         .bind(supervisor_addr)
         .expect("Unable to bind server to address")
