@@ -24,7 +24,7 @@ pub fn handle(
             "{} {} {}",
             "error:".red(),
             "the following required arguments were not provided:",
-            "--etcd <ETCD>".green()
+            "--file <FILE>".green()
         );
     }
 

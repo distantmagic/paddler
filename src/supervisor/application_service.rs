@@ -130,11 +130,12 @@ impl ApplicationService {
         model: String,
         port: u16,
     ) -> Result<(Option<Vec<String>>, Option<Vec<String>>)> {
-        if let Some(config) = Self::load_config(
-            #[cfg(feature = "etcd")]
-            etcd_address,
-            file_path,
-        )? {
+        let config = load_file_config(file_path);
+
+        #[cfg(feature = "etcd")]
+        let config = load_etcd_config(etcd_address).or(config);
+        
+        if let Some(config) = config? {
             Ok((Some(config), None))
         } else {
             let v1 = vec![
@@ -149,33 +150,54 @@ impl ApplicationService {
             Ok((Some(v1), None))
         }
     }
+}
 
-    fn load_config(
-        #[cfg(feature = "etcd")] etcd_address: Option<SocketAddr>,
-        file_path: Option<PathBuf>,
-    ) -> Result<Option<Vec<String>>> {
-        let runtime = tokio::runtime::Runtime::new()?;
+fn load_file_config(file_path: Option<PathBuf>) -> Result<Option<Vec<String>>> {
+    if let Some(file_path) = file_path {
+        if let Ok(mut file) = File::open(file_path) {
+            let mut config = String::new();
+            file.read_to_string(&mut config)?;
 
-        runtime.block_on(async {
-            #[cfg(feature = "etcd")]
-            if let Some(etcd_address) = etcd_address {
-                let _ = match Client::connect([etcd_address.to_string()], None).await {
-                    Ok(mut client) => match client.get("v1", None).await {
-                        Ok(response) => match response.kvs().first() {
-                            Some(v1) => {
-                                let v1 = serde_json::from_str::<Vec<String>>(v1.value_str()?)?;
+            let value: Value = config
+                .parse()
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
-                                Ok::<std::option::Option<Vec<std::string::String>>, AppError>(Some(
-                                    v1,
-                                ))
-                            }
-                            None => {
-                                error!("Failed while parsing configuration file");
-                                return Ok(None);
-                            }
-                        },
-                        Err(_) => {
-                            error!("Failed while connecting to etcd server. Is it running?");
+            if let Some(config) = value
+                .get("config")
+                .and_then(|config| config.get("v1"))
+                .and_then(|v1| v1.as_array())
+            {
+                let config: Vec<String> = config
+                    .iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect();
+                return Ok(Some(config));
+            }
+        }
+    }
+
+    Ok(None)
+}
+
+#[cfg(feature = "etcd")]
+fn load_etcd_config(etcd_address: Option<SocketAddr>) -> Result<Option<Vec<String>>> {
+    let runtime = tokio::runtime::Runtime::new()?;
+
+    runtime.block_on(async {
+        #[cfg(feature = "etcd")]
+        if let Some(etcd_address) = etcd_address {
+            let _ = match Client::connect([etcd_address.to_string()], None).await {
+                Ok(mut client) => match client.get("v1", None).await {
+                    Ok(response) => match response.kvs().first() {
+                        Some(v1) => {
+                            let v1 = serde_json::from_str::<Vec<String>>(v1.value_str()?)?;
+        
+                            Ok::<std::option::Option<Vec<std::string::String>>, AppError>(Some(
+                                v1,
+                            ))
+                        }
+                        None => {
+                            error!("Failed while parsing configuration file");
                             return Ok(None);
                         }
                     },
@@ -183,35 +205,16 @@ impl ApplicationService {
                         error!("Failed while connecting to etcd server. Is it running?");
                         return Ok(None);
                     }
-                };
-            }
-
-            if let Some(file_path) = file_path {
-                if let Ok(mut file) = File::open(file_path) {
-                    let mut config = String::new();
-                    file.read_to_string(&mut config)?;
-
-                    let value: Value = config
-                        .parse()
-                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-
-                    if let Some(config) = value
-                        .get("config")
-                        .and_then(|config| config.get("v1"))
-                        .and_then(|v1| v1.as_array())
-                    {
-                        let config: Vec<String> = config
-                            .iter()
-                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                            .collect();
-                        return Ok(Some(config));
-                    }
+                },
+                Err(_) => {
+                    error!("Failed while connecting to etcd server. Is it running?");
+                    return Ok(None);
                 }
-            }
-
-            Ok(None)
-        })
-    }
+            };
+        }
+    
+        Ok(None)
+    })
 }
 
 #[async_trait]
