@@ -54,11 +54,6 @@ struct Cli {
 }
 
 #[derive(Subcommand)]
-// #[command(group(
-//     clap::ArgGroup::new("storage")
-//         .required(true)
-//         .args(&["file", "etcd"]),
-// ))]
 enum Commands {
     /// Monitors llama.cpp instance and reports their status to the balancer
     Agent {
@@ -133,13 +128,6 @@ enum Commands {
         /// Address of the management server that the dashboard will connect to
         management_addr: SocketAddr,
     },
-    /// Supervises llama.cpp instance and manages their configuration
-    // #[command(group(
-    //     clap::ArgGroup::new("storage")
-    //         .required(true)
-    //         .args(&["file", "etcd"])
-    //         .conflicts_with_all(&["file", "etcd"]),
-    // ))]
     Supervise {
         #[arg(long)]
         /// Binary path used by supervisor instance
