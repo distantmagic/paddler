@@ -1,7 +1,19 @@
 use async_trait::async_trait;
 use log::{debug, error, info, warn};
 use pingora::{server::ShutdownWatch, services::Service};
-use std::process::{Child, Command, Stdio};
+use std::{
+    fs::File,
+    io::Read,
+    path::PathBuf,
+    process::{Child, Command, Stdio},
+};
+use toml::Value;
+
+#[cfg(feature = "etcd")]
+use etcd_client::Client;
+
+#[cfg(feature = "etcd")]
+use std::net::SocketAddr;
 use tokio::sync::broadcast::{Receiver, Sender};
 
 #[cfg(unix)]
@@ -9,21 +21,37 @@ use pingora::server::ListenFds;
 
 use crate::errors::result::Result;
 
-pub struct ApplyingService {
+#[cfg(feature = "etcd")]
+use crate::errors::app_error::AppError;
+
+pub struct ApplicationService {
     working_args: (Option<Vec<String>>, Option<Vec<String>>),
     llama_process: Option<Child>,
     update_llamacpp: Receiver<Vec<String>>,
     update_config: Sender<Vec<String>>,
 }
 
-impl ApplyingService {
+impl ApplicationService {
     pub fn new(
-        args: Vec<String>,
+        binary: String,
+        model: String,
+        port: u16,
+        #[cfg(feature = "etcd")] etcd_address: Option<SocketAddr>,
+        file_path: Option<PathBuf>,
         update_llamacpp: Receiver<Vec<String>>,
         update_config: Sender<Vec<String>>,
     ) -> Result<Self> {
-        Ok(ApplyingService {
-            working_args: (Some(args), None),
+        let working_args = Self::get_default_config(
+            #[cfg(feature = "etcd")]
+            etcd_address,
+            file_path,
+            binary,
+            model,
+            port,
+        )?;
+
+        Ok(ApplicationService {
+            working_args,
             llama_process: None,
             update_llamacpp,
             update_config,
@@ -94,10 +122,100 @@ impl ApplyingService {
             false
         }
     }
+
+    fn get_default_config(
+        #[cfg(feature = "etcd")] etcd_address: Option<SocketAddr>,
+        file_path: Option<PathBuf>,
+        binary: String,
+        model: String,
+        port: u16,
+    ) -> Result<(Option<Vec<String>>, Option<Vec<String>>)> {
+        if let Some(config) = Self::load_config(
+            #[cfg(feature = "etcd")]
+            etcd_address,
+            file_path,
+        )? {
+            Ok((Some(config), None))
+        } else {
+            let v1 = vec![
+                "--args".to_string(),
+                binary,
+                "-m".to_string(),
+                model,
+                "--port".to_string(),
+                port.to_string(),
+                "--slots".to_string(),
+            ];
+            Ok((Some(v1), None))
+        }
+    }
+
+    fn load_config(
+        #[cfg(feature = "etcd")] etcd_address: Option<SocketAddr>,
+        file_path: Option<PathBuf>,
+    ) -> Result<Option<Vec<String>>> {
+        let runtime = tokio::runtime::Runtime::new()?;
+
+        runtime.block_on(async {
+            #[cfg(feature = "etcd")]
+            if let Some(etcd_address) = etcd_address {
+                let _ = match Client::connect([etcd_address.to_string()], None).await {
+                    Ok(mut client) => match client.get("v1", None).await {
+                        Ok(response) => match response.kvs().first() {
+                            Some(v1) => {
+                                let v1 = serde_json::from_str::<Vec<String>>(v1.value_str()?)?;
+
+                                Ok::<std::option::Option<Vec<std::string::String>>, AppError>(Some(
+                                    v1,
+                                ))
+                            }
+                            None => {
+                                error!("Failed while parsing configuration file");
+                                return Ok(None);
+                            }
+                        },
+                        Err(_) => {
+                            error!("Failed while connecting to etcd server. Is it running?");
+                            return Ok(None);
+                        }
+                    },
+                    Err(_) => {
+                        error!("Failed while connecting to etcd server. Is it running?");
+                        return Ok(None);
+                    }
+                };
+            }
+
+            if let Some(file_path) = file_path {
+                if let Ok(mut file) = File::open(file_path) {
+                    let mut config = String::new();
+                    file.read_to_string(&mut config)?;
+
+                    let value: Value = config
+                        .parse()
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+
+                    if let Some(config) = value
+                        .get("config")
+                        .and_then(|config| config.get("v1"))
+                        .and_then(|v1| v1.as_array())
+                    {
+                        let config: Vec<String> = config
+                            .iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect();
+                        return Ok(Some(config));
+                    }
+                }
+            }
+
+            Ok(None)
+        })
+    }
 }
 
 #[async_trait]
-impl Service for ApplyingService {
+impl Service for ApplicationService {
     async fn start_service(
         &mut self,
         #[cfg(unix)] _fds: Option<ListenFds>,

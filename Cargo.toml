@@ -47,13 +47,17 @@ libc = "0.2.169"
 mavec = "0.2.1"
 throttle = "0.1.0"
 debounce = "0.2.2"
-etcd-client = "0.14.1"
+
+# etcd deps
+etcd-client = {version = "0.14.1", optional = true}
+toml = "0.8.20"
 
 [features]
 default = ["statsd_reporter", "ratatui_dashboard"]
 ratatui_dashboard = ["dep:crossterm", "dep:ratatui"]
 statsd_reporter = ["dep:cadence"]
 web_dashboard = ["dep:askama", "dep:askama_actix", "dep:mime_guess", "dep:rust-embed"]
+etcd = ["dep:etcd-client"]
 
 [profile.release]
 lto = true

@@ -15,7 +15,7 @@ use pingora::server::ListenFds;
 
 use crate::{errors::result::Result, supervisor::http_route};
 
-pub struct ManagingService {
+pub struct ManagementService {
     supervisor_addr: String,
     state: Data<State>,
 }
@@ -28,9 +28,9 @@ pub struct State {
     pub is_throttle_running: AtomicBool,
 }
 
-impl ManagingService {
+impl ManagementService {
     pub fn new(supervisor_addr: SocketAddr, update_llamacpp: Sender<Vec<String>>) -> Result<Self> {
-        Ok(ManagingService {
+        Ok(ManagementService {
             supervisor_addr: supervisor_addr.to_string(),
             state: Data::new(State {
                 update_llamacpp,
@@ -44,7 +44,7 @@ impl ManagingService {
 }
 
 #[async_trait]
-impl Service for ManagingService {
+impl Service for ManagementService {
     async fn start_service(
         &mut self,
         #[cfg(unix)] _fds: Option<ListenFds>,
@@ -52,6 +52,12 @@ impl Service for ManagingService {
     ) {
         let supervisor_addr = self.supervisor_addr.clone();
         let state = self.state.clone();
+
+        // let default_config = vec![
+        //     self.binary.clone(),
+        //     "-m".to_string(),
+        //     self.model.clone()
+        // ];
 
         HttpServer::new(move || {
             App::new()

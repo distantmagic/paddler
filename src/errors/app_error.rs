@@ -57,8 +57,12 @@ pub enum AppError {
     #[error("Invalid file error: {0}")]
     InvalidFileError(String),
 
+    #[cfg(feature = "etcd")]
     #[error("Invalid file error: {0}")]
     ConfigurationServerError(#[from] etcd_client::Error),
+
+    #[error("Invalid file error: {0}")]
+    FileToStringParseError(#[from] toml::ser::Error),
 }
 
 impl From<&str> for AppError {

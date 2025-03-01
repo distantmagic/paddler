@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::{
     net::{SocketAddr, ToSocketAddrs},
+    path::PathBuf,
     time::Duration,
 };
 
@@ -53,6 +54,11 @@ struct Cli {
 }
 
 #[derive(Subcommand)]
+// #[command(group(
+//     clap::ArgGroup::new("storage")
+//         .required(true)
+//         .args(&["file", "etcd"]),
+// ))]
 enum Commands {
     /// Monitors llama.cpp instance and reports their status to the balancer
     Agent {
@@ -128,10 +134,33 @@ enum Commands {
         management_addr: SocketAddr,
     },
     /// Supervises llama.cpp instance and manages their configuration
+    // #[command(group(
+    //     clap::ArgGroup::new("storage")
+    //         .required(true)
+    //         .args(&["file", "etcd"])
+    //         .conflicts_with_all(&["file", "etcd"]),
+    // ))]
     Supervise {
-        #[arg(action = clap::ArgAction::Append, allow_hyphen_values = true)]
-        /// Arguments to the llama.cpp server
-        args: Vec<String>,
+        #[arg(long)]
+        /// Binary path used by supervisor instance
+        binary: String,
+
+        #[arg(long)]
+        /// Model path used by the llama.cpp instance
+        model: String,
+
+        #[arg(long)]
+        /// Port which used by llama.cpp
+        port: u16,
+
+        #[arg(long)]
+        /// Uses a local file as configuration storage
+        file: Option<PathBuf>,
+
+        #[cfg(feature = "etcd")]
+        #[arg(long, value_parser = parse_socket_addr, required_unless_present = "file", conflicts_with = "file")]
+        /// Uses an etcd server as configuration storage
+        etcd: Option<SocketAddr>,
 
         #[arg(long, value_parser = parse_socket_addr)]
         /// Address of the management server which will configure llamacpp
@@ -191,9 +220,22 @@ fn main() -> Result<()> {
             statsd_reporting_interval.to_owned(),
         ),
         Some(Commands::Supervise {
-            args,
+            binary,
+            model,
             supervisor_addr,
-        }) => cmd::supervisor::handle(args.to_owned(), supervisor_addr.to_owned()),
+            file,
+            #[cfg(feature = "etcd")]
+            etcd,
+            port,
+        }) => cmd::supervisor::handle(
+            binary.to_owned(),
+            model.to_owned(),
+            port.to_owned(),
+            supervisor_addr.to_owned(),
+            #[cfg(feature = "etcd")]
+            etcd.to_owned(),
+            file.to_owned(),
+        ),
         #[cfg(feature = "ratatui_dashboard")]
         Some(Commands::Dashboard { management_addr }) => cmd::dashboard::handle(management_addr),
         None => Ok(()),
