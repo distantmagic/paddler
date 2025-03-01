@@ -53,12 +53,6 @@ impl Service for ManagementService {
         let supervisor_addr = self.supervisor_addr.clone();
         let state = self.state.clone();
 
-        // let default_config = vec![
-        //     self.binary.clone(),
-        //     "-m".to_string(),
-        //     self.model.clone()
-        // ];
-
         HttpServer::new(move || {
             App::new()
                 .app_data(state.clone())
