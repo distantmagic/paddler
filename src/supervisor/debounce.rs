@@ -43,7 +43,7 @@ pub fn handle_throttle(state: Data<State>) -> Result<()> {
 
                         match llama_args {
                             Ok(_) => args.clear(),
-                            Err(e) => error!("Error processing args: {}", e),
+                            Err(err) => error!("Error processing args: {}", err),
                         }
                     }
                 }

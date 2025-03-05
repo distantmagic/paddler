@@ -1,13 +1,13 @@
 use async_trait::async_trait;
 use log::{debug, error, info, warn};
 use pingora::{server::ShutdownWatch, services::Service};
+use serde_json::Value;
 use std::{
     fs::File,
     io::Read,
     path::PathBuf,
     process::{Child, Command, Stdio},
 };
-use toml::Value;
 
 #[cfg(feature = "etcd")]
 use etcd_client::Client;
@@ -134,7 +134,7 @@ impl ApplicationService {
 
         #[cfg(feature = "etcd")]
         let config = load_etcd_config(etcd_address).or(config);
-        
+
         if let Some(config) = config? {
             Ok((Some(config), None))
         } else {
@@ -191,10 +191,8 @@ fn load_etcd_config(etcd_address: Option<SocketAddr>) -> Result<Option<Vec<Strin
                     Ok(response) => match response.kvs().first() {
                         Some(v1) => {
                             let v1 = serde_json::from_str::<Vec<String>>(v1.value_str()?)?;
-        
-                            Ok::<std::option::Option<Vec<std::string::String>>, AppError>(Some(
-                                v1,
-                            ))
+
+                            Ok::<std::option::Option<Vec<std::string::String>>, AppError>(Some(v1))
                         }
                         None => {
                             error!("Failed while parsing configuration file");
@@ -212,7 +210,7 @@ fn load_etcd_config(etcd_address: Option<SocketAddr>) -> Result<Option<Vec<Strin
                 }
             };
         }
-    
+
         Ok(None)
     })
 }
