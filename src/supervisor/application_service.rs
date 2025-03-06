@@ -1,3 +1,4 @@
+use actix_web::web::get;
 use async_trait::async_trait;
 use log::{debug, error, info, warn};
 use pingora::{server::ShutdownWatch, services::Service};
@@ -151,8 +152,12 @@ fn load_file_config(file_path: PathBuf, name: String) -> Result<Option<Vec<Strin
 
         let config = file_content.parse::<DocumentMut>()?;
 
-        if let Some(config) = config["config"][name].as_array() {
-            eprintln!("{:#?}", config);
+        let config = config
+            .get("config")
+            .and_then(|config| config.get(name))
+            .and_then(|config| config.as_array());
+
+        if let Some(config) = config {
             let config: Vec<String> = config
                 .iter()
                 .filter_map(|v| v.as_str().map(|s| s.to_string()))
