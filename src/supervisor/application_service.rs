@@ -1,4 +1,3 @@
-use actix_web::web::get;
 use async_trait::async_trait;
 use log::{debug, error, info, warn};
 use pingora::{server::ShutdownWatch, services::Service};
@@ -115,7 +114,7 @@ impl ApplicationService {
             false
         }
     }
-
+    
     fn get_default_config(
         config_driver: ConfigDriver,
         binary: String,
@@ -136,6 +135,8 @@ impl ApplicationService {
                 binary,
                 "-m".to_string(),
                 model,
+                "-np".to_string(),
+                "4".to_string(),
                 "--port".to_string(),
                 port.to_string(),
                 "--slots".to_string(),
@@ -166,7 +167,7 @@ fn load_file_config(file_path: PathBuf, name: String) -> Result<Option<Vec<Strin
             return Ok(Some(config));
         }
     }
-
+    
     Ok(None)
 }
 
