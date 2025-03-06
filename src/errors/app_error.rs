@@ -61,8 +61,8 @@ pub enum AppError {
     #[error("Invalid file error: {0}")]
     ConfigurationServerError(#[from] etcd_client::Error),
 
-    #[error("Invalid file error: {0}")]
-    FileToStringParseError(#[from] toml::ser::Error),
+    #[error("Invalid config error: {0}")]
+    ConfigurationFileParseError(#[from] toml_edit::TomlError),
 }
 
 impl From<&str> for AppError {

@@ -1,13 +1,13 @@
 use async_trait::async_trait;
 use log::{debug, error, info, warn};
 use pingora::{server::ShutdownWatch, services::Service};
-use serde_json::Value;
 use std::{
     fs::File,
     io::Read,
     path::PathBuf,
     process::{Child, Command, Stdio},
 };
+use toml_edit::DocumentMut;
 
 #[cfg(feature = "etcd")]
 use etcd_client::Client;
@@ -19,7 +19,7 @@ use tokio::sync::broadcast::{Receiver, Sender};
 #[cfg(unix)]
 use pingora::server::ListenFds;
 
-use crate::errors::result::Result;
+use crate::{errors::result::Result, ConfigDriver};
 
 #[cfg(feature = "etcd")]
 use crate::errors::app_error::AppError;
@@ -36,19 +36,11 @@ impl ApplicationService {
         binary: String,
         model: String,
         port: u16,
-        #[cfg(feature = "etcd")] etcd_address: Option<SocketAddr>,
-        file_path: Option<PathBuf>,
+        config_driver: ConfigDriver,
         update_llamacpp: Receiver<Vec<String>>,
         update_config: Sender<Vec<String>>,
     ) -> Result<Self> {
-        let working_args = Self::get_default_config(
-            #[cfg(feature = "etcd")]
-            etcd_address,
-            file_path,
-            binary,
-            model,
-            port,
-        )?;
+        let working_args = Self::get_default_config(config_driver, binary, model, port)?;
 
         Ok(ApplicationService {
             working_args,
@@ -124,16 +116,16 @@ impl ApplicationService {
     }
 
     fn get_default_config(
-        #[cfg(feature = "etcd")] etcd_address: Option<SocketAddr>,
-        file_path: Option<PathBuf>,
+        config_driver: ConfigDriver,
         binary: String,
         model: String,
         port: u16,
     ) -> Result<(Option<Vec<String>>, Option<Vec<String>>)> {
-        let config = load_file_config(file_path);
-
-        #[cfg(feature = "etcd")]
-        let config = load_etcd_config(etcd_address).or(config);
+        let config = match config_driver {
+            ConfigDriver::File { path, name } => load_file_config(path, name),
+            #[cfg(feature = "etcd")]
+            ConfigDriver::Etcd { addr, name: _ } => load_etcd_config(addr),
+        };
 
         if let Some(config) = config? {
             Ok((Some(config), None))
@@ -152,27 +144,21 @@ impl ApplicationService {
     }
 }
 
-fn load_file_config(file_path: Option<PathBuf>) -> Result<Option<Vec<String>>> {
-    if let Some(file_path) = file_path {
-        if let Ok(mut file) = File::open(file_path) {
-            let mut config = String::new();
-            file.read_to_string(&mut config)?;
+fn load_file_config(file_path: PathBuf, name: String) -> Result<Option<Vec<String>>> {
+    if let Ok(mut file) = File::open(file_path) {
+        let mut file_content = String::new();
+        file.read_to_string(&mut file_content)?;
 
-            let value: Value = config
-                .parse()
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        let config = file_content.parse::<DocumentMut>()?;
 
-            if let Some(config) = value
-                .get("config")
-                .and_then(|config| config.get("v1"))
-                .and_then(|v1| v1.as_array())
-            {
-                let config: Vec<String> = config
-                    .iter()
-                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                    .collect();
-                return Ok(Some(config));
-            }
+        if let Some(config) = config["config"][name].as_array() {
+            eprintln!("{:#?}", config);
+            let config: Vec<String> = config
+                .iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect();
+
+            return Ok(Some(config));
         }
     }
 
@@ -180,27 +166,21 @@ fn load_file_config(file_path: Option<PathBuf>) -> Result<Option<Vec<String>>> {
 }
 
 #[cfg(feature = "etcd")]
-fn load_etcd_config(etcd_address: Option<SocketAddr>) -> Result<Option<Vec<String>>> {
+fn load_etcd_config(etcd_address: SocketAddr) -> Result<Option<Vec<String>>> {
     let runtime = tokio::runtime::Runtime::new()?;
 
     runtime.block_on(async {
         #[cfg(feature = "etcd")]
-        if let Some(etcd_address) = etcd_address {
-            let _ = match Client::connect([etcd_address.to_string()], None).await {
-                Ok(mut client) => match client.get("v1", None).await {
-                    Ok(response) => match response.kvs().first() {
-                        Some(v1) => {
-                            let v1 = serde_json::from_str::<Vec<String>>(v1.value_str()?)?;
+        let _ = match Client::connect([etcd_address.to_string()], None).await {
+            Ok(mut client) => match client.get("v1", None).await {
+                Ok(response) => match response.kvs().first() {
+                    Some(v1) => {
+                        let v1 = serde_json::from_str::<Vec<String>>(v1.value_str()?)?;
 
-                            Ok::<std::option::Option<Vec<std::string::String>>, AppError>(Some(v1))
-                        }
-                        None => {
-                            error!("Failed while parsing configuration file");
-                            return Ok(None);
-                        }
-                    },
-                    Err(_) => {
-                        error!("Failed while connecting to etcd server. Is it running?");
+                        Ok::<std::option::Option<Vec<std::string::String>>, AppError>(Some(v1))
+                    }
+                    None => {
+                        error!("Failed while parsing configuration file");
                         return Ok(None);
                     }
                 },
@@ -208,8 +188,12 @@ fn load_etcd_config(etcd_address: Option<SocketAddr>) -> Result<Option<Vec<Strin
                     error!("Failed while connecting to etcd server. Is it running?");
                     return Ok(None);
                 }
-            };
-        }
+            },
+            Err(_) => {
+                error!("Failed while connecting to etcd server. Is it running?");
+                return Ok(None);
+            }
+        };
 
         Ok(None)
     })

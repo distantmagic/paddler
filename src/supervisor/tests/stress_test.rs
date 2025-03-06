@@ -1,7 +1,10 @@
 #[cfg(test)]
 mod tests {
     use std::{
-        sync::{atomic::{AtomicBool, Ordering}, Arc, Mutex},
+        sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc, Mutex,
+        },
         time::{Duration, Instant},
     };
 
@@ -114,7 +117,7 @@ mod tests {
         sleep(Duration::from_millis(2000)).await;
 
         // Two seconds span request
-        make_request(state.clone(), ARG2.clone())?;      
+        make_request(state.clone(), ARG2.clone())?;
         sleep(Duration::from_millis(2000)).await;
 
         make_request(state.clone(), ARG3.clone())?;
@@ -128,16 +131,16 @@ mod tests {
 
     fn make_request(state: Data<State>, arg: Map<String, Value>) -> Result<()> {
         let now = Instant::now();
-    
+
         let mut last_request_time = state.last_request.lock()?;
         let mut args_vec = state.args.lock()?;
         let mut throttle = state.throttle.lock()?;
-    
+
         args_vec.push(arg);
         let _ = throttle.accept().ok();
         *last_request_time = Some(now);
 
-        // As handle_request is a loop, we need to manualy stop it after a request
+        // As handle_request() has a loop, we need to manualy stop it after a request
         let is_thtorrle_running = &state.is_throttle_running;
         is_thtorrle_running.store(false, Ordering::Relaxed);
 

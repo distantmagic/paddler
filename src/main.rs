@@ -1,4 +1,7 @@
 use clap::{Parser, Subcommand};
+use serde::Deserialize;
+#[cfg(feature = "etcd")]
+use serde::Deserializer;
 use std::{
     net::{SocketAddr, ToSocketAddrs},
     path::PathBuf,
@@ -43,6 +46,19 @@ fn parse_socket_addr(arg: &str) -> Result<SocketAddr> {
         Ok(socketaddr) => Ok(socketaddr),
         Err(_) => Ok(resolve_socket_addr(arg)?),
     }
+}
+
+#[cfg(feature = "etcd")]
+fn deserialize_socket_addr<'de, D>(deserializer: D) -> std::result::Result<SocketAddr, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let addr_str: String = Deserialize::deserialize(deserializer)?;
+    parse_socket_addr(&addr_str).map_err(serde::de::Error::custom)
+}
+
+fn parse_config_driver(arg: &str) -> Result<ConfigDriver> {
+    serde_json::from_str(arg).map_err(|e| format!("Invalid config driver JSON: {}", e).into())
 }
 
 #[derive(Parser)]
@@ -141,18 +157,27 @@ enum Commands {
         /// Port which used by llama.cpp
         port: u16,
 
-        #[arg(long)]
-        /// Uses a local file as configuration storage
-        file: Option<PathBuf>,
-
-        #[cfg(feature = "etcd")]
-        #[arg(long, value_parser = parse_socket_addr, required_unless_present = "file", conflicts_with = "file")]
-        /// Uses an etcd server as configuration storage
-        etcd: Option<SocketAddr>,
+        #[arg(long, value_parser = parse_config_driver)]
+        config_driver: ConfigDriver,
 
         #[arg(long, value_parser = parse_socket_addr)]
         /// Address of the management server which will configure llamacpp
         supervisor_addr: SocketAddr,
+    },
+}
+
+#[derive(Clone, Deserialize, Debug)]
+#[serde(tag = "type", rename_all = "lowercase")]
+enum ConfigDriver {
+    #[cfg(feature = "etcd")]
+    Etcd {
+        #[serde(deserialize_with = "deserialize_socket_addr")]
+        addr: SocketAddr,
+        name: String,
+    },
+    File {
+        path: PathBuf,
+        name: String,
     },
 }
 
@@ -211,18 +236,14 @@ fn main() -> Result<()> {
             binary,
             model,
             supervisor_addr,
-            file,
-            #[cfg(feature = "etcd")]
-            etcd,
+            config_driver,
             port,
         }) => cmd::supervisor::handle(
             binary.to_owned(),
             model.to_owned(),
             port.to_owned(),
             supervisor_addr.to_owned(),
-            #[cfg(feature = "etcd")]
-            etcd.to_owned(),
-            file.to_owned(),
+            config_driver.to_owned(),
         ),
         #[cfg(feature = "ratatui_dashboard")]
         Some(Commands::Dashboard { management_addr }) => cmd::dashboard::handle(management_addr),

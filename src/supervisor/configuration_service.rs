@@ -1,63 +1,57 @@
+use async_trait::async_trait;
 #[cfg(feature = "etcd")]
 use etcd_client::Client;
-#[cfg(feature = "etcd")]
-use std::net::SocketAddr;
-
-use async_trait::async_trait;
 use log::{debug, error};
 use pingora::{server::ShutdownWatch, services::Service};
-use std::{fs, path::PathBuf};
-use toml::Value;
+use std::{
+    fs::{self, File},
+    io::Read,
+};
+use toml_edit::{value, DocumentMut};
 
 #[cfg(unix)]
 use pingora::server::ListenFds;
 use tokio::sync::broadcast::Receiver;
 
-use crate::errors::result::Result;
+use crate::{errors::result::Result, ConfigDriver};
 
 pub struct ConfigurationService {
     update_config: Receiver<Vec<String>>,
-    #[cfg(feature = "etcd")]
-    etcd_address: Option<SocketAddr>,
-    file_path: Option<PathBuf>,
+    config_driver: ConfigDriver,
 }
 
 impl ConfigurationService {
-    pub fn new(
-        update_config: Receiver<Vec<String>>,
-        #[cfg(feature = "etcd")] etcd_address: Option<SocketAddr>,
-        file_path: Option<PathBuf>,
-    ) -> Result<Self> {
+    pub fn new(update_config: Receiver<Vec<String>>, config_driver: ConfigDriver) -> Result<Self> {
         Ok(ConfigurationService {
             update_config,
-            #[cfg(feature = "etcd")]
-            etcd_address,
-            file_path,
+            config_driver,
         })
     }
 
     async fn persist_config(&self, args: Vec<String>) -> Result<()> {
-        if let Some(file_path) = &self.file_path {
-            let config_value = toml::Value::Table({
-                let mut table = toml::value::Table::new();
-                let vec_toml_value: Vec<Value> =
-                    args.clone().into_iter().map(Value::String).collect();
-                table.insert("v1".to_string(), toml::Value::Array(vec_toml_value));
-                table
-            });
+        match &self.config_driver {
+            ConfigDriver::File { path, name } => {
+                let mut config = if let Ok(mut file) = File::open(path) {
+                    let mut contents = String::new();
+                    file.read_to_string(&mut contents)?;
+                    contents.parse::<DocumentMut>()?
+                } else {
+                    DocumentMut::new()
+                };
+                if !config.contains_table("config") {
+                    config["config"] = toml_edit::table();
+                }
 
-            let mut toml_table = toml::value::Table::new();
-            toml_table.insert("config".to_string(), config_value);
+                config["config"][name] = value(serde_json::to_string(&args)?);
 
-            let toml_string = toml::to_string(&toml_table)?;
-            fs::write(file_path, toml_string)?;
-        }
-
-        #[cfg(feature = "etcd")]
-        if let Some(etcd_address) = &self.etcd_address {
-            let mut client = Client::connect([etcd_address.to_string()], None).await?;
-            let json_vec = serde_json::to_string(&args)?;
-            client.put("v1", json_vec, None).await?;
+                fs::write(path, config.to_string())?;
+            }
+            #[cfg(feature = "etcd")]
+            ConfigDriver::Etcd { addr, name } => {
+                let mut client = Client::connect([addr.to_string()], None).await?;
+                let json_vec = serde_json::to_string(&args)?;
+                client.put(name.as_str(), json_vec, None).await?;
+            }
         }
 
         Ok(())

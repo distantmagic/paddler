@@ -50,8 +50,8 @@ debounce = "0.2.2"
 
 # etcd deps
 etcd-client = {version = "0.14.1", optional = true}
-toml = "0.8.20"
 lazy_static = "1.5.0"
+toml_edit = "0.22.24"
 
 [features]
 default = ["statsd_reporter", "ratatui_dashboard"]
