@@ -36,7 +36,6 @@ jobs:
           make esbuild
 
       - name: build the binary
-        if: ${{ matrix.os }} == "windows-latest"
         run: |
           cargo build --features web_dashboard --release
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
@@ -44,6 +43,7 @@ jobs:
           else
             mv target/release/paddler ${{ matrix.artifact_name }}
           fi
+        shell: bash
 
       - name: determine tag type
         id: tag_type
@@ -55,6 +55,7 @@ jobs:
           else
             echo "tag_type=INVALID_TAG" >> $GITHUB_OUTPUT
           fi
+        shell: bash
 
       - name: upload binaries to release
         if: steps.tag_type.outputs.tag_type != 'INVALID_TAG'
