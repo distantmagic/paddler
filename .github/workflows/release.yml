@@ -36,6 +36,7 @@ jobs:
           make esbuild
 
       - name: build the binary
+        if: ${{ matrix.os }} == "windows-latest"
         run: |
           cargo build --features web_dashboard --release
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
