@@ -9,15 +9,18 @@ on:
 jobs:
   build:
     name: build
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
-          - rust_target: x86_64-unknown-linux-gnu 
+          - os: ubuntu-latest
             artifact_name: paddler-bin-linux-amd64
 
-          - rust_target: x86_64-pc-windows-gnu
+          - os: windows-latest
             artifact_name: paddler-bin-windows-amd64.exe
+
+          - os: macos-latest
+            artifact_name: paddler-bin-macos-amd64
 
     steps:
       - name: checkout code
@@ -27,24 +30,20 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          target: ${{ matrix.rust_target }}
-          
+
       - name: build static
         run: |
           make esbuild
 
-      - name: install mingw for Windows cross-compilation
-        if: matrix.rust_target == 'x86_64-pc-windows-gnu'
-        run: sudo apt-get install -y gcc-mingw-w64-x86-64
-
       - name: build the binary
         run: |
-          cargo build --features web_dashboard --release --target ${{ matrix.rust_target }}
-          if [[ "${{ matrix.artifact_name }}" == *.exe ]]; then
-            mv target/${{ matrix.rust_target }}/release/paddler.exe ${{ matrix.artifact_name }}
+          cargo build --features web_dashboard --release
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            mv target/release/paddler.exe ${{ matrix.artifact_name }}
           else
-            mv target/${{ matrix.rust_target }}/release/paddler ${{ matrix.artifact_name }}
+            mv target/release/paddler ${{ matrix.artifact_name }}
           fi
+        shell: bash
 
       - name: determine tag type
         id: tag_type
@@ -56,6 +55,7 @@ jobs:
           else
             echo "tag_type=INVALID_TAG" >> $GITHUB_OUTPUT
           fi
+        shell: bash
 
       - name: upload binaries to release
         if: steps.tag_type.outputs.tag_type != 'INVALID_TAG'
