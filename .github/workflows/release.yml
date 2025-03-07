@@ -26,6 +26,11 @@ jobs:
       - name: checkout code
         uses: actions/checkout@v4
 
+      - name: set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
       - name: build static
         run: |
           make esbuild
@@ -33,6 +38,11 @@ jobs:
       - name: build the binary
         run: |
           cargo build --features web_dashboard --release
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            mv target/release/paddler.exe ${{ matrix.artifact_name }}
+          else
+            mv target/release/paddler ${{ matrix.artifact_name }}
+          fi
 
       - name: determine tag type
         id: tag_type
