@@ -85,7 +85,7 @@ enum Commands {
         #[arg(long)]
         /// API key for the llama.cpp instance (optional)
         llamacpp_api_key: Option<String>,
-
+ 
         #[arg(long, value_parser = parse_socket_addr)]
         /// Address of the management server that the agent will report to
         management_addr: SocketAddr,
