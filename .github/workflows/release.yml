@@ -39,10 +39,6 @@ jobs:
         run: |
           make esbuild
 
-      - name: install mingw for Windows cross-compilation
-        if: matrix.os == 'windows-latest'
-        run: sudo apt-get install -y gcc-mingw-w64-x86-64
-
       - name: build the binary
         run: |
           cargo build --features web_dashboard --release --target ${{ matrix.rust_target }}
