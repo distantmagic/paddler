@@ -5,7 +5,7 @@ use log::{debug, error};
 use pingora::{server::ShutdownWatch, services::Service};
 use std::{
     fs::{self, File},
-    io::Read,
+    io::Read, path::PathBuf,
 };
 use toml_edit::{value, DocumentMut};
 
@@ -31,6 +31,10 @@ impl ConfigurationService {
     async fn persist_config(&self, args: Vec<String>) -> Result<()> {
         match &self.config_driver {
             ConfigDriver::File { path, name } => {
+                if !Self::is_a_toml_file(path) {
+                    error!("File is not `.toml`. Configuration will not be persisted.")
+                }
+
                 let mut config = if let Ok(mut file) = File::open(path) {
                     let mut contents = String::new();
                     file.read_to_string(&mut contents)?;
@@ -55,6 +59,10 @@ impl ConfigurationService {
         }
 
         Ok(())
+    }
+
+    fn is_a_toml_file(path: &PathBuf) -> bool {
+        path.extension().is_some_and(|x| x == "toml")
     }
 }
 
