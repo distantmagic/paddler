@@ -57,7 +57,7 @@ where
     parse_socket_addr(&addr_str).map_err(serde::de::Error::custom)
 }
 
-fn parse_config_driver(arg: &str) -> Result<ConfigDriver> {
+fn parse_driver(arg: &str) -> Result<ConfigDriver> {
     serde_json::from_str(arg).map_err(|e| format!("Invalid config driver JSON: {}", e).into())
 }
 
@@ -158,7 +158,7 @@ enum Commands {
         port: u16,
 
         /// Driver for the llama.cpp configuration storage
-        #[arg(long, value_parser = parse_config_driver)]
+        #[arg(long, value_parser = parse_driver)]
         config_driver: ConfigDriver,
 
         #[arg(long, value_parser = parse_socket_addr)]
