@@ -1,7 +1,7 @@
 # Paddler
 
 > [!IMPORTANT]  
-> Big chances! Paddler is rewritten into Rust (from Golang) and uses [Pingora](https://github.com/cloudflare/pingora) framework for the networking stack.
+> Big changes! Paddler is rewritten into Rust (from Golang) and uses [Pingora](https://github.com/cloudflare/pingora) framework for the networking stack.
 >
 > Version `1.0.0` brings some minor API changes and reporting improvements. 
 > 
