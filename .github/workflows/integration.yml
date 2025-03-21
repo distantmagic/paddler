@@ -44,7 +44,7 @@ jobs:
         shell: bash
 
       - name: Build Rust Binary
-        run: cargo build --features web_dashboard,etcd --release
+        run: cargo build --features web_dashboard --release
 
       - name: Run agent
         run: target/debug/paddler agent --external-llamacpp-addr "localhost:8088" --local-llamacpp-addr "localhost:8088" --management-addr "localhost:8085"
