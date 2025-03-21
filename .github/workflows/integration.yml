@@ -6,6 +6,9 @@ on:
       - main
       - cicd
   pull_request:
+      branches:
+      - main
+      - cicd
 
 jobs:
   test:
@@ -37,7 +40,7 @@ jobs:
 
       - name: Start Llama.cpp Server
         run: |
-          llama.cpp/build/bin/llama-server -m qwen2.gguf --port 8088 --slots
+          llama.cpp/build/bin/llama-server -m qwen2.gguf --port 8088 --slots &
         shell: bash
 
       - name: Build Rust Binary
