@@ -54,17 +54,19 @@ jobs:
           llama.cpp/build/bin/llama-server -m qwen2.gguf --port 8088 --slots &
         shell: bash
 
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
 
-      - name: Cache dependencies
-        uses: Swatinem/rust-cache@v2
-
       - name: Build static
         run: |
           make esbuild
+
+      # TODO: cucumber unit tests
 
       - name: Build binary
         run: cargo build --features web_dashboard --release
