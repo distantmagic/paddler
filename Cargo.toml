@@ -42,6 +42,8 @@ itertools = "0.13.0"
 color-eyre = "0.6.3"
 time = "0.3.36"
 chrono = "0.4.38"
+cucumber = "0.21.1"
+httpmock = "0.7.0"
 
 [features]
 default = ["statsd_reporter", "ratatui_dashboard"]
