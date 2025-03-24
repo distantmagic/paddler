@@ -7,6 +7,7 @@ use crate::{
     llamacpp::{slot::Slot, slots_response::SlotsResponse},
 };
 
+#[derive(Debug, Default)]
 pub struct LlamacppClient {
     client: reqwest::Client,
     slots_endpoint_url: String,
