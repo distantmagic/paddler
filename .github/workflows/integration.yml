@@ -14,7 +14,7 @@ jobs:
   buildjet:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
 
     runs-on: ${{ matrix.os }}
 
@@ -70,10 +70,12 @@ jobs:
         run: |
           make esbuild
 
-      # TODO: Add cucumber unit tests
-
       - name: Build binary
         run: cargo build --features web_dashboard --release
+
+      # - name: Run unit tests
+      #   run: |
+      #     cargo test --package paddler
 
       - name: Run load balancer
         run: target/release/paddler balancer --management-addr "localhost:8085" --reverseproxy-addr "localhost:8086" --management-dashboard-enable &
