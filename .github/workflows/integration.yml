@@ -12,68 +12,67 @@ on:
 
 jobs:
   buildjet:
-    test:
-      runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
 
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-        - name: Cache Llama.cpp Build
-          uses: actions/cache@v3
-          with:
-            path: llama.cpp/build
-            key: llama-build-${{ runner.os }}-${{ hashFiles('llama.cpp/CMakeLists.txt') }}
-            restore-keys: |
-              llama-build-${{ runner.os }}-
+      - name: Cache Llama.cpp Build
+        uses: actions/cache@v3
+        with:
+          path: llama.cpp/build
+          key: llama-build-${{ runner.os }}-${{ hashFiles('llama.cpp/CMakeLists.txt') }}
+          restore-keys: |
+            llama-build-${{ runner.os }}-
 
-        - name: Cache Model
-          uses: actions/cache@v3
-          with:
-            path: qwen2.gguf
-            key: llama-model-${{ runner.os }}-qwen2
-            restore-keys: |
-              llama-model-${{ runner.os }}-
+      - name: Cache Model
+        uses: actions/cache@v3
+        with:
+          path: qwen2.gguf
+          key: llama-model-${{ runner.os }}-qwen2
+          restore-keys: |
+            llama-model-${{ runner.os }}-
 
-        - name: Build Llama.cpp
-          run: |
-            if [ ! -d "llama.cpp/build" ]; then
-              git clone https://github.com/ggml-org/llama.cpp.git
-              cd llama.cpp
-              cmake -B build
-              cmake --build build --config Release
-            fi
+      - name: Build Llama.cpp
+        run: |
+          if [ ! -d "llama.cpp/build" ]; then
+            git clone https://github.com/ggml-org/llama.cpp.git
+            cd llama.cpp
+            cmake -B build
+            cmake --build build --config Release
+          fi
 
-        - name: Download Model
-          run: |
-            if [ ! -f "qwen2.gguf" ]; then
-              wget -O qwen2.gguf https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf?download=true
-            fi
+      - name: Download Model
+        run: |
+          if [ ! -f "qwen2.gguf" ]; then
+            wget -O qwen2.gguf https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf?download=true
+          fi
 
-        - name: Start Llama.cpp Server
-          run: |
-            llama.cpp/build/bin/llama-server -m qwen2.gguf --port 8088 --slots &
-          shell: bash
+      - name: Start Llama.cpp Server
+        run: |
+          llama.cpp/build/bin/llama-server -m qwen2.gguf --port 8088 --slots &
+        shell: bash
 
-        - name: Cache Rust toolchain and dependencies
-          uses: Swatinem/rust-cache@v2
+      - name: Cache Rust toolchain and dependencies
+        uses: Swatinem/rust-cache@v2
 
-        - name: Set up Rust
-          uses: dtolnay/rust-toolchain@stable
-          with:
-            toolchain: stable
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
 
-        - name: Build static
-          run: |
-            make esbuild
+      - name: Build static
+        run: |
+          make esbuild
 
-        # TODO: cucumber unit tests
+      # TODO: Add cucumber unit tests
 
-        - name: Build binary
-          run: cargo build --features web_dashboard --release
+      - name: Build binary
+        run: cargo build --features web_dashboard --release
 
-        - name: Run loadbalancer
-          run: target/release/paddler balancer --management-addr "localhost:8085" --reverseproxy-addr "localhost:8086" --management-dashboard-enable &
+      - name: Run load balancer
+        run: target/release/paddler balancer --management-addr "localhost:8085" --reverseproxy-addr "localhost:8086" --management-dashboard-enable &
 
-        - name: Run agent
-          run: target/release/paddler agent --external-llamacpp-addr "localhost:8088" --local-llamacpp-addr "localhost:8088" --management-addr "localhost:8085" &
+      - name: Run agent
+        run: target/release/paddler agent --external-llamacpp-addr "localhost:8088" --local-llamacpp-addr "localhost:8088" --management-addr "localhost:8085" &
