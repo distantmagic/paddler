@@ -81,8 +81,7 @@ jobs:
       - name: Start Llama.cpp Server (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          ls
-          llama.cpp\bin\Debug\llama-server.exe -m qwen2.gguf --port 8088 --slots
+          llama.cpp\bin\Debug\llama-server.exe -m qwen2.gguf --port 8088 --slots &
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -92,9 +91,9 @@ jobs:
         with:
           toolchain: stable
       
-      # - name: Run unit tests
-      #   run: |
-      #     cargo test --package paddler
+      - name: Run unit tests
+        run: |
+          cargo test
 
       - name: Build static
         run: |
