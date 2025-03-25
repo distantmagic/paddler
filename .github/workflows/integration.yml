@@ -38,15 +38,15 @@ jobs:
           restore-keys: |
             llama-model-${{ runner.os }}-
 
-      # - name: Build Llama.cpp (Unix)
-      #   if: matrix.os != 'windows-latest'
-      #   run: |
-      #     if [ ! -d "llama.cpp/build" ]; then
-      #       git clone https://github.com/ggml-org/llama.cpp.git
-      #       cd llama.cpp
-      #       cmake -B build
-      #       cmake --build build --config Release
-      #     fi
+      - name: Build Llama.cpp (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          if [ ! -d "llama.cpp/build" ]; then
+            git clone https://github.com/ggml-org/llama.cpp.git
+            cd llama.cpp
+            cmake -B build
+            cmake --build build --config Release
+          fi
 
       - name: Build Llama.cpp (Windows)
         if: matrix.os == 'windows-latest'
@@ -58,12 +58,12 @@ jobs:
             cmake --build .
           }
 
-      # - name: Download Model (Unix)
-      #   if: matrix.os != 'windows-latest'
-      #   run: |
-      #     if [ ! -f "qwen2.gguf" ]; then
-      #       wget -O qwen2.gguf "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf?download=true"
-      #     fi
+      - name: Download Model (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          if [ ! -f "qwen2.gguf" ]; then
+            wget -O qwen2.gguf "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf?download=true"
+          fi
 
       - name: Download Model (Windows)
         if: matrix.os == 'windows-latest'
