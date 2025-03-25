@@ -25,7 +25,7 @@ jobs:
       - name: Cache Llama.cpp Build
         uses: actions/cache@v3
         with:
-          path: llama.cpp/build
+          path: llama.cpp
           key: llama-build-${{ runner.os }}-${{ hashFiles('llama.cpp/CMakeLists.txt') }}
           restore-keys: |
             llama-build-${{ runner.os }}-
@@ -41,7 +41,7 @@ jobs:
       - name: Build Llama.cpp (Unix)
         if: matrix.os != 'windows-latest'
         run: |
-          if [ ! -d "llama.cpp/build" ]; then
+          if [ ! -d "llama.cpp" ]; then
             git clone https://github.com/ggml-org/llama.cpp.git
             cd llama.cpp
             cmake -B build
