@@ -51,7 +51,7 @@ jobs:
       - name: Build Llama.cpp (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          if (-not (Test-Path -Path "llama.cpp\build" -PathType Container)) {
+          if (-not (Test-Path -Path "llama.cpp" -PathType Container)) {
             git clone https://github.com/ggerganov/llama.cpp
             cd llama.cpp
             cmake .
