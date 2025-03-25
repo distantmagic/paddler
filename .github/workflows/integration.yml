@@ -51,7 +51,7 @@ jobs:
       - name: Build Llama.cpp (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          if not exist "llama.cpp\build" {
+          if (-not (Test-Path -Path "llama.cpp\build" -PathType Container)) {
             git clone https://github.com/ggerganov/llama.cpp
             cd llama.cpp
             cmake .
@@ -68,7 +68,7 @@ jobs:
       - name: Download Model (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          if not exist "qwen2.gguf" {
+          if ( Test-Path "qwen2.gguf") {
             wget -O qwen2.gguf "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf?download=true"
           }
 
