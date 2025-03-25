@@ -51,7 +51,7 @@ jobs:
       - name: Build Llama.cpp (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          if (-not ( exist "llama.cpp\build" )) {
+          if not exist "llama.cpp\build" {
             git clone https://github.com/ggerganov/llama.cpp
             cd llama.cpp
             cmake .
@@ -68,7 +68,7 @@ jobs:
       - name: Download Model (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          if (-not ( exist "qwen2.gguf" )) {
+          if not exist "qwen2.gguf" {
             wget -O qwen2.gguf "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf?download=true"
           }
 
@@ -79,7 +79,7 @@ jobs:
         shell: bash
 
       - name: Start Llama.cpp Server (Windows)
-        if: matrix.os == 'windows-latests'
+        if: matrix.os == 'windows-latest'
         run: |
           llama.cpp\build\bin\Debug\llama-server.exe" -ArgumentList -m qwen2.gguf --port 8088 --slots
 
