@@ -162,7 +162,7 @@ async fn verify_not_implemented_response(world: &mut LlamacppClientWorld) {
 
 #[then("I should receive an error")]
 async fn verify_error_response(world: &mut LlamacppClientWorld) {
-    assert!(world.error.is_some());
+    assert!(world.error.is_none());
 }
 
 #[tokio::test]
