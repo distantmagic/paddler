@@ -22,66 +22,66 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Cache Llama.cpp Build
-        uses: actions/cache@v3
-        with:
-          path: llama.cpp
-          key: llama-build-${{ runner.os }}-${{ hashFiles('llama.cpp/CMakeLists.txt') }}
-          restore-keys: |
-            llama-build-${{ runner.os }}-
+      # - name: Cache Llama.cpp Build
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: llama.cpp
+      #     key: llama-build-${{ runner.os }}-${{ hashFiles('llama.cpp/CMakeLists.txt') }}
+      #     restore-keys: |
+      #       llama-build-${{ runner.os }}-
 
-      - name: Cache Model
-        uses: actions/cache@v3
-        with:
-          path: qwen2.gguf
-          key: llama-model-${{ runner.os }}-qwen2
-          restore-keys: |
-            llama-model-${{ runner.os }}-
+      # - name: Cache Model
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: qwen2.gguf
+      #     key: llama-model-${{ runner.os }}-qwen2
+      #     restore-keys: |
+      #       llama-model-${{ runner.os }}-
 
-      - name: Build Llama.cpp (Unix)
-        if: matrix.os != 'windows-latest'
-        run: |
-          if [ ! -d "llama.cpp" ]; then
-            git clone https://github.com/ggml-org/llama.cpp.git
-            cd llama.cpp
-            cmake -B build
-            cmake --build build --config Release
-          fi
+      # - name: Build Llama.cpp (Unix)
+      #   if: matrix.os != 'windows-latest'
+      #   run: |
+      #     if [ ! -d "llama.cpp" ]; then
+      #       git clone https://github.com/ggml-org/llama.cpp.git
+      #       cd llama.cpp
+      #       cmake -B build
+      #       cmake --build build --config Release
+      #     fi
 
-      - name: Build Llama.cpp (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          if (-not (Test-Path -Path "llama.cpp" -PathType Container)) {
-            git clone https://github.com/ggerganov/llama.cpp
-            cd llama.cpp
-            cmake .
-            cmake --build .
-          }
+      # - name: Build Llama.cpp (Windows)
+      #   if: matrix.os == 'windows-latest'
+      #   run: |
+      #     if (-not (Test-Path -Path "llama.cpp" -PathType Container)) {
+      #       git clone https://github.com/ggerganov/llama.cpp
+      #       cd llama.cpp
+      #       cmake .
+      #       cmake --build .
+      #     }
 
-      - name: Download Model (Unix)
-        if: matrix.os != 'windows-latest'
-        run: |
-          if [ ! -f "qwen2.gguf" ]; then
-            wget -O qwen2.gguf "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf?download=true"
-          fi
+      # - name: Download Model (Unix)
+      #   if: matrix.os != 'windows-latest'
+      #   run: |
+      #     if [ ! -f "qwen2.gguf" ]; then
+      #       wget -O qwen2.gguf "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf?download=true"
+      #     fi
 
-      - name: Download Model (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          if (-not (Test-Path "qwen2.gguf")) {
-            curl -L -o qwen2.gguf "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf?download=true"
-          }
+      # - name: Download Model (Windows)
+      #   if: matrix.os == 'windows-latest'
+      #   run: |
+      #     if (-not (Test-Path "qwen2.gguf")) {
+      #       curl -L -o qwen2.gguf "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf?download=true"
+      #     }
 
-      - name: Start Llama.cpp Server (Unix)
-        if: matrix.os != 'windows-latest'
-        run: |
-          llama.cpp/build/bin/llama-server -m qwen2.gguf --port 8088 --slots &
-        shell: bash
+      # - name: Start Llama.cpp Server (Unix)
+      #   if: matrix.os != 'windows-latest'
+      #   run: |
+      #     llama.cpp/build/bin/llama-server -m qwen2.gguf --port 8088 --slots &
+      #   shell: bash
 
-      - name: Start Llama.cpp Server (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          llama.cpp\bin\Debug\llama-server.exe -m qwen2.gguf --port 8088 --slots &
+      # - name: Start Llama.cpp Server (Windows)
+      #   if: matrix.os == 'windows-latest'
+      #   run: |
+      #     llama.cpp\bin\Debug\llama-server.exe -m qwen2.gguf --port 8088 --slots &
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -95,15 +95,15 @@ jobs:
         run: |
           cargo test
 
-      - name: Build static
-        run: |
-          make esbuild
+      # - name: Build static
+      #   run: |
+      #     make esbuild
 
-      - name: Build binary
-        run: cargo build --features web_dashboard --release
+      # - name: Build binary
+      #   run: cargo build --features web_dashboard --release
 
-      - name: Run load balancer
-        run: target/release/paddler balancer --management-addr "localhost:8085" --reverseproxy-addr "localhost:8086" --management-dashboard-enable &
+      # - name: Run load balancer
+      #   run: target/release/paddler balancer --management-addr "localhost:8085" --reverseproxy-addr "localhost:8086" --management-dashboard-enable &
 
-      - name: Run agent
-        run: target/release/paddler agent --external-llamacpp-addr "localhost:8088" --local-llamacpp-addr "localhost:8088" --management-addr "localhost:8085" &
+      # - name: Run agent
+      #   run: target/release/paddler agent --external-llamacpp-addr "localhost:8088" --local-llamacpp-addr "localhost:8088" --management-addr "localhost:8085" &
