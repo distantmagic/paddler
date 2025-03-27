@@ -11,6 +11,7 @@ mod balancer;
 mod cmd;
 mod errors;
 mod llamacpp;
+mod tests;
 
 fn resolve_socket_addr(s: &str) -> Result<SocketAddr> {
     let addrs: Vec<SocketAddr> = s.to_socket_addrs()?.collect();

@@ -167,5 +167,5 @@ async fn verify_error_response(world: &mut LlamacppClientWorld) {
 
 #[tokio::test]
 async fn run_cucumber_tests() {
-    LlamacppClientWorld::run("src/llamacpp/tests/features/llamacpp_client.feature").await;
+    LlamacppClientWorld::run("src/tests/features/llamacpp_client.feature").await;
 }
