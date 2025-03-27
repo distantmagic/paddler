@@ -105,8 +105,26 @@ async fn report_status(world: &mut MonitoringServicetWorld) -> Result<()> {
 }
 
 #[then(regex = r"monitoring service must receive a successful report response")]
-async fn receive_successful_response_from_report(world: &mut MonitoringServicetWorld) {
-    assert!(world.error.is_none());
+async fn receive_successful_response_from_report(
+    world: &mut MonitoringServicetWorld,
+) -> Result<()> {
+    if let Some(status_receiver) = world.report.as_mut() {
+        let status = status_receiver.recv().await?;
+        let status_update = serde_json::from_slice::<StatusUpdate>(&status)?;
+
+        assert!(world.error.is_none());
+        assert_eq!(status_update.agent_name, Some("Llama.cpp 1".to_string()));
+        assert_eq!(status_update.error, None);
+        assert_eq!(
+            status_update.external_llamacpp_addr,
+            *world.mock.0.as_ref().unwrap().address()
+        );
+        assert_eq!(status_update.is_authorized, Some(true));
+        assert_eq!(status_update.is_slots_endpoint_enabled, Some(true));
+        assert_eq!(status_update.processing_slots_count, 0);
+    }
+
+    Ok(())
 }
 
 #[tokio::test]

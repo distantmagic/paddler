@@ -47,6 +47,9 @@ pub enum AppError {
 
     #[error("RwLock poison error: {0}")]
     RwLockPoisonError(String),
+
+    #[error("Channel receive error: {0}")]
+    ChannelReceiveError(#[from] tokio::sync::broadcast::error::RecvError),
 }
 
 impl From<&str> for AppError {
