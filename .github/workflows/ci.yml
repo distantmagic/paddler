@@ -11,32 +11,32 @@ on:
       - cicd
 
 jobs:
-  cache:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+  # cache_AI:
+  #   strategy:
+  #     matrix:
+  #       os: [ubuntu-latest, macos-latest, windows-latest]
 
-    runs-on: ${{ matrix.os }}
+  #   runs-on: ${{ matrix.os }}
 
-    steps:
-      - name: Cache Llama.cpp Build
-        uses: actions/cache@v3
-        with:
-          path: llama.cpp
-          key: llama-build-${{ runner.os }}-${{ hashFiles('llama.cpp/CMakeLists.txt') }}
-          restore-keys: |
-            llama-build-${{ runner.os }}-
+  #   steps:
+  #     - name: Cache Llama.cpp Build
+  #       uses: actions/cache@v3
+  #       with:
+  #         path: llama.cpp
+  #         key: llama-build-${{ runner.os }}-${{ hashFiles('llama.cpp/CMakeLists.txt') }}
+  #         restore-keys: |
+  #           llama-build-${{ runner.os }}-
 
-      - name: Cache Model
-        uses: actions/cache@v3
-        with:
-          path: qwen2.gguf
-          key: llama-model-${{ runner.os }}-qwen2
-          restore-keys: |
-            llama-model-${{ runner.os }}-
+  #     - name: Cache Model
+  #       uses: actions/cache@v3
+  #       with:
+  #         path: qwen2.gguf
+  #         key: llama-model-${{ runner.os }}-qwen2
+  #         restore-keys: |
+  #           llama-model-${{ runner.os }}-
 
   buildjet:
-    needs: cache
+    # needs: cache_AI
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
