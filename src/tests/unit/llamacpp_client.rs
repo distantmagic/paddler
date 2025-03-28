@@ -144,6 +144,7 @@ async fn verify_error_response(world: &mut LlamacppClientWorld) {
     assert!(world.error.is_some());
 }
 
+#[cfg(not(miri))]
 #[tokio::test]
 async fn run_cucumber_tests() {
     LlamacppClientWorld::run("src/tests/features/llamacpp_client.feature").await;

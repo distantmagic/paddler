@@ -127,6 +127,7 @@ async fn receive_successful_response_from_report(
     Ok(())
 }
 
+#[cfg(not(miri))]
 #[tokio::test]
 async fn run_cucumber_tests() {
     MonitoringServicetWorld::run("src/tests/features/monitoring_service.feature").await;
