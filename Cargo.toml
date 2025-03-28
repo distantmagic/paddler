@@ -54,3 +54,4 @@ web_dashboard = ["dep:askama", "dep:askama_actix", "dep:mime_guess", "dep:rust-e
 [profile.release]
 lto = true
 codegen-units = 1
+strip = true
