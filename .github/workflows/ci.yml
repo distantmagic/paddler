@@ -11,7 +11,32 @@ on:
       - cicd
 
 jobs:
+  cache:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Cache Llama.cpp Build
+        uses: actions/cache@v3
+        with:
+          path: llama.cpp
+          key: llama-build-${{ runner.os }}-${{ hashFiles('llama.cpp/CMakeLists.txt') }}
+          restore-keys: |
+            llama-build-${{ runner.os }}-
+
+      - name: Cache Model
+        uses: actions/cache@v3
+        with:
+          path: qwen2.gguf
+          key: llama-model-${{ runner.os }}-qwen2
+          restore-keys: |
+            llama-model-${{ runner.os }}-
+
   buildjet:
+    needs: cache
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -21,22 +46,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      # - name: Cache Llama.cpp Build
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: llama.cpp
-      #     key: llama-build-${{ runner.os }}-${{ hashFiles('llama.cpp/CMakeLists.txt') }}
-      #     restore-keys: |
-      #       llama-build-${{ runner.os }}-
-
-      # - name: Cache Model
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: qwen2.gguf
-      #     key: llama-model-${{ runner.os }}-qwen2
-      #     restore-keys: |
-      #       llama-model-${{ runner.os }}-
 
       # - name: Build Llama.cpp (Unix)
       #   if: matrix.os != 'windows-latest'
@@ -72,6 +81,56 @@ jobs:
       #       curl -L -o qwen2.gguf "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf?download=true"
       #     }
 
+  cache_rust:
+    needs: buildjet
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+  run_tests:
+    needs: buildjet
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run unit tests with Miri
+        run: cargo test
+
+  run_miri:
+    needs: buildjet
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build static files
+        run: make esbuild
+
+      - name: Build binary
+        run: cargo build --features web_dashboard --release
+
       # - name: Start Llama.cpp Server (Unix)
       #   if: matrix.os != 'windows-latest'
       #   run: |
@@ -82,25 +141,6 @@ jobs:
       #   if: matrix.os == 'windows-latest'
       #   run: |
       #     llama.cpp\bin\Debug\llama-server.exe -m qwen2.gguf --port 8088 --slots &
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-      
-      - name: Run unit tests
-        run: |
-          cargo test
-
-      # - name: Build static
-      #   run: |
-      #     make esbuild
-
-      # - name: Build binary
-      #   run: cargo build --features web_dashboard --release
 
       # - name: Run load balancer
       #   run: target/release/paddler balancer --management-addr "localhost:8085" --reverseproxy-addr "localhost:8086" --management-dashboard-enable &
