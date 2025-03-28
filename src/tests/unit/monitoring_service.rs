@@ -50,7 +50,7 @@ async fn setup_llamacpp_server(world: &mut MonitoringServicetWorld) -> Result<()
     Ok(())
 }
 
-#[when(regex = r"monitoring service fetches slots endpoint")]
+#[when(regex = r"monitoring service fetches slots endpoint with an authorized slots response")]
 async fn fetch_slots_status(world: &mut MonitoringServicetWorld) -> Result<()> {
     let mock_server = world.mock.0.as_ref().unwrap();
     let _mock = mock_server.mock(|when, then| {
@@ -75,7 +75,7 @@ async fn fetch_slots_status(world: &mut MonitoringServicetWorld) -> Result<()> {
     Ok(())
 }
 
-#[then(regex = r"monitoring service must receive a successful response")]
+#[then(regex = r"monitoring service must receive a successful slots response")]
 async fn receive_successful_response(world: &mut MonitoringServicetWorld) {
     if let Some(response) = world.response.as_ref() {
         assert!(world.error.is_none());
@@ -126,6 +126,74 @@ async fn receive_successful_response_from_report(
 
     Ok(())
 }
+
+#[when("monitoring service fetches slots endpoint with an unauthorized slots response")]
+async fn request_slots_failure(world: &mut MonitoringServicetWorld) -> Result<()> {
+    let mock_server = world.mock.0.as_ref().unwrap();
+    let _mock = mock_server.mock(|when, then| {
+        when.method(GET).path("/slots");
+        then.status(401)
+            .header("content-type", "application/json")
+            .json_body(json!([
+                {
+                    "id": 0,
+                    "is_processing": false,
+                    "prompt": "",
+                }
+            ]));
+    });
+
+    if let Some(monitoring_service) = &world.monitoring_service {
+        world.response = Some(monitoring_service.fetch_status().await?);
+    };
+
+    Ok(())
+}
+
+#[then("monitoring service must receive a successful slots response")]
+async fn verify_unimplemented_response(world: &mut MonitoringServicetWorld) {
+    if let Some(response) = &world.response.as_ref() {
+        assert!(!response.is_authorized.unwrap());
+        assert!(response.is_slots_endpoint_enabled.is_none());
+        assert!(response.slots.is_empty());
+    };
+}
+
+// #[when("monitoring server reports status")]
+// async fn report_status(world: &mut MonitoringServicetWorld) -> Result<()> {
+//     if let Some(monitoring_service) = &world.monitoring_service {
+//         let status = world.response.as_ref().unwrap().to_owned();
+
+//         let _ = monitoring_service.report_status(status).await?;
+//     };
+
+//     world.error = None;
+
+//     Ok(())
+// }
+
+// #[then("monitoring service must receive a successful report response")]
+// async fn receive_successful_response_from_report(
+//     world: &mut MonitoringServicetWorld,
+// ) -> Result<()> {
+//     if let Some(status_receiver) = world.report.as_mut() {
+//         let status = status_receiver.recv().await?;
+//         let status_update = serde_json::from_slice::<StatusUpdate>(&status)?;
+
+//         assert!(world.error.is_none());
+//         assert_eq!(status_update.agent_name, Some("Llama.cpp 1".to_string()));
+//         assert_eq!(status_update.error, None);
+//         assert_eq!(
+//             status_update.external_llamacpp_addr,
+//             *world.mock.0.as_ref().unwrap().address()
+//         );
+//         assert_eq!(status_update.is_authorized, Some(true));
+//         assert_eq!(status_update.is_slots_endpoint_enabled, Some(true));
+//         assert_eq!(status_update.processing_slots_count, 0);
+//     }
+
+//     Ok(())
+// }
 
 #[cfg(not(miri))]
 #[tokio::test]

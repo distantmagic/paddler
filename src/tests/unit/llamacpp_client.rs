@@ -34,7 +34,7 @@ async fn setup_llamacpp_server(world: &mut LlamacppClientWorld) -> Result<()> {
     Ok(())
 }
 
-#[when("I request available slots with a authorized response")]
+#[when("llamacpp client requests available slots endpoint with an authorized slots response")]
 async fn request_slots_success(world: &mut LlamacppClientWorld) -> Result<()> {
     let mock_server = world.mock.0.as_ref().unwrap();
     let _mock = mock_server.mock(|when, then| {
@@ -56,7 +56,15 @@ async fn request_slots_success(world: &mut LlamacppClientWorld) -> Result<()> {
     Ok(())
 }
 
-#[when("I request available slots with an unauthorized response")]
+#[then("llamacpp client must receive a successful response with slots")]
+async fn verify_successful_response(world: &mut LlamacppClientWorld) {
+    let response = &world.response;
+    assert!(response.is_authorized.unwrap());
+    assert!(response.is_slot_endpoint_enabled.unwrap());
+    assert!(!response.slots.is_empty());
+}
+
+#[when("llamacpp client requests available slots endpoint with an unauthorized slots response")]
 async fn request_slots_failure(world: &mut LlamacppClientWorld) -> Result<()> {
     let mock_server = world.mock.0.as_ref().unwrap();
     let _mock = mock_server.mock(|when, then| {
@@ -78,8 +86,17 @@ async fn request_slots_failure(world: &mut LlamacppClientWorld) -> Result<()> {
     Ok(())
 }
 
-#[when("I request available slots with a not implemented response")]
-async fn request_slots_not_implemented(world: &mut LlamacppClientWorld) -> Result<()> {
+#[then("llamacpp client must receive an unauthorized response")]
+async fn verify_unauthorized_response(world: &mut LlamacppClientWorld) {
+    let response = &world.response;
+
+    assert!(!response.is_authorized.unwrap());
+    assert!(response.is_slot_endpoint_enabled.is_none());
+    assert!(response.slots.is_empty());
+}
+
+#[when("llamacpp client requests available slots endpoint with an not implemented response")]
+async fn request_slots_unimplemented(world: &mut LlamacppClientWorld) -> Result<()> {
     let mock_server = world.mock.0.as_ref().unwrap();
     let _mock = mock_server.mock(|when, then| {
         when.method(GET).path("/slots");
@@ -100,7 +117,15 @@ async fn request_slots_not_implemented(world: &mut LlamacppClientWorld) -> Resul
     Ok(())
 }
 
-#[when("I request available slots with an error response")]
+#[then("llamacpp client must receive an unimplemented response")]
+async fn verify_unimplemented_response(world: &mut LlamacppClientWorld) {
+    let response = &world.response;
+    assert!(response.is_authorized.is_none());
+    assert!(!response.is_slot_endpoint_enabled.unwrap());
+    assert!(response.slots.is_empty());
+}
+
+#[when("llamacpp client requests available slots endpoint with an error response")]
 async fn request_slots_error(world: &mut LlamacppClientWorld) -> Result<()> {
     let mock_server = world.mock.0.as_ref().unwrap();
 
@@ -114,32 +139,7 @@ async fn request_slots_error(world: &mut LlamacppClientWorld) -> Result<()> {
     Ok(())
 }
 
-#[then("I must receive a successful response with slots")]
-async fn verify_successful_response(world: &mut LlamacppClientWorld) {
-    let response = &world.response;
-    assert!(response.is_authorized.unwrap());
-    assert!(response.is_slot_endpoint_enabled.unwrap());
-    assert!(!response.slots.is_empty());
-}
-
-#[then("I must receive an unauthorized response")]
-async fn verify_unauthorized_response(world: &mut LlamacppClientWorld) {
-    let response = &world.response;
-
-    assert!(!response.is_authorized.unwrap());
-    assert!(response.is_slot_endpoint_enabled.is_none());
-    assert!(response.slots.is_empty());
-}
-
-#[then("I must receive a not implemented response")]
-async fn verify_not_implemented_response(world: &mut LlamacppClientWorld) {
-    let response = &world.response;
-    assert!(response.is_authorized.is_none());
-    assert!(!response.is_slot_endpoint_enabled.unwrap());
-    assert!(response.slots.is_empty());
-}
-
-#[then("I must receive an error")]
+#[then("llamacpp client must receive an error response")]
 async fn verify_error_response(world: &mut LlamacppClientWorld) {
     assert!(world.error.is_some());
 }
