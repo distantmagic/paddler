@@ -11,26 +11,16 @@ on:
       - cicd
 
 jobs:
-  check:
+  setup:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-
     runs-on: ${{ matrix.os }}
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-  setup_rust:
-    needs: check
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
+        
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
@@ -39,29 +29,39 @@ jobs:
         with:
           toolchain: stable
 
-  run_tests:
-    needs: setup_rust
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - name: Run unit tests with Miri
-        run: cargo test
-
-  run_miri:
-    needs: setup_rust
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
       - name: Build static files
         run: make esbuild
+
+  test:
+    needs: setup
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run unit tests
+        run: cargo test
+
+  build:
+    needs: setup
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
 
       - name: Build binary
         run: cargo build --features web_dashboard --release
