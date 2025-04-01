@@ -2,8 +2,7 @@ use cucumber::{given, then, when, World};
 
 use crate::{
     balancer::upstream_peer_pool::UpstreamPeerPool,
-    errors::{app_error::AppError, result::Result},
-    llamacpp::slots_response::SlotsResponse,
+    errors::result::Result,
 };
 
 use core::panic;
