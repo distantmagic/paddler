@@ -50,17 +50,19 @@ fn download_llamacpp() -> Result<()> {
 
 fn download_model() -> Result<()> {
     if cfg!(target_os = "windows") {
-        Command::new("Invoke-WebRequest")
-            .args(["-Uri", "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf?download=true", "-OutFile", "qwen2_500m.gguf"])
+        Command::new("powershell")
+            .args(["-Command", "Invoke-WebRequest -Uri 'https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf' -OutFile qwen2_500m.gguf"])
             .status()?;
-    }
-    if cfg!(target_os = "macos") {
-        Command::new("curl").args(["-o", "qwen2_500m.gguf", "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf?download=true"]).status()?;
+    } else if cfg!(target_os = "macos") {
+        Command::new("curl")
+            .args(["-L", "-o", "qwen2_500m.gguf", "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf"])
+            .status()?;
     } else {
         Command::new("wget")
-            .args(["-O", "qwen2_500m.gguf", "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf?download=true"])
+            .args(["-O", "qwen2_500m.gguf", "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf"])
             .status()?;
     };
+    
     Ok(())
 }
 
