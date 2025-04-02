@@ -1,4 +1,6 @@
 use cucumber::{given, then, when, World};
+use std::thread;
+use std::time::Duration;
 
 use crate::{balancer::upstream_peer_pool::UpstreamPeerPool, errors::result::Result};
 
@@ -106,6 +108,10 @@ fn start_llamacpp(port: usize, _name: &str) -> Result<()> {
     }
 
     let mut command = if cfg!(target_os = "windows") {
+        if !PathBuf::from("llama.cpp/bin/Debug").exists() {
+            panic!("llama.cpp doesnt exist");
+        }
+
         let mut cmd = Command::new("llama.cpp/bin/Debug/llama-server.exe");
         cmd.args([
             "-m",
@@ -168,6 +174,8 @@ async fn start_balancer1(_world: &mut PaddlerWorld) -> Result<()> {
     if !PathBuf::from("target").exists() {
         panic!("target doesnt exist");
     }
+
+    thread::sleep(Duration::from_secs(300));
 
     let _ = Command::new("target/release/paddler")
         .args([
