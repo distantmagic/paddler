@@ -195,7 +195,7 @@ fn unsafe_code() {
     unsafe fn raw_pointer_demo() {
         let mut num = 10;
         let raw_ptr = &mut num as *mut i32;
-        
+
         *raw_ptr += 5;
         println!("Value after unsafe modification: {}", *raw_ptr);
     }

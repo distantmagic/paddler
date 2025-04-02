@@ -6,6 +6,7 @@ use core::panic;
 use std::{
     env::current_dir,
     net::{IpAddr, Ipv4Addr, SocketAddr},
+    path::{Path, PathBuf},
     process::Command,
 };
 
@@ -21,6 +22,9 @@ fn setup_project() -> Result<()> {
 }
 
 fn download_llamacpp() -> Result<()> {
+    eprintln!("listing");
+    list_current_directory();
+
     if cfg!(target_os = "windows") {
         Command::new("winget")
             .args(["install", "--id", "Git.Git", "-e", "--source winget"])
@@ -46,6 +50,8 @@ fn download_llamacpp() -> Result<()> {
 }
 
 fn build_llamacpp() -> Result<()> {
+    eprintln!("listing");
+    list_current_directory();
     Command::new("git")
         .args(["clone", "https://github.com/ggml-org/llama.cpp.git"])
         .status()?;
@@ -70,6 +76,8 @@ fn build_llamacpp() -> Result<()> {
 }
 
 fn download_model() -> Result<()> {
+    eprintln!("listing");
+    list_current_directory();
     if cfg!(target_os = "windows") {
         Command::new("powershell")
             .args(["-Command", "Invoke-WebRequest -Uri 'https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf' -OutFile qwen2_500m.gguf"])
@@ -88,6 +96,7 @@ fn download_model() -> Result<()> {
 }
 
 fn build_paddler() -> Result<()> {
+    list_current_directory();
     Command::new("make")
         .args(["esbuild"])
         .spawn()
@@ -101,6 +110,13 @@ fn build_paddler() -> Result<()> {
 }
 
 fn start_llamacpp(port: usize, _name: &str) -> Result<()> {
+    eprintln!("listing");
+    list_current_directory();
+    eprintln!(
+        "llamacpp exists?: {:#?}",
+        PathBuf::from("llama.cpp").exists()
+    );
+
     let mut command = if cfg!(target_os = "windows") {
         let mut cmd = Command::new("llama.cpp/bin/Debug/llama-server.exe");
         cmd.args([
@@ -279,4 +295,13 @@ async fn display_agent2_slots(_world: &mut PaddlerWorld) -> Result<()> {
 #[tokio::test]
 async fn run_cucumber_tests() {
     PaddlerWorld::run("src/tests/integration/features/agent.feature").await;
+}
+
+fn list_current_directory() {
+    let entries = std::fs::read_dir(".").expect("Failed to read directory");
+
+    for entry in entries {
+        let entry = entry.expect("Failed to get entry");
+        println!("{}", entry.path().display());
+    }
 }
