@@ -2,7 +2,7 @@ use cucumber::{given, then, when, World};
 
 use crate::{balancer::upstream_peer_pool::UpstreamPeerPool, errors::result::Result};
 
-use core::panic;
+use core::{panic, panicking::panic};
 use std::{
     env::current_dir,
     net::{IpAddr, Ipv4Addr, SocketAddr},
@@ -22,8 +22,6 @@ fn setup_project() -> Result<()> {
 }
 
 fn download_llamacpp() -> Result<()> {
-    eprintln!("listing");
-    list_current_directory();
 
     if cfg!(target_os = "windows") {
         Command::new("winget")
@@ -50,8 +48,6 @@ fn download_llamacpp() -> Result<()> {
 }
 
 fn build_llamacpp() -> Result<()> {
-    eprintln!("listing");
-    list_current_directory();
     Command::new("git")
         .args(["clone", "https://github.com/ggml-org/llama.cpp.git"])
         .status()?;
@@ -76,8 +72,6 @@ fn build_llamacpp() -> Result<()> {
 }
 
 fn download_model() -> Result<()> {
-    eprintln!("listing");
-    list_current_directory();
     if cfg!(target_os = "windows") {
         Command::new("powershell")
             .args(["-Command", "Invoke-WebRequest -Uri 'https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf' -OutFile qwen2_500m.gguf"])
@@ -96,7 +90,6 @@ fn download_model() -> Result<()> {
 }
 
 fn build_paddler() -> Result<()> {
-    list_current_directory();
     Command::new("make")
         .args(["esbuild"])
         .spawn()
@@ -110,12 +103,9 @@ fn build_paddler() -> Result<()> {
 }
 
 fn start_llamacpp(port: usize, _name: &str) -> Result<()> {
-    eprintln!("listing");
-    list_current_directory();
-    eprintln!(
-        "llamacpp exists?: {:#?}",
-        PathBuf::from("llama.cpp").exists()
-    );
+    if !PathBuf::from("llama.cpp").exists() {
+        panic!("llama.cpp doesnt exist");
+    }
 
     let mut command = if cfg!(target_os = "windows") {
         let mut cmd = Command::new("llama.cpp/bin/Debug/llama-server.exe");
@@ -177,6 +167,14 @@ async fn start_llamacpp2(_world: &mut PaddlerWorld) -> Result<()> {
 
 #[given(regex = r"balancer-1 is running at 0.0.0.0:8070")]
 async fn start_balancer1(_world: &mut PaddlerWorld) -> Result<()> {
+    if !PathBuf::from("paddler").exists() {
+        panic!("paddler doesnt exist");
+    }
+
+    if !PathBuf::from("target").exists() {
+        panic!("target doesnt exist");
+    }
+
     let _ = Command::new("target/release/paddler")
         .args([
             "balancer",
