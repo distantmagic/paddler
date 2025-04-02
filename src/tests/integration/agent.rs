@@ -21,7 +21,6 @@ fn setup_project() -> Result<()> {
 }
 
 fn download_llamacpp() -> Result<()> {
-
     if cfg!(target_os = "windows") {
         Command::new("winget")
             .args(["install", "--id", "Git.Git", "-e", "--source winget"])
@@ -166,10 +165,6 @@ async fn start_llamacpp2(_world: &mut PaddlerWorld) -> Result<()> {
 
 #[given(regex = r"balancer-1 is running at 0.0.0.0:8070")]
 async fn start_balancer1(_world: &mut PaddlerWorld) -> Result<()> {
-    if !PathBuf::from("paddler").exists() {
-        panic!("paddler doesnt exist");
-    }
-
     if !PathBuf::from("target").exists() {
         panic!("target doesnt exist");
     }
