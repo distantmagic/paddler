@@ -1,9 +1,6 @@
 use cucumber::{given, then, when, World};
 
-use crate::{
-    balancer::upstream_peer_pool::UpstreamPeerPool,
-    errors::result::Result,
-};
+use crate::{balancer::upstream_peer_pool::UpstreamPeerPool, errors::result::Result};
 
 use core::panic;
 use std::{
@@ -86,11 +83,15 @@ fn download_model() -> Result<()> {
             .args(["-O", "qwen2_500m.gguf", "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf"])
             .status()?;
     };
-    
+
     Ok(())
 }
 
 fn build_paddler() -> Result<()> {
+    Command::new("make")
+        .args(["esbuild"])
+        .spawn()
+        .expect("Failed to run model");
     Command::new("cargo")
         .args(["build", "--features", "web_dashboard", "--release"])
         .spawn()
