@@ -43,11 +43,14 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
+      # - name: Add miri
+      #   run: rustup +nightly component add miri
+
       - name: Build static files
         run: make esbuild
 
-      - name: Build binary
-        run: cargo build --features web_dashboard --release
+      # - name: Build with miri
+      #   run: cargo build --features web_dashboard --release
 
   test:
     needs: build
