@@ -2,11 +2,10 @@ use cucumber::{given, then, when, World};
 
 use crate::{balancer::upstream_peer_pool::UpstreamPeerPool, errors::result::Result};
 
-use core::{panic, panicking::panic};
 use std::{
     env::current_dir,
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    path::{Path, PathBuf},
+    path::PathBuf,
     process::Command,
 };
 
@@ -293,13 +292,4 @@ async fn display_agent2_slots(_world: &mut PaddlerWorld) -> Result<()> {
 #[tokio::test]
 async fn run_cucumber_tests() {
     PaddlerWorld::run("src/tests/integration/features/agent.feature").await;
-}
-
-fn list_current_directory() {
-    let entries = std::fs::read_dir(".").expect("Failed to read directory");
-
-    for entry in entries {
-        let entry = entry.expect("Failed to get entry");
-        println!("{}", entry.path().display());
-    }
 }
