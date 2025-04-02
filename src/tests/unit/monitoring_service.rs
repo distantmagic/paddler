@@ -188,15 +188,3 @@ async fn report_is_successful() -> Result<()> {
 
     Ok(())
 }
-
-fn unsafe_code() {
-    use std::ptr;
-
-    unsafe fn raw_pointer_demo() {
-        let mut num = 10;
-        let raw_ptr = &mut num as *mut i32;
-
-        *raw_ptr += 5;
-        println!("Value after unsafe modification: {}", *raw_ptr);
-    }
-}
