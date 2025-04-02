@@ -16,8 +16,8 @@ use std::{
 struct PaddlerWorld {}
 
 fn setup_project() -> Result<()> {
-    download_llamacpp()?;
     build_paddler()?;
+    download_llamacpp()?;
     download_model()?;
 
     Ok(())
@@ -48,24 +48,6 @@ fn download_llamacpp() -> Result<()> {
     Ok(())
 }
 
-fn download_model() -> Result<()> {
-    if cfg!(target_os = "windows") {
-        Command::new("powershell")
-            .args(["-Command", "Invoke-WebRequest -Uri 'https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf' -OutFile qwen2_500m.gguf"])
-            .status()?;
-    } else if cfg!(target_os = "macos") {
-        Command::new("curl")
-            .args(["-L", "-o", "qwen2_500m.gguf", "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf"])
-            .status()?;
-    } else {
-        Command::new("wget")
-            .args(["-O", "qwen2_500m.gguf", "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf"])
-            .status()?;
-    };
-    
-    Ok(())
-}
-
 fn build_llamacpp() -> Result<()> {
     Command::new("git")
         .args(["clone", "https://github.com/ggml-org/llama.cpp.git"])
@@ -87,6 +69,24 @@ fn build_llamacpp() -> Result<()> {
 
     std::env::set_current_dir(previous_dir)?;
 
+    Ok(())
+}
+
+fn download_model() -> Result<()> {
+    if cfg!(target_os = "windows") {
+        Command::new("powershell")
+            .args(["-Command", "Invoke-WebRequest -Uri 'https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf' -OutFile qwen2_500m.gguf"])
+            .status()?;
+    } else if cfg!(target_os = "macos") {
+        Command::new("curl")
+            .args(["-L", "-o", "qwen2_500m.gguf", "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf"])
+            .status()?;
+    } else {
+        Command::new("wget")
+            .args(["-O", "qwen2_500m.gguf", "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf"])
+            .status()?;
+    };
+    
     Ok(())
 }
 
