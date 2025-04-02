@@ -157,6 +157,7 @@ fn start_llamacpp(port: usize, _name: &str) -> Result<()> {
 #[given(regex = r"llamacpp-1 is running at 0.0.0.0:8080 with 4 slots")]
 async fn start_llamacpp1(_world: &mut PaddlerWorld) -> Result<()> {
     setup_project()?;
+    thread::sleep(Duration::from_secs(600));
     start_llamacpp(8080, "agent1")?;
 
     Ok(())
@@ -164,6 +165,7 @@ async fn start_llamacpp1(_world: &mut PaddlerWorld) -> Result<()> {
 
 #[given(regex = r"llamacpp-2 is running at 0.0.0.0:8081 with 3 slots")]
 async fn start_llamacpp2(_world: &mut PaddlerWorld) -> Result<()> {
+    thread::sleep(Duration::from_secs(600));
     start_llamacpp(8081, "agent2")?;
 
     Ok(())
@@ -175,7 +177,7 @@ async fn start_balancer1(_world: &mut PaddlerWorld) -> Result<()> {
         panic!("target doesnt exist");
     }
 
-    thread::sleep(Duration::from_secs(300));
+    thread::sleep(Duration::from_secs(600));
 
     let _ = Command::new("target/release/paddler")
         .args([
