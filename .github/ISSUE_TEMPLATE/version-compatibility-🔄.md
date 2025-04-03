@@ -2,8 +2,7 @@
 name: "Version Compatibility \U0001F504"
 about: Suggest an idea for this project
 title: "[Compatibility issue with version X]"
-labels: ''
-assignees: ''
+labels: 'documentation'
 
 ---
 
