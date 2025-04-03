@@ -2,8 +2,7 @@
 name: Question
 about: Make a question about the topic
 title: "[Your question in a short sentence]"
-labels: ''
-assignees: ''
+labels: 'question'
 
 ---
 
