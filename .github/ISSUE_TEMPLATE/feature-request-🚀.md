@@ -2,8 +2,7 @@
 name: "Feature Request \U0001F680"
 about: Describe this issue template's purpose here.
 title: "[Feature name or brief description]"
-labels: ''
-assignees: ''
+labels: 'Feature request'
 
 ---
 
