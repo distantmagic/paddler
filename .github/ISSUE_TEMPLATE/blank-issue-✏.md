@@ -2,8 +2,6 @@
 name: Blank Issue ✏
 about: "Use this template if none of the predefined ones fit your case."
 title: "[Short and descriptive title]"
-labels: ''
-assignees: ''
 
 ---
 
