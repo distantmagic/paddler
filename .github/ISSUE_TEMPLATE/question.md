@@ -1,13 +1,11 @@
 ---
 name: Question
 about: Make a question about the topic
-title: ''
+title: "[Your question in a short sentence]"
 labels: ''
 assignees: ''
 
 ---
-
-*Title*: [Your question in a short sentence]
 
 **Description**:
 Ask your question with as much context as possible.
