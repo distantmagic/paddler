@@ -1,5 +1,3 @@
-## Security contact information
-
-To report a security vulnerability, please use the
-[Tidelift security contact](https://tidelift.com/security).
-Tidelift will coordinate the fix and disclosure.
+## 🚨 Security Notice
+Thank you for reporting a security issue. **Do NOT disclose sensitive details publicly**.  
+Instead, please email us at **[luiz13miguel24@gmail.com](mailto:luiz13miguel24@gmail.com)** if necessary.
