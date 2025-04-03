@@ -2,8 +2,7 @@
 name: "Documentation Error \U0001F4D6"
 about: Suggest an idea for this project
 title: "[Page or section with incorrect/missing documentation]"
-labels: ''
-assignees: ''
+labels: 'Documentation'
 
 ---
 
