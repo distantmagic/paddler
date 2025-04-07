@@ -44,6 +44,7 @@ time = "0.3.36"
 chrono = "0.4.38"
 cucumber = "0.21.1"
 httpmock = "0.7.0"
+test-env-log = "0.2.8"
 
 [features]
 default = ["statsd_reporter", "ratatui_dashboard"]
