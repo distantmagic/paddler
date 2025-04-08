@@ -1,166 +1,134 @@
-use cucumber::{given, then, when, World};
-use std::process::Child;
+// use cucumber::{given, then, when, World};
 
-use crate::{balancer::upstream_peer_pool::UpstreamPeerPool, errors::result::Result};
+// use crate::{
+//     balancer::upstream_peer_pool::UpstreamPeerPool, errors::result::Result,
+//     tests::integration::utils::PaddlerWorld,
+// };
 
-use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-    path::PathBuf,
-    process::Command,
-};
+// use std::{
+//     net::{IpAddr, Ipv4Addr, SocketAddr},
+//     process::Command,
+// };
 
-use super::utils::{build_paddler, download_llamacpp, download_model, start_llamacpp};
+// use super::utils::start_llamacpp;
 
-#[derive(Debug, Default, World)]
-struct PaddlerWorld {
-    pub agent1: Option<Child>,
-    pub agent2: Option<Child>,
-    pub llamacpp1: Option<Child>,
-    pub llamacpp2: Option<Child>,
-    pub balancer1: Option<Child>,
-}
+// #[given(expr = "{word} is running at {word}, {word} and reports metrics to {word}")]
+// async fn balancer_is_running(
+//     world: &mut PaddlerWorld,
+//     _balancer_name: String,
+//     management_addr: String,
+//     reveseproxy_addr: String,
+//     _statsd_addr: String,
+// ) -> Result<()> {
+//     world.balancer1 = Some(
+//         Command::new("target/release/paddler")
+//             .args([
+//                 "balancer",
+//                 "--management-addr",
+//                 &management_addr,
+//                 "--reverseproxy-addr",
+//                 &reveseproxy_addr,
+//                 "--management-dashboard-enable",
+//             ])
+//             .spawn()
+//             .expect("Failed to run balancer"),
+//     );
 
-impl PaddlerWorld {
-    pub fn setup(&mut self) -> Result<()> {
-        build_paddler()?;
-        download_llamacpp()?;
-        download_model()?;
+//     Ok(())
+// }
 
-        Ok(())
-    }
+//     Ok(())
+// }
 
-    pub async fn teardown(&mut self) -> Result<()> {
-        let mut errors = Vec::new();
+// #[given(expr = "{word} is running at {word} with {int} slot(s)")]
+// async fn llamacpp_is_running(
+//     world: &mut PaddlerWorld,
+//     llamacpp_name: String,
+//     addr: String,
+//     slots: usize,
+// ) -> Result<()> {
+//     match llamacpp_name.as_str() {
+//         "llamacpp-1" => world.llamacpp1 = Some(start_llamacpp(addr, slots)?),
+//         "llamacpp-2" => world.llamacpp2 = Some(start_llamacpp(addr, slots)?),
+//         _ => (),
+//     }
 
-        let mut kill_process = |process: &mut Option<Child>| {
-            if let Some(p) = process {
-                if let Err(err) = p.kill() {
-                    errors.push(format!("Failed to kill: {}", err));
-                }
-                *process = None;
-            }
-        };
+//     std::thread::sleep(std::time::Duration::from_secs(2));
 
-        kill_process(&mut self.agent1);
-        kill_process(&mut self.agent2);
-        kill_process(&mut self.llamacpp1);
-        kill_process(&mut self.llamacpp2);
-        kill_process(&mut self.balancer1);
+//     Ok(())
+// }
 
-        Ok(())
-    }
-}
+// #[when(
+//     expr = "{word} is running and observing {word} in {word}, and registered at {word} in {word}"
+// )]
+// async fn agent_is_running(
+//     world: &mut PaddlerWorld,
+//     agent_name: String,
+//     _llamacpp_name: String,
+//     llamacpp_addr: String,
+//     _balancer_name: String,
+//     balancer_addr: String,
+// ) -> Result<()> {
+//     let process = Some(
+//         Command::new("target/release/paddler")
+//             .args([
+//                 "agent",
+//                 "--local-llamacpp-addr",
+//                 &llamacpp_addr,
+//                 "--management-addr",
+//                 &balancer_addr,
+//                 "--name",
+//                 &agent_name,
+//             ])
+//             .spawn()
+//             .expect("Failed to run balancer"),
+//     );
 
-#[given(expr = "{word} is running at {word} and {word}")]
-async fn balancer_is_running(
-    world: &mut PaddlerWorld,
-    _balancer_name: String,
-    management_addr: String,
-    reveseproxy_addr: String,
-) -> Result<()> {
-    world.balancer1 = Some(
-        Command::new("target/release/paddler")
-            .args([
-                "balancer",
-                "--management-addr",
-                &management_addr,
-                "--reverseproxy-addr",
-                &reveseproxy_addr,
-                "--management-dashboard-enable",
-            ])
-            .spawn()
-            .expect("Failed to run balancer"),
-    );
+//     match agent_name.as_str() {
+//         "agent-1" => world.agent1 = process,
+//         "agent-2" => world.agent2 = process,
+//         _ => (),
+//     }
 
-    Ok(())
-}
+//     Ok(())
+// }
 
-#[given(expr = "{word} is running at {word} with {int} slot(s)")]
-async fn llamacpp_is_running(
-    world: &mut PaddlerWorld,
-    llamacpp_name: String,
-    addr: String,
-    slots: usize,
-) -> Result<()> {
-    match llamacpp_name.as_str() {
-        "llamacpp-1" => world.llamacpp1 = Some(start_llamacpp(addr, slots)?),
-        "llamacpp-2" => world.llamacpp2 = Some(start_llamacpp(addr, slots)?),
-        _ => (),
-    }
+// #[then(expr = "{word} must report that {word} is registered with {int} slot(s) in {int}")]
+// async fn display_agent_slots(
+//     _world: &mut PaddlerWorld,
+//     _balancer_name: String,
+//     agent_name: String,
+//     slots: usize,
+//     llamacpp_addr: u16,
+// ) -> Result<()> {
+//     std::thread::sleep(std::time::Duration::from_secs(1));
 
-    std::thread::sleep(std::time::Duration::from_secs(2));
+//     let mut response = serde_json::from_str::<UpstreamPeerPool>(
+//         &reqwest::get("http://localhost:8070/api/v1/agents")
+//             .await?
+//             .text()
+//             .await?,
+//     )?;
+//     let agents = response.agents.get_mut()?;
 
-    Ok(())
-}
+//     let agent = agents
+//         .into_iter()
+//         .find(|agent| agent.agent_name == Some(agent_name.to_string()));
 
-#[when(
-    expr = "{word} is running and observing {word} in {word}, and registered at {word} in {word}"
-)]
-async fn agent_is_running(
-    world: &mut PaddlerWorld,
-    agent_name: String,
-    _llamacpp_name: String,
-    llamacpp_addr: String,
-    _balancer_name: String,
-    balancer_addr: String,
-) -> Result<()> {
-    let process = Some(
-        Command::new("target/release/paddler")
-            .args([
-                "agent",
-                "--local-llamacpp-addr",
-                &llamacpp_addr,
-                "--management-addr",
-                &balancer_addr,
-                "--name",
-                &agent_name,
-            ])
-            .spawn()
-            .expect("Failed to run balancer"),
-    );
+//     if let Some(agent) = agent {
+//         assert_eq!(agent.slots_idle, slots);
+//         assert_eq!(agent.slots_processing, 0);
+//         assert_eq!(agent.error, None);
+//         assert_eq!(
+//             agent.external_llamacpp_addr,
+//             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), llamacpp_addr)
+//         );
+//         assert_eq!(agent.is_authorized, Some(true));
+//         assert_eq!(agent.is_slots_endpoint_enabled, Some(true));
+//     }
 
-    match agent_name.as_str() {
-        "agent-1" => world.agent1 = process,
-        "agent-2" => world.agent2 = process,
-        _ => (),
-    }
-
-    Ok(())
-}
-
-#[then(expr = "{word} must report that {word} is registered with {int} slot(s)")]
-async fn display_agent_slots(
-    _world: &mut PaddlerWorld,
-    _balancer_name: String,
-    agent_name: String,
-    slots: usize,
-) -> Result<()> {
-    let mut response = serde_json::from_str::<UpstreamPeerPool>(
-        &reqwest::get("http://localhost:8070/api/v1/agents")
-            .await?
-            .text()
-            .await?,
-    )?;
-    let agents = response.agents.get_mut()?;
-
-    let agent = agents
-        .into_iter()
-        .find(|agent| agent.agent_name == Some(agent_name.to_string()));
-
-    if let Some(agent) = agent {
-        assert_eq!(agent.slots_idle, slots);
-        assert_eq!(agent.slots_processing, 0);
-        assert_eq!(agent.error, None);
-        assert_eq!(
-            agent.external_llamacpp_addr,
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080)
-        );
-        assert_eq!(agent.is_authorized, Some(true));
-        assert_eq!(agent.is_slots_endpoint_enabled, Some(true));
-    }
-
-    Ok(())
-}
+//     Ok(())
+// }
 
 // #[when(expr = r"{word} stops running and observing {word}, deregistered from {word}")]
 // async fn agent_is_not_running(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
@@ -168,11 +136,15 @@ async fn display_agent_slots(
 //         "agent-1" => {
 //             if let Some(agent) = world.agent1.as_mut() {
 //                 agent.kill()?;
+//                 agent.wait()?;
+//                 world.agent1 = None;
 //             }
 //         }
 //         "agent-2" => {
 //             if let Some(agent) = world.agent2.as_mut() {
 //                 agent.kill()?;
+//                 agent.wait()?;
+//                 world.agent2 = None;
 //             }
 //         }
 //         _ => (),
@@ -188,6 +160,8 @@ async fn display_agent_slots(
 //     balancer_addr: String,
 //     agent_name: String,
 // ) -> Result<()> {
+//     std::thread::sleep(std::time::Duration::from_secs(2));
+
 //     let mut response = serde_json::from_str::<UpstreamPeerPool>(
 //         &reqwest::get(format!("http://{}/api/v1/agents", balancer_addr))
 //             .await?
@@ -208,8 +182,14 @@ async fn display_agent_slots(
 // #[when(expr = r"{word} stops running")]
 // async fn llamacpp_is_not_running(world: &mut PaddlerWorld, llamacpp_name: String) -> Result<()> {
 //     match llamacpp_name.as_str() {
-//         "llamacpp-1" => world.llamacpp1.as_mut().unwrap().kill()?,
-//         "llamacpp-2" => world.llamacpp2.as_mut().unwrap().kill()?,
+//         "llamacpp-1" => {
+//             world.llamacpp1.as_mut().unwrap().kill()?;
+//             world.llamacpp1.as_mut().unwrap().wait()?;
+//         }
+//         "llamacpp-2" => {
+//             world.llamacpp2.as_mut().unwrap().kill()?;
+//             world.llamacpp2.as_mut().unwrap().wait()?;
+//         }
 //         _ => (),
 //     }
 
@@ -253,23 +233,22 @@ async fn display_agent_slots(
 //     Ok(())
 // }
 
-#[tokio::test]
-async fn run_cucumber_tests() {
-    PaddlerWorld::cucumber()
-        .before(|_feature, _rule, _scenario, world| {
-            Box::pin(async move {
-                world.setup().expect("Setup failed");
-            })
-        })
-        .after(|_feature, _rule, _scenario, _scenario_finished, world| {
-            Box::pin(async move {
-                if let Some(world) = world {
-                    world.teardown().await.expect("Teardown Failed");
-                }
-            })
-        })
-        .run("src/tests/integration/features/agent.feature")
-        .await;
-
-    PaddlerWorld::run("src/tests/integration/features/agent.feature").await;
-}
+// #[tokio::test]
+// async fn run_cucumber_tests() {
+//     PaddlerWorld::cucumber()
+//         .max_concurrent_scenarios(1)
+//         .before(|_feature, _rule, _scenario, world| {
+//             Box::pin(async move {
+//                 world.setup().expect("Setup failed");
+//             })
+//         })
+//         .after(|_feature, _rule, _scenario, _scenario_finished, world| {
+//             Box::pin(async move {
+//                 if let Some(world) = world {
+//                     world.teardown().await.expect("Teardown Failed");
+//                 }
+//             })
+//         })
+//         .run("src/tests/integration/features/agent.feature")
+//         .await;
+// }

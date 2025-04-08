@@ -1,9 +1,53 @@
 use std::{
     env::current_dir,
     process::{Child, Command},
+    result::Result as CoreResult,
 };
 
+use reqwest::Response;
+
 use crate::errors::result::Result;
+
+#[derive(Debug, Default, cucumber::World)]
+pub struct PaddlerWorld {
+    pub agent1: Option<Child>,
+    pub agent2: Option<Child>,
+    pub llamacpp1: Option<Child>,
+    pub llamacpp2: Option<Child>,
+    pub balancer1: Option<Child>,
+    pub proxy_response: Vec<Option<CoreResult<Response, reqwest::Error>>>,
+}
+
+impl PaddlerWorld {
+    pub fn setup(&mut self) -> Result<()> {
+        build_paddler()?;
+        download_llamacpp()?;
+        download_model()?;
+
+        Ok(())
+    }
+
+    pub async fn teardown(&mut self) -> Result<()> {
+        let mut errors = Vec::new();
+
+        let mut kill_process = |process: &mut Option<Child>| {
+            if let Some(p) = process {
+                if let Err(err) = p.kill() {
+                    errors.push(format!("Failed to kill: {}", err));
+                }
+                *process = None;
+            }
+        };
+
+        kill_process(&mut self.agent1);
+        kill_process(&mut self.agent2);
+        kill_process(&mut self.llamacpp1);
+        kill_process(&mut self.llamacpp2);
+        kill_process(&mut self.balancer1);
+
+        Ok(())
+    }
+}
 
 pub fn download_llamacpp() -> Result<()> {
     if cfg!(target_os = "windows") {
@@ -39,11 +83,22 @@ fn build_llamacpp() -> Result<()> {
 
     std::env::set_current_dir("llama.cpp")?;
 
+    Command::new("git")
+        .args([
+            "reset",
+            "--hard",
+            "f52d59d771dc231fc2ac39adacf157ddefc97730",
+        ])
+        .status()?;
+    Command::new("git")
+        .args(["clean", "-df", "f52d59d771dc231fc2ac39adacf157ddefc97730"])
+        .status()?;
+
     if cfg!(target_os = "windows") {
         Command::new("cmake").args(["."]).status()?;
         Command::new("cmake").args(["--build", "."]).status()?;
     } else {
-        Command::new("cmake").args(["-B", " "]).status()?;
+        Command::new("cmake").args(["-B", "build"]).status()?;
         Command::new("cmake")
             .args(["--build", "build", "--config", "Release"])
             .status()?;
