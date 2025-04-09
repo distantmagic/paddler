@@ -1,87 +1,87 @@
-// use cucumber::{given, then, when, World};
-// use serde_json::json;
+use cucumber::{given, then, when, World};
+use serde_json::json;
 
-// use crate::{balancer::upstream_peer_pool::UpstreamPeerPool, errors::result::Result};
+use crate::{balancer::upstream_peer_pool::UpstreamPeerPool, errors::result::Result};
 
-// use std::process::Command;
+use std::process::Command;
 
-// use super::utils::{start_llamacpp, PaddlerWorld};
+use super::utils::{start_llamacpp, PaddlerWorld};
 
-// #[given(expr = "{word} is running at {word}, {word} and reports metrics to {word}")]
-// async fn balancer_is_running(
-//     world: &mut PaddlerWorld,
-//     _balancer_name: String,
-//     management_addr: String,
-//     reveseproxy_addr: String,
-//     _statsd_addr: String,
-// ) -> Result<()> {
-//     world.balancer1 = Some(
-//         Command::new("target/release/paddler")
-//             .args([
-//                 "balancer",
-//                 "--management-addr",
-//                 &management_addr,
-//                 "--reverseproxy-addr",
-//                 &reveseproxy_addr,
-//                 "--management-dashboard-enable",
-//             ])
-//             .spawn()
-//             .expect("Failed to run balancer"),
-//     );
+#[given(expr = "{word} is running at {word}, {word} and reports metrics to {word}")]
+async fn balancer_is_running(
+    world: &mut PaddlerWorld,
+    _balancer_name: String,
+    management_addr: String,
+    reveseproxy_addr: String,
+    _statsd_addr: String,
+) -> Result<()> {
+    world.balancer1 = Some(
+        Command::new("target/release/paddler")
+            .args([
+                "balancer",
+                "--management-addr",
+                &management_addr,
+                "--reverseproxy-addr",
+                &reveseproxy_addr,
+                "--management-dashboard-enable",
+            ])
+            .spawn()
+            .expect("Failed to run balancer"),
+    );
 
-//     Ok(())
-// }
+    Ok(())
+}
 
-// #[given(expr = "{word} is running at {word} with {int} slot(s)")]
-// async fn llamacpp_is_running(
-//     world: &mut PaddlerWorld,
-//     llamacpp_name: String,
-//     addr: String,
-//     slots: usize,
-// ) -> Result<()> {
-//     match llamacpp_name.as_str() {
-//         "llamacpp-1" => world.llamacpp1 = Some(start_llamacpp(addr, slots)?),
-//         "llamacpp-2" => world.llamacpp2 = Some(start_llamacpp(addr, slots)?),
-//         _ => (),
-//     }
+#[given(expr = "{word} is running at {word} with {int} slot(s)")]
+async fn llamacpp_is_running(
+    world: &mut PaddlerWorld,
+    llamacpp_name: String,
+    addr: String,
+    slots: usize,
+) -> Result<()> {
+    match llamacpp_name.as_str() {
+        "llamacpp-1" => world.llamacpp1 = Some(start_llamacpp(addr, slots)?),
+        "llamacpp-2" => world.llamacpp2 = Some(start_llamacpp(addr, slots)?),
+        _ => (),
+    }
 
-//     Ok(())
-// }
+    Ok(())
+}
 
-// #[given(
-//     expr = "{word} is running and observing {word} in {word}, and registered at {word} in {word}"
-// )]
-// async fn agent_is_running(
-//     world: &mut PaddlerWorld,
-//     agent_name: String,
-//     _llamacpp_name: String,
-//     llamacpp_addr: String,
-//     _balancer_name: String,
-//     balancer_addr: String,
-// ) -> Result<()> {
-//     let process = Some(
-//         Command::new("target/release/paddler")
-//             .args([
-//                 "agent",
-//                 "--local-llamacpp-addr",
-//                 &llamacpp_addr,
-//                 "--management-addr",
-//                 &balancer_addr,
-//                 "--name",
-//                 &agent_name,
-//             ])
-//             .spawn()
-//             .expect("Failed to run balancer"),
-//     );
+#[given(
+    expr = "{word} is running and observing {word} in {word}, and registered at {word} in {word}"
+)]
+async fn agent_is_running(
+    world: &mut PaddlerWorld,
+    agent_name: String,
+    _llamacpp_name: String,
+    llamacpp_addr: String,
+    _balancer_name: String,
+    balancer_addr: String,
+) -> Result<()> {
+    let process = Some(
+        Command::new("target/release/paddler")
+            .args([
+                "agent",
+                "--local-llamacpp-addr",
+                &llamacpp_addr,
+                "--management-addr",
+                &balancer_addr,
+                "--name",
+                &agent_name,
+            ])
+            .spawn()
+            .expect("Failed to run balancer"),
+    );
 
-//     match agent_name.as_str() {
-//         "agent-1" => world.agent1 = process,
-//         "agent-2" => world.agent2 = process,
-//         _ => (),
-//     }
+    match agent_name.as_str() {
+        "agent-1" => world.agent1 = process,
+        "agent-2" => world.agent2 = process,
+        _ => (),
+    }
 
-//     Ok(())
-// }
+    Ok(())
+}
 
 // #[when(expr = r"first request is proxied to {word} in {word}")]
 // async fn request_to_balancer(
@@ -246,64 +246,64 @@
 //     Ok(())
 // }
 
-// #[then(expr = "{word} should return an unsuccessful response in {word}")]
-// async fn get_unsuccessful_response(
-//     world: &mut PaddlerWorld,
-//     _balancer_name: String,
-//     _balancer_addr: String,
-// ) -> Result<()> {
-//     std::thread::sleep(std::time::Duration::from_secs(10));
+#[then(expr = "{word} should return an unsuccessful response in {word}")]
+async fn get_unsuccessful_response(
+    world: &mut PaddlerWorld,
+    _balancer_name: String,
+    _balancer_addr: String,
+) -> Result<()> {
+    std::thread::sleep(std::time::Duration::from_secs(10));
 
-//     for i in 0..7 {
-//         if let Some(response) = &world.proxy_response[i] {
-//             assert!(response.is_ok());
-//             eprintln!("will print in {}", "tests")
-//         }
-//     }
+    for i in 0..7 {
+        if let Some(response) = &world.proxy_response[i] {
+            assert!(response.is_ok());
+            eprintln!("will print in {}", "tests")
+        }
+    }
 
-//     if let Some(unsuccessful_response) = &world.proxy_response[7] {
-//         assert!(unsuccessful_response.is_err());
-//         eprintln!("will print in {}", "tests")
-//     }
+    if let Some(unsuccessful_response) = &world.proxy_response[7] {
+        assert!(unsuccessful_response.is_err());
+        eprintln!("will print in {}", "tests")
+    }
 
-//     Ok(())
-// }
+    Ok(())
+}
 
-// #[then(
-//     expr = "{word} metrics must tell {int} slot(s) is/are busy and {int} slot(s) is/are idle in {word} from {word} and {word}"
-// )]
-// async fn report_metrics(
-//     _world: &mut PaddlerWorld,
-//     _balancer_name: String,
-//     slots_busy: usize,
-//     slots_idle: usize,
-//     balancer_addr: String,
-//     agent1_name: String,
-//     agent2_name: String,
-// ) -> Result<()> {
-//     std::thread::sleep(std::time::Duration::from_secs(3));
+#[then(
+    expr = "{word} metrics must tell {int} slot(s) is/are busy and {int} slot(s) is/are idle in {word} from {word} and {word}"
+)]
+async fn report_metrics(
+    _world: &mut PaddlerWorld,
+    _balancer_name: String,
+    slots_busy: usize,
+    slots_idle: usize,
+    balancer_addr: String,
+    agent1_name: String,
+    agent2_name: String,
+) -> Result<()> {
+    std::thread::sleep(std::time::Duration::from_secs(3));
 
-//     let response = reqwest::get("").await?.text().await?;
+    let response = reqwest::get("").await?.text().await?;
 
-//     Ok(())
-// }
+    Ok(())
+}
 
-// #[tokio::test]
-// async fn run_cucumber_tests() {
-//     PaddlerWorld::cucumber()
-//         .max_concurrent_scenarios(1)
-//         .before(|_feature, _rule, _scenario, world| {
-//             Box::pin(async move {
-//                 world.setup().expect("Teardown Failed");
-//             })
-//         })
-//         .after(|_feature, _rule, _scenario, _scenario_finished, world| {
-//             Box::pin(async move {
-//                 if let Some(world) = world {
-//                     world.teardown().await.expect("Teardown Failed");
-//                 }
-//             })
-//         })
-//         .run("src/tests/integration/features/balancer.feature")
-//         .await;
-// }
+#[tokio::test]
+async fn run_cucumber_tests() {
+    PaddlerWorld::cucumber()
+        .max_concurrent_scenarios(1)
+        .before(|_feature, _rule, _scenario, world| {
+            Box::pin(async move {
+                world.setup().expect("Teardown Failed");
+            })
+        })
+        .after(|_feature, _rule, _scenario, _scenario_finished, world| {
+            Box::pin(async move {
+                if let Some(world) = world {
+                    world.teardown().await.expect("Teardown Failed");
+                }
+            })
+        })
+        .run("src/tests/integration/features/balancer.feature")
+        .await;
+}
