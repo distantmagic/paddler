@@ -130,7 +130,7 @@ fn download_node() -> Result<()> {
             .status()?;
     } else {
         Command::new("curl")
-            .args(["-o-", "https://fnm.vercel.app/install", "|", "bash"])
+            .args(["-o-", "https://fnm.vercel.app/install | bash"])
             .status()?;
     };
 
@@ -210,27 +210,25 @@ pub fn start_llamacpp(port: String, slots: usize) -> Result<Child> {
     Ok(command.spawn()?)
 }
 
-pub fn start_statsd(host: String, port: String) -> Result<Child> {
+pub fn start_statsd(host: String, metrics_port: String, management_port: String) -> Result<Child> {
     let previous_dir = current_dir()?;
 
     std::env::set_current_dir("statsd")?;
 
     let mut file = File::create("config.js")?;
 
-    file.write(
-        format!(
-            "
-        {{
-            address: {}
-        ,   port: {}
-        ,   mgmt_port: {}
-        ,   mgmt_address: {}
-        }}
-    ",
-            host, port, port, host
-        )
-        .as_bytes(),
-    )?;
+        file.write(
+            format!(
+                r#"{{
+      address: "{}"
+    , port: {}
+    , mgmt_port: {}
+    , mgmt_address: "{}"
+    }}"#,
+                host, metrics_port, management_port, host
+            )
+            .as_bytes(),
+        )?;
 
     let mut command = Command::new("node");
 

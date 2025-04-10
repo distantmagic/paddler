@@ -1,9 +1,9 @@
 use cucumber::{given, then, when, World};
-use serde_json::json;
+use serde_json::{json, Value};
 
-use crate::{balancer::upstream_peer_pool::UpstreamPeerPool, errors::result::Result};
+use crate::errors::result::Result;
 
-use std::process::Command;
+use std::{io::Read, net::TcpStream, process::Command};
 
 use super::utils::{start_llamacpp, start_statsd, PaddlerWorld};
 
@@ -13,7 +13,7 @@ async fn balancer_is_running(
     _balancer_name: String,
     management_addr: String,
     reveseproxy_addr: String,
-    _statsd_addr: String,
+    statsd_addr: String,
 ) -> Result<()> {
     world.balancer1 = Some(
         Command::new("target/release/paddler")
@@ -23,6 +23,8 @@ async fn balancer_is_running(
                 &management_addr,
                 "--reverseproxy-addr",
                 &reveseproxy_addr,
+                "--statsd-addr",
+                &statsd_addr,
                 "--management-dashboard-enable",
             ])
             .spawn()
@@ -32,14 +34,15 @@ async fn balancer_is_running(
     Ok(())
 }
 
-#[given(expr = "{word} is running at {word} in {word} and receives metrics from {word}")]
+#[given(expr = "{word} is running at {word} in {int}, {int} and receives metrics from {word}")]
 async fn statsd_is_running(
     world: &mut PaddlerWorld,
     _statsd_name: String,
     host: String,
-    port: String,
+    metrics_port: String,
+    management_port: String,
 ) -> Result<()> {
-    world.statsd = Some(start_statsd(host, port)?);
+    world.statsd = Some(start_statsd(host, metrics_port, management_port)?);
 
     Ok(())
 }
@@ -226,76 +229,61 @@ async fn agent_is_running(
 //     Ok(())
 // }
 
-// #[when(expr = r"{int} request(s) is/are proxied to {word} in {word}")]
-// async fn proxy_requests(
-//     world: &mut PaddlerWorld,
-//     requests: usize,
-//     _balancer_name: String,
-//     balancer_addr: String,
-// ) -> Result<()> {
-//     let client = reqwest::Client::new();
-
-//     let value = json!({
-//         "model": "qwen2_500m.gguf",
-//         "messages": [
-//             {
-//                 "role": "user",
-//                 "content": "Write a limerick about python exceptions"
-//             }
-//         ]
-//     });
-
-//     for _ in 0..requests {
-//         world.proxy_response.push(Some(
-//             client
-//                 .post(format!("http://{}/v1/chat/completions", balancer_addr))
-//                 .body(value.to_string())
-//                 .send()
-//                 .await,
-//         ));
-//     }
-
-//     Ok(())
-// }
-
-#[then(expr = "{word} should return an unsuccessful response in {word}")]
-async fn get_unsuccessful_response(
+#[when(expr = r"{int} request(s) is/are proxied to {word} in {word}")]
+async fn proxy_requests(
     world: &mut PaddlerWorld,
+    requests: usize,
     _balancer_name: String,
-    _balancer_addr: String,
+    balancer_addr: String,
 ) -> Result<()> {
-    std::thread::sleep(std::time::Duration::from_secs(10));
+    let client = reqwest::Client::new();
 
-    for i in 0..7 {
-        if let Some(response) = &world.proxy_response[i] {
-            assert!(response.is_ok());
-            eprintln!("will print in {}", "tests")
-        }
-    }
+    let value = json!({
+        "model": "qwen2_500m.gguf",
+        "messages": [
+            {
+                "role": "user",
+                "content": "Write a limerick about python exceptions"
+            }
+        ]
+    });
 
-    if let Some(unsuccessful_response) = &world.proxy_response[7] {
-        assert!(unsuccessful_response.is_err());
-        eprintln!("will print in {}", "tests")
+    for _ in 0..requests {
+        world.proxy_response.push(Some(
+            client
+                .post(format!("http://{}/v1/chat/completions", balancer_addr))
+                .body(value.to_string())
+                .send()
+                .await,
+        ));
     }
 
     Ok(())
 }
 
 #[then(
-    expr = "{word} metrics must tell {int} slot(s) is/are busy and {int} slot(s) is/are idle in {word} from {word} and {word}"
+    expr = "{word} must tell {int} slot(s) is/are busy and {int} slot(s) is/are idle at {word} in {int}"
 )]
 async fn report_metrics(
     _world: &mut PaddlerWorld,
-    _balancer_name: String,
-    slots_busy: usize,
-    slots_idle: usize,
-    balancer_addr: String,
-    agent1_name: String,
-    agent2_name: String,
+    _statsd_name: String,
+    _slots_busy: usize,
+    _slots_idle: usize,
+    statsd_host: String,
+    statsd_port: usize,
 ) -> Result<()> {
-    std::thread::sleep(std::time::Duration::from_secs(3));
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
-    let response = reqwest::get("").await?.text().await?;
+    let mut stream = TcpStream::connect(format!("{}:{}", statsd_host, statsd_port))?;
+
+    let mut buffer = Vec::new();
+
+    stream.read_to_end(&mut buffer)?;
+
+    let response = String::from_utf8(buffer).unwrap();
+    let metrics: Value = serde_json::from_str(&response)?;
+
+    assert_eq!(metrics, "a");
 
     Ok(())
 }
