@@ -5,7 +5,7 @@ use crate::{balancer::upstream_peer_pool::UpstreamPeerPool, errors::result::Resu
 
 use std::process::Command;
 
-use super::utils::{start_llamacpp, PaddlerWorld};
+use super::utils::{start_llamacpp, start_statsd, PaddlerWorld};
 
 #[given(expr = "{word} is running at {word}, {word} and reports metrics to {word}")]
 async fn balancer_is_running(
@@ -28,6 +28,18 @@ async fn balancer_is_running(
             .spawn()
             .expect("Failed to run balancer"),
     );
+
+    Ok(())
+}
+
+#[given(expr = "{word} is running at {word} in {word} and receives metrics from {word}")]
+async fn statsd_is_running(
+    world: &mut PaddlerWorld,
+    _statsd_name: String,
+    host: String,
+    port: String,
+) -> Result<()> {
+    world.statsd = Some(start_statsd(host, port)?);
 
     Ok(())
 }

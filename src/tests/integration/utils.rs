@@ -1,5 +1,7 @@
 use std::{
     env::current_dir,
+    fs::File,
+    io::Write,
     process::{Child, Command},
     result::Result as CoreResult,
 };
@@ -15,6 +17,7 @@ pub struct PaddlerWorld {
     pub llamacpp1: Option<Child>,
     pub llamacpp2: Option<Child>,
     pub balancer1: Option<Child>,
+    pub statsd: Option<Child>,
     pub proxy_response: Vec<Option<CoreResult<Response, reqwest::Error>>>,
 }
 
@@ -46,6 +49,7 @@ impl PaddlerWorld {
         kill_process(&mut self.llamacpp1);
         kill_process(&mut self.llamacpp2);
         kill_process(&mut self.balancer1);
+        kill_process(&mut self.statsd);
 
         Ok(())
     }
@@ -130,9 +134,7 @@ fn download_node() -> Result<()> {
             .status()?;
     };
 
-    Command::new("fnm")
-        .args(["install", "22"])
-        .status()?;
+    Command::new("fnm").args(["install", "22"]).status()?;
 
     Ok(())
 }
@@ -204,6 +206,37 @@ pub fn start_llamacpp(port: String, slots: usize) -> Result<Child> {
         ]);
         cmd
     };
+
+    Ok(command.spawn()?)
+}
+
+pub fn start_statsd(host: String, port: String) -> Result<Child> {
+    let previous_dir = current_dir()?;
+
+    std::env::set_current_dir("statsd")?;
+
+    let mut file = File::create("config.js")?;
+
+    file.write(
+        format!(
+            "
+        {{
+            address: {}
+        ,   port: {}
+        ,   mgmt_port: {}
+        ,   mgmt_address: {}
+        }}
+    ",
+            host, port, port, host
+        )
+        .as_bytes(),
+    )?;
+
+    let mut command = Command::new("node");
+
+    command.args(["stats.js", "config.js"]);
+
+    std::env::set_current_dir(previous_dir)?;
 
     Ok(command.spawn()?)
 }
