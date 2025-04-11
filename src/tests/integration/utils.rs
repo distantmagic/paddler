@@ -26,8 +26,6 @@ impl PaddlerWorld {
         build_paddler()?;
         download_llamacpp()?;
         download_model()?;
-        download_node()?;
-        download_statsd()?;
 
         Ok(())
     }
@@ -111,30 +109,6 @@ fn build_llamacpp() -> Result<()> {
     };
 
     std::env::set_current_dir(previous_dir)?;
-
-    Ok(())
-}
-
-fn download_statsd() -> Result<()> {
-    Command::new("git")
-        .args(["clone", "https://github.com/statsd/statsd.git"])
-        .status()?;
-
-    Ok(())
-}
-
-fn download_node() -> Result<()> {
-    if cfg!(target_os = "windows") {
-        Command::new("winget")
-            .args(["install", "Schniz.fnm"])
-            .status()?;
-    } else {
-        Command::new("curl")
-            .args(["-o-", "https://fnm.vercel.app/install | bash"])
-            .status()?;
-    };
-
-    Command::new("fnm").args(["install", "22"]).status()?;
 
     Ok(())
 }

@@ -28,6 +28,21 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
+          
+      - name: Download node
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            winget install Schniz.fnm && fnm install 22
+          else
+            curl -o- https://fnm.vercel.app/install | bash && fnm install 22
+          fi
+        shell: bash
+      
+      - name: Downlaod statsd
+        uses: actions/checkout@v4
+        with:
+          repository: 'statsd/statsd'
+          token: ${{ secrets.GITHUB_TOKEN }} 
 
   build:
     needs: setup
@@ -43,14 +58,8 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
-      # - name: Add miri
-      #   run: rustup +nightly component add miri
-
       - name: Build static files
         run: make esbuild
-
-      # - name: Build with miri
-      #   run: cargo build --features web_dashboard --release
 
   test:
     needs: build
