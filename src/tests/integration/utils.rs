@@ -23,7 +23,6 @@ pub struct PaddlerWorld {
 
 impl PaddlerWorld {
     pub fn setup(&mut self) -> Result<()> {
-        build_paddler()?;
         download_llamacpp()?;
         download_model()?;
 
@@ -53,32 +52,7 @@ impl PaddlerWorld {
     }
 }
 
-pub fn download_llamacpp() -> Result<()> {
-    if cfg!(target_os = "windows") {
-        Command::new("winget")
-            .args(["install", "--id", "Git.Git", "-e", "--source winget"])
-            .status()?;
-    }
-    if cfg!(target_os = "macos") {
-        Command::new("xcode-select").arg("--install").status()?;
-    } else {
-        Command::new("sudo")
-            .args(["apt", "upgrade", "-y"])
-            .status()?;
-        Command::new("sudo")
-            .args(["apt", "install", "-y", "git"])
-            .status()?;
-        Command::new("sudo")
-            .args(["apt", "install", "-y", "git"])
-            .status()?;
-    };
-
-    build_llamacpp()?;
-
-    Ok(())
-}
-
-fn build_llamacpp() -> Result<()> {
+fn download_llamacpp() -> Result<()> {
     Command::new("git")
         .args(["clone", "https://github.com/ggml-org/llama.cpp.git"])
         .status()?;
@@ -184,31 +158,6 @@ pub fn start_llamacpp(port: String, slots: usize) -> Result<Child> {
     Ok(command.spawn()?)
 }
 
-pub fn start_statsd(host: String, metrics_port: String, management_port: String) -> Result<Child> {
-    let previous_dir = current_dir()?;
-
-    std::env::set_current_dir("statsd")?;
-
-    let mut file = File::create("config.js")?;
-
-        file.write(
-            format!(
-                r#"{{
-      address: "{}"
-    , port: {}
-    , mgmt_port: {}
-    , mgmt_address: "{}"
-    }}"#,
-                host, metrics_port, management_port, host
-            )
-            .as_bytes(),
-        )?;
-
-    let mut command = Command::new("node");
-
-    command.args(["stats.js", "config.js"]);
-
-    std::env::set_current_dir(previous_dir)?;
-
-    Ok(command.spawn()?)
+pub fn start_statsd(host: String, port: String) -> Result<()> {
+    Ok(())
 }

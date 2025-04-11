@@ -1,19 +1,22 @@
 use cucumber::{given, then, when, World};
-use serde_json::{json, Value};
+use serde_json::json;
 
 use crate::errors::result::Result;
 
-use std::{io::Read, net::TcpStream, process::Command};
+use std::process::Command;
 
-use super::utils::{start_llamacpp, start_statsd, PaddlerWorld};
+use super::utils::{start_llamacpp, PaddlerWorld};
 
-#[given(expr = "{word} is running at {word}, {word} and reports metrics to {word}")]
+#[given(
+    expr = "{word} is running at {word}, {word} and reports metrics to {word} every {int} second(s)"
+)]
 async fn balancer_is_running(
     world: &mut PaddlerWorld,
     _balancer_name: String,
     management_addr: String,
     reveseproxy_addr: String,
     statsd_addr: String,
+    reporting_interval: usize,
 ) -> Result<()> {
     world.balancer1 = Some(
         Command::new("target/release/paddler")
@@ -25,6 +28,8 @@ async fn balancer_is_running(
                 &reveseproxy_addr,
                 "--statsd-addr",
                 &statsd_addr,
+                "--statsd-reporting-interval",
+                &reporting_interval.to_string(),
                 "--management-dashboard-enable",
             ])
             .spawn()
@@ -34,15 +39,26 @@ async fn balancer_is_running(
     Ok(())
 }
 
-#[given(expr = "{word} is running at {word} in {int}, {int} and receives metrics from {word}")]
+#[given(expr = "{word} is running at {word} in {int} and receives metrics from {word}")]
 async fn statsd_is_running(
     world: &mut PaddlerWorld,
     _statsd_name: String,
     host: String,
-    metrics_port: String,
-    management_port: String,
+    port: String,
 ) -> Result<()> {
-    world.statsd = Some(start_statsd(host, metrics_port, management_port)?);
+    // world.statsd = Some(start_statsd(host, port)?);
+
+    Ok(())
+}
+
+#[given(expr = "{word} is running at {word} and scrapes metrics from {word} every {int} second")]
+async fn prometheus_is_running(
+    world: &mut PaddlerWorld,
+    _prometheus_name: String,
+    prometheus_address: String,
+    statsd_address: String,
+) -> Result<()> {
+    // world.statsd = Some(start_statsd(host, port)?);
 
     Ok(())
 }
@@ -261,29 +277,30 @@ async fn proxy_requests(
     Ok(())
 }
 
-#[then(
-    expr = "{word} must tell {int} slot(s) is/are busy and {int} slot(s) is/are idle at {word} in {int}"
-)]
+#[then(expr = "{word} must tell {int} slot(s) is/are busy and {int} slot(s) is/are idle at {word}")]
 async fn report_metrics(
     _world: &mut PaddlerWorld,
     _statsd_name: String,
     _slots_busy: usize,
     _slots_idle: usize,
-    statsd_host: String,
-    statsd_port: usize,
+    prometheus_addr: String,
 ) -> Result<()> {
     std::thread::sleep(std::time::Duration::from_secs(1));
 
-    let mut stream = TcpStream::connect(format!("{}:{}", statsd_host, statsd_port))?;
+    let response = reqwest::get(format!(
+        "http://{}/api/v1/query?query=paddler_slots_processing",
+        prometheus_addr
+    ))
+    .await?
+    .text()
+    .await?;
 
-    let mut buffer = Vec::new();
-
-    stream.read_to_end(&mut buffer)?;
-
-    let response = String::from_utf8(buffer).unwrap();
-    let metrics: Value = serde_json::from_str(&response)?;
-
-    assert_eq!(metrics, "a");
+    assert_eq!(
+        r#"
+        {\"status\":\"success\",\"data\":{\"resultType\":\"vector\",\"result\":[{\"metric\":{\"__name__\":\"paddler_slots_processing\",\"instance\":\"localhost:9102\",\"job\":\"paddler\"},\"value\":[1744411562.629,\"0\"]}]}}
+    "#,
+        response
+    );
 
     Ok(())
 }
