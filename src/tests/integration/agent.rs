@@ -8,17 +8,22 @@ use crate::{
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     process::Command,
+    str::FromStr,
+    time::Duration,
 };
 
 use super::utils::start_llamacpp;
 
-#[given(expr = "{word} is running at {word}, {word} and reports metrics to {word}")]
+#[given(
+    expr = "{word} is running at {word}, {word} and reports metrics to {word} every {int} second(s)"
+)]
 async fn balancer_is_running(
     world: &mut PaddlerWorld,
     _balancer_name: String,
     management_addr: String,
     reveseproxy_addr: String,
-    _statsd_addr: String,
+    statsd_addr: String,
+    reporting_interval: usize,
 ) -> Result<()> {
     world.balancer1 = Some(
         Command::new("target/release/paddler")
@@ -28,6 +33,10 @@ async fn balancer_is_running(
                 &management_addr,
                 "--reverseproxy-addr",
                 &reveseproxy_addr,
+                "--statsd-addr",
+                &statsd_addr,
+                "--statsd-reporting-interval",
+                &reporting_interval.to_string(),
                 "--management-dashboard-enable",
             ])
             .spawn()
@@ -90,22 +99,24 @@ async fn agent_is_running(
     Ok(())
 }
 
-#[then(expr = "{word} must report that {word} is registered with {int} slot(s) in {int}")]
+#[then(expr = "{word} in {word} must report that {word} is registered with {int} slots at {word}")]
 async fn display_agent_slots(
     _world: &mut PaddlerWorld,
     _balancer_name: String,
+    balancer_addr: String,
     agent_name: String,
-    slots: usize,
-    llamacpp_addr: u16,
+    slots_idle: usize,
+    llamacpp_addr: String,
 ) -> Result<()> {
     std::thread::sleep(std::time::Duration::from_secs(1));
 
     let mut response = serde_json::from_str::<UpstreamPeerPool>(
-        &reqwest::get("http://localhost:8070/api/v1/agents")
+        &reqwest::get(format!("http://{}/api/v1/agents", balancer_addr))
             .await?
             .text()
             .await?,
     )?;
+
     let agents = response.agents.get_mut()?;
 
     let agent = agents
@@ -113,12 +124,12 @@ async fn display_agent_slots(
         .find(|agent| agent.agent_name == Some(agent_name.to_string()));
 
     if let Some(agent) = agent {
-        assert_eq!(agent.slots_idle, slots);
+        assert_eq!(agent.slots_idle, slots_idle);
         assert_eq!(agent.slots_processing, 0);
         assert_eq!(agent.error, None);
         assert_eq!(
             agent.external_llamacpp_addr,
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), llamacpp_addr)
+            SocketAddr::from_str(&llamacpp_addr)?
         );
         assert_eq!(agent.is_authorized, Some(true));
         assert_eq!(agent.is_slots_endpoint_enabled, Some(true));
@@ -127,7 +138,7 @@ async fn display_agent_slots(
     Ok(())
 }
 
-#[when(expr = r"{word} stops running and observing {word}, deregistered from {word}")]
+#[when(expr = r"{word} stops running and observing {word}, unregistered from {word}")]
 async fn agent_is_not_running(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
     match agent_name.as_str() {
         "agent-1" => {
@@ -202,6 +213,8 @@ async fn agent_cannot_fetch_llamacpp(
     _llamacpp_name: String,
     llamacpp_addr: String,
 ) -> Result<()> {
+    std::thread::sleep(std::time::Duration::from_secs(10));
+
     let mut response = serde_json::from_str::<UpstreamPeerPool>(
         &reqwest::get(format!("http://{}/api/v1/agents", balancer_addr))
             .await?
@@ -231,12 +244,17 @@ async fn agent_cannot_fetch_llamacpp(
 }
 
 #[tokio::test]
-async fn run_cucumber_tests() {
+pub async fn run_cucumber_tests() {
     PaddlerWorld::cucumber()
         .max_concurrent_scenarios(1)
+        .fail_fast()
+        .retries(3)
+        .retry_after(Duration::from_secs(60))
+        .fail_on_skipped()
         .before(|_feature, _rule, _scenario, world| {
+            world.counter += 1;
             Box::pin(async move {
-                world.setup().expect("Setup failed");
+                world.setup().expect("Setup Failed");
             })
         })
         .after(|_feature, _rule, _scenario, _scenario_finished, world| {
