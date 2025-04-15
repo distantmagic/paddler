@@ -131,7 +131,7 @@ impl UpstreamPeerPool {
 
     #[cfg(feature = "statsd_reporter")]
     #[inline]
-    fn with_agents_read<TCallback, TResult>(&self, cb: TCallback) -> Result<TResult>
+    pub fn with_agents_read<TCallback, TResult>(&self, cb: TCallback) -> Result<TResult>
     where
         TCallback: FnOnce(&Vec<UpstreamPeer>) -> Result<TResult>,
     {

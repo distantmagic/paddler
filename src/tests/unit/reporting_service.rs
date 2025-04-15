@@ -1,210 +1,110 @@
-// use std::time::Duration;
+#[cfg(test)]
+mod tests {
+    use actix_web::web::Bytes;
+    use httpmock::{Method::GET, MockServer};
+    use serde_json::json;
+    use tokio::sync::broadcast::channel;
 
-// use actix_web::web::Bytes;
-// use httpmock::{Method::GET, MockServer, Regex};
-// use serde_json::json;
-// use tokio::{sync::broadcast::channel, time::timeout};
+    use crate::{
+        agent::monitoring_service::MonitoringService, errors::result::Result,
+        llamacpp::llamacpp_client::LlamacppClient,
+    };
 
-// use crate::{
-//     agent::{monitoring_service::MonitoringService, reporting_service::ReportingService},
-//     balancer::status_update::StatusUpdate,
-//     errors::result::Result,
-//     llamacpp::{llamacpp_client::LlamacppClient, slot::Slot},
-// };
+    #[tokio::test]
+    async fn slots_are_unathorized() -> Result<()> {
+        let mock_server = MockServer::start();
+        let (status_update_tx, _status_update_rx) = channel::<Bytes>(1);
 
-// use tokio::{spawn, time::sleep};
+        let monitoring_service = MonitoringService::new(
+            *mock_server.address(),
+            LlamacppClient::new(*mock_server.address(), None)?,
+            std::time::Duration::from_secs(1),
+            Some("Llama.cpp 1".to_string()),
+            status_update_tx,
+        )?;
 
-// #[tokio::test]
-// async fn report_is_successful() -> Result<()> {
-//     let mock_server = MockServer::start();
-//     let (status_update_tx, _status_update_rx) = channel::<Bytes>(1);
+        let llamacpp = mock_server.mock(|when, then| {
+            when.method(GET).path("/slots");
+            then.status(401)
+                .header("content-type", "application/json")
+                .json_body(json!([
+                    {
+                        "id": 0,
+                        "is_processing": false,
+                        "prompt": "",
+                    }
+                ]));
+        });
 
-//     let reporting_service =
-//         ReportingService::new(*mock_server.address(), status_update_tx.clone())?;
+        let response = monitoring_service.fetch_status().await?;
 
-//     let _mock = mock_server.mock(|when, then| {
-//         when.method("GET")
-//             .path_matches(Regex::new(r"^/status_update/[a-zA-Z0-9_-]+$").unwrap());
-//         then.status(200)
-//             .header("content-type", "application/json")
-//             .json_body(json!([
-//                 {
-//                     "id": 0,
-//                     "is_processing": false,
-//                     "prompt": "",
-//                 }
-//             ]));
-//     });
+        assert!(!response.is_authorized.unwrap());
+        assert!(response.is_slots_endpoint_enabled.is_none());
+        assert!(response.slots.is_empty());
+        llamacpp.assert_async().await;
 
-//     let status = StatusUpdate::new(
-//         Some("agent1".to_string()),
-//         None,
-//         *mock_server.address(),
-//         Some(true),
-//         Some(true),
-//         vec![Slot {
-//             id: 0,
-//             is_processing: false,
-//         }],
-//     );
+        Ok(())
+    }
 
-//     spawn(async move {
-//         let status =
-//             Bytes::from(serde_json::to_vec(&status).expect("Could not convert status to bytes"));
+    #[tokio::test]
+    async fn response_is_unimplemented() -> Result<()> {
+        let mock_server = MockServer::start();
+        let (status_update_tx, _status_update_rx) = channel::<Bytes>(1);
 
-//         status_update_tx
-//             .send(status)
-//             .expect("Could not send status");
+        let monitoring_service = MonitoringService::new(
+            *mock_server.address(),
+            LlamacppClient::new(*mock_server.address(), None)?,
+            std::time::Duration::from_secs(1),
+            Some("Llama.cpp 1".to_string()),
+            status_update_tx,
+        )?;
 
-//         sleep(Duration::from_secs(2)).await;
+        let llamacpp = mock_server.mock(|when, then| {
+            when.method(GET).path("/slots");
+            then.status(501)
+                .header("content-type", "application/json")
+                .json_body(json!([
+                    {
+                        "id": 0,
+                        "is_processing": false,
+                        "prompt": "",
+                    }
+                ]));
+        });
 
-//         drop(status_update_tx);
-//     });
+        let response = monitoring_service.fetch_status().await?;
 
-//     let result = reporting_service.keep_connection_alive().await;
+        assert!(response.is_authorized.is_none());
+        assert!(!response.is_slots_endpoint_enabled.unwrap());
+        assert!(response.slots.is_empty());
+        llamacpp.assert_async().await;
 
-//     assert!(true);
+        Ok(())
+    }
 
-//     Ok(())
-// }
+    #[tokio::test]
+    async fn response_is_error() -> Result<()> {
+        let mock_server = MockServer::start();
+        let (status_update_tx, _status_update_rx) = channel::<Bytes>(1);
 
-// #[tokio::test]
-// async fn slots_are_unathorized() -> Result<()> {
-//     let mock_server = MockServer::start();
-//     let (status_update_tx, _status_update_rx) = channel::<Bytes>(1);
+        let monitoring_service = MonitoringService::new(
+            *mock_server.address(),
+            LlamacppClient::new(*mock_server.address(), None)?,
+            std::time::Duration::from_secs(1),
+            Some("Llama.cpp 1".to_string()),
+            status_update_tx,
+        )?;
 
-//     let monitoring_service = MonitoringService::new(
-//         *mock_server.address(),
-//         LlamacppClient::new(*mock_server.address(), None)?,
-//         Duration::from_secs(1),
-//         Some("Llama.cpp 1".to_string()),
-//         status_update_tx,
-//     )?;
+        let llamacpp = mock_server.mock(|when, then| {
+            when.method(GET).path("/slots");
+            then.status(99);
+        });
 
-//     let _mock = mock_server.mock(|when, then| {
-//         when.method(GET).path("/slots");
-//         then.status(401)
-//             .header("content-type", "application/json")
-//             .json_body(json!([
-//                 {
-//                     "id": 0,
-//                     "is_processing": false,
-//                     "prompt": "",
-//                 }
-//             ]));
-//     });
+        let status_update = monitoring_service.fetch_status().await?;
 
-//     let response = monitoring_service.fetch_status().await?;
+        assert!(status_update.error.is_some());
+        llamacpp.assert_async().await;
 
-//     assert!(!response.is_authorized.unwrap());
-//     assert!(response.is_slots_endpoint_enabled.is_none());
-//     assert!(response.slots.is_empty());
-
-//     Ok(())
-// }
-
-// #[tokio::test]
-// async fn response_is_unimplemented() -> Result<()> {
-//     let mock_server = MockServer::start();
-//     let (status_update_tx, _status_update_rx) = channel::<Bytes>(1);
-
-//     let monitoring_service = MonitoringService::new(
-//         *mock_server.address(),
-//         LlamacppClient::new(*mock_server.address(), None)?,
-//         Duration::from_secs(1),
-//         Some("Llama.cpp 1".to_string()),
-//         status_update_tx,
-//     )?;
-
-//     let _mock = mock_server.mock(|when, then| {
-//         when.method(GET).path("/slots");
-//         then.status(501)
-//             .header("content-type", "application/json")
-//             .json_body(json!([
-//                 {
-//                     "id": 0,
-//                     "is_processing": false,
-//                     "prompt": "",
-//                 }
-//             ]));
-//     });
-
-//     let response = monitoring_service.fetch_status().await?;
-
-//     assert!(response.is_authorized.is_none());
-//     assert!(!response.is_slots_endpoint_enabled.unwrap());
-//     assert!(response.slots.is_empty());
-
-//     Ok(())
-// }
-
-// #[tokio::test]
-// async fn response_is_error() -> Result<()> {
-//     let mock_server = MockServer::start();
-//     let (status_update_tx, _status_update_rx) = channel::<Bytes>(1);
-
-//     let monitoring_service = MonitoringService::new(
-//         *mock_server.address(),
-//         LlamacppClient::new(*mock_server.address(), None)?,
-//         Duration::from_secs(1),
-//         Some("Llama.cpp 1".to_string()),
-//         status_update_tx,
-//     )?;
-
-//     let _mock = mock_server.mock(|when, then| {
-//         when.method(GET).path("/slots");
-//         then.status(99);
-//     });
-
-//     let status_update = monitoring_service.fetch_status().await?;
-
-//     assert!(status_update.error.is_some());
-
-//     Ok(())
-// }
-
-// #[tokio::test]
-// async fn report_is_successful() -> Result<()> {
-//     let mock_server = MockServer::start();
-//     let (status_update_tx, mut status_update_rx) = channel::<Bytes>(1);
-
-//     let monitoring_service = MonitoringService::new(
-//         *mock_server.address(),
-//         LlamacppClient::new(*mock_server.address(), None)?,
-//         Duration::from_secs(1),
-//         Some("Llama.cpp 1".to_string()),
-//         status_update_tx,
-//     )?;
-
-//     let _mock = mock_server.mock(|when, then| {
-//         when.method(GET).path("/slots");
-//         then.status(200)
-//             .header("content-type", "application/json")
-//             .json_body(json!([
-//                 {
-//                     "id": 0,
-//                     "is_processing": false,
-//                     "prompt": "",
-//                 }
-//             ]));
-//     });
-
-//     let response = monitoring_service.fetch_status().await?;
-
-//     monitoring_service.report_status(response).await?;
-
-//     let status = status_update_rx.recv().await?;
-//     let status_update = serde_json::from_slice::<StatusUpdate>(&status)?;
-
-//     assert_eq!(status_update.agent_name, Some("Llama.cpp 1".to_string()));
-//     assert_eq!(status_update.error, None);
-//     assert_eq!(
-//         status_update.external_llamacpp_addr,
-//         monitoring_service.external_llamacpp_addr
-//     );
-//     assert_eq!(status_update.is_authorized, Some(true));
-//     assert_eq!(status_update.is_slots_endpoint_enabled, Some(true));
-//     assert_eq!(status_update.processing_slots_count, 0);
-
-//     Ok(())
-// }
+        Ok(())
+    }
+}
