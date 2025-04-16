@@ -28,12 +28,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      
-      - name: Downlaod statsd
-        uses: actions/checkout@v4
-        with:
-          repository: 'statsd/statsd'
-          token: ${{ secrets.GITHUB_TOKEN }} 
 
   build:
     needs: setup
@@ -43,12 +37,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-
       - name: Build static files
         run: make esbuild
 
