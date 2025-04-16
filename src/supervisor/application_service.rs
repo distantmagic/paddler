@@ -114,7 +114,7 @@ impl ApplicationService {
             false
         }
     }
-    
+
     fn get_default_config(
         config_driver: ConfigDriver,
         binary: String,
@@ -167,7 +167,7 @@ fn load_file_config(file_path: PathBuf, name: String) -> Result<Option<Vec<Strin
             return Ok(Some(config));
         }
     }
-    
+
     Ok(None)
 }
 

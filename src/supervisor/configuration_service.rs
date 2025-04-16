@@ -5,7 +5,8 @@ use log::{debug, error};
 use pingora::{server::ShutdownWatch, services::Service};
 use std::{
     fs::{self, File},
-    io::Read, path::PathBuf,
+    io::Read,
+    path::PathBuf,
 };
 use toml_edit::{value, DocumentMut};
 

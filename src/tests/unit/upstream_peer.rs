@@ -1,18 +1,11 @@
 #[cfg(test)]
 mod tests {
     use crate::{
-        balancer::{
-            status_update::StatusUpdate, upstream_peer::UpstreamPeer,
-            upstream_peer_pool::UpstreamPeerPool,
-        },
+        balancer::{status_update::StatusUpdate, upstream_peer::UpstreamPeer},
         errors::result::Result,
-        llamacpp::slot::Slot,
     };
 
-    use std::{
-        net::{IpAddr, Ipv4Addr, SocketAddr},
-        time::SystemTime,
-    };
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
     #[test]
     fn upstream_peer_is_usable() -> Result<()> {

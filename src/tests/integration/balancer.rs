@@ -161,6 +161,7 @@ mod tests {
                     .send()
                     .await
             }));
+            // tokio::time::sleep(std::time::Duration::from_millis(30)).await;
         }
 
         tokio::time::sleep(std::time::Duration::from_millis(300)).await;
@@ -258,7 +259,7 @@ mod tests {
             .max_concurrent_scenarios(1)
             .fail_fast()
             .retries(3)
-            .retry_after(std::time::Duration::from_secs(60))
+            .retry_after(std::time::Duration::from_secs(30))
             .fail_on_skipped()
             .before(|_feature, _rule, _scenario, world| {
                 Box::pin(async move {

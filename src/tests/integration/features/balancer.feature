@@ -34,6 +34,6 @@ Feature: Balancer
       Given agent-2 is running and observing llamacpp-2 in 127.0.0.1:8081, and registered at balancer-1 in 127.0.0.1:8070
 
       When 1 requests are proxied to balancer-1 in 127.0.0.1:8071
-      Then prometheus-1 must tell 1 slots are processing at 0.0.0.0:9090 from 0.0.0.0:9102
+      Then prometheus-1 must tell 1 slot is processing at 0.0.0.0:9090 from 0.0.0.0:9102
       Then prometheus-1 must tell 6 slots are idle at 0.0.0.0:9090 from 0.0.0.0:9102
       

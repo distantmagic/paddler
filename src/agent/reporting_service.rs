@@ -30,7 +30,7 @@ impl ReportingService {
         })
     }
 
-    pub async fn keep_connection_alive(&self) -> Result<()> {
+    async fn keep_connection_alive(&self) -> Result<()> {
         let status_update_rx = self.status_update_tx.subscribe();
         let stream = BroadcastStream::new(status_update_rx);
         let reqwest_body = reqwest::Body::wrap_stream(stream);

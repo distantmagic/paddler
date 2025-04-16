@@ -18,20 +18,10 @@ use crate::{
 
 pub struct MonitoringService {
     pub external_llamacpp_addr: SocketAddr,
-    pub llamacpp_client: LlamacppClient,
-    pub monitoring_interval: Duration,
-    pub name: Option<String>,
-    pub status_update_tx: Sender<Bytes>,
-}
-
-impl std::fmt::Debug for MonitoringService {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "MonitoringService {{ external_llamacpp_addr: {} }}",
-            self.external_llamacpp_addr
-        )
-    }
+    llamacpp_client: LlamacppClient,
+    monitoring_interval: Duration,
+    name: Option<String>,
+    status_update_tx: Sender<Bytes>,
 }
 
 impl MonitoringService {

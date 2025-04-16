@@ -108,9 +108,23 @@ impl UpstreamPeerPool {
             let mut slots_idle = 0;
             let mut slots_processing = 0;
 
+            // panic!("{:#?}", agents);
+
             for peer in agents.iter() {
-                slots_idle += peer.slots_idle;
-                slots_processing += peer.slots_processing;
+                slots_idle = peer.slots_idle.checked_add(slots_idle).expect(
+                    format!(
+                        "Failed to add {:#?} + {:#?}. Agents: {:#?}",
+                        peer.slots_idle, slots_idle, agents
+                    )
+                    .as_str(),
+                );
+                slots_processing = peer.slots_processing.checked_add(slots_processing).expect(
+                    format!(
+                        "Failed to add {:#?} + {:#?} in processing. Agents: {:#?}",
+                        peer.slots_processing, slots_processing, agents
+                    )
+                    .as_str(),
+                );
             }
 
             Ok((slots_idle, slots_processing))
@@ -131,7 +145,7 @@ impl UpstreamPeerPool {
 
     #[cfg(feature = "statsd_reporter")]
     #[inline]
-    pub fn with_agents_read<TCallback, TResult>(&self, cb: TCallback) -> Result<TResult>
+    fn with_agents_read<TCallback, TResult>(&self, cb: TCallback) -> Result<TResult>
     where
         TCallback: FnOnce(&Vec<UpstreamPeer>) -> Result<TResult>,
     {
