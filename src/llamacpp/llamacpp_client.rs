@@ -8,6 +8,7 @@ use crate::{
 };
 
 #[derive(Clone)]
+#[derive(Debug, Default)]
 pub struct LlamacppClient {
     client: reqwest::Client,
     slots_endpoint_url: String,

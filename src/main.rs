@@ -16,6 +16,7 @@ mod cmd;
 mod errors;
 mod llamacpp;
 mod supervisor;
+mod tests;
 
 fn resolve_socket_addr(s: &str) -> Result<SocketAddr> {
     let addrs: Vec<SocketAddr> = s.to_socket_addrs()?.collect();
@@ -85,7 +86,7 @@ enum Commands {
         #[arg(long)]
         /// API key for the llama.cpp instance (optional)
         llamacpp_api_key: Option<String>,
- 
+
         #[arg(long, value_parser = parse_socket_addr)]
         /// Address of the management server that the agent will report to
         management_addr: SocketAddr,

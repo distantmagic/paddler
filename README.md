@@ -1,7 +1,7 @@
 # Paddler
 
 > [!IMPORTANT]  
-> Big chances! Paddler is rewritten into Rust (from Golang) and uses [Pingora](https://github.com/cloudflare/pingora) framework for the networking stack.
+> Big changes! Paddler is rewritten into Rust (from Golang) and uses [Pingora](https://github.com/cloudflare/pingora) framework for the networking stack.
 >
 > Version `1.0.0` brings some minor API changes and reporting improvements. 
 > 
@@ -205,12 +205,31 @@ StatsD metrics need to be enabled with the following flags:
 
 If you do not provide the `--statsd-addr` flag, the StatsD metrics will not be collected.
 
+## Tests
+
+> [!NOTE]
+> Available since v1.3.0
+
+Paddler supports unit and integration tests. Some dependencies need to be downloaded in 
+order to succeed the tests:
+
+- Git
+- NodeJS
+- Statsd
+
 ## Tutorials
 
 - [Installing llama.cpp on AWS EC2 CUDA Instance](https://llmops-handbook.distantmagic.com/deployments/llama.cpp/aws-ec2-cuda/index.html)
 - [Installing llama.cpp with AWS EC2 Image Builder](https://llmops-handbook.distantmagic.com/deployments/llama.cpp/aws-image-builder/index.html)
 
 ## Changelog
+
+### v1.3.0
+
+#### Features
+
+- Downloadable Windows binary (see [#34](https://github.com/distantmagic/paddler/issues/34))
+- CI workflow (see [#37](https://github.com/distantmagic/paddler/issues/37))
 
 ### v1.2.0
 
@@ -306,6 +325,16 @@ Thank you, [@ScottMcNaught](https://github.com/ScottMcNaught), for the help with
 #### Features
 
 * [Aggregated Health Status Responses](https://github.com/distantmagic/paddler/releases/tag/v0.1.0)
+
+## Contributing
+Contributions are welcome! If you have ideas for new features or optimizations, feel free to open an issue or submit a pull request.
+
+- Fork the repository.
+- Create a new branch for your feature or bugfix.
+- Submit a pull request with a detailed explanation.
+
+> [!IMPORTANT]  
+> A new feature PR must contain a test and will not be accepted without fulfilling the requirement.
 
 ## Why the Name
 

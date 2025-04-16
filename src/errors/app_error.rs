@@ -63,6 +63,8 @@ pub enum AppError {
 
     #[error("Invalid config error: {0}")]
     ConfigurationFileParseError(#[from] toml_edit::TomlError),
+    #[error("Channel receive error: {0}")]
+    ChannelReceiveError(#[from] tokio::sync::broadcast::error::RecvError),
 }
 
 impl From<&str> for AppError {

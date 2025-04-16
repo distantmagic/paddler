@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 
 use crate::llamacpp::slot::Slot;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct StatusUpdate {
     pub agent_name: Option<String>,
     pub error: Option<String>,
@@ -12,7 +12,7 @@ pub struct StatusUpdate {
     pub is_authorized: Option<bool>,
     pub is_slots_endpoint_enabled: Option<bool>,
     pub processing_slots_count: usize,
-    slots: Vec<Slot>,
+    pub slots: Vec<Slot>,
 }
 
 impl StatusUpdate {

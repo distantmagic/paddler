@@ -16,9 +16,9 @@ use crate::{
 };
 
 pub struct LlamaCppContext {
-    slot_taken: bool,
-    selected_peer: Option<UpstreamPeer>,
-    uses_slots: bool,
+    pub slot_taken: bool,
+    pub selected_peer: Option<UpstreamPeer>,
+    pub uses_slots: bool,
 }
 
 pub struct ProxyService {
@@ -41,7 +41,7 @@ impl ProxyService {
     }
 
     #[inline]
-    fn release_slot(&self, ctx: &mut LlamaCppContext) -> PaddlerResult<()> {
+    pub fn release_slot(&self, ctx: &mut LlamaCppContext) -> PaddlerResult<()> {
         if let Some(peer) = &ctx.selected_peer {
             self.upstream_peer_pool
                 .release_slot(&peer.agent_id, peer.last_update)?;
@@ -54,7 +54,7 @@ impl ProxyService {
     }
 
     #[inline]
-    fn take_slot(&self, ctx: &mut LlamaCppContext) -> PaddlerResult<()> {
+    pub fn take_slot(&self, ctx: &mut LlamaCppContext) -> PaddlerResult<()> {
         if let Some(peer) = &ctx.selected_peer {
             self.upstream_peer_pool.take_slot(&peer.agent_id)?;
             self.upstream_peer_pool.restore_integrity()?;

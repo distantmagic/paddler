@@ -35,7 +35,7 @@ impl StatsdService {
         })
     }
 
-    async fn report_metrics(&self, client: &StatsdClient) -> Result<()> {
+    pub async fn report_metrics(&self, client: &StatsdClient) -> Result<()> {
         let (slots_idle, slots_processing) = self.upstream_peer_pool.total_slots()?;
 
         client.gauge("slots_idle", slots_idle as u64)?;

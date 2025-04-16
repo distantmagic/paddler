@@ -1,0 +1,111 @@
+name: Test Llama.cpp Integration
+
+on:
+  push:
+    branches:
+      - main
+      - cicd
+  pull_request:
+    branches:
+      - main
+      - cicd
+
+jobs:
+  setup:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      
+      - name: Downlaod statsd
+        uses: actions/checkout@v4
+        with:
+          repository: 'statsd/statsd'
+          token: ${{ secrets.GITHUB_TOKEN }} 
+
+  build:
+    needs: setup
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build static files
+        run: make esbuild
+
+      - name: Build binary
+        run: cargo build --features web_dashboard --release
+
+  test_dependencies:
+    needs: setup
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Download node
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            winget install Schniz.fnm && fnm install 22
+          else
+            curl -O https://fnm.vercel.app/install | bash && fnm install 22
+          fi
+        shell: bash
+
+      - name: Donwload prometheus
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            curl.exe -L https://github.com/prometheus/prometheus/releases/download/v3.3.0-rc.1/prometheus-3.3.0-rc.1.windows-amd64.zip -o prometheus.zip
+            Expand-Archive -Path .\prometheus.zip -DestinationPath .\prometheus
+          else
+            curl -L https://github.com/prometheus/prometheus/releases/download/v3.3.0-rc.1/prometheus-3.3.0-rc.1.linux-amd64.tar.gz -o prometheus.tar.gz
+            tar -xvzf prometheus.tar.gz
+          fi
+        shell: bash
+        
+      - name: Download statsd
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            curl.exe -L https://github.com/prometheus/statsd_exporter/releases/download/v0.27.2/statsd_exporter-0.27.2.windows-amd64.tar.gz -o statsd.tar.gz 
+          else
+            curl -L https://github.com/prometheus/statsd_exporter/releases/download/v0.27.2/statsd_exporter-0.27.2.linux-amd64.tar.gz -o statsd.tar.gz
+          fi
+          tar -xvzf statsd.tar.gz
+        shell: bash
+
+  test:
+    needs: test_dependencies
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run unit tests
+        run: cargo test

@@ -52,6 +52,9 @@ debounce = "0.2.2"
 etcd-client = {version = "0.14.1", optional = true}
 lazy_static = "1.5.0"
 toml_edit = "0.22.24"
+cucumber = "0.21.1"
+httpmock = "0.7.0"
+test-env-log = "0.2.8"
 
 [features]
 default = ["statsd_reporter", "ratatui_dashboard"]
@@ -63,3 +66,6 @@ etcd = ["dep:etcd-client"]
 [profile.release]
 lto = true
 codegen-units = 1
+strip = true
+rpath = false
+panic = "unwind"
