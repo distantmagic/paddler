@@ -15,11 +15,13 @@ pub mod utils {
 
     #[derive(Debug, Default, cucumber::World)]
     pub struct PaddlerWorld {
+        pub balancer1: Option<Child>,
         pub agent1: Option<Child>,
         pub agent2: Option<Child>,
+        pub supervisor1: Option<Child>,
+        pub supervisor2: Option<Child>,
         pub llamacpp1: Option<Child>,
         pub llamacpp2: Option<Child>,
-        pub balancer1: Option<Child>,
         pub statsd: Option<Child>,
         pub prometheus: Option<Child>,
         pub proxy_response: Vec<Option<CoreResult<Response, reqwest::Error>>>,
@@ -170,6 +172,46 @@ pub mod utils {
                 cmd
             }
         };
+
+        Ok(cmd.spawn()?)
+    }
+
+    pub fn start_supervisor(
+        supervisor_name: String,
+        supervisor_addr: String,
+        driver_type: String,
+        driver_addr: String,
+        llamacpp_addr: String,
+    ) -> Result<Child> {
+        let config_driver = match driver_type.as_str() {
+            "file" => &format!(
+                "{{\"type\": \"{}\", \"path\": \"{}\", \"name\": \"{}\"}}",
+                driver_type, driver_addr, supervisor_name
+            ),
+            "etcd" => &format!(
+                "{{\"type\": \"{}\", \"addr\": \"{}\", \"name\": \"{}\"}}",
+                driver_type, driver_addr, supervisor_name
+            ),
+            _ => "",
+        };
+
+        let mut cmd = Command::new("target/release/paddler");
+
+        cmd.args([
+            "supervise",
+            "--supervisor-addr",
+            &supervisor_addr,
+            "--binary",
+            "llama-server",
+            "--model",
+            &driver_addr,
+            "--port",
+            &llamacpp_addr,
+            "--config-driver",
+            config_driver,
+        ])
+        .spawn()
+        .expect("Failed to run balancer");
 
         Ok(cmd.spawn()?)
     }
