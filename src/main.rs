@@ -158,13 +158,13 @@ enum Commands {
         /// Port which used by llama.cpp
         port: u16,
 
-        /// Driver for the llama.cpp configuration storage
-        #[arg(long, value_parser = parse_driver)]
-        config_driver: ConfigDriver,
-
         #[arg(long, value_parser = parse_socket_addr)]
         /// Address of the management server which will configure llamacpp
         supervisor_addr: SocketAddr,
+
+        /// Driver for the llama.cpp configuration storage
+        #[arg(long, value_parser = parse_driver)]
+        config_driver: ConfigDriver,
     },
 }
 

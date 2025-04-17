@@ -36,13 +36,15 @@ impl ConfigurationService {
                     error!("File is not `.toml`. Configuration will not be persisted.")
                 }
 
-                let mut config = if let Ok(mut file) = File::open(path) {
-                    let mut contents = String::new();
-                    file.read_to_string(&mut contents)?;
-                    contents.parse::<DocumentMut>()?
-                } else {
-                    DocumentMut::new()
+                let mut config = match File::open(path) {
+                    Ok(mut file) => {
+                        let mut contents = String::new();
+                        file.read_to_string(&mut contents)?;
+                        contents.parse::<DocumentMut>()?
+                    }
+                    Err(_) => DocumentMut::new(),
                 };
+
                 if !config.contains_table("config") {
                     config["config"] = toml_edit::table();
                 }

@@ -26,7 +26,7 @@ use crate::errors::app_error::AppError;
 
 pub struct ApplicationService {
     working_args: (Option<Vec<String>>, Option<Vec<String>>),
-    llama_process: Option<Child>,
+    llamacpp_process: Option<Child>,
     update_llamacpp: Receiver<Vec<String>>,
     update_config: Sender<Vec<String>>,
 }
@@ -44,7 +44,7 @@ impl ApplicationService {
 
         Ok(ApplicationService {
             working_args,
-            llama_process: None,
+            llamacpp_process: None,
             update_llamacpp,
             update_config,
         })
@@ -52,9 +52,7 @@ impl ApplicationService {
 
     async fn start_llamacpp_server(&mut self) -> Result<()> {
         if let Some(args) = self.working_args.0.clone() {
-            if self.spawn_llama_process(&args).await.is_ok() {
-                return Ok(());
-            }
+            self.spawn_llama_process(&args).await?
         }
 
         if let Some(old_args) = self.working_args.1.clone() {
@@ -71,11 +69,11 @@ impl ApplicationService {
             .stderr(Stdio::null());
         match cmd.spawn() {
             Ok(child) => {
-                if let Some(process) = &mut self.llama_process {
-                    let _ = process.kill();
-                    let _ = process.wait();
+                if let Some(process) = &mut self.llamacpp_process {
+                    process.kill()?;
+                    process.wait()?;
                 }
-                self.llama_process = Some(child);
+                self.llamacpp_process = Some(child);
                 self.update_config.send(args.to_vec())?;
                 Ok(())
             }
@@ -91,27 +89,29 @@ impl ApplicationService {
         let primary = self.working_args.0.take();
         self.working_args.0 = Some(args);
 
-        if let Err(e) = self.start_llamacpp_server().await {
-            warn!("Failed to start server with new configuration: {}", e);
-            self.working_args.0 = primary;
-        } else {
-            self.working_args.1 = primary;
-            info!("Configuration updated and server restarted.");
+        match self.start_llamacpp_server().await {
+            Ok(_) => {
+                self.working_args.1 = primary;
+                info!("Configuration updated and server restarted.");
+            }
+            Err(err) => {
+                warn!("Failed to start server with new configuration: {}", err);
+                self.working_args.0 = primary;
+            }
         }
     }
 
     async fn server_is_running(&mut self) -> bool {
-        if let Some(child) = &mut self.llama_process {
-            match child.try_wait() {
-                Ok(Some(_)) => false,
-                Ok(None) => true,
+        match &mut self.llamacpp_process {
+            Some(child) => match child.try_wait() {
+                Ok(Some(_)) => return false,
+                Ok(None) => return true,
                 Err(e) => {
                     error!("Error checking process status: {}", e);
-                    false
+                    return false;
                 }
-            }
-        } else {
-            false
+            },
+            None => return false,
         }
     }
 
@@ -127,21 +127,22 @@ impl ApplicationService {
             ConfigDriver::Etcd { addr, name: _ } => load_etcd_config(addr),
         };
 
-        if let Some(config) = config? {
-            Ok((Some(config), None))
-        } else {
-            let v1 = vec![
-                "--args".to_string(),
-                binary,
-                "-m".to_string(),
-                model,
-                "-np".to_string(),
-                "4".to_string(),
-                "--port".to_string(),
-                port.to_string(),
-                "--slots".to_string(),
-            ];
-            Ok((Some(v1), None))
+        match config? {
+            Some(config) => Ok((Some(config), None)),
+            None => {
+                let v1 = vec![
+                    "--args".to_string(),
+                    binary,
+                    "-m".to_string(),
+                    model,
+                    "-np".to_string(),
+                    "4".to_string(),
+                    "--port".to_string(),
+                    port.to_string(),
+                    "--slots".to_string(),
+                ];
+                return Ok((Some(v1), None));
+            }
         }
     }
 }
@@ -176,7 +177,6 @@ fn load_etcd_config(etcd_address: SocketAddr) -> Result<Option<Vec<String>>> {
     let runtime = tokio::runtime::Runtime::new()?;
 
     runtime.block_on(async {
-        #[cfg(feature = "etcd")]
         let _ = match Client::connect([etcd_address.to_string()], None).await {
             Ok(mut client) => match client.get("v1", None).await {
                 Ok(response) => match response.kvs().first() {
@@ -222,10 +222,9 @@ impl Service for ApplicationService {
                 },
                 running = self.server_is_running() => {
                     if !running {
-                        if let Err(e) = self.start_llamacpp_server().await {
-                            error!("Failed to start llama server: {}", e);
-                        } else {
-                            info!("Llamacpp server restarted.");
+                        match self.start_llamacpp_server().await {
+                            Ok(()) => info!("Llamacpp server restarted."),
+                            Err(err) => error!("Failed to start llama server: {}", err)
                         }
                     }
                 },

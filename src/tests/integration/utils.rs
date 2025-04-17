@@ -29,6 +29,7 @@ pub mod utils {
         pub fn setup(&mut self) -> Result<()> {
             download_llamacpp()?;
             download_model()?;
+            build_paddler()?;
 
             Ok(())
         }
