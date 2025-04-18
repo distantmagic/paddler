@@ -53,9 +53,7 @@ impl ApplicationService {
     async fn start_llamacpp_server(&mut self) -> Result<()> {
         if let Some(args) = self.working_args.0.clone() {
             self.spawn_llama_process(&args).await?
-        }
-
-        if let Some(old_args) = self.working_args.1.clone() {
+        } else if let Some(old_args) = self.working_args.1.clone() {
             self.spawn_llama_process(&old_args).await?;
         }
 

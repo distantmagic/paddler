@@ -11,7 +11,7 @@ mod tests {
         },
     };
 
-    use std::process::Command;
+    use std::{net::SocketAddr, process::Command, str::FromStr};
 
     #[given(
         expr = "{word} is running at {word}, {word} and reports metrics to {word} every {int} second(s)"
@@ -73,7 +73,7 @@ mod tests {
     }
 
     #[given(
-        expr = "{word} is running at {word} with {word} configuration stored on {word} and starts {word} at {int} with {int} slot(s)"
+        expr = "{word} is running at {word} with {word} configuration stored on {word} and starts {word} at {int} with {int} slot(s) running {word}"
     )]
     async fn supervisor_is_running(
         world: &mut PaddlerWorld,
@@ -83,6 +83,8 @@ mod tests {
         driver_addr: String,
         _llamacpp_name: String,
         llamacpp_addr: String,
+        _slots: usize,
+        model_name: String,
     ) -> Result<()> {
         match supervisor_name.as_str() {
             "supervisor-1" => {
@@ -92,6 +94,7 @@ mod tests {
                     driver_type,
                     driver_addr,
                     llamacpp_addr,
+                    model_name,
                 )?)
             }
             "supervisor-2" => {
@@ -101,6 +104,7 @@ mod tests {
                     driver_type,
                     driver_addr,
                     llamacpp_addr,
+                    model_name,
                 )?)
             }
             _ => (),
@@ -109,7 +113,7 @@ mod tests {
         Ok(())
     }
 
-    #[given(
+    #[when(
         expr = "{word} is running and observing {word} in {word}, and registered at {word} in {word}"
     )]
     async fn agent_is_running(
@@ -144,8 +148,49 @@ mod tests {
         Ok(())
     }
 
+    #[then(
+        expr = "{word} in {word} must report that {word} is registered with {int} slots at {word}"
+    )]
+    async fn display_agent_slots(
+        _world: &mut PaddlerWorld,
+        _balancer_name: String,
+        balancer_addr: String,
+        agent_name: String,
+        slots_idle: usize,
+        llamacpp_addr: String,
+    ) -> Result<()> {
+        std::thread::sleep(std::time::Duration::from_secs(3));
+
+        let mut response = serde_json::from_str::<UpstreamPeerPool>(
+            &reqwest::get(format!("http://{}/api/v1/agents", balancer_addr))
+                .await?
+                .text()
+                .await?,
+        )?;
+
+        let agents = response.agents.get_mut()?;
+
+        let agent = agents
+            .into_iter()
+            .find(|agent| agent.agent_name == Some(agent_name.to_string()));
+
+        if let Some(agent) = agent {
+            assert_eq!(agent.slots_idle, slots_idle);
+            assert_eq!(agent.slots_processing, 0);
+            assert_eq!(agent.error, None);
+            assert_eq!(
+                agent.external_llamacpp_addr,
+                SocketAddr::from_str(&llamacpp_addr)?
+            );
+            assert_eq!(agent.is_authorized, Some(true));
+            assert_eq!(agent.is_slots_endpoint_enabled, Some(true));
+        }
+
+        Ok(())
+    }
+
     #[when(expr = r"{int} request(s) is/are proxied to {word} in {word}")]
-    async fn proxy_requests(
+    async fn proxy_balancer(
         _world: &mut PaddlerWorld,
         requests: usize,
         _balancer_name: String,
@@ -184,7 +229,55 @@ mod tests {
             }));
         }
 
-        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+
+        Ok(())
+    }
+
+    #[when(
+        expr = r"{int} request(s) is/are proxied to {word} in {word} to change slots to {int} and port to {int}"
+    )]
+    async fn proxy_supervisor(
+        _world: &mut PaddlerWorld,
+        requests: usize,
+        _supervisor_name: String,
+        supervisor_addr: String,
+        slots: usize,
+        port: usize,
+    ) -> Result<()> {
+        std::thread::sleep(std::time::Duration::from_secs(5));
+
+        let client = reqwest::Client::new();
+
+        let value = json!(
+        {
+            "args": {
+                "-m": "qwen2_500m.gguf",
+                "--port": port,
+                "binary": "llama-server",
+                "-np": slots,
+                "--slots": ""
+            }
+        }
+        );
+
+        let mut handles = vec![];
+
+        for _ in 0..requests {
+            let client = client.clone();
+            let value = value.clone();
+            let addr = supervisor_addr.clone();
+            handles.push(tokio::spawn(async move {
+                client
+                    .post(format!("http://{}/v1/params", addr))
+                    .json(&value)
+                    .send()
+                    .await
+                    .unwrap();
+            }));
+        }
+
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
         Ok(())
     }
@@ -199,7 +292,7 @@ mod tests {
         idle_slots: usize,
         balancer_addr: String,
     ) -> Result<()> {
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        std::thread::sleep(std::time::Duration::from_secs(2));
 
         let response = serde_json::from_str::<UpstreamPeerPool>(
             reqwest::get(format!("http://{}/api/v1/agents", balancer_addr))

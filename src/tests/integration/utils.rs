@@ -29,8 +29,8 @@ pub mod utils {
 
     impl PaddlerWorld {
         pub fn setup(&mut self) -> Result<()> {
-            download_llamacpp()?;
-            download_model()?;
+            // download_llamacpp()?;
+            // download_model()?;
             build_paddler()?;
 
             Ok(())
@@ -55,6 +55,8 @@ pub mod utils {
             kill_process(&mut self.balancer1);
             kill_process(&mut self.statsd);
             kill_process(&mut self.prometheus);
+            kill_process(&mut self.supervisor1);
+            kill_process(&mut self.supervisor2);
 
             Ok(())
         }
@@ -182,6 +184,7 @@ pub mod utils {
         driver_type: String,
         driver_addr: String,
         llamacpp_addr: String,
+        model_name: String,
     ) -> Result<Child> {
         let config_driver = match driver_type.as_str() {
             "file" => &format!(
@@ -204,7 +207,7 @@ pub mod utils {
             "--binary",
             "llama-server",
             "--model",
-            &driver_addr,
+            &model_name,
             "--port",
             &llamacpp_addr,
             "--config-driver",

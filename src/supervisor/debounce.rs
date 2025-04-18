@@ -54,21 +54,6 @@ pub fn handle_throttle(state: Data<State>) -> Result<()> {
     Ok(())
 }
 
-pub fn to_llamacpp_arg(mut vec: VecDeque<String>) -> Result<Vec<String>> {
-    if let Some(index) = vec.iter().position(|x| x == "binary") {
-        vec.push_front(vec[index + 1].clone());
-        vec.remove(index + 1);
-        vec.remove(index + 1);
-        vec.retain(|x| x != "");
-        vec.push_front("--args".to_string());
-
-        return Ok(vec.clone().into());
-    }
-    Err(AppError::UnexpectedError(
-        "No binary found in JSON struct".to_string(),
-    ))
-}
-
 pub fn debounce_args(maps: Vec<Map<String, Value>>) -> Result<Map<String, Value>> {
     let delay = Duration::from_millis(10);
     let debounced_btreemap = Arc::new(Mutex::new(Map::new()));
@@ -95,4 +80,19 @@ pub fn debounce_args(maps: Vec<Map<String, Value>>) -> Result<Map<String, Value>
 
     let map = debounced_btreemap.lock()?.clone();
     Ok(map)
+}
+
+pub fn to_llamacpp_arg(mut vec: VecDeque<String>) -> Result<Vec<String>> {
+    if let Some(index) = vec.iter().position(|x| x == "binary") {
+        vec.push_front(vec[index + 1].clone());
+        vec.remove(index + 1);
+        vec.remove(index + 1);
+        vec.retain(|x| x != "");
+        vec.push_front("--args".to_string());
+
+        return Ok(vec.clone().into());
+    }
+    Err(AppError::UnexpectedError(
+        "No binary found in JSON struct".to_string(),
+    ))
 }
