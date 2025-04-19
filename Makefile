@@ -50,9 +50,8 @@ esbuild: node_modules
 .PHONY: run.agent
 run.agent: esbuild
 	cargo run -- agent \
-		--external-llamacp-addr "127.0.0.1:8081" \
+		--external-llamacpp-addr "127.0.0.1:8081" \
 		--local-llamacpp-addr="localhost:8081" \
-		--local-llamacpp-api-key "test" \
 		--management-addr="localhost:8095" \
 		--name "wohoo"
 
