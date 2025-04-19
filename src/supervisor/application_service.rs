@@ -63,8 +63,19 @@ impl ApplicationService {
     async fn spawn_llama_process(&mut self, args: &Vec<String>) -> Result<()> {
         let mut cmd = Command::new(&args[1]);
         cmd.args(&args[2..])
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
+            .stderr(Stdio::inherit())
+            .stdout(Stdio::inherit());
+
+        if !cmd.output()?.status.success() {
+            error!(
+                "Process failed with status {}: {}",
+                cmd.output()?.status,
+                &cmd.output()?.status.code().unwrap()
+            );
+            warn!("Changes were not applied");
+            return Err("Llamacpp failed to start".into());
+        }
+
         match cmd.spawn() {
             Ok(child) => {
                 if let Some(process) = &mut self.llamacpp_process {
