@@ -1,11 +1,8 @@
-FROM ubuntu:24.04
+FROM node:latest
 
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:$PATH
-
-EXPOSE 8095
-EXPOSE 8096
 
 RUN apt-get update && apt-get install -y \
     curl \
@@ -14,10 +11,6 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     libssl-dev \
     pkg-config
-
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
-    apt-get install -y nodejs && \
-    npm install -g npm@latest
 
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path && \
     ln -s /usr/local/cargo/bin/* /usr/local/bin/
