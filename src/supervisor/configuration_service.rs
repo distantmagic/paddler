@@ -32,10 +32,6 @@ impl ConfigurationService {
     async fn persist_config(&self, args: Vec<String>) -> Result<()> {
         match &self.config_driver {
             ConfigDriver::File { path, name } => {
-                if !Self::is_a_toml_file(path) {
-                    error!("File is not `.toml`. Configuration will not be persisted.")
-                }
-
                 let mut config = match File::open(path) {
                     Ok(mut file) => {
                         let mut contents = String::new();
@@ -63,10 +59,6 @@ impl ConfigurationService {
 
         Ok(())
     }
-
-    fn is_a_toml_file(path: &PathBuf) -> bool {
-        path.extension().is_some_and(|x| x == "toml")
-    }
 }
 
 #[async_trait]
@@ -89,7 +81,11 @@ impl Service for ConfigurationService {
                                 error!("Error while persisting configuration: {}", err);
                             }
                         },
-                        Err(err) => error!("Failed to receive configuration: {}", err),
+                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                            error!("Failed to receive configuration");
+
+                        },
+                        Err(err) => {error!("Failed to receive configuration: {}", err); return;}
                     }
                 },
             }

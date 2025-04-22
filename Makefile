@@ -47,12 +47,22 @@ esbuild: node_modules
 		resources/css/page-dashboard.css \
 		resources/ts/controller_dashboard.tsx \
 
+.PHONY: run.supervisor
+run.supervisor: esbuild
+	cargo run --features etcd \
+		-- supervise \
+		--supervisor-addr "localhost:8087" \
+		--binary llama-server \
+		--model qwen2_200mq.gguf \
+		--port 8081 \
+		--config-driver '{"type": "file", "path": "config.toml", "name": "agent-1"}'
+
 .PHONY: run.agent
 run.agent: esbuild
 	cargo run -- agent \
-		--external-llamacp-addr "127.0.0.1:8081" \
+		--external-llamacpp-addr "127.0.0.1:8081" \
 		--local-llamacpp-addr="localhost:8081" \
-		--local-llamacpp-api-key "test" \
+		--llamacpp-api-key "test" \
 		--management-addr="localhost:8095" \
 		--name "wohoo"
 

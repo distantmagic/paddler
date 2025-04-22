@@ -6,6 +6,8 @@ use std::{
     io::Read,
     path::PathBuf,
     process::{Child, Command, Stdio},
+    thread::sleep,
+    time::Duration,
 };
 use toml_edit::DocumentMut;
 
@@ -19,16 +21,17 @@ use tokio::sync::broadcast::{Receiver, Sender};
 #[cfg(unix)]
 use pingora::server::ListenFds;
 
-use crate::{errors::result::Result, ConfigDriver};
-
-#[cfg(feature = "etcd")]
-use crate::errors::app_error::AppError;
+use crate::{
+    errors::{app_error::AppError, result::Result},
+    ConfigDriver,
+};
 
 pub struct ApplicationService {
     working_args: (Option<Vec<String>>, Option<Vec<String>>),
     llamacpp_process: Option<Child>,
     update_llamacpp: Receiver<Vec<String>>,
     update_config: Sender<Vec<String>>,
+    input_arg_works: bool,
 }
 
 impl ApplicationService {
@@ -47,6 +50,7 @@ impl ApplicationService {
             llamacpp_process: None,
             update_llamacpp,
             update_config,
+            input_arg_works: true,
         })
     }
 
@@ -63,32 +67,30 @@ impl ApplicationService {
     async fn spawn_llama_process(&mut self, args: &Vec<String>) -> Result<()> {
         let mut cmd = Command::new(&args[1]);
         cmd.args(&args[2..])
-            .stderr(Stdio::inherit())
-            .stdout(Stdio::inherit());
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
 
-        if !cmd.output()?.status.success() {
-            error!(
-                "Process failed with status {}: {}",
-                cmd.output()?.status,
-                &cmd.output()?.status.code().unwrap()
-            );
-            warn!("Changes were not applied");
-            return Err("Llamacpp failed to start".into());
-        }
+        let mut child = cmd.spawn()?;
 
-        match cmd.spawn() {
-            Ok(child) => {
+        sleep(Duration::from_millis(200));
+
+        match child.try_wait() {
+            Ok(None) => {
                 if let Some(process) = &mut self.llamacpp_process {
                     process.kill()?;
                     process.wait()?;
                 }
                 self.llamacpp_process = Some(child);
                 self.update_config.send(args.to_vec())?;
+                self.input_arg_works = true;
                 Ok(())
             }
+            Ok(Some(code)) => {
+                self.input_arg_works = false;
+                Err(AppError::UnexpectedError(code.to_string()))
+            }
             Err(e) => {
-                error!("Failed to start process: {}", e);
-                warn!("Changes were not applied: {}", e);
+                self.input_arg_works = false;
                 Err(e.into())
             }
         }
@@ -230,7 +232,7 @@ impl Service for ApplicationService {
                     return;
                 },
                 running = self.server_is_running() => {
-                    if !running {
+                    if !running & self.input_arg_works {
                         match self.start_llamacpp_server().await {
                             Ok(()) => info!("Llamacpp server restarted."),
                             Err(err) => error!("Failed to start llama server: {}", err)

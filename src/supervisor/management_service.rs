@@ -56,7 +56,7 @@ impl Service for ManagementService {
         HttpServer::new(move || {
             App::new()
                 .app_data(state.clone())
-                .configure(http_route::restart::register)
+                .configure(http_route::receive_update::register)
         })
         .bind(supervisor_addr)
         .expect("Unable to bind server to address")
@@ -66,10 +66,10 @@ impl Service for ManagementService {
     }
 
     fn name(&self) -> &str {
-        "managing"
+        "management"
     }
 
     fn threads(&self) -> Option<usize> {
-        None
+        Some(1)
     }
 }
