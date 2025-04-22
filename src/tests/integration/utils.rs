@@ -29,8 +29,8 @@ pub mod utils {
 
     impl PaddlerWorld {
         pub fn setup(&mut self) -> Result<()> {
-            // download_llamacpp()?;
-            // download_model()?;
+            download_llamacpp()?;
+            download_model()?;
             build_paddler()?;
 
             Ok(())
@@ -200,23 +200,22 @@ pub mod utils {
 
         let mut cmd = Command::new("target/release/paddler");
 
-        cmd.args([
-            "supervise",
-            "--supervisor-addr",
-            &supervisor_addr,
-            "--binary",
-            "llama-server",
-            "--model",
-            &model_name,
-            "--port",
-            &llamacpp_addr,
-            "--config-driver",
-            config_driver,
-        ])
-        .spawn()
-        .expect("Failed to run balancer");
-
-        Ok(cmd.spawn()?)
+        Ok(cmd
+            .args([
+                "supervise",
+                "--supervisor-addr",
+                &supervisor_addr,
+                "--binary",
+                "llama-server",
+                "--model",
+                &model_name,
+                "--port",
+                &llamacpp_addr,
+                "--config-driver",
+                config_driver,
+            ])
+            .spawn()
+            .expect("Failed to run balancer"))
     }
 
     pub fn start_statsd(management_addr: String, exporter_addr: String) -> Result<Child> {

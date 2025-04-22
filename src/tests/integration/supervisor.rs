@@ -159,7 +159,7 @@ mod tests {
         slots_idle: usize,
         llamacpp_addr: String,
     ) -> Result<()> {
-        std::thread::sleep(std::time::Duration::from_secs(3));
+        std::thread::sleep(std::time::Duration::from_secs(15));
 
         let mut response = serde_json::from_str::<UpstreamPeerPool>(
             &reqwest::get(format!("http://{}/api/v1/agents", balancer_addr))
@@ -235,7 +235,7 @@ mod tests {
     }
 
     #[when(
-        expr = r"{int} request(s) is/are proxied to {word} in {word} to change slots to {int} and port to {int}"
+        expr = r"{int} request(s) is/are proxied to {word} in {word} to change slots to {int} and port to {word}"
     )]
     async fn proxy_supervisor(
         _world: &mut PaddlerWorld,
@@ -245,8 +245,6 @@ mod tests {
         slots: usize,
         port: usize,
     ) -> Result<()> {
-        std::thread::sleep(std::time::Duration::from_secs(5));
-
         let client = reqwest::Client::new();
 
         let value = json!(
@@ -277,7 +275,7 @@ mod tests {
             }));
         }
 
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
         Ok(())
     }

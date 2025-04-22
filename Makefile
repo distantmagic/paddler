@@ -53,7 +53,7 @@ run.supervisor: esbuild
 		-- supervise \
 		--supervisor-addr "localhost:8087" \
 		--binary llama-server \
-		--model qwen2_200mq.gguf \
+		--model qwen2_500m.gguf \
 		--port 8081 \
 		--config-driver '{"type": "file", "path": "config.toml", "name": "agent-1"}'
 
