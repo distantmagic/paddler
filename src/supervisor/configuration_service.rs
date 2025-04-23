@@ -80,11 +80,9 @@ impl Service for ConfigurationService {
                                 error!("Error while persisting configuration: {}", err);
                             }
                         },
-                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
-                            error!("Failed to receive configuration");
-
-                        },
-                        Err(err) => {error!("Failed to receive configuration: {}", err); return;}
+                        Err(err) => {
+                            error!("Failed to receive configuration: {}", err);
+                        }
                     }
                 },
             }

@@ -7,7 +7,8 @@ mod tests {
         balancer::upstream_peer_pool::UpstreamPeerPool,
         errors::result::Result,
         tests::integration::utils::utils::{
-            get_unix_time_from, start_prometheus, start_statsd, start_supervisor, PaddlerWorld,
+            get_unix_time_from, kill_children, start_prometheus, start_statsd, start_supervisor,
+            PaddlerWorld,
         },
     };
 
@@ -304,6 +305,68 @@ mod tests {
 
         assert_eq!(idle_slots, slots_idle);
         assert_eq!(slots_processing, slots_busy);
+
+        Ok(())
+    }
+
+    #[when(expr = "{word} from {word} is killed")]
+    async fn kill_llamacpp(
+        world: &mut PaddlerWorld,
+        _llamacpp_name: String,
+        supervisor_name: String,
+    ) -> Result<()> {
+        match supervisor_name.as_str() {
+            "supervisor-1" => {
+                if let Some(supervisor) = &world.supervisor1 {
+                    kill_children(supervisor.id());
+                }
+            }
+            "supervisor-2" => {
+                if let Some(supervisor) = &world.supervisor2 {
+                    kill_children(supervisor.id());
+                }
+            }
+            _ => (),
+        };
+
+        Ok(())
+    }
+
+    #[then(expr = "{word} in {word} must report that {word} cannot fetch {word} in {word}")]
+    async fn agent_cannot_fetch_llamacpp(
+        _world: &mut PaddlerWorld,
+        _balancer_name: String,
+        balancer_addr: String,
+        agent_name: String,
+        _llamacpp_name: String,
+        llamacpp_addr: String,
+    ) -> Result<()> {
+        std::thread::sleep(std::time::Duration::from_secs(10));
+
+        let mut response = serde_json::from_str::<UpstreamPeerPool>(
+            &reqwest::get(format!("http://{}/api/v1/agents", balancer_addr))
+                .await?
+                .text()
+                .await?,
+        )?;
+        let agents = response.agents.get_mut()?;
+
+        let agent = agents
+            .into_iter()
+            .find(|agent| agent.agent_name == Some(agent_name.clone()));
+
+        if let Some(agent) = agent {
+            assert!(agent.error.is_some());
+            assert_eq!(
+                agent.error,
+                Some(format!(
+                    "Request error: error sending request for url (http://{}/slots)",
+                    llamacpp_addr
+                ))
+            );
+            assert_eq!(agent.is_authorized, None);
+            assert_eq!(agent.is_slots_endpoint_enabled, None);
+        }
 
         Ok(())
     }

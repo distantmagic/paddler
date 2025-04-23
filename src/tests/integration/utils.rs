@@ -10,6 +10,7 @@ pub mod utils {
     };
 
     use reqwest::Response;
+    use sysinfo::{Pid, Process, System};
 
     use crate::errors::result::Result;
 
@@ -29,8 +30,8 @@ pub mod utils {
 
     impl PaddlerWorld {
         pub fn setup(&mut self) -> Result<()> {
-            download_llamacpp()?;
-            download_model()?;
+            // download_llamacpp()?;
+            // download_model()?;
             build_paddler()?;
 
             Ok(())
@@ -267,5 +268,17 @@ scrape_configs:
             Ok(n) => n.as_secs() + secs,
             Err(err) => panic!("{:#?}", err),
         }
+    }
+
+    pub fn kill_children(proc_id: u32) {
+        let system = System::new_all();
+
+        let parent_id: Vec<bool> = system
+            .processes()
+            .values()
+            .filter_map(|p| Some(p.parent().unwrap() == Pid::from_u32(proc_id)))
+            .collect();
+
+        panic!("id: {:#?}, process: {:#?}", parent_id, proc_id);
     }
 }

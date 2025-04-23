@@ -54,6 +54,7 @@ lazy_static = "1.5.0"
 toml_edit = "0.22.24"
 cucumber = "0.21.1"
 httpmock = "0.7.0"
+sysinfo = "0.34.2"
 
 [features]
 default = ["statsd_reporter", "ratatui_dashboard"]

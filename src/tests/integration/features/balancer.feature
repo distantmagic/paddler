@@ -24,7 +24,7 @@
 #       When 1 request is proxied to balancer-1 in 127.0.0.1:8071
 #       Then balancer-1 must return an unsuccessful response in 127.0.0.1:8071
 
-#     Scenario: Balancer report metrics
+#     Scenario: Balancer reports metrics
 #       Given balancer-1 is running at 0.0.0.0:8070, 0.0.0.0:8071 and reports metrics to 0.0.0.0:9125 every 1 second
 #       Given statsd-1 is running at 0.0.0.0:9125, 0.0.0.0:9102 and receives metrics from balancer-1
 #       Given prometheus-1 is running at 0.0.0.0:9090 and scrapes metrics from 0.0.0.0:9102 every 1 second
