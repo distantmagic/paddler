@@ -1,7 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use cucumber::{given, then, when, World};
+    use cucumber::{cli::Opts, given, then, when, Parser, Runner, World, Writer};
     use serde_json::json;
+    use serial_test::file_serial;
 
     use crate::{
         balancer::upstream_peer_pool::UpstreamPeerPool,
@@ -11,7 +12,7 @@ mod tests {
         },
     };
 
-    use std::{net::SocketAddr, process::Command, str::FromStr};
+    use std::{net::SocketAddr, process::Command, str::FromStr, time::Duration};
 
     #[given(
         expr = "{word} is running at {word}, {word} and reports metrics to {word} every {int} second(s)"
@@ -280,6 +281,45 @@ mod tests {
         Ok(())
     }
 
+    #[then(expr = "{word} in {word} must report that {word} cannot fetch {word} in {word}")]
+    async fn agent_cannot_fetch_llamacpp(
+        _world: &mut PaddlerWorld,
+        _balancer_name: String,
+        balancer_addr: String,
+        agent_name: String,
+        _llamacpp_name: String,
+        llamacpp_addr: String,
+    ) -> Result<()> {
+        std::thread::sleep(std::time::Duration::from_secs(10));
+
+        let mut response = serde_json::from_str::<UpstreamPeerPool>(
+            &reqwest::get(format!("http://{}/api/v1/agents", balancer_addr))
+                .await?
+                .text()
+                .await?,
+        )?;
+        let agents = response.agents.get_mut()?;
+
+        let agent = agents
+            .into_iter()
+            .find(|agent| agent.agent_name == Some(agent_name.clone()));
+
+        if let Some(agent) = agent {
+            assert!(agent.error.is_some());
+            assert_eq!(
+                agent.error,
+                Some(format!(
+                    "Request error: error sending request for url (http://{}/slots)",
+                    llamacpp_addr
+                ))
+            );
+            assert_eq!(agent.is_authorized, None);
+            assert_eq!(agent.is_slots_endpoint_enabled, None);
+        }
+
+        Ok(())
+    }
+
     #[then(
         expr = "{word} must tell {int} slot(s) is/are busy and {int} slot(s) is/are idle in {word} from {word} and {word}"
     )]
@@ -350,15 +390,50 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
+    fn cucumber_parser(arg: &str) -> Result<Duration> {
+        let seconds = arg.parse()?;
+
+        Ok(std::time::Duration::from_secs(seconds))
+    }
+
+    // #[derive(clap::Parser)]
+    // struct TestArgs {
+    //     #[command(flatten)]
+    //     custom: CustomOpts,
+    // }
+
+    #[derive(clap::Args)]
+    struct CustomOpts {
+        #[arg(
+            long,
+            value_parser = cucumber_parser
+        )]
+        period: Duration,
+    }
+
+    use cucumber::cli;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[file_serial(path => "./info")]
     pub async fn run_cucumber_tests() {
+        let opts = cli::Opts::<
+            cucumber::parser::basic::Cli,
+            cucumber::runner::basic::Cli,
+            cucumber::writer::basic::Cli,
+            CustomOpts,
+        >::parsed();
+
+        let period = opts.custom.period;
+
         PaddlerWorld::cucumber()
             .max_concurrent_scenarios(1)
             .fail_fast()
             // .retries(3)
             // .retry_after(std::time::Duration::from_secs(60))
             .fail_on_skipped()
-            .before(|_feature, _rule, _scenario, world| {
+            .before(move |_feature, _rule, _scenario, world| {
+                std::thread::sleep(period);
+
                 Box::pin(async move {
                     world.setup().expect("Setup Failed");
                 })
