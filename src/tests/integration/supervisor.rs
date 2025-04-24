@@ -1,14 +1,13 @@
 #[cfg(test)]
 mod tests {
     use cucumber::{given, then, when, World};
-    use serde_json::{json, Value};
+    use serde_json::json;
 
     use crate::{
         balancer::upstream_peer_pool::UpstreamPeerPool,
         errors::result::Result,
         tests::integration::utils::utils::{
-            get_unix_time_from, kill_children, start_prometheus, start_statsd, start_supervisor,
-            PaddlerWorld,
+            kill_children, start_prometheus, start_statsd, start_supervisor, PaddlerWorld,
         },
     };
 
@@ -332,45 +331,6 @@ mod tests {
         Ok(())
     }
 
-    #[then(expr = "{word} in {word} must report that {word} cannot fetch {word} in {word}")]
-    async fn agent_cannot_fetch_llamacpp(
-        _world: &mut PaddlerWorld,
-        _balancer_name: String,
-        balancer_addr: String,
-        agent_name: String,
-        _llamacpp_name: String,
-        llamacpp_addr: String,
-    ) -> Result<()> {
-        std::thread::sleep(std::time::Duration::from_secs(10));
-
-        let mut response = serde_json::from_str::<UpstreamPeerPool>(
-            &reqwest::get(format!("http://{}/api/v1/agents", balancer_addr))
-                .await?
-                .text()
-                .await?,
-        )?;
-        let agents = response.agents.get_mut()?;
-
-        let agent = agents
-            .into_iter()
-            .find(|agent| agent.agent_name == Some(agent_name.clone()));
-
-        if let Some(agent) = agent {
-            assert!(agent.error.is_some());
-            assert_eq!(
-                agent.error,
-                Some(format!(
-                    "Request error: error sending request for url (http://{}/slots)",
-                    llamacpp_addr
-                ))
-            );
-            assert_eq!(agent.is_authorized, None);
-            assert_eq!(agent.is_slots_endpoint_enabled, None);
-        }
-
-        Ok(())
-    }
-
     #[then(expr = r"{word} must return a(n) {word} response in {word}")]
     async fn get_response(
         world: &mut PaddlerWorld,
@@ -386,43 +346,6 @@ mod tests {
         }
 
         world.proxy_response.clear();
-
-        Ok(())
-    }
-
-    #[then(expr = "{word} must tell {int} slot(s) is/are {word} at {word} from {word}")]
-    async fn report_metrics(
-        _world: &mut PaddlerWorld,
-        _statsd_name: String,
-        slots: usize,
-        state: String,
-        prometheus_addr: String,
-    ) -> Result<()> {
-        let start = get_unix_time_from(0);
-        let end = get_unix_time_from(15);
-        let step = 5;
-
-        std::thread::sleep(std::time::Duration::from_millis(2000));
-
-        let response = reqwest::get(format!(
-            "http://{}/api/v1/query?query=paddler_slots_{}&start={}&end={}&step={}",
-            prometheus_addr, state, start, end, step
-        ))
-        .await?
-        .text()
-        .await?;
-
-        let v: Value = serde_json::from_str(&response).unwrap();
-
-        if let Some(metrics) = v.as_object() {
-            if let Some(data) = metrics.get("data") {
-                if let Some(result) = data.get("result") {
-                    if let Some(value) = result[0].get("value") {
-                        assert_eq!(value[1].as_str(), Some(slots.to_string().as_str()))
-                    }
-                }
-            }
-        }
 
         Ok(())
     }

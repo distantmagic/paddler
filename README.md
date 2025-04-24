@@ -205,6 +205,16 @@ StatsD metrics need to be enabled with the following flags:
 
 If you do not provide the `--statsd-addr` flag, the StatsD metrics will not be collected.
 
+## Support Level
+
+### Linux
+
+Paddler is fully supported and tested under Linux. It is intended for use with Linux in production environments.
+
+### Windows, Mac
+
+Paddler is supported on those systems on a "best effort" basis, meaning it "should work" and be good enough for local testing and workloads, but our primary focus is Linux. If you want us to support those systems fully, please comment in [this issue](https://github.com/distantmagic/paddler/issues/48)(if possible, with your use-case); if enough users need to support Mac and Windows in production environments, we will likely give them the same level of support as Linux builds.
+
 ## Tutorials
 
 - [Installing llama.cpp on AWS EC2 CUDA Instance](https://llmops-handbook.distantmagic.com/deployments/llama.cpp/aws-ec2-cuda/index.html)

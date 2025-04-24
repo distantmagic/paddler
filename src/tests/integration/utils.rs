@@ -2,15 +2,17 @@
 pub mod utils {
     use std::{
         env::current_dir,
+        ffi::OsString,
         fs::File,
         io::Write,
         process::{Child, Command},
         result::Result as CoreResult,
+        str::FromStr,
         time::SystemTime,
     };
 
     use reqwest::Response;
-    use sysinfo::{Pid, Process, System};
+    use sysinfo::{Pid, Process, ProcessesToUpdate, Signal, System};
 
     use crate::errors::result::Result;
 
@@ -273,12 +275,28 @@ scrape_configs:
     pub fn kill_children(proc_id: u32) {
         let system = System::new_all();
 
-        let parent_id: Vec<bool> = system
+        let processes: Vec<&Process> = system
             .processes()
             .values()
-            .filter_map(|p| Some(p.parent().unwrap() == Pid::from_u32(proc_id)))
+            .filter_map(|process| {
+                if process
+                    .parent()
+                    .map(|pid| pid == Pid::from_u32(proc_id))
+                    .unwrap_or(false)
+                    && !process
+                        .cmd()
+                        .contains(&OsString::from_str("supervise").ok()?)
+                {
+                    Some(process)
+                } else {
+                    None
+                }
+            })
             .collect();
 
-        panic!("id: {:#?}, process: {:#?}", parent_id, proc_id);
+        for process in processes {
+            process.kill_with(Signal::Kill);
+            process.wait();
+        }
     }
 }
