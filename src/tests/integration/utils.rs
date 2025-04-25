@@ -12,7 +12,7 @@ pub mod utils {
     };
 
     use reqwest::Response;
-    use sysinfo::{Pid, Process, ProcessesToUpdate, Signal, System};
+    use sysinfo::{Pid, Process, Signal, System};
 
     use crate::errors::result::Result;
 
@@ -31,9 +31,9 @@ pub mod utils {
     }
 
     impl PaddlerWorld {
-        pub fn setup(&mut self) -> Result<()> {
-            // download_llamacpp()?;
-            // download_model()?;
+        pub fn setup() -> Result<()> {
+            download_llamacpp()?;
+            download_model()?;
             build_paddler()?;
 
             Ok(())

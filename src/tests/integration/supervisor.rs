@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use cucumber::{given, then, when, World};
     use serde_json::json;
 
@@ -14,7 +14,7 @@ mod tests {
     use std::{net::SocketAddr, process::Command, str::FromStr};
 
     #[given(
-        expr = "{word} is running at {word}, {word} and reports metrics to {word} every {int} second(s)"
+        expr = "{word} is running at {word}, {word} and reports metrics to {word} every {int} second(s) in supervisor feature"
     )]
     async fn balancer_is_running(
         world: &mut PaddlerWorld,
@@ -45,7 +45,9 @@ mod tests {
         Ok(())
     }
 
-    #[given(expr = "{word} is running at {word}, {word} and receives metrics from {word}")]
+    #[given(
+        expr = "{word} is running at {word}, {word} and receives metrics from {word} in supervisor feature"
+    )]
     async fn statsd_is_running(
         world: &mut PaddlerWorld,
         _statsd_name: String,
@@ -58,7 +60,7 @@ mod tests {
     }
 
     #[given(
-        expr = "{word} is running at {word} and scrapes metrics from {word} every {int} second(s)"
+        expr = "{word} is running at {word} and scrapes metrics from {word} every {int} second(s) in supervisor feature"
     )]
     async fn prometheus_is_running(
         world: &mut PaddlerWorld,
@@ -73,7 +75,7 @@ mod tests {
     }
 
     #[given(
-        expr = "{word} is running at {word} with {word} configuration stored on {word} and starts {word} at {int} with {int} slot(s) running {word}"
+        expr = "{word} is running at {word} with {word} configuration stored on {word} and starts {word} at {int} with {int} slot(s) running {word} in supervisor feature"
     )]
     async fn supervisor_is_running(
         world: &mut PaddlerWorld,
@@ -114,7 +116,7 @@ mod tests {
     }
 
     #[when(
-        expr = "{word} is running and observing {word} in {word}, and registered at {word} in {word}"
+        expr = "{word} is running and observing {word} in {word}, and registered at {word} in {word} in supervisor feature"
     )]
     async fn agent_is_running(
         world: &mut PaddlerWorld,
@@ -149,7 +151,7 @@ mod tests {
     }
 
     #[then(
-        expr = "{word} in {word} must report that {word} is registered with {int} slots at {word}"
+        expr = "{word} in {word} must report that {word} is registered with {int} slots at {word} in supervisor feature"
     )]
     async fn display_agent_slots(
         _world: &mut PaddlerWorld,
@@ -189,7 +191,48 @@ mod tests {
         Ok(())
     }
 
-    #[when(expr = r"{int} request(s) is/are proxied to {word} in {word}")]
+    #[then(
+        expr = "{string} in {string} must report that {string} cannot fetch {string} in {string} in supervisor feature"
+    )]
+    async fn agent_cannot_fetch_llamacpp(
+        _world: &mut PaddlerWorld,
+        _balancer_name: String,
+        balancer_addr: String,
+        agent_name: String,
+        _llamacpp_name: String,
+        llamacpp_addr: String,
+    ) -> Result<()> {
+        std::thread::sleep(std::time::Duration::from_secs(15));
+
+        let mut response = serde_json::from_str::<UpstreamPeerPool>(
+            &reqwest::get(format!("http://{}/api/v1/agents", balancer_addr))
+                .await?
+                .text()
+                .await?,
+        )?;
+        let agents = response.agents.get_mut()?;
+
+        let agent = agents
+            .into_iter()
+            .find(|agent| agent.agent_name == Some(agent_name.clone()));
+
+        if let Some(agent) = agent {
+            assert!(agent.error.is_some());
+            assert_eq!(
+                agent.error,
+                Some(format!(
+                    "Request error: error sending request for url (http://{}/slots)",
+                    llamacpp_addr
+                ))
+            );
+            assert_eq!(agent.is_authorized, None);
+            assert_eq!(agent.is_slots_endpoint_enabled, None);
+        }
+
+        Ok(())
+    }
+
+    #[when(expr = r"{int} request(s) is/are proxied to {word} in {word} in supervisor feature")]
     async fn proxy_balancer(
         _world: &mut PaddlerWorld,
         requests: usize,
@@ -235,7 +278,7 @@ mod tests {
     }
 
     #[when(
-        expr = r"{int} request(s) is/are proxied to {word} in {word} to change slots to {int} and port to {word}"
+        expr = r"{int} request(s) is/are proxied to {word} in {word} to change slots to {int} and port to {word} in supervisor feature"
     )]
     async fn proxy_supervisor(
         _world: &mut PaddlerWorld,
@@ -281,7 +324,7 @@ mod tests {
     }
 
     #[then(
-        expr = "{word} must tell {int} slot(s) is/are busy and {int} slot(s) is/are idle in {word} from {word} and {word}"
+        expr = "{word} must tell {int} slot(s) is/are busy and {int} slot(s) is/are idle in {word} from {word} and {word} in supervisor feature"
     )]
     async fn slot_is_busy(
         _world: &mut PaddlerWorld,
@@ -308,7 +351,7 @@ mod tests {
         Ok(())
     }
 
-    #[when(expr = "{word} from {word} is killed")]
+    #[when(expr = "{word} from {word} is killed in supervisor feature")]
     async fn kill_llamacpp(
         world: &mut PaddlerWorld,
         _llamacpp_name: String,
@@ -331,7 +374,7 @@ mod tests {
         Ok(())
     }
 
-    #[then(expr = r"{word} must return a(n) {word} response in {word}")]
+    #[then(expr = r"{word} must return a(n) {word} response in {word} in supervisor feature")]
     async fn get_response(
         world: &mut PaddlerWorld,
         _balancer_name: String,
@@ -350,7 +393,6 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
     pub async fn run_cucumber_tests() {
         PaddlerWorld::cucumber()
             .max_concurrent_scenarios(1)
@@ -358,11 +400,6 @@ mod tests {
             // .retries(3)
             // .retry_after(std::time::Duration::from_secs(60))
             .fail_on_skipped()
-            .before(|_feature, _rule, _scenario, world| {
-                Box::pin(async move {
-                    world.setup().expect("Setup Failed");
-                })
-            })
             .after(|_feature, _rule, _scenario, _scenario_finished, world| {
                 Box::pin(async move {
                     if let Some(world) = world {

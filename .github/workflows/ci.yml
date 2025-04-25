@@ -4,11 +4,11 @@ on:
   push:
     branches:
       - main
-      - cicd
+      - supervisor
   pull_request:
     branches:
       - main
-      - cicd
+      - supervisor
 
 jobs:
   setup:

@@ -2916,6 +2916,7 @@ dependencies = [
  "actix-web",
  "askama",
  "askama_actix",
+ "async-stream",
  "async-trait",
  "bytes 1.8.0",
  "cadence",
