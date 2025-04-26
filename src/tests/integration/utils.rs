@@ -7,12 +7,11 @@ pub mod utils {
         io::Write,
         process::{Child, Command},
         result::Result as CoreResult,
-        str::FromStr,
         time::SystemTime,
     };
 
     use reqwest::Response;
-    use sysinfo::{Pid, Process, Signal, System};
+    use sysinfo::{Pid, Signal, System};
 
     use crate::errors::result::Result;
 
@@ -23,6 +22,9 @@ pub mod utils {
         pub agent2: Option<Child>,
         pub supervisor1: Option<Child>,
         pub supervisor2: Option<Child>,
+        pub supervisor1_children: Option<Vec<Pid>>,
+        pub supervisor2_children: Option<Vec<Pid>>,
+        pub system: Option<System>,
         pub llamacpp1: Option<Child>,
         pub llamacpp2: Option<Child>,
         pub statsd: Option<Child>,
@@ -44,10 +46,30 @@ pub mod utils {
 
             let mut kill_process = |process: &mut Option<Child>| {
                 if let Some(p) = process {
-                    if let Err(err) = p.kill() {
-                        errors.push(format!("Failed to kill: {}", err));
+                    match p.kill() {
+                        Ok(_) => {
+                            if let Err(e) = p.wait() {
+                                errors.push(format!("Failed to wait for process: {}", e));
+                            }
+                        }
+                        Err(e) => {
+                            errors.push(format!("Failed to kill process: {}", e));
+                        }
                     }
                     *process = None;
+                }
+            };
+
+            let kill_children = |pids: &mut Option<Vec<Pid>>, system: &mut System| {
+                if let Some(children) = pids {
+                    for &pid in children.iter() {
+                        if let Some(process) = system.process(pid) {
+                            process.kill();
+                            process.wait().unwrap();
+                        }
+                    }
+                    system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+                    *pids = None;
                 }
             };
 
@@ -60,6 +82,13 @@ pub mod utils {
             kill_process(&mut self.prometheus);
             kill_process(&mut self.supervisor1);
             kill_process(&mut self.supervisor2);
+
+            let mut system = self.system.take().unwrap_or_else(|| System::new_all());
+
+            kill_children(&mut self.supervisor1_children, &mut system);
+            kill_children(&mut self.supervisor2_children, &mut system);
+
+            self.system = Some(system);
 
             Ok(())
         }
@@ -275,28 +304,33 @@ scrape_configs:
     pub fn kill_children(proc_id: u32) {
         let system = System::new_all();
 
-        let processes: Vec<&Process> = system
-            .processes()
-            .values()
-            .filter_map(|process| {
-                if process
-                    .parent()
-                    .map(|pid| pid == Pid::from_u32(proc_id))
-                    .unwrap_or(false)
-                    && !process
-                        .cmd()
-                        .contains(&OsString::from_str("supervise").ok()?)
-                {
-                    Some(process)
-                } else {
-                    None
-                }
-            })
-            .collect();
+        let pids = get_children(proc_id, &system);
 
-        for process in processes {
+        for pid in &pids {
+            let process = system.process(*pid).unwrap();
+
             process.kill_with(Signal::Kill);
             process.wait();
         }
     }
+
+    pub fn get_children(proc_id: u32, system: &System) -> Vec<Pid> {
+        system
+            .processes()
+            .values()
+            .filter(|process| {
+                process
+                    .parent()
+                    .map(|pid| pid == Pid::from_u32(proc_id))
+                    .unwrap_or(false)
+                    && !process.cmd().contains(&OsString::from("supervise"))
+            })
+            .map(|p| p.pid())
+            .collect()
+    }
+
+    // #[derive(Clone)]
+    // pub struct MyProcess {
+    //     process: Process
+    // }
 }

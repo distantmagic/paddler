@@ -248,7 +248,7 @@ pub mod tests {
         Ok(())
     }
 
-    pub async fn run_cucumber_tests() {
+    pub async fn run_agent_tests() {
         PaddlerWorld::cucumber()
             .max_concurrent_scenarios(1)
             .fail_fast()

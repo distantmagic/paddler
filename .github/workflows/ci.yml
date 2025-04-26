@@ -54,9 +54,13 @@ jobs:
       - name: Download node
         run: |
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            winget install Schniz.fnm && fnm install 22
+            winget install Schniz.fnm
+            fnm install 22
           else
-            curl -O https://fnm.vercel.app/install | bash && fnm install 22
+            curl -fsSL https://fnm.vercel.app/install | bash
+            export PATH="$HOME/.local/share/fnm:$PATH"
+            fnm install 22
+            fnm use 22
           fi
         shell: bash
 

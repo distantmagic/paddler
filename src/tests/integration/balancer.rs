@@ -1,9 +1,5 @@
 #[cfg(test)]
-mod tests {
-    use cucumber::{given, then, when, World};
-    use serde_json::{json, Value};
-    use serial_test::{file_serial, serial};
-
+pub mod tests {
     use crate::{
         balancer::upstream_peer_pool::UpstreamPeerPool,
         errors::result::Result,
@@ -11,6 +7,8 @@ mod tests {
             get_unix_time_from, start_llamacpp, start_prometheus, start_statsd, PaddlerWorld,
         },
     };
+    use cucumber::{given, then, when, World};
+    use serde_json::{json, Value};
 
     use std::process::Command;
 
@@ -257,7 +255,7 @@ mod tests {
         Ok(())
     }
 
-    pub async fn run_cucumber_tests() {
+    pub async fn run_balancer_tests() {
         PaddlerWorld::cucumber()
             .max_concurrent_scenarios(1)
             .fail_fast()
