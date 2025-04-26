@@ -1,7 +1,8 @@
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use cucumber::{given, then, when, World};
     use serde_json::{json, Value};
+    use serial_test::{file_serial, serial};
 
     use crate::{
         balancer::upstream_peer_pool::UpstreamPeerPool,
