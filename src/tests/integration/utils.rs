@@ -1,10 +1,13 @@
 #[cfg(test)]
 pub mod utils {
+    use std::ffi::OsString;
+    use std::fs::File;
+    use std::io::Write;
+    use std::path::Path;
+
     use std::{
         env::current_dir,
-        ffi::OsString,
-        fs::File,
-        io::Write,
+        os::unix::process::CommandExt,
         process::{Child, Command},
         result::Result as CoreResult,
         time::SystemTime,

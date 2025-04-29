@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use log::{debug, error, info, warn};
 use pingora::{server::ShutdownWatch, services::Service};
+use std::os::unix::process::CommandExt;
 use std::{
     fs::File,
     io::Read,

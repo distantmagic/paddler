@@ -37,11 +37,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     
     steps:
-      - name: Build static files
-        run: make esbuild
-
-      - name: Build binary
-        run: cargo build --features web_dashboard --release
+      - name: Build static files and binairy
+        run: make
 
   test_dependencies:
     needs: setup
