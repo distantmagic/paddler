@@ -8,7 +8,8 @@ pub mod tests {
         tests::integration::utils::utils::{start_llamacpp, PaddlerWorld},
     };
 
-    use std::{net::SocketAddr, process::Command, str::FromStr};
+    use std::{net::SocketAddr, str::FromStr};
+    use tokio::process::Command;
 
     #[given(
         expr = "{word} is running at {word}, {word} and reports metrics to {word} every {int} second(s) in agent feature"
@@ -50,8 +51,8 @@ pub mod tests {
         slots: usize,
     ) -> Result<()> {
         match llamacpp_name.as_str() {
-            "llamacpp-1" => world.llamacpp1 = Some(start_llamacpp(addr, slots)?),
-            "llamacpp-2" => world.llamacpp2 = Some(start_llamacpp(addr, slots)?),
+            "llamacpp-1" => world.llamacpp1 = Some(start_llamacpp(addr, slots).await?),
+            "llamacpp-2" => world.llamacpp2 = Some(start_llamacpp(addr, slots).await?),
             _ => (),
         }
 
@@ -143,15 +144,15 @@ pub mod tests {
         match agent_name.as_str() {
             "agent-1" => {
                 if let Some(agent) = world.agent1.as_mut() {
-                    agent.kill()?;
-                    agent.wait()?;
+                    agent.kill().await?;
+                    agent.wait().await?;
                     world.agent1 = None;
                 }
             }
             "agent-2" => {
                 if let Some(agent) = world.agent2.as_mut() {
-                    agent.kill()?;
-                    agent.wait()?;
+                    agent.kill().await?;
+                    agent.wait().await?;
                     world.agent2 = None;
                 }
             }
@@ -194,12 +195,12 @@ pub mod tests {
     ) -> Result<()> {
         match llamacpp_name.as_str() {
             "llamacpp-1" => {
-                world.llamacpp1.as_mut().unwrap().kill()?;
-                world.llamacpp1.as_mut().unwrap().wait()?;
+                world.llamacpp1.as_mut().unwrap().kill().await?;
+                world.llamacpp1.as_mut().unwrap().wait().await?;
             }
             "llamacpp-2" => {
-                world.llamacpp2.as_mut().unwrap().kill()?;
-                world.llamacpp2.as_mut().unwrap().wait()?;
+                world.llamacpp2.as_mut().unwrap().kill().await?;
+                world.llamacpp2.as_mut().unwrap().wait().await?;
             }
             _ => (),
         }

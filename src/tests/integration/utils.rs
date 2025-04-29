@@ -3,18 +3,12 @@ pub mod utils {
     use std::ffi::OsString;
     use std::fs::File;
     use std::io::Write;
-    use std::path::Path;
 
-    use std::{
-        env::current_dir,
-        os::unix::process::CommandExt,
-        process::{Child, Command},
-        result::Result as CoreResult,
-        time::SystemTime,
-    };
+    use std::{env::current_dir, result::Result as CoreResult, time::SystemTime};
 
     use reqwest::Response;
     use sysinfo::{Pid, Signal, System};
+    use tokio::process::{Child, Command};
 
     use crate::errors::result::Result;
 
@@ -36,10 +30,10 @@ pub mod utils {
     }
 
     impl PaddlerWorld {
-        pub fn setup() -> Result<()> {
-            download_llamacpp()?;
-            download_model()?;
-            build_paddler()?;
+        pub async fn setup() -> Result<()> {
+            download_llamacpp().await?;
+            download_model().await?;
+            build_paddler().await?;
 
             Ok(())
         }
@@ -47,11 +41,11 @@ pub mod utils {
         pub async fn teardown(&mut self) -> Result<()> {
             let mut errors = Vec::new();
 
-            let mut kill_process = |process: &mut Option<Child>| {
+            let mut kill_process = async |process: &mut Option<Child>| {
                 if let Some(p) = process {
-                    match p.kill() {
+                    match p.kill().await {
                         Ok(_) => {
-                            if let Err(e) = p.wait() {
+                            if let Err(e) = p.wait().await {
                                 errors.push(format!("Failed to wait for process: {}", e));
                             }
                         }
@@ -76,15 +70,15 @@ pub mod utils {
                 }
             };
 
-            kill_process(&mut self.agent1);
-            kill_process(&mut self.agent2);
-            kill_process(&mut self.llamacpp1);
-            kill_process(&mut self.llamacpp2);
-            kill_process(&mut self.balancer1);
-            kill_process(&mut self.statsd);
-            kill_process(&mut self.prometheus);
-            kill_process(&mut self.supervisor1);
-            kill_process(&mut self.supervisor2);
+            kill_process(&mut self.agent1).await;
+            kill_process(&mut self.agent2).await;
+            kill_process(&mut self.llamacpp1).await;
+            kill_process(&mut self.llamacpp2).await;
+            kill_process(&mut self.balancer1).await;
+            kill_process(&mut self.statsd).await;
+            kill_process(&mut self.prometheus).await;
+            kill_process(&mut self.supervisor1).await;
+            kill_process(&mut self.supervisor2).await;
 
             let mut system = self.system.take().unwrap_or_else(|| System::new_all());
 
@@ -97,10 +91,12 @@ pub mod utils {
         }
     }
 
-    fn download_llamacpp() -> Result<()> {
+    async fn download_llamacpp() -> Result<()> {
         Command::new("git")
             .args(["clone", "https://github.com/ggml-org/llama.cpp.git"])
-            .status()?;
+            .spawn()?
+            .wait()
+            .await?;
 
         let previous_dir = current_dir()?;
 
@@ -112,21 +108,35 @@ pub mod utils {
                 "--hard",
                 "f52d59d771dc231fc2ac39adacf157ddefc97730",
             ])
-            .status()?;
+            .spawn()?
+            .wait()
+            .await?;
         Command::new("git")
             .args(["clean", "-df", "f52d59d771dc231fc2ac39adacf157ddefc97730"])
-            .status()?;
+            .spawn()?
+            .wait()
+            .await?;
 
         match std::env::consts::OS {
             "windows" => {
-                Command::new("cmake").args(["."]).status()?;
-                Command::new("cmake").args(["--build", "."]).status()?;
+                Command::new("cmake").args(["."]).spawn()?.wait().await?;
+                Command::new("cmake")
+                    .args(["--build", "."])
+                    .spawn()?
+                    .wait()
+                    .await?;
             }
             _ => {
-                Command::new("cmake").args(["-B", "build"]).status()?;
+                Command::new("cmake")
+                    .args(["-B", "build"])
+                    .spawn()?
+                    .wait()
+                    .await?;
                 Command::new("cmake")
                     .args(["--build", "build", "--config", "Release"])
-                    .status()?;
+                    .spawn()?
+                    .wait()
+                    .await?;
             }
         };
 
@@ -135,22 +145,25 @@ pub mod utils {
         Ok(())
     }
 
-    pub fn download_model() -> Result<()> {
+    pub async fn download_model() -> Result<()> {
         match std::env::consts::OS {
             "windows" => {
                 Command::new("powershell")
-            .args(["-Command", "Invoke-WebRequest -Uri 'https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf' -OutFile qwen2_500m.gguf"])
-            .status()?;
+                    .args(["-Command", "Invoke-WebRequest -Uri 'https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf' -OutFile qwen2_500m.gguf"])
+                    .spawn()?
+                    .wait().await?;
             }
             "macos" => {
                 Command::new("curl")
-            .args(["-L", "-o", "qwen2_500m.gguf", "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf"])
-            .status()?;
+                    .args(["-L", "-o", "qwen2_500m.gguf", "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf"])
+                    .spawn()?
+                    .wait().await?;
             }
             "linux" => {
                 Command::new("wget")
-            .args(["-O", "qwen2_500m.gguf", "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf"])
-            .status()?;
+                    .args(["-O", "qwen2_500m.gguf", "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf"])
+                    .spawn()?
+                    .wait().await?;
             }
             _ => (),
         };
@@ -158,20 +171,22 @@ pub mod utils {
         Ok(())
     }
 
-    pub fn build_paddler() -> Result<()> {
+    pub async fn build_paddler() -> Result<()> {
         Command::new("make")
             .args(["esbuild"])
-            .spawn()
-            .expect("Failed to run model");
+            .spawn()?
+            .wait()
+            .await?;
         Command::new("cargo")
             .args(["build", "--features", "web_dashboard", "--release"])
-            .spawn()
-            .expect("Failed to run model");
+            .spawn()?
+            .wait()
+            .await?;
 
         Ok(())
     }
 
-    pub fn start_llamacpp(port: String, slots: usize) -> Result<Child> {
+    pub async fn start_llamacpp(port: String, slots: usize) -> Result<Child> {
         let mut cmd = match std::env::consts::OS {
             "windows" => {
                 let mut cmd = Command::new("llama.cpp/bin/Debug/llama-server.exe");
@@ -213,7 +228,7 @@ pub mod utils {
         Ok(cmd.spawn()?)
     }
 
-    pub fn start_supervisor(
+    pub async fn start_supervisor(
         supervisor_name: String,
         supervisor_addr: String,
         driver_type: String,
@@ -249,11 +264,11 @@ pub mod utils {
                 "--config-driver",
                 config_driver,
             ])
-            .spawn()
-            .expect("Failed to run balancer"))
+            .kill_on_drop(true)
+            .spawn()?)
     }
 
-    pub fn start_statsd(management_addr: String, exporter_addr: String) -> Result<Child> {
+    pub async fn start_statsd(management_addr: String, exporter_addr: String) -> Result<Child> {
         let mut cmd = match cfg!(target_os = "windows") {
             true => Command::new("./statsd_exporter.exe"),
             false => Command::new("statsd_exporter"),
@@ -270,7 +285,10 @@ pub mod utils {
         Ok(cmd.spawn()?)
     }
 
-    pub fn start_prometheus(prometheus_addr: String, management_addr: String) -> Result<Child> {
+    pub async fn start_prometheus(
+        prometheus_addr: String,
+        management_addr: String,
+    ) -> Result<Child> {
         let mut file = File::create("prometheus.yml")?;
 
         file.write(
@@ -331,9 +349,4 @@ scrape_configs:
             .map(|p| p.pid())
             .collect()
     }
-
-    // #[derive(Clone)]
-    // pub struct MyProcess {
-    //     process: Process
-    // }
 }

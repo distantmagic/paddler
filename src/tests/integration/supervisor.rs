@@ -13,11 +13,8 @@ pub mod tests {
         },
     };
 
-    use std::{
-        net::SocketAddr,
-        process::{Child, Command},
-        str::FromStr,
-    };
+    use std::{net::SocketAddr, str::FromStr};
+    use tokio::process::Command;
 
     #[given(
         expr = "{word} is running at {word}, {word} and reports metrics to {word} every {int} second(s) in supervisor feature"
@@ -60,7 +57,7 @@ pub mod tests {
         exporter_addr: String,
         management_addr: String,
     ) -> Result<()> {
-        world.statsd = Some(start_statsd(management_addr, exporter_addr)?);
+        world.statsd = Some(start_statsd(management_addr, exporter_addr).await?);
 
         Ok(())
     }
@@ -75,7 +72,7 @@ pub mod tests {
         statsd_addr: String,
         _monitoring_interval: usize,
     ) -> Result<()> {
-        world.prometheus = Some(start_prometheus(prometheus_addr, statsd_addr)?);
+        world.prometheus = Some(start_prometheus(prometheus_addr, statsd_addr).await?);
 
         Ok(())
     }
@@ -96,24 +93,30 @@ pub mod tests {
     ) -> Result<()> {
         match supervisor_name.as_str() {
             "supervisor-1" => {
-                world.supervisor1 = Some(start_supervisor(
-                    supervisor_name,
-                    supervisor_addr,
-                    driver_type,
-                    driver_addr,
-                    llamacpp_addr,
-                    model_name,
-                )?)
+                world.supervisor1 = Some(
+                    start_supervisor(
+                        supervisor_name,
+                        supervisor_addr,
+                        driver_type,
+                        driver_addr,
+                        llamacpp_addr,
+                        model_name,
+                    )
+                    .await?,
+                )
             }
             "supervisor-2" => {
-                world.supervisor2 = Some(start_supervisor(
-                    supervisor_name,
-                    supervisor_addr,
-                    driver_type,
-                    driver_addr,
-                    llamacpp_addr,
-                    model_name,
-                )?)
+                world.supervisor2 = Some(
+                    start_supervisor(
+                        supervisor_name,
+                        supervisor_addr,
+                        driver_type,
+                        driver_addr,
+                        llamacpp_addr,
+                        model_name,
+                    )
+                    .await?,
+                )
             }
             _ => (),
         }
@@ -369,18 +372,20 @@ pub mod tests {
             "supervisor-1" => {
                 if let Some(supervisor) = &world.supervisor1 {
                     let supervisor_pid = supervisor.id();
-                    kill_children(supervisor_pid);
+                    kill_children(supervisor_pid.unwrap());
 
-                    let processes = get_children(supervisor_pid, world.system.as_ref().unwrap());
+                    let processes =
+                        get_children(supervisor_pid.unwrap(), world.system.as_ref().unwrap());
                     world.supervisor1_children = Some(processes);
                 }
             }
             "supervisor-2" => {
                 if let Some(supervisor) = &world.supervisor2 {
                     let supervisor_pid = supervisor.id();
-                    kill_children(supervisor_pid);
+                    kill_children(supervisor_pid.unwrap());
 
-                    let processes = get_children(supervisor_pid, world.system.as_ref().unwrap());
+                    let processes =
+                        get_children(supervisor_pid.unwrap(), world.system.as_ref().unwrap());
                     world.supervisor2_children = Some(processes);
                 }
             }

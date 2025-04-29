@@ -10,7 +10,7 @@ pub mod tests {
     use cucumber::{given, then, when, World};
     use serde_json::{json, Value};
 
-    use std::process::Command;
+    use tokio::process::Command;
 
     #[given(
         expr = "{word} is running at {word}, {word} and reports metrics to {word} every {int} second(s) in balancer feature"
@@ -53,7 +53,7 @@ pub mod tests {
         exporter_addr: String,
         management_addr: String,
     ) -> Result<()> {
-        world.statsd = Some(start_statsd(management_addr, exporter_addr)?);
+        world.statsd = Some(start_statsd(management_addr, exporter_addr).await?);
 
         Ok(())
     }
@@ -68,7 +68,7 @@ pub mod tests {
         statsd_addr: String,
         _monitoring_interval: usize,
     ) -> Result<()> {
-        world.prometheus = Some(start_prometheus(prometheus_addr, statsd_addr)?);
+        world.prometheus = Some(start_prometheus(prometheus_addr, statsd_addr).await?);
 
         Ok(())
     }
@@ -81,8 +81,8 @@ pub mod tests {
         slots: usize,
     ) -> Result<()> {
         match llamacpp_name.as_str() {
-            "llamacpp-1" => world.llamacpp1 = Some(start_llamacpp(addr, slots)?),
-            "llamacpp-2" => world.llamacpp2 = Some(start_llamacpp(addr, slots)?),
+            "llamacpp-1" => world.llamacpp1 = Some(start_llamacpp(addr, slots).await?),
+            "llamacpp-2" => world.llamacpp2 = Some(start_llamacpp(addr, slots).await?),
             _ => (),
         }
 
