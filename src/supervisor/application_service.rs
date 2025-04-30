@@ -3,6 +3,7 @@ use log::{debug, error, info, warn};
 use pingora::{server::ShutdownWatch, services::Service};
 use std::process::Stdio;
 use std::{fs::File, io::Read, path::PathBuf, thread::sleep, time::Duration};
+use tokio::signal::ctrl_c;
 use toml_edit::DocumentMut;
 
 #[cfg(feature = "etcd")]
@@ -67,7 +68,7 @@ impl ApplicationService {
             .stdout(Stdio::null())
             .stderr(Stdio::null());
 
-        let mut child = cmd.kill_on_drop(true).spawn()?;
+        let mut child = cmd.spawn()?;
 
         sleep(Duration::from_millis(200));
 
@@ -80,11 +81,12 @@ impl ApplicationService {
                 self.llamacpp_process = Some(child);
                 self.update_config.send(args.to_vec())?;
                 self.input_arg_works = true;
+
                 Ok(())
             }
-            Ok(Some(code)) => {
+            Ok(Some(exit_status)) => {
                 self.input_arg_works = false;
-                Err(AppError::UnexpectedError(code.to_string()))
+                Err(AppError::UnexpectedError(exit_status.to_string()))
             }
             Err(e) => {
                 self.input_arg_works = false;

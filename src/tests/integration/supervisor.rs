@@ -8,13 +8,16 @@ pub mod tests {
         balancer::upstream_peer_pool::UpstreamPeerPool,
         errors::result::Result,
         tests::integration::utils::utils::{
-            get_children, kill_children, start_prometheus, start_statsd, start_supervisor,
-            PaddlerWorld,
+            kill_children, start_prometheus, start_statsd, start_supervisor, PaddlerWorld,
         },
     };
 
+    use log::info;
     use std::{net::SocketAddr, str::FromStr};
-    use tokio::process::Command;
+    use tokio::{
+        process::Command,
+        signal::unix::{signal, SignalKind},
+    };
 
     #[given(
         expr = "{word} is running at {word}, {word} and reports metrics to {word} every {int} second(s) in supervisor feature"
@@ -106,17 +109,31 @@ pub mod tests {
                 )
             }
             "supervisor-2" => {
-                world.supervisor2 = Some(
-                    start_supervisor(
-                        supervisor_name,
-                        supervisor_addr,
-                        driver_type,
-                        driver_addr,
-                        llamacpp_addr,
-                        model_name,
-                    )
-                    .await?,
+                let mut child = start_supervisor(
+                    supervisor_name,
+                    supervisor_addr,
+                    driver_type,
+                    driver_addr,
+                    llamacpp_addr,
+                    model_name,
                 )
+                .await?;
+
+                // world.supervisor2 = Some(child);
+
+                tokio::spawn(async move {
+                    let mut stream = signal(SignalKind::hangup()).unwrap();
+
+                    tokio::select! {
+                        status = child.wait() => {
+                            info!("LLaMA process exited with status: {:?}", status);
+                        }
+                        _ = stream.recv() => {
+
+                            info!("got signal HUP");
+                        }
+                    }
+                });
             }
             _ => (),
         }
@@ -281,8 +298,6 @@ pub mod tests {
             }));
         }
 
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-
         Ok(())
     }
 
@@ -372,21 +387,13 @@ pub mod tests {
             "supervisor-1" => {
                 if let Some(supervisor) = &world.supervisor1 {
                     let supervisor_pid = supervisor.id();
-                    kill_children(supervisor_pid.unwrap());
-
-                    let processes =
-                        get_children(supervisor_pid.unwrap(), world.system.as_ref().unwrap());
-                    world.supervisor1_children = Some(processes);
+                    kill_children(supervisor_pid).await;
                 }
             }
             "supervisor-2" => {
                 if let Some(supervisor) = &world.supervisor2 {
                     let supervisor_pid = supervisor.id();
-                    kill_children(supervisor_pid.unwrap());
-
-                    let processes =
-                        get_children(supervisor_pid.unwrap(), world.system.as_ref().unwrap());
-                    world.supervisor2_children = Some(processes);
+                    kill_children(supervisor_pid).await;
                 }
             }
             _ => (),

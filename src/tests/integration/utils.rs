@@ -7,7 +7,7 @@ pub mod utils {
     use std::{env::current_dir, result::Result as CoreResult, time::SystemTime};
 
     use reqwest::Response;
-    use sysinfo::{Pid, Signal, System};
+    use sysinfo::{Process, System};
     use tokio::process::{Child, Command};
 
     use crate::errors::result::Result;
@@ -19,8 +19,6 @@ pub mod utils {
         pub agent2: Option<Child>,
         pub supervisor1: Option<Child>,
         pub supervisor2: Option<Child>,
-        pub supervisor1_children: Option<Vec<Pid>>,
-        pub supervisor2_children: Option<Vec<Pid>>,
         pub system: Option<System>,
         pub llamacpp1: Option<Child>,
         pub llamacpp2: Option<Child>,
@@ -57,19 +55,6 @@ pub mod utils {
                 }
             };
 
-            let kill_children = |pids: &mut Option<Vec<Pid>>, system: &mut System| {
-                if let Some(children) = pids {
-                    for &pid in children.iter() {
-                        if let Some(process) = system.process(pid) {
-                            process.kill();
-                            process.wait().unwrap();
-                        }
-                    }
-                    system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-                    *pids = None;
-                }
-            };
-
             kill_process(&mut self.agent1).await;
             kill_process(&mut self.agent2).await;
             kill_process(&mut self.llamacpp1).await;
@@ -80,12 +65,7 @@ pub mod utils {
             kill_process(&mut self.supervisor1).await;
             kill_process(&mut self.supervisor2).await;
 
-            let mut system = self.system.take().unwrap_or_else(|| System::new_all());
-
-            kill_children(&mut self.supervisor1_children, &mut system);
-            kill_children(&mut self.supervisor2_children, &mut system);
-
-            self.system = Some(system);
+            kill_children(None).await;
 
             Ok(())
         }
@@ -265,6 +245,7 @@ pub mod utils {
                 config_driver,
             ])
             .kill_on_drop(true)
+            .process_group(0)
             .spawn()?)
     }
 
@@ -322,31 +303,31 @@ scrape_configs:
         }
     }
 
-    pub fn kill_children(proc_id: u32) {
+    pub async fn kill_children(proc_id: Option<u32>) {
         let system = System::new_all();
 
-        let pids = get_children(proc_id, &system);
+        let procs = get_children(proc_id, &system);
 
-        for pid in &pids {
-            let process = system.process(*pid).unwrap();
+        // panic!("killing: {:#?}", procs);
 
-            process.kill_with(Signal::Kill);
-            process.wait();
+        for proc in procs {
+            proc.kill();
+            proc.wait();
         }
     }
 
-    pub fn get_children(proc_id: u32, system: &System) -> Vec<Pid> {
+    pub fn get_children(proc_id: Option<u32>, system: &System) -> Vec<&Process> {
         system
             .processes()
             .values()
             .filter(|process| {
-                process
-                    .parent()
-                    .map(|pid| pid == Pid::from_u32(proc_id))
-                    .unwrap_or(false)
-                    && !process.cmd().contains(&OsString::from("supervise"))
+                let parent_matches = match proc_id {
+                    Some(pid) => process.parent().map(|p| p.as_u32()) == Some(pid),
+                    None => true,
+                };
+
+                parent_matches && process.cmd().contains(&OsString::from("llama-server"))
             })
-            .map(|p| p.pid())
             .collect()
     }
 }
