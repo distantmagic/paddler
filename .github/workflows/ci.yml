@@ -32,8 +32,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     
     steps:
-      - name: Set up Rust
+      - name: set up Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
 
       - name: Build static files and binary
         run: make
