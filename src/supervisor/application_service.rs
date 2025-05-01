@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use log::{debug, error, info, warn};
 use pingora::{server::ShutdownWatch, services::Service};
-use std::process::Stdio;
-use std::{fs::File, io::Read, path::PathBuf, thread::sleep, time::Duration};
-use tokio::signal::ctrl_c;
+use std::{fs::File, io::Read, path::PathBuf, process::Stdio, thread::sleep, time::Duration};
+use tokio::process::{Child, Command};
+
 use toml_edit::DocumentMut;
 
 #[cfg(feature = "etcd")]
@@ -11,10 +11,7 @@ use etcd_client::Client;
 
 #[cfg(feature = "etcd")]
 use std::net::SocketAddr;
-use tokio::{
-    process::{Child, Command},
-    sync::broadcast::{Receiver, Sender},
-};
+use tokio::sync::broadcast::{Receiver, Sender};
 
 #[cfg(unix)]
 use pingora::server::ListenFds;
@@ -64,9 +61,8 @@ impl ApplicationService {
 
     async fn spawn_llama_process(&mut self, args: &Vec<String>) -> Result<()> {
         let mut cmd = Command::new(&args[1]);
-        cmd.args(&args[2..])
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
+        cmd.args(&args[2..]);
+        // .stdout(Stdio::null()).stderr(Stdio::null());
 
         let mut child = cmd.spawn()?;
 
@@ -75,18 +71,20 @@ impl ApplicationService {
         match child.try_wait() {
             Ok(None) => {
                 if let Some(process) = &mut self.llamacpp_process {
-                    process.kill().await?;
-                    process.wait().await?;
+                    if process.try_wait()?.is_none() {
+                        process.kill().await?;
+                        process.wait().await?;
+                    }
                 }
                 self.llamacpp_process = Some(child);
                 self.update_config.send(args.to_vec())?;
                 self.input_arg_works = true;
-
                 Ok(())
             }
-            Ok(Some(exit_status)) => {
+
+            Ok(Some(code)) => {
                 self.input_arg_works = false;
-                Err(AppError::UnexpectedError(exit_status.to_string()))
+                Err(AppError::UnexpectedError(code.to_string()))
             }
             Err(e) => {
                 self.input_arg_works = false;

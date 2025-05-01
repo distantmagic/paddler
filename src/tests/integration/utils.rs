@@ -6,6 +6,7 @@ pub mod utils {
 
     use std::{env::current_dir, result::Result as CoreResult, time::SystemTime};
 
+    use log::error;
     use reqwest::Response;
     use sysinfo::{Process, System};
     use tokio::process::{Child, Command};
@@ -29,9 +30,9 @@ pub mod utils {
 
     impl PaddlerWorld {
         pub async fn setup() -> Result<()> {
-            download_llamacpp().await?;
-            download_model().await?;
-            build_paddler().await?;
+            // download_llamacpp().await?;
+            // download_model().await?;
+            // build_paddler().await?;
 
             Ok(())
         }
@@ -304,11 +305,10 @@ scrape_configs:
     }
 
     pub async fn kill_children(proc_id: Option<u32>) {
-        let system = System::new_all();
+        let mut system = System::new_all();
+        system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
 
         let procs = get_children(proc_id, &system);
-
-        // panic!("killing: {:#?}", procs);
 
         for proc in procs {
             proc.kill();
@@ -326,7 +326,9 @@ scrape_configs:
                     None => true,
                 };
 
-                parent_matches && process.cmd().contains(&OsString::from("llama-server"))
+                parent_matches
+                    && process.cmd().contains(&OsString::from("llama-server"))
+                    && !process.cmd().contains(&OsString::from("supervise"))
             })
             .collect()
     }

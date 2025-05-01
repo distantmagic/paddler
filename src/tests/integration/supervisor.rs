@@ -12,7 +12,7 @@ pub mod tests {
         },
     };
 
-    use log::info;
+    use log::{error, info};
     use std::{net::SocketAddr, str::FromStr};
     use tokio::{
         process::Command,
@@ -109,7 +109,7 @@ pub mod tests {
                 )
             }
             "supervisor-2" => {
-                let mut child = start_supervisor(
+                let child = start_supervisor(
                     supervisor_name,
                     supervisor_addr,
                     driver_type,
@@ -119,21 +119,7 @@ pub mod tests {
                 )
                 .await?;
 
-                // world.supervisor2 = Some(child);
-
-                tokio::spawn(async move {
-                    let mut stream = signal(SignalKind::hangup()).unwrap();
-
-                    tokio::select! {
-                        status = child.wait() => {
-                            info!("LLaMA process exited with status: {:?}", status);
-                        }
-                        _ = stream.recv() => {
-
-                            info!("got signal HUP");
-                        }
-                    }
-                });
+                world.supervisor2 = Some(child);
             }
             _ => (),
         }
@@ -197,6 +183,8 @@ pub mod tests {
         )?;
 
         let agents = response.agents.get_mut()?;
+
+        error!("{:#?}", agents);
 
         let agent = agents
             .into_iter()
@@ -342,7 +330,7 @@ pub mod tests {
             }));
         }
 
-        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
         Ok(())
     }
@@ -357,7 +345,7 @@ pub mod tests {
         idle_slots: usize,
         balancer_addr: String,
     ) -> Result<()> {
-        std::thread::sleep(std::time::Duration::from_secs(2));
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
         let response = serde_json::from_str::<UpstreamPeerPool>(
             reqwest::get(format!("http://{}/api/v1/agents", balancer_addr))

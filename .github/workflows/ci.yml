@@ -24,11 +24,6 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-
   build:
     needs: setup
     strategy:
@@ -37,7 +32,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     
     steps:
-      - name: Build static files and binairy
+      # - name: Set up Rust
+      #   uses: dtolnay/rust-toolchain@stable
+
+      - name: Build static files and binary
+        working-directory: paddler
         run: make
 
   test_dependencies:

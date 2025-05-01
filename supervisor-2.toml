@@ -1,2 +1,0 @@
-[config]
-supervisor-2 = '["--args","llama-server","-m","qwen2_500m.gguf","-np","4","--port","8081","--slots"]'
