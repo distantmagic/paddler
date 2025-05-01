@@ -38,7 +38,7 @@ jobs:
           toolchain: stable
 
       - name: Build static files and binary
-        run: make
+        run: make esbuild
 
   test_dependencies:
     needs: setup
