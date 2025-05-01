@@ -1,6 +1,10 @@
 use clap::{Parser, Subcommand};
+use serde::Deserialize;
+#[cfg(feature = "etcd")]
+use serde::Deserializer;
 use std::{
     net::{SocketAddr, ToSocketAddrs},
+    path::PathBuf,
     time::Duration,
 };
 
@@ -11,6 +15,8 @@ mod balancer;
 mod cmd;
 mod errors;
 mod llamacpp;
+mod supervisor;
+mod tests;
 
 fn resolve_socket_addr(s: &str) -> Result<SocketAddr> {
     let addrs: Vec<SocketAddr> = s.to_socket_addrs()?.collect();
@@ -43,6 +49,19 @@ fn parse_socket_addr(arg: &str) -> Result<SocketAddr> {
     }
 }
 
+#[cfg(feature = "etcd")]
+fn deserialize_socket_addr<'de, D>(deserializer: D) -> std::result::Result<SocketAddr, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let addr_str: String = Deserialize::deserialize(deserializer)?;
+    parse_socket_addr(&addr_str).map_err(serde::de::Error::custom)
+}
+
+fn parse_driver(arg: &str) -> Result<ConfigDriver> {
+    serde_json::from_str(arg).map_err(|e| format!("Invalid config driver JSON: {}", e).into())
+}
+
 #[derive(Parser)]
 #[command(arg_required_else_help(true), version, about, long_about = None)]
 /// Stateful load balancer for llama.cpp
@@ -67,7 +86,7 @@ enum Commands {
         #[arg(long)]
         /// API key for the llama.cpp instance (optional)
         llamacpp_api_key: Option<String>,
- 
+
         #[arg(long, value_parser = parse_socket_addr)]
         /// Address of the management server that the agent will report to
         management_addr: SocketAddr,
@@ -126,6 +145,42 @@ enum Commands {
         /// Address of the management server that the dashboard will connect to
         management_addr: SocketAddr,
     },
+    Supervise {
+        #[arg(long)]
+        /// Binary path used by supervisor instance
+        binary: String,
+
+        #[arg(long)]
+        /// Model path used by the llama.cpp instance
+        model: String,
+
+        #[arg(long)]
+        /// Port which used by llama.cpp
+        port: u16,
+
+        #[arg(long, value_parser = parse_socket_addr)]
+        /// Address of the management server which will configure llamacpp
+        supervisor_addr: SocketAddr,
+
+        /// Driver for the llama.cpp configuration storage
+        #[arg(long, value_parser = parse_driver)]
+        config_driver: ConfigDriver,
+    },
+}
+
+#[derive(Clone, Deserialize, Debug)]
+#[serde(tag = "type", rename_all = "lowercase")]
+enum ConfigDriver {
+    #[cfg(feature = "etcd")]
+    Etcd {
+        #[serde(deserialize_with = "deserialize_socket_addr")]
+        addr: SocketAddr,
+        name: String,
+    },
+    File {
+        path: PathBuf,
+        name: String,
+    },
 }
 
 fn main() -> Result<()> {
@@ -178,6 +233,19 @@ fn main() -> Result<()> {
             statsd_prefix.to_owned(),
             #[cfg(feature = "statsd_reporter")]
             statsd_reporting_interval.to_owned(),
+        ),
+        Some(Commands::Supervise {
+            binary,
+            model,
+            supervisor_addr,
+            config_driver,
+            port,
+        }) => cmd::supervisor::handle(
+            binary.to_owned(),
+            model.to_owned(),
+            port.to_owned(),
+            supervisor_addr.to_owned(),
+            config_driver.to_owned(),
         ),
         #[cfg(feature = "ratatui_dashboard")]
         Some(Commands::Dashboard { management_addr }) => cmd::dashboard::handle(management_addr),

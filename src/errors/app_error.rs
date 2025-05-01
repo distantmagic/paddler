@@ -36,6 +36,12 @@ pub enum AppError {
         #[from] tokio::sync::broadcast::error::SendError<actix_web::web::Bytes>,
     ),
 
+    #[error("Tokio broadcast receive error: {0}")]
+    TokioBroadcastSendConfigError(#[from] tokio::sync::broadcast::error::SendError<Vec<String>>),
+
+    #[error("Tokio broadcast receive error: {0}")]
+    MapToVecParseError(#[from] mavec::error::MavecError),
+
     #[error("Unexpected error: {0}")]
     UnexpectedError(String),
 
@@ -47,6 +53,19 @@ pub enum AppError {
 
     #[error("RwLock poison error: {0}")]
     RwLockPoisonError(String),
+
+    #[error("Invalid file error: {0}")]
+    InvalidFileError(String),
+
+    #[cfg(feature = "etcd")]
+    #[error("Invalid file error: {0}")]
+    ConfigurationServerError(#[from] etcd_client::Error),
+
+    #[error("Invalid config error: {0}")]
+    ConfigurationFileParseError(#[from] toml_edit::TomlError),
+
+    #[error("Channel receive error: {0}")]
+    ChannelReceiveError(#[from] tokio::sync::broadcast::error::RecvError),
 }
 
 impl From<&str> for AppError {
@@ -69,5 +88,11 @@ impl actix_web::ResponseError for AppError {
 impl<T> From<std::sync::PoisonError<T>> for AppError {
     fn from(err: std::sync::PoisonError<T>) -> Self {
         AppError::RwLockPoisonError(err.to_string())
+    }
+}
+
+impl From<String> for AppError {
+    fn from(err: String) -> Self {
+        AppError::InvalidFileError(err)
     }
 }

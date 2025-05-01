@@ -25,6 +25,7 @@ tokio = { version = "1.41.1", features = ["full"] }
 tokio-stream = { version = "0.1.16", features = ["sync"] }
 url = { version = "2.5.3", features = ["serde"] }
 uuid = { version = "1.11.0", features = ["serde", "v4"] }
+listeners = "0.2"
 
 # ratatui dashboard deps
 crossterm = { version = "0.28.1", features = ["event-stream"], optional = true }
@@ -42,13 +43,28 @@ itertools = "0.13.0"
 color-eyre = "0.6.3"
 time = "0.3.36"
 chrono = "0.4.38"
+mavec = "0.2.1"
+throttle = "0.1.0"
+debounce = "0.2.2"
+
+# etcd deps
+etcd-client = {version = "0.14.1", optional = true}
+lazy_static = "1.5.0"
+toml_edit = "0.22.24"
+cucumber = "0.21.1"
+httpmock = "0.7.0"
+sysinfo = "0.34.2"
 
 [features]
 default = ["statsd_reporter", "ratatui_dashboard"]
 ratatui_dashboard = ["dep:crossterm", "dep:ratatui"]
 statsd_reporter = ["dep:cadence"]
 web_dashboard = ["dep:askama", "dep:askama_actix", "dep:mime_guess", "dep:rust-embed"]
+etcd = ["dep:etcd-client"]
 
 [profile.release]
 lto = true
 codegen-units = 1
+strip = true
+rpath = false
+panic = "unwind"

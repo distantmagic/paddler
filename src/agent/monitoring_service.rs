@@ -17,7 +17,7 @@ use crate::{
 };
 
 pub struct MonitoringService {
-    external_llamacpp_addr: SocketAddr,
+    pub external_llamacpp_addr: SocketAddr,
     llamacpp_client: LlamacppClient,
     monitoring_interval: Duration,
     name: Option<String>,
@@ -41,7 +41,7 @@ impl MonitoringService {
         })
     }
 
-    async fn fetch_status(&self) -> Result<StatusUpdate> {
+    pub async fn fetch_status(&self) -> Result<StatusUpdate> {
         match self.llamacpp_client.get_available_slots().await {
             Ok(slots_response) => Ok(StatusUpdate::new(
                 self.name.to_owned(),
@@ -62,7 +62,7 @@ impl MonitoringService {
         }
     }
 
-    async fn report_status(&self, status: StatusUpdate) -> Result<usize> {
+    pub async fn report_status(&self, status: StatusUpdate) -> Result<usize> {
         let status = Bytes::from(serde_json::to_vec(&status)?);
 
         Ok(self.status_update_tx.send(status)?)
