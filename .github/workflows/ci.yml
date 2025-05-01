@@ -32,6 +32,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Build static files and binary
         run: make
 
