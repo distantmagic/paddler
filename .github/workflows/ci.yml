@@ -36,7 +36,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build static files and binary
-        working-directory: paddler
         run: make
 
   test_dependencies:
