@@ -6,7 +6,6 @@ pub mod utils {
 
     use std::{env::current_dir, result::Result as CoreResult, time::SystemTime};
 
-    use log::error;
     use reqwest::Response;
     use sysinfo::{Process, System};
     use tokio::process::{Child, Command};
@@ -30,9 +29,9 @@ pub mod utils {
 
     impl PaddlerWorld {
         pub async fn setup() -> Result<()> {
-            // download_llamacpp().await?;
+            download_llamacpp().await?;
             download_model().await?;
-            build_paddler().await?;
+            // build_paddler().await?;
 
             Ok(())
         }
