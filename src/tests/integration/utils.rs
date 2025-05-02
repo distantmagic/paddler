@@ -6,6 +6,8 @@ pub mod utils {
 
     use std::{env::current_dir, result::Result as CoreResult, time::SystemTime};
 
+    use nix::sys::signal::{self, Signal};
+    use nix::unistd::Pid;
     use reqwest::Response;
     use sysinfo::{Process, System};
     use tokio::process::{Child, Command};
@@ -61,8 +63,40 @@ pub mod utils {
             kill_process(&mut self.balancer1).await;
             kill_process(&mut self.statsd).await;
             kill_process(&mut self.prometheus).await;
-            kill_process(&mut self.supervisor1).await;
-            kill_process(&mut self.supervisor2).await;
+            // kill_process(&mut self.supervisor1).await;
+            // kill_process(&mut self.supervisor2).await;
+
+            if let Some(child) = &mut self.supervisor1 {
+                if let Some(pid) = child.id() {
+                    let nix_pid = Pid::from_raw(pid as i32);
+
+                    if let Err(err) = signal::kill(nix_pid, Signal::SIGINT) {
+                        panic!("Failed to send SIGTERM: {err}");
+                    }
+
+                    if let Err(err) = child.wait().await {
+                        panic!("Failed to wait for child process: {err}");
+                    }
+                }
+
+                self.supervisor1 = None;
+            }
+
+            if let Some(child) = &mut self.supervisor2 {
+                if let Some(pid) = child.id() {
+                    let nix_pid = Pid::from_raw(pid as i32);
+
+                    if let Err(err) = signal::kill(nix_pid, Signal::SIGTERM) {
+                        panic!("Failed to send SIGTERM: {err}");
+                    }
+
+                    if let Err(err) = child.wait().await {
+                        panic!("Failed to wait for child process: {err}");
+                    }
+                }
+
+                self.supervisor2 = None;
+            }
 
             // kill_children(None).await;
 

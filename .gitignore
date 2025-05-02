@@ -7,3 +7,9 @@
 /snapshots
 /static
 /target
+/llama.cpp
+/qwen2_500m.gguf
+/data
+/prometheus.yml
+/supervisor-1.toml
+/supervisor-2.toml

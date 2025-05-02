@@ -78,7 +78,9 @@ jobs:
       #   run: cargo clippy -- -D warnings
 
       - name: Run tests
-        run: make test
+        run: | 
+          cargo test
+          set -e
 
 
 # name: Test Llama.cpp Integration
