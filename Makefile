@@ -23,6 +23,11 @@ clean:
 	rm -rf esbuild-meta.json
 	rm -rf node_modules
 	rm -rf target
+	
+.PHONY: test
+test:
+	cargo build
+	$(MAKE) -C integration test
 
 .PHONY: esbuild
 esbuild: node_modules

@@ -31,8 +31,8 @@ pub mod utils {
     impl PaddlerWorld {
         pub async fn setup() -> Result<()> {
             // download_llamacpp().await?;
-            // download_model().await?;
-            // build_paddler().await?;
+            download_model().await?;
+            build_paddler().await?;
 
             Ok(())
         }
