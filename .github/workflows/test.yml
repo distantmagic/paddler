@@ -10,31 +10,7 @@ on:
       - main
       - supervisor
 
-jobs:
-  # setup:
-  #   strategy:
-  #     matrix:
-  #       os: [ubuntu-latest]
-  #   runs-on: ${{ matrix.os }}
-    
-  #   steps:
-  #     - name: Cache Rust dependencies
-  #       uses: Swatinem/rust-cache@v2
-
-  # build:
-  #   needs: setup
-  #   strategy:
-  #     matrix:
-  #       os: [ubuntu-latest]
-  #   runs-on: ${{ matrix.os }}
-    
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
-
-  #     - name: Build static files and binary
-  #       run: make
-        
+jobs:       
   test_dependencies:
     strategy:
       matrix:
@@ -104,3 +80,65 @@ jobs:
       - name: Run tests
         run: make test
 
+
+# name: Test Llama.cpp Integration
+
+# on:
+#   push:
+#     branches:
+#       - main
+#       - supervisor
+#   pull_request:
+#     branches:
+#       - main
+#       - supervisor
+
+# jobs:
+#   test:
+#     strategy:
+#       matrix:
+#         os: [ubuntu-latest]
+#     runs-on: ${{ matrix.os }}
+    
+#     steps:
+#       - uses: actions/checkout@v4
+#         with:
+#           submodules: recursive
+
+#       - name: Install system dependencies
+#         run: |
+#           sudo apt-get update
+#           sudo apt-get install -y build-essential cmake npm
+
+#       - name: Install Rust
+#         uses: dtolnay/rust-toolchain@nightly
+#         with:
+#           components: rustfmt, clippy
+
+#       - name: Cache dependencies
+#         uses: Swatinem/rust-cache@v2
+
+#       - name: Install Node.js
+#         uses: actions/setup-node@v3
+#         with:
+#           node-version: '20'
+
+#       - name: Build llama.cpp
+#         run: |
+#           cd llama.cpp
+#           mkdir -p build
+#           cd build
+#           cmake ..
+#           cmake --build . --config Release
+#           cd ../..
+
+#       - name: Download test model
+#         run: |
+#           wget https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf -O qwen2_500m.gguf || true
+
+#       - name: Run tests
+#         env:
+#           LLAMA_MODEL_PATH: qwen2_500m.gguf
+#           RUST_LOG: debug
+#         run: |
+#           make test
