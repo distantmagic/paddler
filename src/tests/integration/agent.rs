@@ -263,7 +263,7 @@ pub mod tests {
                     }
                 })
             })
-            .run("src/tests/integration/features/agent.feature")
+            .run("src/tests/integration/features")
             .await;
     }
 }

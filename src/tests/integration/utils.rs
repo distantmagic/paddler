@@ -30,8 +30,7 @@ pub mod utils {
     impl PaddlerWorld {
         pub async fn setup() -> Result<()> {
             download_llamacpp().await?;
-            download_model().await?;
-            // build_paddler().await?;
+            // download_model().await?;
 
             Ok(())
         }
@@ -65,7 +64,7 @@ pub mod utils {
             kill_process(&mut self.supervisor1).await;
             kill_process(&mut self.supervisor2).await;
 
-            kill_children(None).await;
+            // kill_children(None).await;
 
             Ok(())
         }

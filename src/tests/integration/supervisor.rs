@@ -423,7 +423,7 @@ pub mod tests {
                     }
                 })
             })
-            .run("src/tests/integration/features/supervisor.feature")
+            .run("src/tests/integration/features")
             .await;
     }
 }

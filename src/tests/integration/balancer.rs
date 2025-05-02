@@ -269,7 +269,7 @@ pub mod tests {
                     }
                 })
             })
-            .run("src/tests/integration/features/balancer.feature")
+            .run("src/tests/integration/features")
             .await;
     }
 }

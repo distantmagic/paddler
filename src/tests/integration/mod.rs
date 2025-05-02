@@ -13,8 +13,8 @@ mod tests {
     #[tokio::test]
     async fn test_all() {
         PaddlerWorld::setup().await.expect("Failed to setup");
-        // run_supervisor_tests().await;
+        run_supervisor_tests().await;
         // run_agent_tests().await;
-        run_balancer_tests().await;
+        // run_balancer_tests().await;
     }
 }
