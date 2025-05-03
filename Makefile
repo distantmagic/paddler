@@ -26,7 +26,8 @@ clean:
 	
 .PHONY: test
 test:
-	cargo test
+	cargo build
+	$(MAKE) -C integration test
 
 .PHONY: esbuild
 esbuild: node_modules
