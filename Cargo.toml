@@ -54,8 +54,6 @@ toml_edit = "0.22.24"
 cucumber = "0.21.1"
 httpmock = "0.7.0"
 sysinfo = "0.34.2"
-anyhow = "1.0.98"
-nix = { version = "0.30.0", features = ["signal"] }
 
 [features]
 default = ["statsd_reporter", "ratatui_dashboard"]

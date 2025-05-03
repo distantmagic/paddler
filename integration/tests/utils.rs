@@ -6,11 +6,11 @@ pub mod utils {
 
     use std::{env::current_dir, result::Result as CoreResult, time::SystemTime};
 
+    use nix::sys::signal::{self, Signal};
+    use nix::unistd::Pid;
     use reqwest::Response;
     use sysinfo::{Process, System};
     use tokio::process::{Child, Command};
-
-    use crate::errors::result::Result;
 
     #[derive(Debug, Default, cucumber::World)]
     pub struct PaddlerWorld {
@@ -30,26 +30,26 @@ pub mod utils {
     impl PaddlerWorld {
         pub async fn setup() -> Result<()> {
             download_llamacpp().await?;
-            // download_model().await?;
+            download_model().await?;
 
             Ok(())
         }
 
         pub async fn teardown(&mut self) -> Result<()> {
-            let mut errors = Vec::new();
+            let kill_process = async |process: &mut Option<Child>| {
+                if let Some(child) = process {
+                    if let Some(id) = child.id() {
+                        let pid = Pid::from_raw(id as i32);
 
-            let mut kill_process = async |process: &mut Option<Child>| {
-                if let Some(p) = process {
-                    match p.kill().await {
-                        Ok(_) => {
-                            if let Err(e) = p.wait().await {
-                                errors.push(format!("Failed to wait for process: {}", e));
-                            }
+                        if let Err(err) = signal::kill(pid, Signal::SIGINT) {
+                            panic!("Failed to send SIGTERM: {err}");
                         }
-                        Err(e) => {
-                            errors.push(format!("Failed to kill process: {}", e));
+
+                        if let Err(err) = child.wait().await {
+                            panic!("Failed to wait for child process: {err}");
                         }
                     }
+
                     *process = None;
                 }
             };
@@ -63,6 +63,8 @@ pub mod utils {
             kill_process(&mut self.prometheus).await;
             kill_process(&mut self.supervisor1).await;
             kill_process(&mut self.supervisor2).await;
+
+            std::thread::sleep(std::time::Duration::from_secs(30));
 
             // kill_children(None).await;
 
@@ -146,21 +148,6 @@ pub mod utils {
             }
             _ => (),
         };
-
-        Ok(())
-    }
-
-    pub async fn build_paddler() -> Result<()> {
-        Command::new("make")
-            .args(["esbuild"])
-            .spawn()?
-            .wait()
-            .await?;
-        Command::new("cargo")
-            .args(["build", "--features", "web_dashboard", "--release"])
-            .spawn()?
-            .wait()
-            .await?;
 
         Ok(())
     }

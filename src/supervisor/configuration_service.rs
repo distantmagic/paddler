@@ -1,13 +1,12 @@
 use async_trait::async_trait;
 #[cfg(feature = "etcd")]
 use etcd_client::Client;
-use log::{debug, error, info};
+use log::{debug, error};
 use pingora::{server::ShutdownWatch, services::Service};
 use std::{
     fs::{self, File},
     io::Read,
 };
-use tokio::signal::unix::{signal, SignalKind};
 use toml_edit::{value, DocumentMut};
 
 #[cfg(unix)]
@@ -68,9 +67,6 @@ impl Service for ConfigurationService {
         #[cfg(unix)] _fds: Option<ListenFds>,
         mut shutdown: ShutdownWatch,
     ) {
-        let mut sigterm = signal(SignalKind::terminate()).unwrap();
-        let mut sigint = signal(SignalKind::interrupt()).unwrap();
-
         loop {
             tokio::select! {
                 _ = shutdown.changed() => {
@@ -89,12 +85,6 @@ impl Service for ConfigurationService {
                         }
                     }
                 },
-                _ = sigint.recv() => {
-                    info!("Received SIGINT, shutting down next release observer service");
-                }
-                _ = sigterm.recv() => {
-                    info!("Received SIGTERM, shutting down next release observer service");
-                }
             }
         }
     }

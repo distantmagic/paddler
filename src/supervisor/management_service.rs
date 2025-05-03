@@ -1,10 +1,7 @@
 use actix_web::{web::Data, App, HttpServer};
 use async_trait::async_trait;
-use log::{debug, info};
 use pingora::{server::ShutdownWatch, services::Service};
 use serde_json::{Map, Value};
-use tokio::signal::unix::{signal, SignalKind};
-
 use std::{
     net::SocketAddr,
     sync::{atomic::AtomicBool, Arc, Mutex},
@@ -51,13 +48,10 @@ impl Service for ManagementService {
     async fn start_service(
         &mut self,
         #[cfg(unix)] _fds: Option<ListenFds>,
-        mut shutdown: ShutdownWatch,
+        mut _shutdown: ShutdownWatch,
     ) {
         let supervisor_addr = self.supervisor_addr.clone();
         let state = self.state.clone();
-
-        let mut sigterm = signal(SignalKind::terminate()).unwrap();
-        let mut sigint = signal(SignalKind::interrupt()).unwrap();
 
         HttpServer::new(move || {
             App::new()
@@ -69,21 +63,6 @@ impl Service for ManagementService {
         .run()
         .await
         .expect("Server unexpectedly stopped");
-
-        loop {
-            tokio::select! {
-                _ = shutdown.changed() => {
-                    debug!("Shutting down configuration service");
-                    return;
-                },
-                _ = sigint.recv() => {
-                    info!("Received SIGINT, shutting down next release observer service");
-                }
-                _ = sigterm.recv() => {
-                    info!("Received SIGTERM, shutting down next release observer service");
-                }
-            }
-        }
     }
 
     fn name(&self) -> &str {

@@ -52,6 +52,35 @@ pub mod tests {
     }
 
     #[given(
+        expr = "{word} is running at {word}, {word} and receives metrics from {word} in supervisor feature"
+    )]
+    async fn statsd_is_running(
+        world: &mut PaddlerWorld,
+        _statsd_name: String,
+        exporter_addr: String,
+        management_addr: String,
+    ) -> Result<()> {
+        world.statsd = Some(start_statsd(management_addr, exporter_addr).await?);
+
+        Ok(())
+    }
+
+    #[given(
+        expr = "{word} is running at {word} and scrapes metrics from {word} every {int} second(s) in supervisor feature"
+    )]
+    async fn prometheus_is_running(
+        world: &mut PaddlerWorld,
+        _prometheus_name: String,
+        prometheus_addr: String,
+        statsd_addr: String,
+        _monitoring_interval: usize,
+    ) -> Result<()> {
+        world.prometheus = Some(start_prometheus(prometheus_addr, statsd_addr).await?);
+
+        Ok(())
+    }
+
+    #[given(
         expr = "{word} is running at {word} with {word} configuration stored on {word} and starts {word} at {int} with {int} slot(s) running {word} in supervisor feature"
     )]
     async fn supervisor_is_running(
@@ -394,7 +423,7 @@ pub mod tests {
                     }
                 })
             })
-            .run("src/tests/integration/features/supervisor.feature")
+            .run("src/tests/integration/features")
             .await;
     }
 }
