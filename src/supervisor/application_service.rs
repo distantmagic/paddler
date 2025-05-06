@@ -1,8 +1,9 @@
 use async_trait::async_trait;
 use log::{debug, error, info, warn};
 use pingora::{server::ShutdownWatch, services::Service};
-use std::{fs::File, io::Read, path::PathBuf, process::Stdio, thread::sleep, time::Duration};
-use tokio::process::{Child, Command};
+use std::{fs::File, io::Read, path::PathBuf, thread::sleep, time::Duration};
+use tokio::{process::{Child, Command}, signal::unix::SignalKind};
+use tokio::signal::unix::signal;
 
 use toml_edit::DocumentMut;
 
@@ -221,6 +222,7 @@ impl Service for ApplicationService {
         mut shutdown: ShutdownWatch,
     ) {
         let mut receiver = self.update_llamacpp.resubscribe();
+        let mut sigint = signal(SignalKind::child()).unwrap();
 
         loop {
             tokio::select! {
@@ -246,6 +248,9 @@ impl Service for ApplicationService {
                         }
                     }
                 },
+                _ = sigint.recv() => {
+                    info!("I RECEIVED");
+                }
             }
         }
     }
