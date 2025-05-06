@@ -64,6 +64,8 @@ pub mod utils {
             kill_process(&mut self.supervisor1).await;
             kill_process(&mut self.supervisor2).await;
 
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
             // kill_children(None).await;
 
             Ok(())
