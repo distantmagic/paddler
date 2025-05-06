@@ -13,7 +13,7 @@ pub mod tests {
     };
 
     use log::{error, info};
-    use std::{net::SocketAddr, str::FromStr};
+    use std::{env, net::SocketAddr, str::FromStr};
     use tokio::{
         process::Command,
         signal::unix::{signal, SignalKind},
@@ -31,7 +31,7 @@ pub mod tests {
         reporting_interval: usize,
     ) -> Result<()> {
         world.balancer1 = Some(
-            Command::new("target/release/paddler")
+            Command::new("target/debug/paddler")
                 .args([
                     "balancer",
                     "--management-addr",
@@ -101,7 +101,7 @@ pub mod tests {
                         supervisor_addr,
                         driver_type,
                         driver_addr,
-                        llamacpp_addr
+                        llamacpp_addr,
                     )
                     .await?,
                 )
@@ -112,7 +112,7 @@ pub mod tests {
                     supervisor_addr,
                     driver_type,
                     driver_addr,
-                    llamacpp_addr
+                    llamacpp_addr,
                 )
                 .await?;
 
@@ -299,12 +299,15 @@ pub mod tests {
     ) -> Result<()> {
         let client = reqwest::Client::new();
 
+        let binary_name = env::var("BINARY_NAME").expect("Failed to get env var BINARY_NAME");
+        let model_name = env::var("MODEL_NAME").expect("Failed to get env var MODEL_NAME");
+
         let value = json!(
         {
             "args": {
-                "-m": "qwen2_500m.gguf",
+                "-m": model_name,
                 "--port": port,
-                "binary": "llama-server",
+                "binary": binary_name,
                 "-np": slots,
                 "--slots": ""
             }
@@ -420,7 +423,7 @@ pub mod tests {
                     }
                 })
             })
-            .run("src/tests/integration/features")
+            .run("src/tests/integration/features/supervisor.feature")
             .await;
     }
 }

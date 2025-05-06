@@ -5,8 +5,10 @@ pub mod utils {
     use std::fs::File;
     use std::io::Write;
 
-    use std::{env::current_dir, result::Result as CoreResult, time::SystemTime};
+    use std::{result::Result as CoreResult, time::SystemTime};
 
+    use nix::sys::signal;
+    use nix::unistd::Pid;
     use reqwest::Response;
     use sysinfo::{Process, System};
     use tokio::process::{Child, Command};
@@ -29,22 +31,26 @@ pub mod utils {
     }
 
     impl PaddlerWorld {
-        pub async fn teardown(&mut self) -> Result<()> {
-            let mut errors = Vec::new();
+        pub async fn setup() -> Result<()> {
+            build().await?;
 
-            let mut kill_process = async |process: &mut Option<Child>| {
-                if let Some(p) = process {
-                    match p.kill().await {
-                        Ok(_) => {
-                            if let Err(e) = p.wait().await {
-                                errors.push(format!("Failed to wait for process: {}", e));
-                            }
+            Ok(())
+        }
+
+        pub async fn teardown(&mut self) -> Result<()> {
+            let kill_process = async |process: &mut Option<Child>| {
+                if let Some(child) = process {
+                    if let Some(pid) = child.id() {
+                        let nix_pid = Pid::from_raw(pid as i32);
+
+                        if let Err(err) = signal::kill(nix_pid, signal::SIGINT) {
+                            panic!("Failed to send SIGTERM: {err}");
                         }
-                        Err(e) => {
-                            errors.push(format!("Failed to kill process: {}", e));
+
+                        if let Err(err) = child.wait().await {
+                            panic!("Failed to wait for child process: {err}");
                         }
                     }
-                    *process = None;
                 }
             };
 
@@ -64,6 +70,20 @@ pub mod utils {
         }
     }
 
+    pub async fn build() -> Result<()> {
+        Command::new("make")
+            .args(["esbuild"])
+            .spawn()?
+            .wait()
+            .await?;
+        Command::new("cargo")
+            .args(["build", "--features", "web_dashboard"])
+            .spawn()?
+            .wait()
+            .await?;
+
+        Ok(())
+    }
     pub async fn start_llamacpp(port: String, slots: usize) -> Result<Child> {
         let mut cmd = match std::env::consts::OS {
             "windows" => {

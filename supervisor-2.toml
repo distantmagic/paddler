@@ -1,0 +1,2 @@
+[config]
+supervisor-2 = '["--args","/usr/local/home/llama.cpp/llama.cpp/build/bin/llama-server","-m","/usr/local/home/models/qwen2_500m.gguf","-np","4","--port","8081","--slots"]'
