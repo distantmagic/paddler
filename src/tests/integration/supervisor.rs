@@ -81,7 +81,7 @@ pub mod tests {
     }
 
     #[given(
-        expr = "{word} is running at {word} with {word} configuration stored on {word} and starts {word} at {int} with {int} slot(s) running {word} in supervisor feature"
+        expr = "{word} is running at {word} with {word} configuration stored on {word} and starts {word} at {int} with {int} slot(s) running in supervisor feature"
     )]
     async fn supervisor_is_running(
         world: &mut PaddlerWorld,
@@ -92,7 +92,6 @@ pub mod tests {
         _llamacpp_name: String,
         llamacpp_addr: String,
         _slots: usize,
-        model_name: String,
     ) -> Result<()> {
         match supervisor_name.as_str() {
             "supervisor-1" => {
@@ -102,8 +101,7 @@ pub mod tests {
                         supervisor_addr,
                         driver_type,
                         driver_addr,
-                        llamacpp_addr,
-                        model_name,
+                        llamacpp_addr
                     )
                     .await?,
                 )
@@ -114,8 +112,7 @@ pub mod tests {
                     supervisor_addr,
                     driver_type,
                     driver_addr,
-                    llamacpp_addr,
-                    model_name,
+                    llamacpp_addr
                 )
                 .await?;
 

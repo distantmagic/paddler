@@ -2,8 +2,8 @@
 
 #     Scenario: Supervisor can restart llamacpp after being killed
 #       Given balancer-1 is running at 0.0.0.0:8070, 0.0.0.0:8071 and reports metrics to 0.0.0.0:9125 every 1 second in supervisor feature
-#       Given supervisor-1 is running at 0.0.0.0:8087 with file configuration stored on supervisor-1.toml and starts llamacpp-1 at 8080 with 4 slots running qwen2_500m.gguf in supervisor feature
-#       Given supervisor-2 is running at 0.0.0.0:8088 with file configuration stored on supervisor-2.toml and starts llamacpp-2 at 8081 with 4 slots running qwen2_500m.gguf in supervisor feature
+#       Given supervisor-1 is running at 0.0.0.0:8087 with file configuration stored on supervisor-1.toml and starts llamacpp-1 at 8080 with 4 slots running in supervisor feature
+#       Given supervisor-2 is running at 0.0.0.0:8088 with file configuration stored on supervisor-2.toml and starts llamacpp-2 at 8081 with 4 slots running in supervisor feature
 
 #       When agent-1 is running and observing llamacpp-1 in 0.0.0.0:8080, and registered at balancer-1 in 0.0.0.0:8070 in supervisor feature
 #       Then balancer-1 in 0.0.0.0:8070 must report that agent-1 is registered with 4 slots at 0.0.0.0:8080 in supervisor feature
@@ -19,8 +19,8 @@
 
 #     Scenario: Supervisor can start llamacpp and change its arguments
 #       Given balancer-1 is running at 0.0.0.0:8070, 0.0.0.0:8071 and reports metrics to 0.0.0.0:9125 every 1 second in supervisor feature
-#       Given supervisor-1 is running at 0.0.0.0:8087 with file configuration stored on supervisor-1.toml and starts llamacpp-1 at 8080 with 4 slots running qwen2_500m.gguf in supervisor feature
-#       Given supervisor-2 is running at 0.0.0.0:8088 with file configuration stored on supervisor-2.toml and starts llamacpp-2 at 8081 with 4 slots running qwen2_500m.gguf in supervisor feature
+#       Given supervisor-1 is running at 0.0.0.0:8087 with file configuration stored on supervisor-1.toml and starts llamacpp-1 at 8080 with 4 slots running in supervisor feature
+#       Given supervisor-2 is running at 0.0.0.0:8088 with file configuration stored on supervisor-2.toml and starts llamacpp-2 at 8081 with 4 slots running in supervisor feature
 
 #       When agent-1 is running and observing llamacpp-1 in 0.0.0.0:8080, and registered at balancer-1 in 0.0.0.0:8070 in supervisor feature
 #       Then balancer-1 in 0.0.0.0:8070 must report that agent-1 is registered with 4 slots at 0.0.0.0:8080 in supervisor feature

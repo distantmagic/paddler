@@ -53,6 +53,33 @@ jobs:
           tar -xvzf statsd.tar.gz
         shell: bash
 
+      - name: Download model
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            powershell -Command Invoke-WebRequest -Uri 'https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf' -OutFile qwen2_500m.gguf
+          if [[ "${{ matrix.os }}" == "linux" ]]; then
+            wget -O qwen2_500m.gguf https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf
+          else
+            curl -L -o qwen2_500m.gguf https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf
+          fi
+        shell: bash
+
+      - name: Download llama.cpp
+        run: |
+          git clone https://github.com/ggml-org/llama.cpp.git
+          cd llama.cpp
+          git reset --hard f52d59d771dc231fc2ac39adacf157ddefc97730
+          git clean -df f52d59d771dc231fc2ac39adacf157ddefc97730
+
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            cmake .
+            cmake --build .
+          else
+            cmake -B build
+            cmake --build build --config Release
+          fi
+        shell: bash
+
   test:
     needs: test_dependencies
     strategy:
@@ -78,67 +105,4 @@ jobs:
       #   run: cargo clippy -- -D warnings
 
       - name: Run tests
-        run: make test
-
-
-# name: Test Llama.cpp Integration
-
-# on:
-#   push:
-#     branches:
-#       - main
-#       - supervisor
-#   pull_request:
-#     branches:
-#       - main
-#       - supervisor
-
-# jobs:
-#   test:
-#     strategy:
-#       matrix:
-#         os: [ubuntu-latest]
-#     runs-on: ${{ matrix.os }}
-    
-#     steps:
-#       - uses: actions/checkout@v4
-#         with:
-#           submodules: recursive
-
-#       - name: Install system dependencies
-#         run: |
-#           sudo apt-get update
-#           sudo apt-get install -y build-essential cmake npm
-
-#       - name: Install Rust
-#         uses: dtolnay/rust-toolchain@nightly
-#         with:
-#           components: rustfmt, clippy
-
-#       - name: Cache dependencies
-#         uses: Swatinem/rust-cache@v2
-
-#       - name: Install Node.js
-#         uses: actions/setup-node@v3
-#         with:
-#           node-version: '20'
-
-#       - name: Build llama.cpp
-#         run: |
-#           cd llama.cpp
-#           mkdir -p build
-#           cd build
-#           cmake ..
-#           cmake --build . --config Release
-#           cd ../..
-
-#       - name: Download test model
-#         run: |
-#           wget https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf -O qwen2_500m.gguf || true
-
-#       - name: Run tests
-#         env:
-#           LLAMA_MODEL_PATH: qwen2_500m.gguf
-#           RUST_LOG: debug
-#         run: |
-#           make test
+        run: MODEL_NAME=qwen2_500m.gguf BINARY_NAME=llama.cpp/build/bin/llama-server STATSD_NAME=statsd_exporter-0.27.2.linux-amd64/statsd_exporter PROMETHEUS_NAME=prometheus-3.3.0-rc.1.linux-amd64/prometheus make test

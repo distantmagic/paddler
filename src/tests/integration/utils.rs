@@ -1,5 +1,6 @@
 #[cfg(test)]
 pub mod utils {
+    use std::env;
     use std::ffi::OsString;
     use std::fs::File;
     use std::io::Write;
@@ -28,13 +29,6 @@ pub mod utils {
     }
 
     impl PaddlerWorld {
-        pub async fn setup() -> Result<()> {
-            download_llamacpp().await?;
-            // download_model().await?;
-
-            Ok(())
-        }
-
         pub async fn teardown(&mut self) -> Result<()> {
             let mut errors = Vec::new();
 
@@ -68,101 +62,6 @@ pub mod utils {
 
             Ok(())
         }
-    }
-
-    async fn download_llamacpp() -> Result<()> {
-        Command::new("git")
-            .args(["clone", "https://github.com/ggml-org/llama.cpp.git"])
-            .spawn()?
-            .wait()
-            .await?;
-
-        let previous_dir = current_dir()?;
-
-        std::env::set_current_dir("llama.cpp")?;
-
-        Command::new("git")
-            .args([
-                "reset",
-                "--hard",
-                "f52d59d771dc231fc2ac39adacf157ddefc97730",
-            ])
-            .spawn()?
-            .wait()
-            .await?;
-        Command::new("git")
-            .args(["clean", "-df", "f52d59d771dc231fc2ac39adacf157ddefc97730"])
-            .spawn()?
-            .wait()
-            .await?;
-
-        match std::env::consts::OS {
-            "windows" => {
-                Command::new("cmake").args(["."]).spawn()?.wait().await?;
-                Command::new("cmake")
-                    .args(["--build", "."])
-                    .spawn()?
-                    .wait()
-                    .await?;
-            }
-            _ => {
-                Command::new("cmake")
-                    .args(["-B", "build"])
-                    .spawn()?
-                    .wait()
-                    .await?;
-                Command::new("cmake")
-                    .args(["--build", "build", "--config", "Release"])
-                    .spawn()?
-                    .wait()
-                    .await?;
-            }
-        };
-
-        std::env::set_current_dir(previous_dir)?;
-
-        Ok(())
-    }
-
-    pub async fn download_model() -> Result<()> {
-        match std::env::consts::OS {
-            "windows" => {
-                Command::new("powershell")
-                    .args(["-Command", "Invoke-WebRequest -Uri 'https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf' -OutFile qwen2_500m.gguf"])
-                    .spawn()?
-                    .wait().await?;
-            }
-            "macos" => {
-                Command::new("curl")
-                    .args(["-L", "-o", "qwen2_500m.gguf", "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf"])
-                    .spawn()?
-                    .wait().await?;
-            }
-            "linux" => {
-                Command::new("wget")
-                    .args(["-O", "qwen2_500m.gguf", "https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf"])
-                    .spawn()?
-                    .wait().await?;
-            }
-            _ => (),
-        };
-
-        Ok(())
-    }
-
-    pub async fn build_paddler() -> Result<()> {
-        Command::new("make")
-            .args(["esbuild"])
-            .spawn()?
-            .wait()
-            .await?;
-        Command::new("cargo")
-            .args(["build", "--features", "web_dashboard", "--release"])
-            .spawn()?
-            .wait()
-            .await?;
-
-        Ok(())
     }
 
     pub async fn start_llamacpp(port: String, slots: usize) -> Result<Child> {
@@ -213,7 +112,6 @@ pub mod utils {
         driver_type: String,
         driver_addr: String,
         llamacpp_addr: String,
-        model_name: String,
     ) -> Result<Child> {
         let config_driver = match driver_type.as_str() {
             "file" => &format!(
@@ -227,6 +125,9 @@ pub mod utils {
             _ => "",
         };
 
+        let binary_name = env::var("BINARY_NAME").expect("Failed to get env var BINARY_NAME");
+        let model_name = env::var("MODEL_NAME").expect("Failed to get env var MODEL_NAME");
+
         let mut cmd = Command::new("target/release/paddler");
 
         Ok(cmd
@@ -235,7 +136,7 @@ pub mod utils {
                 "--supervisor-addr",
                 &supervisor_addr,
                 "--binary",
-                "llama-server",
+                &binary_name,
                 "--model",
                 &model_name,
                 "--port",
@@ -249,10 +150,9 @@ pub mod utils {
     }
 
     pub async fn start_statsd(management_addr: String, exporter_addr: String) -> Result<Child> {
-        let mut cmd = match cfg!(target_os = "windows") {
-            true => Command::new("./statsd_exporter.exe"),
-            false => Command::new("statsd_exporter"),
-        };
+        let statsd = env::var("STASTD_NAME").expect("Failed to get env var STATSD_NAME");
+
+        let mut cmd = Command::new(statsd);
 
         cmd.args([
             "--statsd.listen-udp",
@@ -285,10 +185,9 @@ scrape_configs:
             .as_bytes(),
         )?;
 
-        let mut cmd = match cfg!(target_os = "windows") {
-            true => Command::new("./prometheus.exe"),
-            false => Command::new("prometheus"),
-        };
+        let prometheus = env::var("PROMETHEUS").expect("Failed to get env var PROMETHEUS");
+
+        let mut cmd = Command::new(prometheus);
 
         cmd.args(["--web.listen-address", &prometheus_addr]);
 
