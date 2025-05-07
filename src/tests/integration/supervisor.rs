@@ -415,9 +415,7 @@ pub mod tests {
             .fail_on_skipped()
             .after(|_feature, _rule, _scenario, _scenario_finished, world| {
                 Box::pin(async move {
-                    if let Some(world) = world {
-                        world.teardown().await.expect("Teardown Failed");
-                    }
+                    world.unwrap().teardown().await.expect("Teardown Failed");
                 })
             })
             .run("src/tests/integration/features/supervisor.feature")

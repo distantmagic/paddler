@@ -36,20 +36,16 @@ pub mod utils {
 
             Ok(())
         }
-        
+
         pub async fn teardown(&mut self) -> Result<()> {
             let kill_process = async |process: &mut Option<Child>| {
                 if let Some(child) = process {
                     if let Some(pid) = child.id() {
                         let nix_pid = Pid::from_raw(pid as i32);
 
-                        if let Err(err) = signal::kill(nix_pid, signal::SIGINT) {
-                            panic!("Failed to send SIGTERM: {err}");
-                        }
+                        signal::kill(nix_pid, signal::Signal::SIGINT).unwrap();
 
-                        if let Err(err) = child.wait().await {
-                            panic!("Failed to wait for child process: {err}");
-                        }
+                        let _ = child.wait().await.unwrap();
                     }
                 }
             };
@@ -63,6 +59,16 @@ pub mod utils {
             kill_process(&mut self.prometheus).await;
             kill_process(&mut self.supervisor1).await;
             kill_process(&mut self.supervisor2).await;
+
+            self.agent1 = None;
+            self.agent2 = None;
+            self.llamacpp1 = None;
+            self.llamacpp2 = None;
+            self.balancer1 = None;
+            self.statsd = None;
+            self.prometheus = None;
+            self.supervisor1 = None;
+            self.supervisor2 = None;
 
             Ok(())
         }
