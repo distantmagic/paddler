@@ -36,7 +36,7 @@ pub mod utils {
 
             Ok(())
         }
-
+        
         pub async fn teardown(&mut self) -> Result<()> {
             let kill_process = async |process: &mut Option<Child>| {
                 if let Some(child) = process {
@@ -63,10 +63,6 @@ pub mod utils {
             kill_process(&mut self.prometheus).await;
             kill_process(&mut self.supervisor1).await;
             kill_process(&mut self.supervisor2).await;
-
-            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
-            // kill_children(None).await;
 
             Ok(())
         }

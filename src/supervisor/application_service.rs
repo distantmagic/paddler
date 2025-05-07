@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use log::{debug, error, info, warn};
-use nix::sys::signal::Signal;
-use nix::{sys::signal, unistd::Pid};
+use nix::{sys::signal::{self, Signal}, unistd::Pid};
 use pingora::{server::ShutdownWatch, services::Service};
 use std::{fs::File, io::Read, path::PathBuf, thread::sleep, time::Duration};
 use tokio::signal::unix::signal as TokioSignal;
@@ -53,6 +52,20 @@ impl ApplicationService {
             update_config,
             input_arg_works: true,
         })
+    }
+
+    async fn shutdown(&mut self, signal: Signal) -> Result<()> {
+        if let Some(child) = &mut self.llamacpp_process.take() {
+            if let Some(pid) = child.id() {
+                let nix_pid = Pid::from_raw(pid as i32);
+
+                signal::kill(nix_pid, signal)?;
+
+                let _ = child.wait().await?;
+            }
+        }
+
+        Ok(())
     }
 
     async fn start_llamacpp_server(&mut self) -> Result<()> {
@@ -227,12 +240,19 @@ impl Service for ApplicationService {
         mut shutdown: ShutdownWatch,
     ) {
         let mut receiver = self.update_llamacpp.resubscribe();
-        let mut sigint = TokioSignal(SignalKind::child()).unwrap();
+        let mut sigint = TokioSignal(SignalKind::interrupt()).unwrap();
 
         loop {
             tokio::select! {
                 _ = shutdown.changed() => {
-                    debug!("Shutting down supervising service");
+                    error!("RECEIVED SHUTDOWN");
+                    self.shutdown(Signal::SIGINT).await.unwrap_or_else(|err| {
+                        error!("Failed to shutdown supervisor: {err:?}");
+                    });
+                    // if let Some(child) = &mut self.llamacpp_process {
+                    //     child.kill().await.unwrap();
+                    //     child.wait().await.unwrap();
+                    // }
                     return;
                 },
                 running = self.server_is_running() => {
@@ -254,15 +274,14 @@ impl Service for ApplicationService {
                     }
                 },
                 _ = sigint.recv() => {
-                    if let Some(mut child) = self.llamacpp_process.take() {
-                        if let Some(pid) = child.id() {
-                            let nix_pid = Pid::from_raw(pid as i32);
-
-                            signal::kill(nix_pid, nix::sys::signal::SIGINT).unwrap();
-
-                            let _ = child.wait().await.unwrap();
-                        }
-                    }
+                    error!("RECEIVED SIGINT");
+                    self.shutdown(Signal::SIGINT).await.unwrap_or_else(|err| {
+                        error!("Failed to shutdown child process: {err:?}");
+                    });
+                    // if let Some(child) = &mut self.llamacpp_process {
+                    //     child.kill().await.unwrap();
+                    //     child.wait().await.unwrap();
+                    // }
                     return;
                 }
             }

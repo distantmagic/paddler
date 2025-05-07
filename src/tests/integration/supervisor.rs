@@ -12,12 +12,9 @@ pub mod tests {
         },
     };
 
-    use log::{error, info};
+    use log::error;
     use std::{env, net::SocketAddr, str::FromStr};
-    use tokio::{
-        process::Command,
-        signal::unix::{signal, SignalKind},
-    };
+    use tokio::process::Command;
 
     #[given(
         expr = "{word} is running at {word}, {word} and reports metrics to {word} every {int} second(s) in supervisor feature"

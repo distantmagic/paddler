@@ -66,6 +66,9 @@ pub enum AppError {
 
     #[error("Channel receive error: {0}")]
     ChannelReceiveError(#[from] tokio::sync::broadcast::error::RecvError),
+
+    #[error("Failed to send signal: {0}")]
+    SignalSendError(#[from] nix::errno::Errno),
 }
 
 impl From<&str> for AppError {
