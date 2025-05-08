@@ -17,6 +17,7 @@ node_modules: package-lock.json
 .PHONY: test
 test: build
 	$(MAKE) -C integration test
+	$(MAKE) -C paddler test
 
 .PHONY: build
 build: esbuild

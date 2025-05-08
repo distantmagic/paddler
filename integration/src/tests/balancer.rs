@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use tokio::process::Command;
 
 use crate::tests::utils::{
-    get_unix_time_from, start_llamacpp, start_prometheus, start_statsd, PaddlerWorld,
+    get_unix_time_from, start_llamacpp, start_prometheus, start_statsd, PaddlerWorld, PADDLER,
 };
 
 #[given(
@@ -20,7 +20,7 @@ async fn balancer_is_running(
     reporting_interval: usize,
 ) -> Result<()> {
     world.balancer1 = Some(
-        Command::new("target/release/paddler")
+        Command::new(PADDLER.clone())
             .args([
                 "balancer",
                 "--management-addr",
@@ -97,7 +97,7 @@ async fn agent_is_running(
     balancer_addr: String,
 ) -> Result<()> {
     let process = Some(
-        Command::new("target/release/paddler")
+        Command::new(PADDLER.clone())
             .args([
                 "agent",
                 "--local-llamacpp-addr",

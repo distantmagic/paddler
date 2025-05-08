@@ -5,12 +5,15 @@ use std::io::Write;
 
 use std::{result::Result as CoreResult, time::SystemTime};
 
+use lazy_static::lazy_static;
 use nix::sys::signal;
 use nix::unistd::Pid;
 use paddler::errors::result::Result;
 use reqwest::Response;
 use sysinfo::{Process, System};
 use tokio::process::{Child, Command};
+
+lazy_static! { pub static ref PADDLER: String = env::current_dir().unwrap_or_default().join("../target/release/paddler").to_str().unwrap().to_string(); }
 
 #[derive(Debug, Default, cucumber::World)]
 pub struct PaddlerWorld {
@@ -28,12 +31,6 @@ pub struct PaddlerWorld {
 }
 
 impl PaddlerWorld {
-    pub async fn setup() -> Result<()> {
-        build().await?;
-
-        Ok(())
-    }
-
     pub async fn teardown(&mut self) -> Result<()> {
         let kill_process = async |process: &mut Option<Child>| {
             if let Some(child) = process {
@@ -71,58 +68,25 @@ impl PaddlerWorld {
     }
 }
 
-pub async fn build() -> Result<()> {
-    Command::new("make")
-        .args(["esbuild"])
-        .spawn()?
-        .wait()
-        .await?;
-    Command::new("cargo")
-        .args(["build", "--features", "web_dashboard"])
-        .spawn()?
-        .wait()
-        .await?;
-
-    Ok(())
-}
 pub async fn start_llamacpp(port: String, slots: usize) -> Result<Child> {
-    let mut cmd = match std::env::consts::OS {
-        "windows" => {
-            let mut cmd = Command::new("llama.cpp/bin/Debug/llama-server.exe");
-            cmd.args([
-                "-m",
-                "qwen2_500m.gguf",
-                "-c",
-                "2048",
-                "-ngl",
-                "2000",
-                "-np",
-                &slots.to_string(),
-                "--slots",
-                "--port",
-                &port.to_string(),
-            ]);
-            cmd
-        }
-        _ => {
-            let mut cmd = Command::new("llama.cpp/build/bin/llama-server");
-            cmd.args([
-                "-m",
-                "qwen2_500m.gguf",
-                "-c",
-                "2048",
-                "-ngl",
-                "2000",
-                "-nocb",
-                "-np",
-                &slots.to_string(),
-                "--slots",
-                "--port",
-                &port.to_string(),
-            ]);
-            cmd
-        }
-    };
+    let model_name = env::var("MODEL_NAME").expect("Failed to get env var MODEL_NAME");
+    let llamacpp_name = env::var("LLAMACPP_NAME").expect("Failed to get env var LLAMACPP_NAME");
+
+    let mut cmd = Command::new(llamacpp_name);
+
+    cmd.args([
+        "-m",
+        &model_name,
+        "-c",
+        "2048",
+        "-ngl",
+        "2000",
+        "-np",
+        &slots.to_string(),
+        "--slots",
+        "--port",
+        &port.to_string(),
+    ]);
 
     Ok(cmd.spawn()?)
 }
@@ -149,7 +113,7 @@ pub async fn start_supervisor(
     let binary_name = env::var("BINARY_NAME").expect("Failed to get env var BINARY_NAME");
     let model_name = env::var("MODEL_NAME").expect("Failed to get env var MODEL_NAME");
 
-    let mut cmd = Command::new("target/release/paddler");
+    let mut cmd = Command::new(PADDLER.clone());
 
     Ok(cmd
         .args([

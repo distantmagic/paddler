@@ -6,7 +6,7 @@ use tokio::process::Command;
 
 use crate::tests::utils::PaddlerWorld;
 
-use super::utils::start_llamacpp;
+use super::utils::{start_llamacpp, PADDLER};
 
 #[given(
     expr = "{word} is running at {word}, {word} and reports metrics to {word} every {int} second(s) in agent feature"
@@ -20,7 +20,7 @@ async fn balancer_is_running(
     reporting_interval: usize,
 ) -> Result<()> {
     world.balancer1 = Some(
-        Command::new("target/release/paddler")
+        Command::new(PADDLER.clone())
             .args([
                 "balancer",
                 "--management-addr",
@@ -70,7 +70,7 @@ async fn agent_is_running(
     balancer_addr: String,
 ) -> Result<()> {
     let process = Some(
-        Command::new("target/release/paddler")
+        Command::new(PADDLER.clone())
             .args([
                 "agent",
                 "--local-llamacpp-addr",
