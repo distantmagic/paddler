@@ -148,6 +148,8 @@ async fn agent_is_running(
         _ => (),
     }
 
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
     Ok(())
 }
 

@@ -13,7 +13,14 @@ use reqwest::Response;
 use sysinfo::{Process, System};
 use tokio::process::{Child, Command};
 
-lazy_static! { pub static ref PADDLER: String = env::current_dir().unwrap_or_default().join("../target/release/paddler").to_str().unwrap().to_string(); }
+lazy_static! {
+    pub static ref PADDLER: String = env::current_dir()
+        .unwrap_or_default()
+        .join("../target/release/paddler")
+        .to_str()
+        .unwrap()
+        .to_string();
+}
 
 #[derive(Debug, Default, cucumber::World)]
 pub struct PaddlerWorld {
