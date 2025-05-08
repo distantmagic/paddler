@@ -14,62 +14,66 @@ node_modules: package-lock.json
 # Phony targets
 # -----------------------------------------------------------------------------
 
+.PHONY: test
+test: build
+    $(MAKE) -C integration test
+
 .PHONY: build
 build: esbuild
-	cargo build --features web_dashboard --release
+    cargo build --features web_dashboard --release
 
 .PHONY: clean
 clean:
-	rm -rf esbuild-meta.json
-	rm -rf node_modules
-	rm -rf target
+    rm -rf esbuild-meta.json
+    rm -rf node_modules
+    rm -rf target
 
 .PHONY: esbuild
 esbuild: node_modules
-	npm exec esbuild -- \
-		--bundle \
-		--asset-names="./[name]" \
-		--entry-names="./[name]" \
-		--format=esm \
-		--loader:.jpg=file \
-		--loader:.otf=file \
-		--loader:.svg=file \
-		--loader:.ttf=file \
-		--loader:.webp=file \
-		--metafile=esbuild-meta.json \
-		--minify \
-		--outdir=static \
-		--sourcemap \
-		--splitting \
-		--target=safari16 \
-		--tree-shaking=true \
-		resources/css/reset.css \
-		resources/css/page-dashboard.css \
-		resources/ts/controller_dashboard.tsx \
+    npm exec esbuild -- \
+        --bundle \
+        --asset-names="./[name]" \
+        --entry-names="./[name]" \
+        --format=esm \
+        --loader:.jpg=file \
+        --loader:.otf=file \
+        --loader:.svg=file \
+        --loader:.ttf=file \
+        --loader:.webp=file \
+        --metafile=esbuild-meta.json \
+        --minify \
+        --outdir=static \
+        --sourcemap \
+        --splitting \
+        --target=safari16 \
+        --tree-shaking=true \
+        resources/css/reset.css \
+        resources/css/page-dashboard.css \
+        resources/ts/controller_dashboard.tsx \
 
 .PHONY: run.supervisor
 run.supervisor: esbuild
-	cargo run --features etcd \
-		-- supervise \
-		--supervisor-addr "localhost:8087" \
-		--binary llama-server \
-		--model qwen2_500m.gguf \
-		--port 8081 \
-		--config-driver '{"type": "file", "path": "config.toml", "name": "agent-1"}'
+    cargo run --bin paddler --features etcd \
+        -- supervise \
+        --supervisor-addr "localhost:8087" \
+        --binary llama-server \
+        --model /usr/local/home/models/qwen2_500m.gguf \
+        --port 8081 \
+        --config-driver '{"type": "file", "path": "config.toml", "name": "agent-1"}'
 
 .PHONY: run.agent
 run.agent: esbuild
-	cargo run -- agent \
-		--external-llamacpp-addr "127.0.0.1:8081" \
-		--local-llamacpp-addr="localhost:8081" \
-		--llamacpp-api-key "test" \
-		--management-addr="localhost:8095" \
-		--name "wohoo"
+    cargo run --bin paddler agent \
+        --external-llamacpp-addr "127.0.0.1:8081" \
+        --local-llamacpp-addr="localhost:8081" \
+        --llamacpp-api-key "test" \
+        --management-addr="localhost:8095" \
+        --name "wohoo"
 
 .PHONY: run.balancer
 run.balancer: esbuild
-	cargo run --features web_dashboard \
-		-- balancer \
-		--management-addr="127.0.0.1:8095"  \
-		--management-dashboard-enable \
-		--reverseproxy-addr="127.0.0.1:8096"
+    cargo run --bin paddler --features web_dashboard \
+        -- balancer \
+        --management-addr="127.0.0.1:8095"  \
+        --management-dashboard-enable \
+        --reverseproxy-addr="127.0.0.1:8096"
