@@ -5,6 +5,9 @@ members = ["integration", "paddler"]
 [workspace.dependencies]
 paddler = { path = "paddler" }
 
+# [package.metadata.askama]
+# template-dir = "templates"
+
 [profile.release]
 lto = true
 codegen-units = 1
