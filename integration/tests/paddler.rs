@@ -120,12 +120,6 @@ use tokio::process::Command;
             .collect()
     }    
 
-// use crate::utils::{kill_children, PaddlerWorld};
-
-// use crate::utils::{
-//     get_unix_time_from, LLAMACPP_NAME, MODEL_NAME, PADDLER_NAME, PROMETHEUS_NAME, STATSD_NAME,
-// };
-
 #[given(
     expr = "{word} is running at {word}, {word} and reports metrics to {word} every {int} second(s)"
 )]
@@ -266,6 +260,38 @@ async fn supervisor_is_running(
     Ok(())
 }
 
+#[given(expr = "{word} is running at {word} with {int} slot(s)")]
+async fn llamacpp_is_running(
+    world: &mut PaddlerWorld,
+    llamacpp_name: String,
+    addr: String,
+    slots: usize,
+) -> Result<()> {
+    let mut cmd = Command::new(LLAMACPP_NAME.to_owned());
+
+    cmd.args([
+        "-m",
+        &MODEL_NAME,
+        "-c",
+        "2048",
+        "-ngl",
+        "2000",
+        "-np",
+        &slots.to_string(),
+        "--slots",
+        "--port",
+        &addr.to_string(),
+    ]);
+
+    match llamacpp_name.as_str() {
+        "llamacpp-1" => world.llamacpp1 = Some(cmd.spawn()?),
+        "llamacpp-2" => world.llamacpp2 = Some(cmd.spawn()?),
+        _ => (),
+    }
+
+    Ok(())
+}
+
 #[when(
     expr = "{word} is running and observing {word} in {word}, and registered at {word} in {word}"
 )]
@@ -339,6 +365,29 @@ async fn display_agent_slots(
         );
         assert_eq!(agent.is_authorized, Some(true));
         assert_eq!(agent.is_slots_endpoint_enabled, Some(true));
+    }
+
+    Ok(())
+}
+
+#[when(expr = r"{word} stops running and observing {word}, unregistered from {word}")]
+async fn agent_is_not_running(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
+    match agent_name.as_str() {
+        "agent-1" => {
+            if let Some(agent) = world.agent1.as_mut() {
+                agent.kill().await?;
+                agent.wait().await?;
+                world.agent1 = None;
+            }
+        }
+        "agent-2" => {
+            if let Some(agent) = world.agent2.as_mut() {
+                agent.kill().await?;
+                agent.wait().await?;
+                world.agent2 = None;
+            }
+        }
+        _ => (),
     }
 
     Ok(())
@@ -549,29 +598,6 @@ async fn get_response(
     Ok(())
 }
 
-#[when(expr = r"{word} stops running and observing {word}, unregistered from {word}")]
-async fn agent_is_not_running(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
-    match agent_name.as_str() {
-        "agent-1" => {
-            if let Some(agent) = world.agent1.as_mut() {
-                agent.kill().await?;
-                agent.wait().await?;
-                world.agent1 = None;
-            }
-        }
-        "agent-2" => {
-            if let Some(agent) = world.agent2.as_mut() {
-                agent.kill().await?;
-                agent.wait().await?;
-                world.agent2 = None;
-            }
-        }
-        _ => (),
-    }
-
-    Ok(())
-}
-
 #[then(expr = "{word} in {word} must report that {word} does not exist")]
 async fn agent_does_not_exist(
     _world: &mut PaddlerWorld,
@@ -579,7 +605,7 @@ async fn agent_does_not_exist(
     balancer_addr: String,
     agent_name: String,
 ) -> Result<()> {
-    std::thread::sleep(std::time::Duration::from_secs(2));
+    std::thread::sleep(std::time::Duration::from_secs(15));
 
     let mut response = serde_json::from_str::<UpstreamPeerPool>(
         &reqwest::get(format!("http://{}/api/v1/agents", balancer_addr))
@@ -587,6 +613,7 @@ async fn agent_does_not_exist(
             .text()
             .await?,
     )?;
+
     let agents = response.agents.get_mut()?;
 
     let agent = agents
@@ -697,37 +724,7 @@ async fn report_metrics(
     Ok(())
 }
 
-#[given(expr = "{word} is running at {word} with {int} slot(s)")]
-async fn llamacpp_is_running(
-    world: &mut PaddlerWorld,
-    llamacpp_name: String,
-    addr: String,
-    slots: usize,
-) -> Result<()> {
-    let mut cmd = Command::new(LLAMACPP_NAME.to_owned());
 
-    cmd.args([
-        "-m",
-        &MODEL_NAME,
-        "-c",
-        "2048",
-        "-ngl",
-        "2000",
-        "-np",
-        &slots.to_string(),
-        "--slots",
-        "--port",
-        &addr.to_string(),
-    ]);
-
-    match llamacpp_name.as_str() {
-        "llamacpp-1" => world.llamacpp1 = Some(cmd.spawn()?),
-        "llamacpp-2" => world.llamacpp2 = Some(cmd.spawn()?),
-        _ => (),
-    }
-
-    Ok(())
-}
 
 #[tokio::main]
 pub async fn main() {

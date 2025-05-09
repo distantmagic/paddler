@@ -5,12 +5,12 @@ members = ["integration", "paddler"]
 [workspace.dependencies]
 paddler = { path = "paddler" }
 
-# [package.metadata.askama]
-# template-dir = "templates"
-
 [profile.release]
 lto = true
 codegen-units = 1
 strip = true
 rpath = false
 panic = "unwind"
+
+[patch.crates-io]
+sfv = { git = "https://github.com/undef1nd/sfv.git", tag = "v0.9.4" }

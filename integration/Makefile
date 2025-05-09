@@ -1,3 +1,3 @@
 .PHONY: test
 test:
-	cargo test --test supervisor
+	cargo test --test paddler
