@@ -3,122 +3,121 @@ use paddler::{balancer::upstream_peer_pool::UpstreamPeerPool, errors::result::Re
 use serde_json::{json, Value};
 use sysinfo::System;
 
-use log::error;
 use std::{env, fs::File, io::Write, net::SocketAddr, str::FromStr};
 use tokio::process::Command;
 
-    use std::ffi::OsString;
-    
-    use std::{result::Result as CoreResult, time::SystemTime};
-    
-    use lazy_static::lazy_static;
-    use nix::sys::signal;
-    use nix::unistd::Pid;
-    use reqwest::Response;
-    use sysinfo::Process;
-    use tokio::process::Child;
-    
-    lazy_static! {
-        pub static ref PROMETHEUS_NAME: String =
-            env::var("PROMETHEUS_NAME").expect("Failed to get env var PROMETHEUS_NAME");
-        pub static ref STATSD_NAME: String =
-            env::var("STATSD_NAME").expect("Failed to get env var STATSD_NAME");
-        pub static ref LLAMACPP_NAME: String =
-            env::var("LLAMACPP_NAME").expect("Failed to get env var LLAMACPP_NAME");
-        pub static ref MODEL_NAME: String =
-            env::var("MODEL_NAME").expect("Failed to get env var MODEL_NAME");
-        pub static ref PADDLER_NAME: String =
-            env::var("PADDLER_NAME").expect("Failed to get env var PADDLER_NAME");
-    }
-    
-    #[derive(Debug, Default, cucumber::World)]
-    pub struct PaddlerWorld {
-        pub balancer1: Option<Child>,
-        pub agent1: Option<Child>,
-        pub agent2: Option<Child>,
-        pub supervisor1: Option<Child>,
-        pub supervisor2: Option<Child>,
-        pub system: Option<System>,
-        pub llamacpp1: Option<Child>,
-        pub llamacpp2: Option<Child>,
-        pub statsd: Option<Child>,
-        pub prometheus: Option<Child>,
-        pub proxy_response: Vec<Option<CoreResult<Response, reqwest::Error>>>,
-    }
-    
-    impl PaddlerWorld {
-        pub async fn teardown(&mut self) -> Result<()> {
-            let kill_process = async |process: &mut Option<Child>| {
-                if let Some(child) = process {
-                    if let Some(pid) = child.id() {
-                        let nix_pid = Pid::from_raw(pid as i32);
-    
-                        signal::kill(nix_pid, signal::Signal::SIGINT).unwrap();
-    
-                        let _ = child.wait().await.unwrap();
-                    }
+use std::ffi::OsString;
+
+use std::{result::Result as CoreResult, time::SystemTime};
+
+use lazy_static::lazy_static;
+use nix::sys::signal;
+use nix::unistd::Pid;
+use reqwest::Response;
+use sysinfo::Process;
+use tokio::process::Child;
+
+lazy_static! {
+    pub static ref PROMETHEUS_NAME: String =
+        env::var("PROMETHEUS_NAME").expect("Failed to get env var PROMETHEUS_NAME");
+    pub static ref STATSD_NAME: String =
+        env::var("STATSD_NAME").expect("Failed to get env var STATSD_NAME");
+    pub static ref LLAMACPP_NAME: String =
+        env::var("LLAMACPP_NAME").expect("Failed to get env var LLAMACPP_NAME");
+    pub static ref MODEL_NAME: String =
+        env::var("MODEL_NAME").expect("Failed to get env var MODEL_NAME");
+    pub static ref PADDLER_NAME: String =
+        env::var("PADDLER_NAME").expect("Failed to get env var PADDLER_NAME");
+}
+
+#[derive(Debug, Default, cucumber::World)]
+pub struct PaddlerWorld {
+    pub balancer1: Option<Child>,
+    pub agent1: Option<Child>,
+    pub agent2: Option<Child>,
+    pub supervisor1: Option<Child>,
+    pub supervisor2: Option<Child>,
+    pub system: Option<System>,
+    pub llamacpp1: Option<Child>,
+    pub llamacpp2: Option<Child>,
+    pub statsd: Option<Child>,
+    pub prometheus: Option<Child>,
+    pub proxy_response: Vec<Option<CoreResult<Response, reqwest::Error>>>,
+}
+
+impl PaddlerWorld {
+    pub async fn teardown(&mut self) -> Result<()> {
+        let kill_process = async |process: &mut Option<Child>| {
+            if let Some(child) = process {
+                if let Some(pid) = child.id() {
+                    let nix_pid = Pid::from_raw(pid as i32);
+
+                    signal::kill(nix_pid, signal::Signal::SIGINT).unwrap();
+
+                    let _ = child.wait().await.unwrap();
                 }
+            }
+        };
+
+        kill_process(&mut self.agent1).await;
+        kill_process(&mut self.agent2).await;
+        kill_process(&mut self.llamacpp1).await;
+        kill_process(&mut self.llamacpp2).await;
+        kill_process(&mut self.balancer1).await;
+        kill_process(&mut self.statsd).await;
+        kill_process(&mut self.prometheus).await;
+        kill_process(&mut self.supervisor1).await;
+        kill_process(&mut self.supervisor2).await;
+
+        self.agent1 = None;
+        self.agent2 = None;
+        self.llamacpp1 = None;
+        self.llamacpp2 = None;
+        self.balancer1 = None;
+        self.statsd = None;
+        self.prometheus = None;
+        self.supervisor1 = None;
+        self.supervisor2 = None;
+
+        Ok(())
+    }
+}
+
+pub fn get_unix_time_from(secs: u64) -> u64 {
+    match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+        Ok(n) => n.as_secs() + secs,
+        Err(err) => panic!("{:#?}", err),
+    }
+}
+
+pub async fn kill_children(proc_id: Option<u32>) {
+    let mut system = System::new_all();
+    system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+
+    let procs = get_children(proc_id, &system);
+
+    for proc in procs {
+        proc.kill();
+        proc.wait();
+    }
+}
+
+pub fn get_children(proc_id: Option<u32>, system: &System) -> Vec<&Process> {
+    system
+        .processes()
+        .values()
+        .filter(|process| {
+            let parent_matches = match proc_id {
+                Some(pid) => process.parent().map(|p| p.as_u32()) == Some(pid),
+                None => true,
             };
-    
-            kill_process(&mut self.agent1).await;
-            kill_process(&mut self.agent2).await;
-            kill_process(&mut self.llamacpp1).await;
-            kill_process(&mut self.llamacpp2).await;
-            kill_process(&mut self.balancer1).await;
-            kill_process(&mut self.statsd).await;
-            kill_process(&mut self.prometheus).await;
-            kill_process(&mut self.supervisor1).await;
-            kill_process(&mut self.supervisor2).await;
-    
-            self.agent1 = None;
-            self.agent2 = None;
-            self.llamacpp1 = None;
-            self.llamacpp2 = None;
-            self.balancer1 = None;
-            self.statsd = None;
-            self.prometheus = None;
-            self.supervisor1 = None;
-            self.supervisor2 = None;
-    
-            Ok(())
-        }
-    }
-    
-    pub fn get_unix_time_from(secs: u64) -> u64 {
-        match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-            Ok(n) => n.as_secs() + secs,
-            Err(err) => panic!("{:#?}", err),
-        }
-    }
-    
-    pub async fn kill_children(proc_id: Option<u32>) {
-        let mut system = System::new_all();
-        system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-    
-        let procs = get_children(proc_id, &system);
-    
-        for proc in procs {
-            proc.kill();
-            proc.wait();
-        }
-    }
-    
-    pub fn get_children(proc_id: Option<u32>, system: &System) -> Vec<&Process> {
-        system
-            .processes()
-            .values()
-            .filter(|process| {
-                let parent_matches = match proc_id {
-                    Some(pid) => process.parent().map(|p| p.as_u32()) == Some(pid),
-                    None => true,
-                };
-    
-                parent_matches
-                    && process.cmd().contains(&OsString::from("llama-server"))
-                    && !process.cmd().contains(&OsString::from("supervise"))
-            })
-            .collect()
-    }    
+
+            parent_matches
+                && process.cmd().contains(&OsString::from("llama-server"))
+                && !process.cmd().contains(&OsString::from("supervise"))
+        })
+        .collect()
+}
 
 #[given(
     expr = "{word} is running at {word}, {word} and reports metrics to {word} every {int} second(s)"
@@ -246,8 +245,7 @@ async fn supervisor_is_running(
         &llamacpp_addr,
         "--config-driver",
         config_driver,
-    ])
-    .spawn()?;
+    ]).spawn()?;
 
     match supervisor_name.as_str() {
         "supervisor-1" => world.supervisor1 = Some(cmd.spawn()?),
@@ -348,8 +346,6 @@ async fn display_agent_slots(
     )?;
 
     let agents = response.agents.get_mut()?;
-
-    error!("{:#?}", agents);
 
     let agent = agents
         .into_iter()
@@ -488,15 +484,12 @@ async fn proxy_supervisor(
 ) -> Result<()> {
     let client = reqwest::Client::new();
 
-    let binary_name = env::var("BINARY_NAME").expect("Failed to get env var BINARY_NAME");
-    let model_name = env::var("MODEL_NAME").expect("Failed to get env var MODEL_NAME");
-
     let value = json!(
     {
         "args": {
-            "-m": model_name,
+            "-m": MODEL_NAME.to_owned(),
             "--port": port,
-            "binary": binary_name,
+            "binary": PADDLER_NAME.to_owned(),
             "-np": slots,
             "--slots": ""
         }
@@ -642,51 +635,6 @@ async fn llamacpp_is_not_running(world: &mut PaddlerWorld, llamacpp_name: String
     Ok(())
 }
 
-#[when(expr = r"{int} request(s) is/are proxied to {word} in {word}")]
-async fn proxy_requests(
-    _world: &mut PaddlerWorld,
-    requests: usize,
-    _balancer_name: String,
-    balancer_addr: String,
-) -> Result<()> {
-    std::thread::sleep(std::time::Duration::from_secs(15));
-
-    let client = reqwest::Client::new();
-
-    let value = json!({
-        "model": "qwen2_500m.gguf",
-        "messages": [
-            {
-                "role": "user",
-                "content": "List all prime numbers between 10,000 and 20,000,
-                    verifying what are possible calculable primes by Lucas-Lehmer
-                    test. Format as a numbered list with the verification proof
-                    for each entry. And tell a story
-                    about each number."
-            }
-        ]
-    });
-
-    let mut handles = vec![];
-
-    for _ in 0..requests {
-        let client = client.clone();
-        let addr = balancer_addr.clone();
-        let value = value.clone();
-        handles.push(tokio::spawn(async move {
-            client
-                .post(format!("http://{}/chat/completions", addr))
-                .json(&value)
-                .send()
-                .await
-        }));
-    }
-
-    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-
-    Ok(())
-}
-
 #[then(expr = "{word} must tell {int} slot(s) is/are {word} at {word} from {word}")]
 async fn report_metrics(
     _world: &mut PaddlerWorld,
@@ -723,8 +671,6 @@ async fn report_metrics(
 
     Ok(())
 }
-
-
 
 #[tokio::main]
 pub async fn main() {

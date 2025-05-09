@@ -54,7 +54,7 @@ dependencies = [
  "actix-rt",
  "actix-service",
  "actix-utils",
- "ahash 0.8.11",
+ "ahash",
  "base64 0.22.1",
  "bitflags 2.6.0",
  "brotli 6.0.0",
@@ -171,7 +171,7 @@ dependencies = [
  "actix-service",
  "actix-utils",
  "actix-web-codegen",
- "ahash 0.8.11",
+ "ahash",
  "bytes 1.8.0",
  "bytestring",
  "cfg-if",
@@ -241,17 +241,6 @@ name = "adler2"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "512761e0bb2578dd7380c6baaa0f4ce03e84f95e960231d1dec8bf4d7d6e2627"
-
-[[package]]
-name = "ahash"
-version = "0.7.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "891477e0c6a8957309ee5c45a6368af3ae14bb510732d2684ffa19af310920f9"
-dependencies = [
- "getrandom 0.2.15",
- "once_cell",
- "version_check",
-]
 
 [[package]]
 name = "ahash"
@@ -1786,9 +1775,9 @@ dependencies = [
 
 [[package]]
 name = "getrandom"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73fea8450eea4bac3940448fb7ae50d91f034f941199fcd9d909a5a07aa455f0"
+checksum = "26145e563e54f2cadc477553f1ec5ee650b00862f0a58bcd12cbdc5f0ea2d2f4"
 dependencies = [
  "cfg-if",
  "libc",
@@ -1898,9 +1887,6 @@ name = "hashbrown"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
-dependencies = [
- "ahash 0.7.8",
-]
 
 [[package]]
 name = "hashbrown"
@@ -3179,7 +3165,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "35ee62f28526d8d484621e77f8d6a1807f1bd07558a06ab5a204b4834d6be056"
 dependencies = [
- "ahash 0.8.11",
+ "ahash",
  "async-trait",
  "blake2",
  "bytes 1.8.0",
@@ -3214,7 +3200,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d123320b69bd06e897fc16bd1dde962a7b488c4d2ae825683fbca0198fad8669"
 dependencies = [
- "ahash 0.8.11",
+ "ahash",
  "async-trait",
  "brotli 3.5.0",
  "bytes 1.8.0",
@@ -3297,7 +3283,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb50f65f06c4b81ccb3edcceaa54bb9439608506b0b3b8c048798169a64aad8e"
 dependencies = [
  "arrayvec",
- "hashbrown 0.12.3",
+ "hashbrown 0.15.1",
  "parking_lot",
  "rand",
 ]
@@ -4954,7 +4940,7 @@ version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "458f7a779bf54acc9f347480ac654f68407d3aab21269a6e3c9f922acd9e2da9"
 dependencies = [
- "getrandom 0.3.2",
+ "getrandom 0.3.3",
  "serde",
 ]
 
