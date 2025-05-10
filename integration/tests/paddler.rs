@@ -233,25 +233,25 @@ async fn supervisor_is_running(
 
     let mut cmd = Command::new(PADDLER_NAME.to_owned());
 
-    cmd.args([
-        "supervise",
-        "--supervisor-addr",
-        &supervisor_addr,
-        "--binary",
-        &PADDLER_NAME,
-        "--model",
-        &MODEL_NAME,
-        "--port",
-        &llamacpp_addr,
-        "--config-driver",
-        config_driver,
-    ]).spawn()?;
+    let child = cmd
+        .args([
+            "supervise",
+            "--supervisor-addr",
+            &supervisor_addr,
+            "--binary",
+            &PADDLER_NAME,
+            "--model",
+            &MODEL_NAME,
+            "--port",
+            &llamacpp_addr,
+            "--config-driver",
+            config_driver,
+        ])
+        .spawn()?;
 
     match supervisor_name.as_str() {
-        "supervisor-1" => world.supervisor1 = Some(cmd.spawn()?),
-        "supervisor-2" => {
-            world.supervisor2 = Some(cmd.spawn()?);
-        }
+        "supervisor-1" => world.supervisor1 = Some(child),
+        "supervisor-2" => world.supervisor2 = Some(child),
         _ => (),
     }
 
@@ -301,24 +301,21 @@ async fn agent_is_running(
     _balancer_name: String,
     balancer_addr: String,
 ) -> Result<()> {
-    let process = Some(
-        Command::new(PADDLER_NAME.to_owned())
-            .args([
-                "agent",
-                "--local-llamacpp-addr",
-                &llamacpp_addr,
-                "--management-addr",
-                &balancer_addr,
-                "--name",
-                &agent_name,
-            ])
-            .spawn()
-            .expect("Failed to run balancer"),
-    );
+    let process = Command::new(PADDLER_NAME.to_owned())
+        .args([
+            "agent",
+            "--local-llamacpp-addr",
+            &llamacpp_addr,
+            "--management-addr",
+            &balancer_addr,
+            "--name",
+            &agent_name,
+        ])
+        .spawn()?;
 
     match agent_name.as_str() {
-        "agent-1" => world.agent1 = process,
-        "agent-2" => world.agent2 = process,
+        "agent-1" => world.agent1 = Some(process),
+        "agent-2" => world.agent2 = Some(process),
         _ => (),
     }
 
