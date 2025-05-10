@@ -267,7 +267,7 @@ async fn llamacpp_is_running(
 ) -> Result<()> {
     let mut cmd = Command::new(LLAMACPP_NAME.to_owned());
 
-    cmd.args([
+    let child = cmd.args([
         "-m",
         &MODEL_NAME,
         "-c",
@@ -279,11 +279,11 @@ async fn llamacpp_is_running(
         "--slots",
         "--port",
         &addr.to_string(),
-    ]);
+    ]).spawn()?;
 
     match llamacpp_name.as_str() {
-        "llamacpp-1" => world.llamacpp1 = Some(cmd.spawn()?),
-        "llamacpp-2" => world.llamacpp2 = Some(cmd.spawn()?),
+        "llamacpp-1" => world.llamacpp1 = Some(child),
+        "llamacpp-2" => world.llamacpp2 = Some(child),
         _ => (),
     }
 
@@ -301,25 +301,33 @@ async fn agent_is_running(
     _balancer_name: String,
     balancer_addr: String,
 ) -> Result<()> {
-    let process = Command::new(PADDLER_NAME.to_owned())
-        .args([
-            "agent",
-            "--local-llamacpp-addr",
-            &llamacpp_addr,
-            "--management-addr",
-            &balancer_addr,
-            "--name",
-            &agent_name,
-        ])
-        .spawn()?;
+    let mut cmd = Command::new(PADDLER_NAME.to_owned());
+
+    let child = cmd.args([
+        "agent",
+        "--local-llamacpp-addr",
+        &llamacpp_addr,
+        "--management-addr",
+        &balancer_addr,
+        "--name",
+        &agent_name,
+    ]).spawn()?;
 
     match agent_name.as_str() {
-        "agent-1" => world.agent1 = Some(process),
-        "agent-2" => world.agent2 = Some(process),
+        "agent-1" => {
+            if world.agent1.is_none() {
+                world.agent1 = Some(child)
+            }
+        }
+        "agent-2" => {
+            if world.agent2.is_none() {
+                world.agent2 = Some(child)
+            }
+        }
         _ => (),
     }
 
-    std::thread::sleep(std::time::Duration::from_secs(3));
+    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
 
     Ok(())
 }
@@ -333,7 +341,7 @@ async fn display_agent_slots(
     slots_idle: usize,
     llamacpp_addr: String,
 ) -> Result<()> {
-    std::thread::sleep(std::time::Duration::from_secs(15));
+    tokio::time::sleep(std::time::Duration::from_secs(15)).await;
 
     let mut response = serde_json::from_str::<UpstreamPeerPool>(
         &reqwest::get(format!("http://{}/api/v1/agents", balancer_addr))
@@ -395,7 +403,7 @@ async fn agent_cannot_fetch_llamacpp(
     _llamacpp_name: String,
     llamacpp_addr: String,
 ) -> Result<()> {
-    std::thread::sleep(std::time::Duration::from_secs(15));
+    tokio::time::sleep(std::time::Duration::from_secs(15)).await;
 
     let mut response = serde_json::from_str::<UpstreamPeerPool>(
         &reqwest::get(format!("http://{}/api/v1/agents", balancer_addr))
@@ -524,7 +532,7 @@ async fn slot_is_busy(
     idle_slots: usize,
     balancer_addr: String,
 ) -> Result<()> {
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
     let response = serde_json::from_str::<UpstreamPeerPool>(
         reqwest::get(format!("http://{}/api/v1/agents", balancer_addr))
@@ -575,7 +583,7 @@ async fn get_response(
     _balancer_name: String,
     _balancer_addr: String,
 ) -> Result<()> {
-    std::thread::sleep(std::time::Duration::from_secs(7));
+    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
     for response in &world.proxy_response {
         if let Some(response) = response {
@@ -595,7 +603,7 @@ async fn agent_does_not_exist(
     balancer_addr: String,
     agent_name: String,
 ) -> Result<()> {
-    std::thread::sleep(std::time::Duration::from_secs(15));
+    tokio::time::sleep(std::time::Duration::from_secs(15)).await;
 
     let mut response = serde_json::from_str::<UpstreamPeerPool>(
         &reqwest::get(format!("http://{}/api/v1/agents", balancer_addr))
@@ -644,7 +652,7 @@ async fn report_metrics(
     let end = get_unix_time_from(15);
     let step = 5;
 
-    std::thread::sleep(std::time::Duration::from_millis(2000));
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
     let response = reqwest::get(format!(
         "http://{}/api/v1/query?query=paddler_slots_{}&start={}&end={}&step={}",
