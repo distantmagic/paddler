@@ -32,14 +32,11 @@ lazy_static! {
 
 #[derive(Debug, Default, cucumber::World)]
 pub struct PaddlerWorld {
-    pub balancer1: Option<Child>,
-    pub agent1: Option<Child>,
-    pub agent2: Option<Child>,
-    pub supervisor1: Option<Child>,
-    pub supervisor2: Option<Child>,
+    pub balancer: Option<Child>,
+    pub agents: Vec<Option<Child>>,
+    pub supervisors: Vec<Option<Child>>,
     pub system: Option<System>,
-    pub llamacpp1: Option<Child>,
-    pub llamacpp2: Option<Child>,
+    pub llamacpps: Vec<Option<Child>>,
     pub statsd: Option<Child>,
     pub prometheus: Option<Child>,
     pub proxy_response: Vec<Option<CoreResult<Response, reqwest::Error>>>,
@@ -47,39 +44,72 @@ pub struct PaddlerWorld {
 
 impl PaddlerWorld {
     pub async fn teardown(&mut self) -> Result<()> {
-        let kill_process = async |process: &mut Option<Child>| {
-            if let Some(child) = process {
-                if let Some(pid) = child.id() {
-                    let nix_pid = Pid::from_raw(pid as i32);
-
-                    signal::kill(nix_pid, signal::Signal::SIGINT).unwrap();
-
-                    let _ = child.wait().await.unwrap();
-                }
-            }
-        };
-
-        kill_process(&mut self.agent1).await;
-        kill_process(&mut self.agent2).await;
-        kill_process(&mut self.llamacpp1).await;
-        kill_process(&mut self.llamacpp2).await;
-        kill_process(&mut self.balancer1).await;
-        kill_process(&mut self.statsd).await;
-        kill_process(&mut self.prometheus).await;
-        kill_process(&mut self.supervisor1).await;
-        kill_process(&mut self.supervisor2).await;
-
-        self.agent1 = None;
-        self.agent2 = None;
-        self.llamacpp1 = None;
-        self.llamacpp2 = None;
-        self.balancer1 = None;
-        self.statsd = None;
-        self.prometheus = None;
-        self.supervisor1 = None;
-        self.supervisor2 = None;
+        Self::kill_all_processes(self).await;
+        Self::reset_all_processes(self);
 
         Ok(())
+    }
+
+    async fn kill_process(process: &mut Option<Child>) {
+        if let Some(child) = process {
+            if let Some(pid) = child.id() {
+                let nix_pid = Pid::from_raw(pid as i32);
+
+                signal::kill(nix_pid, signal::Signal::SIGINT).unwrap();
+
+                let _ = child.wait().await.unwrap();
+            }
+        }
+    }
+
+    async fn kill_all_processes(&mut self) {
+        Self::kill_process(&mut self.balancer).await;
+        Self::kill_process(&mut self.statsd).await;
+        Self::kill_process(&mut self.prometheus).await;
+
+        if let Some(agent) = self.agents.get_mut(0) {
+            Self::kill_process(agent).await;
+        }
+        if let Some(agent) = self.agents.get_mut(1) {
+            Self::kill_process(agent).await;
+        }
+        if let Some(llamacpp) = self.llamacpps.get_mut(0) {
+            Self::kill_process(llamacpp).await;
+        }
+        if let Some(llamacpp) = self.llamacpps.get_mut(1) {
+            Self::kill_process(llamacpp).await;
+        }
+        if let Some(supervisor) = self.supervisors.get_mut(0) {
+            Self::kill_process(supervisor).await;
+        }
+        if let Some(supervisor) = self.supervisors.get_mut(1) {
+            Self::kill_process(supervisor).await;
+        }
+    }
+
+    fn reset_all_processes(&mut self) {
+        if let Some(agent) = self.agents.get_mut(0) {
+            *agent = None;
+        }
+        if let Some(agent) = self.agents.get_mut(1) {
+            *agent = None;
+        }
+        if let Some(llamacpp) = self.llamacpps.get_mut(0) {
+            *llamacpp = None;
+        }
+        if let Some(llamacpp) = self.llamacpps.get_mut(1) {
+            *llamacpp = None;
+        }
+        if let Some(supervisor) = self.supervisors.get_mut(0) {
+            *supervisor = None;
+        }
+        if let Some(supervisor) = self.supervisors.get_mut(1) {
+            *supervisor = None;
+        }
+
+        self.balancer = None;
+        self.statsd = None;
+        self.prometheus = None;
     }
 }
 
@@ -130,7 +160,7 @@ async fn balancer_is_running(
     statsd_addr: String,
     reporting_interval: usize,
 ) -> Result<()> {
-    world.balancer1 = Some(
+    world.balancer = Some(
         Command::new(PADDLER_NAME.to_owned())
             .args([
                 "balancer",
@@ -250,8 +280,8 @@ async fn supervisor_is_running(
         .spawn()?;
 
     match supervisor_name.as_str() {
-        "supervisor-1" => world.supervisor1 = Some(child),
-        "supervisor-2" => world.supervisor2 = Some(child),
+        "supervisor-1" => world.supervisors.push(Some(child)),
+        "supervisor-2" => world.supervisors.push(Some(child)),
         _ => (),
     }
 
@@ -284,8 +314,8 @@ async fn llamacpp_is_running(
         .spawn()?;
 
     match llamacpp_name.as_str() {
-        "llamacpp-1" => world.llamacpp1 = Some(child),
-        "llamacpp-2" => world.llamacpp2 = Some(child),
+        "llamacpp-1" => world.llamacpps.push(Some(child)),
+        "llamacpp-2" => world.llamacpps.push(Some(child)),
         _ => (),
     }
 
@@ -318,16 +348,8 @@ async fn agent_is_running(
         .spawn()?;
 
     match agent_name.as_str() {
-        "agent-1" => {
-            if world.agent1.is_none() {
-                world.agent1 = Some(child)
-            }
-        }
-        "agent-2" => {
-            if world.agent2.is_none() {
-                world.agent2 = Some(child)
-            }
-        }
+        "agent-1" => world.agents.push(Some(child)),
+        "agent-2" => world.agents.push(Some(child)),
         _ => (),
     }
 
@@ -379,17 +401,17 @@ async fn display_agent_slots(
 async fn agent_is_not_running(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
     match agent_name.as_str() {
         "agent-1" => {
-            if let Some(agent) = world.agent1.as_mut() {
+            if let Some(agent) = world.agents[0].as_mut() {
                 agent.kill().await?;
                 agent.wait().await?;
-                world.agent1 = None;
+                world.agents.push(None);
             }
         }
         "agent-2" => {
-            if let Some(agent) = world.agent2.as_mut() {
+            if let Some(agent) = world.agents[1].as_mut() {
                 agent.kill().await?;
                 agent.wait().await?;
-                world.agent2 = None;
+                world.agents.push(None);
             }
         }
         _ => (),
@@ -453,29 +475,26 @@ async fn proxy_balancer(
         "messages": [
             {
                 "role": "user",
-                "content": "List all prime numbers between 10,000 and 20,000,
-                    verifying what are possible calculable primes by Lucas-Lehmer
-                    test. Format as a numbered list with the verification proof
-                    for each entry. And tell a story
-                    about each number."
+                "content": "List all prime numbers between 10,000 and 20,000"
             }
         ]
     });
 
-    let mut handles = vec![];
+    let _ = tokio::spawn(async move {
+        for _ in 0..requests {
+            let client = client.clone();
+            let addr = balancer_addr.clone();
+            let value = value.clone();
 
-    for _ in 0..requests {
-        let client = client.clone();
-        let addr = balancer_addr.clone();
-        let value = value.clone();
-        handles.push(tokio::spawn(async move {
-            client
-                .post(format!("http://{}/chat/completions", addr))
-                .json(&value)
-                .send()
-                .await
-        }));
-    }
+            tokio::spawn(async move {
+                let _ = client
+                    .post(format!("http://{}/chat/completions", addr))
+                    .json(&value)
+                    .send()
+                    .await;
+            });
+        }
+    });
 
     Ok(())
 }
@@ -536,7 +555,7 @@ async fn slot_is_busy(
     idle_slots: usize,
     balancer_addr: String,
 ) -> Result<()> {
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let response = serde_json::from_str::<UpstreamPeerPool>(
         reqwest::get(format!("http://{}/api/v1/agents", balancer_addr))
@@ -564,13 +583,13 @@ async fn kill_llamacpp(
 
     match supervisor_name.as_str() {
         "supervisor-1" => {
-            if let Some(supervisor) = &world.supervisor1 {
+            if let Some(Some(supervisor)) = &world.supervisors.get(0) {
                 let supervisor_pid = supervisor.id();
                 kill_children(supervisor_pid).await;
             }
         }
         "supervisor-2" => {
-            if let Some(supervisor) = &world.supervisor2 {
+            if let Some(Some(supervisor)) = &world.supervisors.get(0) {
                 let supervisor_pid = supervisor.id();
                 kill_children(supervisor_pid).await;
             }
@@ -631,12 +650,12 @@ async fn agent_does_not_exist(
 async fn llamacpp_is_not_running(world: &mut PaddlerWorld, llamacpp_name: String) -> Result<()> {
     match llamacpp_name.as_str() {
         "llamacpp-1" => {
-            world.llamacpp1.as_mut().unwrap().kill().await?;
-            world.llamacpp1.as_mut().unwrap().wait().await?;
+            world.llamacpps[0].as_mut().unwrap().kill().await?;
+            world.llamacpps[0].as_mut().unwrap().wait().await?;
         }
         "llamacpp-2" => {
-            world.llamacpp2.as_mut().unwrap().kill().await?;
-            world.llamacpp2.as_mut().unwrap().wait().await?;
+            world.llamacpps[1].as_mut().unwrap().kill().await?;
+            world.llamacpps[1].as_mut().unwrap().wait().await?;
         }
         _ => (),
     }
