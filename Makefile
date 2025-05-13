@@ -60,7 +60,7 @@ run.supervisor: esbuild
 		--binary llama-server \
 		--model /usr/local/home/models/qwen2_500m.gguf \
 		--port 8081 \
-		--config-driver '{"type": "file", "path": "config.toml", "name": "agent-1"}'
+		--config-driver '{"type": "file", "path": "supervisor-1.toml", "name": "supervisor-1"}'
 
 .PHONY: run.agent
 run.agent: esbuild

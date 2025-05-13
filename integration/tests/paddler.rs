@@ -3,6 +3,7 @@ use paddler::{balancer::upstream_peer_pool::UpstreamPeerPool, errors::result::Re
 use serde_json::{json, Value};
 use sysinfo::System;
 
+use std::sync::{Arc, Mutex};
 use std::{env, fs::File, io::Write, net::SocketAddr, str::FromStr};
 use tokio::process::Command;
 
@@ -39,7 +40,7 @@ pub struct PaddlerWorld {
     pub llamacpps: Vec<Option<Child>>,
     pub statsd: Option<Child>,
     pub prometheus: Option<Child>,
-    pub proxy_response: Vec<Option<CoreResult<Response, reqwest::Error>>>,
+    pub proxy_response: Vec<CoreResult<Response, reqwest::Error>>,
 }
 
 impl PaddlerWorld {
@@ -50,40 +51,31 @@ impl PaddlerWorld {
         Ok(())
     }
 
-    async fn kill_process(process: &mut Option<Child>) {
-        if let Some(child) = process {
-            if let Some(pid) = child.id() {
-                let nix_pid = Pid::from_raw(pid as i32);
-
-                signal::kill(nix_pid, signal::Signal::SIGINT).unwrap();
-
-                let _ = child.wait().await.unwrap();
-            }
-        }
-    }
-
     async fn kill_all_processes(&mut self) {
-        Self::kill_process(&mut self.balancer).await;
-        Self::kill_process(&mut self.statsd).await;
-        Self::kill_process(&mut self.prometheus).await;
+        kill_process(&mut self.balancer).await;
+        kill_process(&mut self.statsd).await;
+        kill_process(&mut self.prometheus).await;
 
         if let Some(agent) = self.agents.get_mut(0) {
-            Self::kill_process(agent).await;
+            kill_process(agent).await;
         }
         if let Some(agent) = self.agents.get_mut(1) {
-            Self::kill_process(agent).await;
+            kill_process(agent).await;
+        }
+        if let Some(agent) = self.agents.get_mut(2) {
+            kill_process(agent).await;
         }
         if let Some(llamacpp) = self.llamacpps.get_mut(0) {
-            Self::kill_process(llamacpp).await;
+            kill_process(llamacpp).await;
         }
         if let Some(llamacpp) = self.llamacpps.get_mut(1) {
-            Self::kill_process(llamacpp).await;
+            kill_process(llamacpp).await;
         }
         if let Some(supervisor) = self.supervisors.get_mut(0) {
-            Self::kill_process(supervisor).await;
+            kill_process(supervisor).await;
         }
         if let Some(supervisor) = self.supervisors.get_mut(1) {
-            Self::kill_process(supervisor).await;
+            kill_process(supervisor).await;
         }
     }
 
@@ -110,6 +102,18 @@ impl PaddlerWorld {
         self.balancer = None;
         self.statsd = None;
         self.prometheus = None;
+    }
+}
+
+async fn kill_process(process: &mut Option<Child>) {
+    if let Some(child) = process {
+        if let Some(pid) = child.id() {
+            let nix_pid = Pid::from_raw(pid as i32);
+
+            signal::kill(nix_pid, signal::Signal::SIGINT).unwrap();
+
+            let _ = child.wait().await.unwrap();
+        }
     }
 }
 
@@ -174,6 +178,7 @@ async fn balancer_is_running(
                 &reporting_interval.to_string(),
                 "--management-dashboard-enable",
             ])
+            .kill_on_drop(true)
             .spawn()
             .expect("Failed to run balancer"),
     );
@@ -198,7 +203,7 @@ async fn statsd_is_running(
         "--log.level=debug",
     ]);
 
-    world.statsd = Some(cmd.spawn()?);
+    world.statsd = Some(cmd.kill_on_drop(true).spawn()?);
 
     Ok(())
 }
@@ -231,7 +236,7 @@ scrape_configs:
 
     cmd.args(["--web.listen-address", &prometheus_addr]);
 
-    world.prometheus = Some(cmd.spawn()?);
+    world.prometheus = Some(cmd.kill_on_drop(true).spawn()?);
 
     Ok(())
 }
@@ -269,7 +274,7 @@ async fn supervisor_is_running(
             "--supervisor-addr",
             &supervisor_addr,
             "--binary",
-            &PADDLER_NAME,
+            &LLAMACPP_NAME,
             "--model",
             &MODEL_NAME,
             "--port",
@@ -277,6 +282,7 @@ async fn supervisor_is_running(
             "--config-driver",
             config_driver,
         ])
+        .kill_on_drop(true)
         .spawn()?;
 
     match supervisor_name.as_str() {
@@ -345,6 +351,7 @@ async fn agent_is_running(
             "--name",
             &agent_name,
         ])
+        .kill_on_drop(true)
         .spawn()?;
 
     match agent_name.as_str() {
@@ -401,16 +408,14 @@ async fn display_agent_slots(
 async fn agent_is_not_running(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
     match agent_name.as_str() {
         "agent-1" => {
-            if let Some(agent) = world.agents[0].as_mut() {
-                agent.kill().await?;
-                agent.wait().await?;
-                world.agents.push(None);
+            if let Some(agent) = world.agents.get_mut(0) {
+                kill_process(agent).await;
+                world.agents.insert(0, None);
             }
         }
         "agent-2" => {
-            if let Some(agent) = world.agents[1].as_mut() {
-                agent.kill().await?;
-                agent.wait().await?;
+            if let Some(agent) = world.agents.get_mut(1) {
+                kill_process(agent).await;
                 world.agents.push(None);
             }
         }
@@ -461,40 +466,50 @@ async fn agent_cannot_fetch_llamacpp(
 
 #[when(expr = r"{int} request(s) is/are proxied to {word} in {word}")]
 async fn proxy_balancer(
-    _world: &mut PaddlerWorld,
+    world: &mut PaddlerWorld,
     requests: usize,
     _balancer_name: String,
     balancer_addr: String,
 ) -> Result<()> {
     std::thread::sleep(std::time::Duration::from_secs(15));
 
-    let client = reqwest::Client::new();
+    let proxy_response = Arc::new(Mutex::new(Vec::new()));
+    let shared_responses = proxy_response.clone();
 
-    let value = json!({
-        "model": "qwen2_500m.gguf",
-        "messages": [
-            {
-                "role": "user",
-                "content": "List all prime numbers between 10,000 and 20,000"
-            }
-        ]
-    });
+    for _ in 0..requests {
+        let client = reqwest::Client::new();
+        let value = json!({
+            "model": "qwen2_500m.gguf",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "List all prime numbers between 10,000 and 20,000"
+                }
+            ]
+        });
 
-    let _ = tokio::spawn(async move {
-        for _ in 0..requests {
-            let client = client.clone();
-            let addr = balancer_addr.clone();
-            let value = value.clone();
+        let addr = balancer_addr.clone();
+        let responses = shared_responses.clone();
 
-            tokio::spawn(async move {
-                let _ = client
-                    .post(format!("http://{}/chat/completions", addr))
-                    .json(&value)
-                    .send()
-                    .await;
-            });
-        }
-    });
+        tokio::spawn(async move {
+            let result = client
+                .post(format!("http://{}/chat/completions", addr))
+                .json(&value)
+                .send()
+                .await;
+
+            responses.lock().unwrap().push(result);
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+    world.proxy_response = Arc::try_unwrap(proxy_response)
+        .unwrap()
+        .into_inner()
+        .unwrap();
 
     Ok(())
 }
@@ -517,7 +532,7 @@ async fn proxy_supervisor(
         "args": {
             "-m": MODEL_NAME.to_owned(),
             "--port": port,
-            "binary": PADDLER_NAME.to_owned(),
+            "binary": LLAMACPP_NAME.to_owned(),
             "-np": slots,
             "--slots": ""
         }
@@ -589,7 +604,7 @@ async fn kill_llamacpp(
             }
         }
         "supervisor-2" => {
-            if let Some(Some(supervisor)) = &world.supervisors.get(0) {
+            if let Some(Some(supervisor)) = &world.supervisors.get(1) {
                 let supervisor_pid = supervisor.id();
                 kill_children(supervisor_pid).await;
             }
@@ -601,17 +616,26 @@ async fn kill_llamacpp(
 }
 
 #[then(expr = r"{word} must return a(n) {word} response in {word}")]
-async fn get_response(
+async fn successful_response(
     world: &mut PaddlerWorld,
     _balancer_name: String,
+    response: String,
     _balancer_addr: String,
 ) -> Result<()> {
-    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+    tokio::time::sleep(std::time::Duration::from_secs(15)).await;
 
-    for response in &world.proxy_response {
-        if let Some(response) = response {
-            assert!(response.is_ok());
+    match response.as_str() {
+        "successful" => {
+            for response in &world.proxy_response {
+                assert!(response.as_ref().is_ok());
+            }
         }
+        "unsuccessful" => {
+            for response in &world.proxy_response {
+                assert!(response.as_ref().is_err());
+            }
+        }
+        _ => (),
     }
 
     world.proxy_response.clear();
@@ -672,7 +696,7 @@ async fn report_metrics(
     prometheus_addr: String,
 ) -> Result<()> {
     let start = get_unix_time_from(0);
-    let end = get_unix_time_from(15);
+    let end = get_unix_time_from(30);
     let step = 5;
 
     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
@@ -705,10 +729,16 @@ pub async fn main() {
     PaddlerWorld::cucumber()
         .max_concurrent_scenarios(1)
         .fail_fast()
-        // .retries(3)
+        // .retries(2)
         // .retry_after(std::time::Duration::from_secs(60))
         .fail_on_skipped()
         .after(|_feature, _rule, _scenario, _scenario_finished, world| {
+            // match scenario_finished {
+            //     cucumber::event::ScenarioFinished::StepFailed(_regex, _step , _error) => {
+            //         panic!("{:#?}", world);
+            //     }
+            //     _ => ()
+            // }
             Box::pin(async move {
                 world.unwrap().teardown().await.expect("Teardown Failed");
             })
