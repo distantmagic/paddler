@@ -471,25 +471,31 @@ async fn proxy_balancer(
     _balancer_name: String,
     balancer_addr: String,
 ) -> Result<()> {
-    std::thread::sleep(std::time::Duration::from_secs(15));
+    let client = reqwest::Client::new();
+    let value = json!({
+        "model": "qwen2_500m.gguf",
+        "messages": [
+            {
+                "role": "user",
+                "content": "List all prime numbers between 10,000 and 20,000"
+            }
+        ]
+    });
 
-    let proxy_response = Arc::new(Mutex::new(Vec::new()));
-    let shared_responses = proxy_response.clone();
+    let (tx, rx) = tokio::sync::mpsc::channel(requests);
+
+    tokio::spawn(async move {
+        let mut rx = rx;
+        while let Some(response) = rx.recv().await {
+            world.proxy_response.push(response);
+        }
+    });
 
     for _ in 0..requests {
-        let client = reqwest::Client::new();
-        let value = json!({
-            "model": "qwen2_500m.gguf",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": "List all prime numbers between 10,000 and 20,000"
-                }
-            ]
-        });
-
+        let client = client.clone();
         let addr = balancer_addr.clone();
-        let responses = shared_responses.clone();
+        let value = value.clone();
+        let tx = tx.clone();
 
         tokio::spawn(async move {
             let result = client
@@ -497,19 +503,12 @@ async fn proxy_balancer(
                 .json(&value)
                 .send()
                 .await;
-
-            responses.lock().unwrap().push(result);
+            
+            let _ = tx.send(result).await;
         });
 
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
-
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-
-    world.proxy_response = Arc::try_unwrap(proxy_response)
-        .unwrap()
-        .into_inner()
-        .unwrap();
 
     Ok(())
 }
