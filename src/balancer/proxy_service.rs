@@ -11,13 +11,13 @@ use pingora::{
 use std::{sync::Arc, time::Duration};
 
 use crate::{
-    balancer::{upstream_peer::UpstreamPeer, upstream_peer_pool::UpstreamPeerPool},
+    balancer::{upstream_peer::UpstreamPeerInfo, upstream_peer_pool::UpstreamPeerPool},
     errors::result::Result as PaddlerResult,
 };
 
 pub struct LlamaCppContext {
     slot_taken: bool,
-    selected_peer: Option<UpstreamPeer>,
+    selected_peer: Option<UpstreamPeerInfo>,
     uses_slots: bool,
 }
 
@@ -46,6 +46,17 @@ impl ProxyService {
             self.upstream_peer_pool
                 .release_slot(&peer.agent_id, peer.last_update)?;
             self.upstream_peer_pool.restore_integrity()?;
+
+            ctx.slot_taken = false;
+        }
+
+        Ok(())
+    }
+
+    #[inline]
+    fn release_permit(&self, ctx: &mut LlamaCppContext) -> PaddlerResult<()> {
+        if let Some(peer) = &ctx.selected_peer {
+            self.upstream_peer_pool.release_one_permit(&peer.agent_id)?;
 
             ctx.slot_taken = false;
         }
@@ -108,19 +119,28 @@ impl ProxyHttp for ProxyService {
         client_reused: bool,
     ) -> Box<Error> {
         error!("Error while proxying: {}", e);
+
+        let retry = client_reused && !session.as_ref().retry_buffer_truncated();
+
         if ctx.slot_taken {
             if let Err(err) = self.release_slot(ctx) {
                 error!("Failed to release slot: {}", err);
 
                 return Error::new(pingora::InternalError);
             }
+            if !retry {
+                if let Err(err) = self.release_permit(ctx) {
+                    error!("Failed to release permit: {}", err);
+
+                    return Error::new(pingora::InternalError);
+                }
+            }
         }
 
         let mut e = e.more_context(format!("Peer: {}", peer));
 
         // only reused client connections where retry buffer is not truncated
-        e.retry
-            .decide_reuse(client_reused && !session.as_ref().retry_buffer_truncated());
+        e.retry.decide_reuse(retry);
 
         e
     }
@@ -198,6 +218,9 @@ impl ProxyHttp for ProxyService {
                 error!("Failed to release slot: {}", err);
 
                 return Err(Error::new(pingora::InternalError));
+            } else if let Err(err) = self.release_permit(ctx) {
+                error!("Failed to release permit: {}", err);
+                return Err(Error::new(pingora::InternalError));
             }
         }
 
@@ -210,19 +233,48 @@ impl ProxyHttp for ProxyService {
         ctx: &mut Self::CTX,
     ) -> Result<Box<HttpPeer>> {
         if ctx.selected_peer.is_none() {
-            ctx.selected_peer = match self.upstream_peer_pool.use_best_peer() {
-                Ok(peer) => peer,
+            let smaphore = self.upstream_peer_pool.upstream_slots_permits.clone();
+            let permit = match smaphore.acquire_owned().await {
+                Ok(p) => p,
                 Err(e) => {
-                    error!("Failed to get best peer: {}", e);
-
+                    error!("Failed to get slot permit: {}", e);
                     return Err(Error::new(pingora::InternalError));
                 }
             };
+
+            ctx.selected_peer = match self.upstream_peer_pool.use_best_peer() {
+                Ok(peer) => peer,
+                Err(e) => {
+                    // ideally unreachable
+                    error!("Can't get peer even under permits: {e}");
+                    return Err(Error::new(pingora::InternalError));
+                }
+            };
+
+            let store_res = self
+                .upstream_peer_pool
+                .store_permit(&ctx.selected_peer.as_ref().unwrap().agent_id, permit);
+
+            match store_res {
+                Ok(r) => {
+                    if !r {
+                        // ideally unreachable
+                        error!("Can't get peer even under permits!");
+                        return Err(Error::new(pingora::InternalError));
+                    }
+                }
+                Err(e) => {
+                    // ideally unreachable
+                    error!("Can't get peer even under permits: {e}");
+                    return Err(Error::new(pingora::InternalError));
+                }
+            }
         }
 
         let selected_peer = match ctx.selected_peer.as_ref() {
             Some(peer) => peer,
             None => {
+                // ideally unreachable
                 return Err(Error::create(
                     pingora::Custom("No peer available"),
                     ErrorSource::Upstream,
