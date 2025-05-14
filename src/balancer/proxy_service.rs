@@ -246,10 +246,15 @@ impl ProxyHttp for ProxyService {
                 Ok(peer) => peer,
                 Err(e) => {
                     // ideally unreachable
-                    error!("Can't get peer even under permits: {e}");
+                    error!("Failed to get peer even under permits: {e}");
                     return Err(Error::new(pingora::InternalError));
                 }
             };
+
+            if ctx.selected_peer.is_none() {
+                error!("Failed to get peer even under permits!");
+                return Err(Error::new(pingora::InternalError));
+            }
 
             let store_res = self
                 .upstream_peer_pool
@@ -259,13 +264,13 @@ impl ProxyHttp for ProxyService {
                 Ok(r) => {
                     if !r {
                         // ideally unreachable
-                        error!("Can't get peer even under permits!");
+                        error!("Failed to get peer even under permits!");
                         return Err(Error::new(pingora::InternalError));
                     }
                 }
                 Err(e) => {
                     // ideally unreachable
-                    error!("Can't get peer even under permits: {e}");
+                    error!("Failed to get peer even under permits: {e}");
                     return Err(Error::new(pingora::InternalError));
                 }
             }
