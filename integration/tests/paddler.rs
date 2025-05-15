@@ -441,6 +441,7 @@ async fn agent_cannot_fetch_llamacpp(
             .text()
             .await?,
     )?;
+    
     let agents = response.agents.get_mut()?;
 
     let agent = agents
