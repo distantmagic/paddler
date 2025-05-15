@@ -3,7 +3,7 @@ use paddler::{balancer::upstream_peer_pool::UpstreamPeerPool, errors::result::Re
 use serde_json::{json, Value};
 use sysinfo::System;
 
-use std::sync::{Arc, Mutex};
+use std::env::current_dir;
 use std::{env, fs::File, io::Write, net::SocketAddr, str::FromStr};
 use tokio::process::Command;
 
@@ -25,6 +25,11 @@ lazy_static! {
         env::var("STATSD_NAME").expect("Failed to get env var STATSD_NAME");
     pub static ref LLAMACPP_NAME: String =
         env::var("LLAMACPP_NAME").expect("Failed to get env var LLAMACPP_NAME");
+    pub static ref LLAMACPP_MOCK_NAME: String = current_dir()
+        .expect("Failed to get current dir")
+        .join("fixtures/llama-server-mock.mjs")
+        .to_string_lossy()
+        .to_string();
     pub static ref MODEL_NAME: String =
         env::var("MODEL_NAME").expect("Failed to get env var MODEL_NAME");
     pub static ref PADDLER_NAME: String =
@@ -301,21 +306,15 @@ async fn llamacpp_is_running(
     addr: String,
     slots: usize,
 ) -> Result<()> {
-    let mut cmd = Command::new(LLAMACPP_NAME.to_owned());
+    let mut cmd = Command::new(LLAMACPP_MOCK_NAME.to_owned());
 
     let child = cmd
         .args([
-            "-m",
-            &MODEL_NAME,
-            "-c",
-            "2048",
-            "-ngl",
-            "2000",
-            "-np",
-            &slots.to_string(),
-            "--slots",
+            "port",
             "--port",
             &addr.to_string(),
+            "--np",
+            &slots.to_string(),
         ])
         .spawn()?;
 
@@ -425,7 +424,7 @@ async fn agent_is_not_running(world: &mut PaddlerWorld, agent_name: String) -> R
     Ok(())
 }
 
-#[then(expr = "{string} in {string} must report that {string} cannot fetch {string} in {string}")]
+#[then(expr = "{word} in {word} must report that {word} cannot fetch {word} in {word}")]
 async fn agent_cannot_fetch_llamacpp(
     _world: &mut PaddlerWorld,
     _balancer_name: String,

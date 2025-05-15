@@ -18,5 +18,5 @@ Feature: Agent
       
       @serial
       Scenario: Agent reports error
-        When llamacpp-2 stops running in agent feature
-        Then balancer-1 in 0.0.0.0:8070 must report that agent-2 cannot fetch llamacpp-2 in 0.0.0.0:8081 in agent feature
+        When llamacpp-2 stops running
+        Then balancer-1 in 0.0.0.0:8070 must report that agent-2 cannot fetch llamacpp-2 in 0.0.0.0:8081
