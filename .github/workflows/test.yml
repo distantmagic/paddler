@@ -123,6 +123,9 @@ jobs:
     - name: Check formatting
       run: cargo fmt --check
 
+    - name: Build paddler
+      run: make
+
     - name: Run tests
       run: |
         MODEL_NAME=paddler/integration/fixtures/small_model.gguf \
