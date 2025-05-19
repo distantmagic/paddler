@@ -138,7 +138,7 @@ jobs:
 
     - name: Run tests
       run: |
-        MODEL_NAME=paddler/integration/fixtures/small_model.gguf \
+        MODEL_NAME=integration/fixtures/small_model.gguf \
         LLAMACPP_NAME=llama.cpp/build/bin/llama-server \
         PADDLER_NAME=target/release/paddler \
         STATSD_NAME=statsd_exporter-0.27.2.linux-amd64/statsd_exporter \
