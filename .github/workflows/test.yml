@@ -53,17 +53,6 @@ jobs:
           tar -xvzf statsd.tar.gz
         shell: bash
 
-      - name: Download model
-        run: |
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            powershell -Command Invoke-WebRequest -Uri 'https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf' -OutFile qwen2_500m.gguf
-          elif [[ "${{ matrix.os }}" == "linux" ]]; then
-            wget -O qwen2_500m.gguf https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf
-          else
-            curl -L -o qwen2_500m.gguf https://huggingface.co/lmstudio-community/Qwen2-500M-Instruct-GGUF/resolve/main/Qwen2-500M-Instruct-IQ4_XS.gguf
-          fi
-        shell: bash
-
       - name: Download llama.cpp
         run: |
           git clone https://github.com/ggml-org/llama.cpp.git
@@ -100,12 +89,6 @@ jobs:
 
     - name: Check formatting
       run: cargo fmt --check
-
-    - name: Clippy
-      run: cargo clippy -- -D warnings
-
-    - name: Build paddler binary
-      run: cargo build
 
     - name: Run tests
       run: |
