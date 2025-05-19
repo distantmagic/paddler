@@ -111,7 +111,7 @@ jobs:
       run: |
         MODEL_NAME=paddler/integration/fixtures/small_model.gguf \
         LLAMACPP_NAME=llama.cpp/build/bin/llama-server \
-        PADDLER_NAME=target/debug/paddler \
+        PADDLER_NAME=target/release/paddler \
         STATSD_NAME=statsd_exporter-0.27.2.linux-amd64/statsd_exporter \
         PROMETHEUS_NAME=prometheus-3.3.0-rc.1.linux-amd64/prometheus \
         make test
