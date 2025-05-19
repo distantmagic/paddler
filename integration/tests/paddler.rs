@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 use sysinfo::System;
 
 use std::env::current_dir;
+use std::process::Stdio;
 use std::{env, fs::File, io::Write, net::SocketAddr, str::FromStr};
 use tokio::process::Command;
 
@@ -184,6 +185,8 @@ async fn balancer_is_running(
                 "--management-dashboard-enable",
             ])
             .kill_on_drop(true)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
             .spawn()
             .expect("Failed to run balancer"),
     );
@@ -208,7 +211,12 @@ async fn statsd_is_running(
         "--log.level=debug",
     ]);
 
-    world.statsd = Some(cmd.kill_on_drop(true).spawn()?);
+    world.statsd = Some(
+        cmd.kill_on_drop(true)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?,
+    );
 
     Ok(())
 }
@@ -273,6 +281,8 @@ async fn supervisor_is_running(
 
     let mut cmd = Command::new(PADDLER_NAME.to_owned());
 
+    println!("{:#?}", MODEL_NAME.clone());
+
     let child = cmd
         .args([
             "supervise",
@@ -288,6 +298,8 @@ async fn supervisor_is_running(
             config_driver,
         ])
         .kill_on_drop(true)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()?;
 
     match supervisor_name.as_str() {
@@ -316,6 +328,9 @@ async fn llamacpp_is_running(
             "--np",
             &slots.to_string(),
         ])
+        .kill_on_drop(true)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()?;
 
     match llamacpp_name.as_str() {
@@ -351,6 +366,8 @@ async fn agent_is_running(
             &agent_name,
         ])
         .kill_on_drop(true)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()?;
 
     match agent_name.as_str() {
@@ -441,7 +458,7 @@ async fn agent_cannot_fetch_llamacpp(
             .text()
             .await?,
     )?;
-    
+
     let agents = response.agents.get_mut()?;
 
     let agent = agents
@@ -717,12 +734,6 @@ pub async fn main() {
         // .retry_after(std::time::Duration::from_secs(60))
         .fail_on_skipped()
         .after(|_feature, _rule, _scenario, _scenario_finished, world| {
-            // match scenario_finished {
-            //     cucumber::event::ScenarioFinished::StepFailed(_regex, _step , _error) => {
-            //         panic!("{:#?}", world);
-            //     }
-            //     _ => ()
-            // }
             Box::pin(async move {
                 world.unwrap().teardown().await.expect("Teardown Failed");
             })

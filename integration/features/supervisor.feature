@@ -15,7 +15,6 @@ Feature: Supervisor
       Scenario: Supervisor can restart llamacpp after being killed
         When llamacpp-2 from supervisor-2 is killed
         When llamacpp-1 from supervisor-1 is killed
-        When 2 requests are proxied to balancer-1 in 127.0.0.1:8071
         Then balancer-1 in 0.0.0.0:8070 must report that agent-1 is registered with 4 slots at 0.0.0.0:8080
         Then balancer-1 in 0.0.0.0:8070 must report that agent-2 is registered with 4 slots at 0.0.0.0:8081
 

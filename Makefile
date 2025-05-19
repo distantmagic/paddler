@@ -52,16 +52,6 @@ esbuild: node_modules
 		resources/css/page-dashboard.css \
 		resources/ts/controller_dashboard.tsx
 
-.PHONY: run.supervisor
-run.supervisor: esbuild
-	cargo run --bin paddler --features etcd \
-		-- supervise \
-		--supervisor-addr "localhost:8087" \
-		--binary llama-server \
-		--model /usr/local/home/models/qwen2_500m.gguf \
-		--port 8081 \
-		--config-driver '{"type": "file", "path": "supervisor-1.toml", "name": "supervisor-1"}'
-
 .PHONY: run.agent
 run.agent: esbuild
 	cargo run --bin paddler agent \
