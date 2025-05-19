@@ -43,14 +43,14 @@ esbuild: node_modules
 		--loader:.webp=file \
 		--metafile=esbuild-meta.json \
 		--minify \
-		--outdir=static \
+		--outdir=paddler/static \
 		--sourcemap \
 		--splitting \
 		--target=safari16 \
 		--tree-shaking=true \
-		resources/css/reset.css \
-		resources/css/page-dashboard.css \
-		resources/ts/controller_dashboard.tsx
+		paddler/resources/css/reset.css \
+		paddler/resources/css/page-dashboard.css \
+		paddler/resources/ts/controller_dashboard.tsx
 
 .PHONY: run.agent
 run.agent: esbuild

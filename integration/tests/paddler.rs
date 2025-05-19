@@ -393,7 +393,7 @@ async fn display_agent_slots(
     slots_idle: usize,
     llamacpp_addr: String,
 ) -> Result<()> {
-    tokio::time::sleep(std::time::Duration::from_secs(15)).await;
+    tokio::time::sleep(std::time::Duration::from_secs(20)).await;
 
     let mut response = serde_json::from_str::<UpstreamPeerPool>(
         &reqwest::get(format!("http://{}/api/v1/agents", balancer_addr))
@@ -737,7 +737,8 @@ pub async fn main() {
         .after(|_feature, _rule, _scenario, _scenario_finished, world| {
             Box::pin(async move {
                 world.unwrap().teardown().await.expect("Teardown Failed");
-                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                log::error!("Waiting 5 seconds");
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
             })
         })
         .run_and_exit("features")

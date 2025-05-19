@@ -76,53 +76,53 @@ function serve() {
     } else if (req.url === "/slots") {
       const slots_message = [];
 
-      for (let i = 0; i < Object.keys(slots).length; i++) {
-        slots_message.push(`{
-          "id": ${i},
-          "id_task": -1,
-          "n_ctx": 4096,
-          "speculative": false,
-          "is_processing": ${slots[i]},
-          "non_causal": false,
-          "params": {
-            "n_predict": -1,
-            "seed": 4294967295,
-            "temperature": 0.8,
-            "dynatemp_range": 0.0,
-            "dynatemp_exponent": 1.0,
-            "top_k": 40,
-            "top_p": 0.95,
-            "min_p": 0.05,
-            "xtc_probability": 0.0,
-            "xtc_threshold": 0.1,
-            "typical_p": 1.0,
-            "repeat_last_n": 64,
-            "repeat_penalty": 1.0,
-            "presence_penalty": 0.0,
-            "frequency_penalty": 0.0,
-            "dry_multiplier": 0.0,
-            "dry_base": 1.75,
-            "dry_allowed_length": 2,
-            "dry_penalty_last_n": 4096,
-            "dry_sequence_breakers": ["\\n", ":", "\\\"", "*"],
-            "mirostat": 0,
-            "mirostat_tau": 5.0,
-            "mirostat_eta": 0.1,
-            "stop": [],
-            "max_tokens": -1,
-            "n_keep": 0,
-            "n_discard": 0,
-            "ignore_eos": false,
-            "stream": true,
-            "logit_bias": [],
-            "n_probs": 0,
-            "min_keep": 0,
-            "grammar": "",
-            "grammar_lazy": false,
-            "grammar_triggers": [],
-            "preserved_tokens": [],
-            "chat_format": "Content-only",
-            "samplers": [
+      for (let i = 0; i < slots.length; i++) {
+        slots_message.push({
+          id: i,
+          id_task: -1,
+          n_ctx: 512,
+          speculative: false,
+          is_processing: slots[i],
+          non_causal: false,
+          params: {
+            n_predict: -1,
+            seed: 4294967295,
+            temperature: 0.800000011920929,
+            dynatemp_range: 0.0,
+            dynatemp_exponent: 1.0,
+            top_k: 40,
+            top_p: 0.949999988079071,
+            min_p: 0.05000000074505806,
+            xtc_probability: 0.0,
+            xtc_threshold: 0.10000000149011612,
+            typical_p: 1.0,
+            repeat_last_n: 64,
+            repeat_penalty: 1.0,
+            presence_penalty: 0.0,
+            frequency_penalty: 0.0,
+            dry_multiplier: 0.0,
+            dry_base: 1.75,
+            dry_allowed_length: 2,
+            dry_penalty_last_n: 2048,
+            dry_sequence_breakers: ["\n", ":", "\"", "*"],
+            mirostat: 0,
+            mirostat_tau: 5.0,
+            mirostat_eta: 0.10000000149011612,
+            stop: [],
+            max_tokens: -1,
+            n_keep: 0,
+            n_discard: 0,
+            ignore_eos: false,
+            stream: true,
+            logit_bias: [],
+            n_probs: 0,
+            min_keep: 0,
+            grammar: "",
+            grammar_lazy: false,
+            grammar_triggers: [],
+            preserved_tokens: [],
+            chat_format: "Content-only",
+            samplers: [
               "penalties",
               "dry",
               "top_k",
@@ -135,23 +135,24 @@ function serve() {
             "speculative.n_max": 16,
             "speculative.n_min": 0,
             "speculative.p_min": 0.75,
-            "timings_per_token": false,
-            "post_sampling_probs": false,
-            "lora": []
+            timings_per_token: false,
+            post_sampling_probs: false,
+            lora: []
           },
-          "prompt": "",
-          "next_token": {
-            "has_next_token": true,
-            "has_new_line": false,
-            "n_remain": -1,
-            "n_decoded": 0,
-            "stopping_word": ""
+          prompt: "",
+          next_token: {
+            has_next_token: true,
+            has_new_line: false,
+            n_remain: -1,
+            n_decoded: 0,
+            stopping_word: ""
           }
-        }`);
+        });
       }
 
-      res.setHeader("Content-Type", "application/json");
-      res.end(`[${slots_message.join(",")}]`);
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify(slots_message));
+
     } else {
       res.setHeader("Content-Type", "application/json");
       res.statusCode = 404;
@@ -165,16 +166,8 @@ function serve() {
     }
   });
 
-  server.listen(addr);
+  server.listen(addr, "127.0.0.1");
   console.log("Server running at http://localhost:" + addr);
-
-  process.on('SIGINT', () => {
-    console.log("\nShutting down server...");
-    server.close(() => {
-      console.log("Server closed.");
-      process.exit(0);
-    });
-  });
 }
 
 if (process.argv.includes('--version')) {
