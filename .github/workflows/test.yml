@@ -18,27 +18,37 @@ jobs:
     runs-on: ${{ matrix.os }}
     
     steps:
-      - name: Cache Node via fnm
+      - name: Cache fnm directory
         uses: actions/cache@v3
         with:
           path: ~/.local/share/fnm
           key: fnm-node-v22
 
-      - name: Install Node via fnm
+      - name: Check for cached Node.js
+        id: check-node
         run: |
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            echo "Windows fnm install not supported in this cache flow"
+          if command -v node &> /dev/null; then
+            echo "Node is available: $(node -v)"
+            echo "cached=true" >> $GITHUB_OUTPUT
           else
-            export PATH="$HOME/.local/share/fnm:$PATH"
-            if ! command -v fnm &> /dev/null; then
-              curl -fsSL https://fnm.vercel.app/install | bash
-              export PATH="$HOME/.local/share/fnm:$PATH"
-              eval "$(fnm env)"
-            fi
-            fnm install 22
-            fnm use 22
+            echo "Node is not available"
+            echo "cached=false" >> $GITHUB_OUTPUT
           fi
         shell: bash
+
+      - name: Install Node.js via fnm
+        if: steps.check-node.outputs.cached == 'false'
+        run: |
+          export PATH="$HOME/.local/share/fnm:$PATH"
+          if ! command -v fnm &> /dev/null; then
+            curl -fsSL https://fnm.vercel.app/install | bash
+            export PATH="$HOME/.local/share/fnm:$PATH"
+            eval "$(fnm env)"
+          fi
+          fnm install 22
+          fnm use 22
+        shell: bash
+
 
       - name: Cache Prometheus
         id: cache-prometheus
