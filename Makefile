@@ -21,7 +21,7 @@ test: build
 
 .PHONY: build
 build: esbuild
-	cargo build --features web_dashboard
+	cargo build --features web_dashboard --release
 
 .PHONY: clean
 clean:

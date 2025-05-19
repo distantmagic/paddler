@@ -13,7 +13,7 @@ function toggle_value(array, toggle_value) {
     .map((val, i) => val === toggle_value ? i : -1)
     .filter(i => i !== -1);
 
-  if (indexes.length === 0) return;
+  if (indexes.lenght === 0) return;
 
   const randomIndex = indexes[Math.floor(Math.random() * indexes.length)];
   array[randomIndex] = !array[randomIndex];
@@ -26,7 +26,7 @@ function serve() {
       np,
     },
   } = parseArgs({
-    args: process.argv.slice(2),
+    args: process.argv.slice(3),
     options: {
       port: {
         type: 'string',
@@ -43,10 +43,10 @@ function serve() {
     },
   });
 
-  const addr = parseInt(port, 10);
+  const addr = parseInt(port);
 
   let slots = [];
-  for (let i = 0; i < parseInt(np, 10); i++) {
+  for (let i = 0; i < parseInt(np); i++) {
     slots.push(false);
   }
 
@@ -54,7 +54,6 @@ function serve() {
     console.error('Request:', req.method, req.url);
 
     res.statusCode = 200;
-  res.setHeader('Content-Type', 'text/plain');
 
     if (req.url === "/health" || req.url === "/") {
       res.setHeader("Content-Type", "application/json");
@@ -75,74 +74,84 @@ function serve() {
         res.end(JSON.stringify({ status: "slot processed" }));
       }
     } else if (req.url === "/slots") {
-      const slots_message = slots.map((is_processing, i) => ({
-        id: i,
-        id_task: -1,
-        n_ctx: 4096,
-        speculative: false,
-        is_processing,
-        non_causal: false,
-        params: {
-          n_predict: -1,
-          seed: 4294967295,
-          temperature: 0.8,
-          dynatemp_range: 0.0,
-          dynatemp_exponent: 1.0,
-          top_k: 40,
-          top_p: 0.95,
-          min_p: 0.05,
-          xtc_probability: 0.0,
-          xtc_threshold: 0.1,
-          typical_p: 1.0,
-          repeat_last_n: 64,
-          repeat_penalty: 1.0,
-          presence_penalty: 0.0,
-          frequency_penalty: 0.0,
-          dry_multiplier: 0.0,
-          dry_base: 1.75,
-          dry_allowed_length: 2,
-          dry_penalty_last_n: 4096,
-          dry_sequence_breakers: ["\n", ":", "\"", "*"],
-          mirostat: 0,
-          mirostat_tau: 5.0,
-          mirostat_eta: 0.1,
-          stop: [],
-          max_tokens: -1,
-          n_keep: 0,
-          n_discard: 0,
-          ignore_eos: false,
-          stream: true,
-          logit_bias: [],
-          n_probs: 0,
-          min_keep: 0,
-          grammar: "",
-          grammar_lazy: false,
-          grammar_triggers: [],
-          preserved_tokens: [],
-          chat_format: "Content-only",
-          samplers: [
-            "penalties", "dry", "top_k", "typ_p", "top_p",
-            "min_p", "xtc", "temperature"
-          ],
-          "speculative.n_max": 16,
-          "speculative.n_min": 0,
-          "speculative.p_min": 0.75,
-          timings_per_token: false,
-          post_sampling_probs: false,
-          lora: [],
-        },
-        prompt: "",
-        next_token: {
-          has_next_token: true,
-          has_new_line: false,
-          n_remain: -1,
-          n_decoded: 0,
-          stopping_word: ""
-        }
-      }));
+      const slots_message = [];
+
+      for (let i = 0; i < Object.keys(slots).length; i++) {
+        slots_message.push(`{
+          "id": ${i},
+          "id_task": -1,
+          "n_ctx": 4096,
+          "speculative": false,
+          "is_processing": ${slots[i]},
+          "non_causal": false,
+          "params": {
+            "n_predict": -1,
+            "seed": 4294967295,
+            "temperature": 0.8,
+            "dynatemp_range": 0.0,
+            "dynatemp_exponent": 1.0,
+            "top_k": 40,
+            "top_p": 0.95,
+            "min_p": 0.05,
+            "xtc_probability": 0.0,
+            "xtc_threshold": 0.1,
+            "typical_p": 1.0,
+            "repeat_last_n": 64,
+            "repeat_penalty": 1.0,
+            "presence_penalty": 0.0,
+            "frequency_penalty": 0.0,
+            "dry_multiplier": 0.0,
+            "dry_base": 1.75,
+            "dry_allowed_length": 2,
+            "dry_penalty_last_n": 4096,
+            "dry_sequence_breakers": ["\\n", ":", "\\\"", "*"],
+            "mirostat": 0,
+            "mirostat_tau": 5.0,
+            "mirostat_eta": 0.1,
+            "stop": [],
+            "max_tokens": -1,
+            "n_keep": 0,
+            "n_discard": 0,
+            "ignore_eos": false,
+            "stream": true,
+            "logit_bias": [],
+            "n_probs": 0,
+            "min_keep": 0,
+            "grammar": "",
+            "grammar_lazy": false,
+            "grammar_triggers": [],
+            "preserved_tokens": [],
+            "chat_format": "Content-only",
+            "samplers": [
+              "penalties",
+              "dry",
+              "top_k",
+              "typ_p",
+              "top_p",
+              "min_p",
+              "xtc",
+              "temperature"
+            ],
+            "speculative.n_max": 16,
+            "speculative.n_min": 0,
+            "speculative.p_min": 0.75,
+            "timings_per_token": false,
+            "post_sampling_probs": false,
+            "lora": []
+          },
+          "prompt": "",
+          "next_token": {
+            "has_next_token": true,
+            "has_new_line": false,
+            "n_remain": -1,
+            "n_decoded": 0,
+            "stopping_word": ""
+          }
+        }`);
+      }
 
       res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify(slots_message));
+      res.end(`[${slots_message.join(",")}]`);
     } else {
       res.setHeader("Content-Type", "application/json");
       res.statusCode = 404;
@@ -156,13 +165,20 @@ function serve() {
     }
   });
 
-  server.listen(addr, function () {
-    console.log(`Server running at http://localhost:${addr}`);
+  server.listen(addr);
+  console.log("Server running at http://localhost:" + addr);
+
+  process.on('SIGINT', () => {
+    console.log("\nShutting down server...");
+    server.close(() => {
+      console.log("Server closed.");
+      process.exit(0);
+    });
   });
 }
 
 if (process.argv.includes('--version')) {
-  console.log(`llama-server-mock (${whoami}) v0.1.0`);
+  console.log("llama-server-mock (" + whoami + ") v0.1.0");
 } else {
   serve();
 }

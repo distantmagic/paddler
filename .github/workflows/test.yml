@@ -88,21 +88,30 @@ jobs:
     runs-on: ${{ matrix.os }}
     
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: rustfmt, clippy
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@nightly
+      with:
+        components: rustfmt, clippy
 
-      - name: Cache dependencies
-        uses: Swatinem/rust-cache@v2
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
 
-      # - name: Check formatting
-      #   run: cargo fmt --check
+    - name: Check formatting
+      run: cargo fmt --check
 
-      # - name: Clippy
-      #   run: cargo clippy -- -D warnings
+    - name: Clippy
+      run: cargo clippy -- -D warnings
 
-      - name: Run tests
-        run: MODEL_NAME=qwen2_500m.gguf BINARY_NAME=llama.cpp/build/bin/llama-server STATSD_NAME=statsd_exporter-0.27.2.linux-amd64/statsd_exporter PROMETHEUS_NAME=prometheus-3.3.0-rc.1.linux-amd64/prometheus make test
+    - name: Build paddler binary
+      run: cargo build
+
+    - name: Run tests
+      run: |
+        MODEL_NAME=paddler/integration/fixtures/small_model.gguf \
+        LLAMACPP_NAME=llama.cpp/build/bin/llama-server \
+        PADDLER_NAME=target/debug/paddler \
+        STATSD_NAME=statsd_exporter-0.27.2.linux-amd64/statsd_exporter \
+        PROMETHEUS_NAME=prometheus-3.3.0-rc.1.linux-amd64/prometheus \
+        make test

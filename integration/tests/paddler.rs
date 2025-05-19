@@ -249,7 +249,12 @@ scrape_configs:
 
     cmd.args(["--web.listen-address", &prometheus_addr]);
 
-    world.prometheus = Some(cmd.kill_on_drop(true).spawn()?);
+    world.prometheus = Some(
+        cmd.kill_on_drop(true)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?,
+    );
 
     Ok(())
 }
@@ -280,8 +285,6 @@ async fn supervisor_is_running(
     };
 
     let mut cmd = Command::new(PADDLER_NAME.to_owned());
-
-    println!("{:#?}", MODEL_NAME.clone());
 
     let child = cmd
         .args([
@@ -730,12 +733,11 @@ pub async fn main() {
     PaddlerWorld::cucumber()
         .max_concurrent_scenarios(1)
         .fail_fast()
-        // .retries(2)
-        // .retry_after(std::time::Duration::from_secs(60))
         .fail_on_skipped()
         .after(|_feature, _rule, _scenario, _scenario_finished, world| {
             Box::pin(async move {
                 world.unwrap().teardown().await.expect("Teardown Failed");
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
             })
         })
         .run_and_exit("features")
