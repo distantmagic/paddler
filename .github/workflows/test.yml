@@ -18,21 +18,37 @@ jobs:
     runs-on: ${{ matrix.os }}
     
     steps:
-      - name: Download node
+      - name: Cache Node via fnm
+        uses: actions/cache@v3
+        with:
+          path: ~/.local/share/fnm
+          key: fnm-node-v22
+
+      - name: Install Node via fnm
         run: |
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            winget install Schniz.fnm
-            fnm install 22
+            echo "Windows fnm install not supported in this cache flow"
           else
-            curl -fsSL https://fnm.vercel.app/install | bash
             export PATH="$HOME/.local/share/fnm:$PATH"
-            eval "$(fnm env)"
+            if ! command -v fnm &> /dev/null; then
+              curl -fsSL https://fnm.vercel.app/install | bash
+              export PATH="$HOME/.local/share/fnm:$PATH"
+              eval "$(fnm env)"
+            fi
             fnm install 22
             fnm use 22
           fi
         shell: bash
 
+      - name: Cache Prometheus
+        id: cache-prometheus
+        uses: actions/cache@v3
+        with:
+          path: prometheus-3.3.0-rc.1.linux-amd64
+          key: prometheus-v3.3.0-rc.1-linux
+
       - name: Donwload prometheus
+        if: steps.cache-prometheus.outputs.cache-hit != 'true'
         run: |
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             curl.exe -L https://github.com/prometheus/prometheus/releases/download/v3.3.0-rc.1/prometheus-3.3.0-rc.1.windows-amd64.zip -o prometheus.zip
@@ -43,7 +59,15 @@ jobs:
           fi
         shell: bash
         
+      - name: Cache StatsD Exporter
+        id: cache-statsd
+        uses: actions/cache@v3
+        with:
+          path: statsd_exporter-0.27.2.linux-amd64
+          key: statsd-v0.27.2-linux
+
       - name: Download statsd
+        if: steps.cache-statsd.outputs.cache-hit != 'true'
         run: |
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             curl.exe -L https://github.com/prometheus/statsd_exporter/releases/download/v0.27.2/statsd_exporter-0.27.2.windows-amd64.tar.gz -o statsd.tar.gz 
@@ -53,7 +77,15 @@ jobs:
           tar -xvzf statsd.tar.gz
         shell: bash
 
-      - name: Download llama.cpp
+      - name: Cache llama.cpp
+        id: cache-llama
+        uses: actions/cache@v3
+        with:
+          path: llama.cpp
+          key: llama-cpp-f52d59d771dc231fc2ac39adacf157ddefc97730
+
+      - name: Download and build llama.cpp
+        if: steps.cache-llama.outputs.cache-hit != 'true'
         run: |
           git clone https://github.com/ggml-org/llama.cpp.git
           cd llama.cpp
@@ -68,6 +100,7 @@ jobs:
             cmake --build build --config Release
           fi
         shell: bash
+
 
   test:
     needs: test_dependencies
