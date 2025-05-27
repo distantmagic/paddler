@@ -1,23 +1,27 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::{
-    sync::RwLock,
+    sync::{Arc, RwLock},
     time::{Duration, SystemTime},
 };
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 use crate::{
-    balancer::{status_update::StatusUpdate, upstream_peer::UpstreamPeer},
+    balancer::{status_update::StatusUpdate, upstream_peer::{UpstreamPeer, UpstreamPeerInfo}},
     errors::result::Result,
 };
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct UpstreamPeerPool {
     pub agents: RwLock<Vec<UpstreamPeer>>,
+    #[serde(skip_serializing)]
+    pub upstream_slots_permits: Arc<Semaphore>,
 }
 
 impl UpstreamPeerPool {
     pub fn new() -> Self {
         UpstreamPeerPool {
             agents: RwLock::new(Vec::new()),
+            upstream_slots_permits: Arc::new(Semaphore::new(0)),
         }
     }
 
@@ -40,11 +44,22 @@ impl UpstreamPeerPool {
     ) -> Result<()> {
         self.with_agents_write(|agents| {
             if let Some(upstream_peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
+                let update_slots_count = status_update.idle_slots_count + status_update.processing_slots_count;
+                if update_slots_count > upstream_peer.slots_count() {
+                    let delta = update_slots_count  - upstream_peer.slots_count();
+                    self.upstream_slots_permits.add_permits(delta);
+                }
+
+                if upstream_peer.slots_idle > status_update.idle_slots_count {
+                    let delta = upstream_peer.slots_idle - status_update.idle_slots_count;
+                    self.upstream_slots_permits.forget_permits(delta);
+                }
+
                 upstream_peer.update_status(status_update);
             } else {
                 let new_upstream_peer =
                     UpstreamPeer::new_from_status_update(agent_id.to_string(), status_update);
-
+                self.upstream_slots_permits.add_permits(new_upstream_peer.slots_count());
                 agents.push(new_upstream_peer);
             }
 
@@ -74,9 +89,10 @@ impl UpstreamPeerPool {
     pub fn remove_peer(&self, agent_id: &str) -> Result<()> {
         self.with_agents_write(|agents| {
             if let Some(pos) = agents.iter().position(|p| p.agent_id == agent_id) {
+                let slots_count = agents[pos].slots_count();
                 agents.remove(pos);
+                self.upstream_slots_permits.forget_permits(slots_count);
             }
-
             Ok(())
         })
     }
@@ -101,6 +117,26 @@ impl UpstreamPeerPool {
         })
     }
 
+    pub fn store_permit(&self, agent_id: &str, permit: OwnedSemaphorePermit) -> Result<bool> {
+        self.with_agents_write(|agents| {
+            if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
+                peer.store_permit(permit);
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        })
+    }
+
+    pub fn release_one_permit(&self, agent_id: &str) -> Result<()> {
+        self.with_agents_write(|agents| {
+            if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
+                peer.release_permits(1);
+            }
+            Ok(())
+        })
+    }
+
     #[cfg(feature = "statsd_reporter")]
     // returns (slots_idle, slots_processing) tuple
     pub fn total_slots(&self) -> Result<(usize, usize)> {
@@ -117,11 +153,11 @@ impl UpstreamPeerPool {
         })
     }
 
-    pub fn use_best_peer(&self) -> Result<Option<UpstreamPeer>> {
+    pub fn use_best_peer(&self) -> Result<Option<UpstreamPeerInfo>> {
         self.with_agents_write(|agents| {
             for peer in agents.iter_mut() {
                 if peer.is_usable() {
-                    return Ok(Some(peer.clone()));
+                    return Ok(Some(peer.info()));
                 }
             }
 
