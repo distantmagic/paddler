@@ -1,24 +1,39 @@
 use serde::{Deserialize, Serialize};
 use std::{
-    sync::RwLock,
+    sync::{atomic::AtomicUsize, Arc, RwLock},
     time::{Duration, SystemTime},
 };
+use tokio::sync::Semaphore;
 
 use crate::{
     balancer::{status_update::StatusUpdate, upstream_peer::UpstreamPeer},
     errors::result::Result,
 };
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize, Serialize)]
+pub struct UpstreamPeerPoolInfo {
+    pub agents: Vec<UpstreamPeer>,
+}
+
 pub struct UpstreamPeerPool {
     pub agents: RwLock<Vec<UpstreamPeer>>,
+    pub semaphore: Arc<Semaphore>,
+    pub request_buffer_length: AtomicUsize,
 }
 
 impl UpstreamPeerPool {
     pub fn new() -> Self {
-        UpstreamPeerPool {
+        Self {
             agents: RwLock::new(Vec::new()),
+            semaphore: Arc::new(Semaphore::new(0)),
+            request_buffer_length: AtomicUsize::new(0),
         }
+    }
+
+    pub fn info(&self) -> Option<UpstreamPeerPoolInfo> {
+        self.agents.read().ok().map(|agents| UpstreamPeerPoolInfo {
+            agents: agents.clone(),
+        })
     }
 
     pub fn quarantine_peer(&self, agent_id: &str) -> Result<bool> {
@@ -125,7 +140,7 @@ impl UpstreamPeerPool {
                 }
             }
 
-            return Ok(None);
+            Ok(None)
         })
     }
 

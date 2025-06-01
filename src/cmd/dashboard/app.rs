@@ -21,7 +21,7 @@ use std::{
 use super::ui::TableColors;
 
 use crate::{
-    balancer::{upstream_peer::UpstreamPeer, upstream_peer_pool::UpstreamPeerPool},
+    balancer::{upstream_peer::UpstreamPeer, upstream_peer_pool::UpstreamPeerPoolInfo},
     errors::result::Result,
 };
 
@@ -235,13 +235,11 @@ impl App {
         frame.render_widget(info_footer, area);
     }
 
-    pub fn set_registered_agents(&mut self, upstream_peer_pool: UpstreamPeerPool) -> Result<()> {
-        let registered_agents = upstream_peer_pool
-            .agents
-            .read()
-            .map(|agents_guard| agents_guard.clone())?;
-
-        self.items = Some(registered_agents);
+    pub fn set_registered_agents(
+        &mut self,
+        upstream_peer_pool: UpstreamPeerPoolInfo,
+    ) -> Result<()> {
+        self.items = Some(upstream_peer_pool.agents);
         self.is_initial_load = false;
         self.error = None;
         self.ticks += 1;
@@ -256,10 +254,7 @@ fn ref_array(peer: UpstreamPeer) -> Result<[String; 6]> {
         None => String::from("None"),
     };
 
-    let has_name = match peer.agent_name.clone() {
-        Some(issue) => issue,
-        None => String::from(""),
-    };
+    let has_name = peer.agent_name.clone().unwrap_or_default();
 
     let date_as_string = systemtime_strftime(peer.last_update)?;
 
