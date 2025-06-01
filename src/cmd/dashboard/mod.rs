@@ -19,14 +19,14 @@ use tokio::{
 };
 
 use crate::{
-    balancer::upstream_peer_pool::UpstreamPeerPool, cmd::dashboard::app::App,
+    balancer::upstream_peer_pool::UpstreamPeerPoolInfo, cmd::dashboard::app::App,
     errors::result::Result,
 };
 
 pub mod app;
 pub mod ui;
 
-async fn fetch_registered_agents(management_addr: SocketAddr) -> Result<UpstreamPeerPool> {
+async fn fetch_registered_agents(management_addr: SocketAddr) -> Result<UpstreamPeerPoolInfo> {
     let response_string = reqwest::get(format!(
         "http://{}/api/v1/agents",
         management_addr.to_string().as_str()
@@ -44,7 +44,8 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
     let management_clone = management_addr.clone();
 
     let (app_needs_to_stop_tx, mut app_needs_to_stop_rx_update) = broadcast::channel::<bool>(1);
-    let (upstream_peer_pool_tx, mut upstream_peer_pool_rx) = mpsc::channel::<UpstreamPeerPool>(1);
+    let (upstream_peer_pool_tx, mut upstream_peer_pool_rx) =
+        mpsc::channel::<UpstreamPeerPoolInfo>(1);
     let (app_needs_to_render_app_error_tx, mut app_needs_to_render_error_rx) =
         mpsc::channel::<String>(1);
 

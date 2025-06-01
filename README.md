@@ -7,7 +7,7 @@
 > 
 > The next plan is to introduce a supervisor who does not just monitor llamas.cpp instances, but to also manage them (replace models without dropping requests, etc.).
 
-Paddler is an open-source, production-ready, stateful load balancer and reverse proxy designed to optimize servers running [llama.cpp](https://github.com/ggerganov/llama.cpp).
+Paddler is an open-source, production-ready, stateful load balancer and reverse proxy designed to optimize servers running [llama.cpp](https://github.com/ggml-org/llama.cpp).
 
 ## Why Paddler
 
@@ -20,7 +20,7 @@ Paddler is designed to support llama.cpp-specific features like slots. It works 
 > [!NOTE]
 > In simple terms, the `slots` in llama.cpp refer to predefined memory slices within the server that handle individual requests. When a request comes in, it is assigned to an available slot for processing. They are predictable and highly configurable.
 >
-> You can learn more about them in [llama.cpp server](https://github.com/ggerganov/llama.cpp/tree/master/examples/server) documentation.
+> You can learn more about them in [llama.cpp server](https://github.com/ggml-org/llama.cpp/tree/053b1539c02617eff744f89525ee57497c3c1fbe/tools/server) documentation.
 
 ## Key features
 * Uses agents to monitor the slots of individual llama.cpp instances.
@@ -66,7 +66,7 @@ Slots endpoint is required to be enabled in llama.cpp. To do so, run llama.cpp w
 ### Running Agents
 
 The next step is to run Paddler’s agents. Agents register your llama.cpp instances in Paddler and monitor the slots of llama.cpp instances. 
-They should be installed on the same host as your server that runs [llama.cpp](https://github.com/ggerganov/llama.cpp).
+They should be installed on the same host as your server that runs [llama.cpp](https://github.com/ggml-org/llama.cpp).
 
 An agent needs a few pieces of information:
 1. `external-llamacpp-addr` tells how the load balancer can connect to the llama.cpp instance
@@ -230,17 +230,17 @@ The first stable release! Paddler is now rewritten in Rust and uses the [Pingora
 
 This is a stability/quality release. The next plan is to introduce a supervisor who does not just monitor llama.cpp instances, but to also manage them.
 
-Requires llama.cpp version [b4027](https://github.com/ggerganov/llama.cpp/releases/tag/b4027) or above.
+Requires llama.cpp version [b4027](https://github.com/ggml-org/llama.cpp/releases/tag/b4027) or above.
 
 ### v0.10.0
 
 This update is a minor release to make Paddler compatible with `/slots` endpoint changes introduced in llama.cpp b4027.
 
-Requires llama.cpp version [b4027](https://github.com/ggerganov/llama.cpp/releases/tag/b4027) or above.
+Requires llama.cpp version [b4027](https://github.com/ggml-org/llama.cpp/releases/tag/b4027) or above.
 
 ### v0.9.0
 
-Latest supported llama.cpp release: [b4026](https://github.com/ggerganov/llama.cpp/releases/tag/b4026)
+Latest supported llama.cpp release: [b4026](https://github.com/ggml-org/llama.cpp/releases/tag/b4026)
 
 #### Features
 
@@ -260,18 +260,18 @@ Latest supported llama.cpp release: [b4026](https://github.com/ggerganov/llama.c
 
 ### v0.7.0
 
-Requires at least [b3606](https://github.com/ggerganov/llama.cpp/releases/tag/b3606) llama.cpp release.
+Requires at least [b3606](https://github.com/ggml-org/llama.cpp/releases/tag/b3606) llama.cpp release.
 
 #### Breaking Changes
 
-- Adjusted to handle breaking changes in llama.cpp `/health` endpoint: https://github.com/ggerganov/llama.cpp/pull/9056
+- Adjusted to handle breaking changes in llama.cpp `/health` endpoint: https://github.com/ggml-org/llama.cpp/pull/9056
   
     Instead of using the `/health` endpoint to monitor slot statuses, starting from this version, Paddler uses the `/slots` endpoint to monitor llama.cpp instances.
     Paddler's `/health` endpoint remains unchanged.
 
 ### v0.6.0
 
-Latest supported llama.cpp release: [b3604](https://github.com/ggerganov/llama.cpp/releases/tag/b3604)
+Latest supported llama.cpp release: [b3604](https://github.com/ggml-org/llama.cpp/releases/tag/b3604)
 
 #### Features
 

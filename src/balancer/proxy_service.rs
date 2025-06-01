@@ -8,7 +8,14 @@ use pingora::{
     upstreams::peer::HttpPeer,
     Error, ErrorSource, Result,
 };
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
+use tokio::sync::OwnedSemaphorePermit;
 
 use crate::{
     balancer::{upstream_peer::UpstreamPeer, upstream_peer_pool::UpstreamPeerPool},
@@ -18,6 +25,7 @@ use crate::{
 pub struct LlamaCppContext {
     slot_taken: bool,
     selected_peer: Option<UpstreamPeer>,
+    semaphore_permit: Option<OwnedSemaphorePermit>,
     uses_slots: bool,
 }
 
@@ -73,6 +81,7 @@ impl ProxyHttp for ProxyService {
     fn new_ctx(&self) -> Self::CTX {
         LlamaCppContext {
             selected_peer: None,
+            semaphore_permit: None,
             slot_taken: false,
             uses_slots: false,
         }
@@ -206,9 +215,45 @@ impl ProxyHttp for ProxyService {
 
     async fn upstream_peer(
         &self,
-        _session: &mut Session,
+        session: &mut Session,
         ctx: &mut Self::CTX,
     ) -> Result<Box<HttpPeer>> {
+        // TODO: Make this customizable.
+        const TIMEOUT_SECS: u64 = 30;
+
+        let Some(_req_guard) =
+            RequestBufferGuard::increment(&self.upstream_peer_pool.request_buffer_length)
+        else {
+            session
+                .respond_error(pingora::http::StatusCode::TOO_MANY_REQUESTS.as_u16())
+                .await?;
+
+            return Err(Error::create(
+                pingora::ErrorType::ConnectRefused,
+                ErrorSource::Internal,
+                None,
+                None,
+            ));
+        };
+
+        tokio::select! {
+            result = self.upstream_peer_pool.semaphore.clone().acquire_owned() => {
+                ctx.semaphore_permit = Some(result.expect("semaphore should never be closed"));
+            }
+            _ = tokio::time::sleep(std::time::Duration::from_secs(TIMEOUT_SECS)) => {
+                session
+                    .respond_error(pingora::http::StatusCode::GATEWAY_TIMEOUT.as_u16())
+                    .await?;
+
+                return Err(Error::create(
+                    pingora::ErrorType::ConnectTimedout,
+                    ErrorSource::Internal,
+                    None,
+                    None,
+                ));
+            }
+        }
+
         if ctx.selected_peer.is_none() {
             ctx.selected_peer = match self.upstream_peer_pool.use_best_peer() {
                 Ok(peer) => peer,
@@ -253,5 +298,28 @@ impl ProxyHttp for ProxyService {
         }
 
         Ok(())
+    }
+}
+
+struct RequestBufferGuard<'a>(&'a AtomicUsize);
+
+impl<'a> RequestBufferGuard<'a> {
+    fn increment(length: &'a AtomicUsize) -> Option<Self> {
+        // TODO: Make this customizable.
+        const REQUEST_BUFFER_CAP: usize = 32;
+
+        if length.load(Ordering::Relaxed) >= REQUEST_BUFFER_CAP {
+            None
+        } else {
+            length.fetch_add(1, Ordering::Relaxed);
+
+            Some(Self(length))
+        }
+    }
+}
+
+impl Drop for RequestBufferGuard<'_> {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::Relaxed);
     }
 }
