@@ -75,6 +75,7 @@ impl Service for MonitoringService {
         &mut self,
         #[cfg(unix)] _fds: Option<ListenFds>,
         mut shutdown: ShutdownWatch,
+        _listeners_per_fd: usize,
     ) {
         let mut ticker = interval(self.monitoring_interval);
 

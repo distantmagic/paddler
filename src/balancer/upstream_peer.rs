@@ -203,7 +203,7 @@ mod tests {
             Some(true),
             vec![], // Empty slots
         );
-        
+
         peer.update_status(status_update);
         assert_eq!(peer.slots_idle, 0);
         assert_eq!(peer.slots_processing, 0);

@@ -1,6 +1,5 @@
 [package]
 description = "Stateful load balancer custom-tailored for llama.cpp"
-license-file = "LICENSE"
 license = "MIT"
 name = "paddler"
 repository = "https://github.com/distantmagic/paddler"
@@ -9,23 +8,23 @@ edition = "2021"
 
 [dependencies]
 actix = "0.13.5"
-actix-web = "4.9.0"
-async-trait = "0.1.83"
-bytes = "1.8.0"
-clap = { version = "4.5.20", features = ["derive"] }
-env_logger = "0.11.5"
+actix-web = "4.11.0"
+async-trait = "0.1.88"
+bytes = "1.10.1"
+clap = { version = "4.5.39", features = ["derive"] }
+env_logger = "0.11.8"
 futures = "0.3.31"
 futures-util = { version = "0.3.31", features = ["tokio-io"] }
-log = "0.4.22"
-pingora = { version = "0.4.0", features = ["proxy"] }
-reqwest = { version = "0.12.9", features = ["json", "stream"] }
-serde = { version = "1.0.215", features = ["derive"] }
-serde_json = "1.0.132"
-thiserror = "2.0.3"
-tokio = { version = "1.41.1", features = ["full"] }
-tokio-stream = { version = "0.1.16", features = ["sync"] }
-url = { version = "2.5.3", features = ["serde"] }
-uuid = { version = "1.11.0", features = ["serde", "v4"] }
+log = "0.4.27"
+pingora = { version = "0.5.0", features = ["proxy"] }
+reqwest = { version = "0.12.19", features = ["json", "stream"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+thiserror = "2.0.12"
+tokio = { version = "1.45.1", features = ["full"] }
+tokio-stream = { version = "0.1.17", features = ["sync"] }
+url = { version = "2.5.4", features = ["serde"] }
+uuid = { version = "1.17.0", features = ["serde", "v4"] }
 
 # ratatui dashboard deps
 crossterm = { version = "0.28.1", features = ["event-stream"], optional = true }
@@ -38,11 +37,11 @@ cadence = { version = "1.5.0", optional = true }
 askama = { version = "0.12.1", optional = true }
 askama_actix = { version = "0.14.0", optional = true }
 mime_guess = { version = "2.0.5", optional = true }
-rust-embed = { version = "8.5.0", optional = true }
+rust-embed = { version = "8.7.2", optional = true }
 itertools = "0.13.0"
-color-eyre = "0.6.3"
-time = "0.3.36"
-chrono = "0.4.38"
+color-eyre = "0.6.5"
+time = "0.3.41"
+chrono = "0.4.41"
 
 [features]
 default = ["statsd_reporter", "ratatui_dashboard"]

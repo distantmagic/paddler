@@ -43,7 +43,10 @@ impl ProxyService {
     #[inline]
     fn release_slot(&self, ctx: &mut LlamaCppContext) -> PaddlerResult<()> {
         if let Some(peer) = &ctx.selected_peer {
-            if !self.upstream_peer_pool.release_slot(&peer.agent_id, peer.last_update)? {
+            if !self
+                .upstream_peer_pool
+                .release_slot(&peer.agent_id, peer.last_update)?
+            {
                 log::warn!(
                     "Failed to release slot for peer {} (Agent ID: {})",
                     peer.external_llamacpp_addr,
@@ -82,9 +85,11 @@ impl ProxyService {
                     "use_best_peer returned the same peer {} which already failed take_slot. Aborting.",
                     new_peer.external_llamacpp_addr
                 );
-                return Err("No other available peers with idle slots after initial peer failed".into());
+                return Err(
+                    "No other available peers with idle slots after initial peer failed".into(),
+                );
             }
-            
+
             log::info!(
                 "Retrying take_slot with new best peer {} (Agent ID: {})",
                 new_peer.external_llamacpp_addr,
@@ -331,7 +336,8 @@ mod tests {
         pool.with_agents_write(|agents| {
             agents.push(ctx.selected_peer.as_ref().unwrap().clone());
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
 
         assert!(service.take_slot(&mut ctx).is_ok());
         assert!(ctx.slot_taken);
@@ -342,7 +348,8 @@ mod tests {
             assert_eq!(peer.slots_idle, 4);
             assert_eq!(peer.slots_processing, 1);
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     #[test]
@@ -357,7 +364,8 @@ mod tests {
             peer.slots_idle = 0;
             agents.push(peer);
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
 
         // Add another peer with slots
         pool.with_agents_write(|agents| {
@@ -372,7 +380,8 @@ mod tests {
                 0, // 0 processing slots
             ));
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
 
         assert!(service.take_slot(&mut ctx).is_ok());
         assert!(ctx.slot_taken);
@@ -393,7 +402,8 @@ mod tests {
             peer.slots_processing = 1;
             agents.push(peer);
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
 
         assert!(service.release_slot(&mut ctx).is_ok());
         assert!(!ctx.slot_taken);
@@ -404,7 +414,8 @@ mod tests {
             assert_eq!(peer.slots_idle, 5);
             assert_eq!(peer.slots_processing, 0);
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     #[test]
@@ -421,7 +432,8 @@ mod tests {
             peer.slots_processing = 0;
             agents.push(peer);
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
 
         assert!(service.release_slot(&mut ctx).is_ok());
         assert!(!ctx.slot_taken);
@@ -432,6 +444,7 @@ mod tests {
             assert_eq!(peer.slots_idle, 5);
             assert_eq!(peer.slots_processing, 0);
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
     }
 }

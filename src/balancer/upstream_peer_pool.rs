@@ -16,10 +16,10 @@ pub struct UpstreamPeerPool {
 
 impl Clone for UpstreamPeerPool {
     fn clone(&self) -> Self {
-        let agents = self.with_agents_read(|agents| {
-            Ok(agents.clone())
-        }).unwrap_or_default();
-        
+        let agents = self
+            .with_agents_read(|agents| Ok(agents.clone()))
+            .unwrap_or_default();
+
         UpstreamPeerPool {
             agents: RwLock::new(agents),
         }
@@ -66,7 +66,11 @@ impl UpstreamPeerPool {
         })
     }
 
-    pub fn release_slot(&self, agent_id: &str, last_update_from_context: SystemTime) -> Result<bool> {
+    pub fn release_slot(
+        &self,
+        agent_id: &str,
+        last_update_from_context: SystemTime,
+    ) -> Result<bool> {
         let mut needs_integrity_restore = false;
         let successful_release = self.with_agents_write(|agents| {
             if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
@@ -221,20 +225,22 @@ mod tests {
     fn test_take_slot_success() {
         let pool = UpstreamPeerPool::new();
         let peer = create_test_peer("test1", 5, 0);
-        
+
         pool.with_agents_write(|agents| {
             agents.push(peer);
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
 
         assert!(pool.take_slot("test1").unwrap());
-        
+
         pool.with_agents_read(|agents| {
             let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
             assert_eq!(peer.slots_idle, 4);
             assert_eq!(peer.slots_processing, 1);
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     #[test]
@@ -244,7 +250,8 @@ mod tests {
         pool.with_agents_write(|agents| {
             agents.push(peer);
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
         // This should fail gracefully, not underflow
         assert!(!pool.take_slot("test1").unwrap());
         pool.with_agents_read(|agents| {
@@ -252,53 +259,72 @@ mod tests {
             assert_eq!(peer.slots_idle, 0); // Should remain 0
             assert_eq!(peer.slots_processing, 0); // Should remain 0
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     #[test]
     fn test_take_slot_failure() {
         let pool = UpstreamPeerPool::new();
         let peer = create_test_peer("test1", 0, 0);
-        
+
         pool.with_agents_write(|agents| {
             agents.push(peer);
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
 
         assert!(!pool.take_slot("test1").unwrap());
-        
+
         pool.with_agents_read(|agents| {
             let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
             assert_eq!(peer.slots_idle, 0);
             assert_eq!(peer.slots_processing, 0);
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     #[test]
     fn test_release_slot_success() {
         let pool = UpstreamPeerPool::new();
         let peer = create_test_peer("test1", 4, 1);
-        
+
         pool.with_agents_write(|agents| {
             agents.push(peer);
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
 
         assert!(pool.take_slot("test1").unwrap());
-        
-        let last_update_at_selection_time = pool.with_agents_read(|agents| {
-            Ok(agents.iter().find(|p| p.agent_id == "test1").unwrap().last_update)
-        }).unwrap();
-        
-        assert!(pool.release_slot("test1", last_update_at_selection_time).unwrap());
-        
+
+        let last_update_at_selection_time = pool
+            .with_agents_read(|agents| {
+                Ok(agents
+                    .iter()
+                    .find(|p| p.agent_id == "test1")
+                    .unwrap()
+                    .last_update)
+            })
+            .unwrap();
+
+        assert!(pool
+            .release_slot("test1", last_update_at_selection_time)
+            .unwrap());
+
         pool.with_agents_read(|agents| {
             let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
-            assert_eq!(peer.slots_idle, 4, "Idle slots should be 4 after take and release");
-            assert_eq!(peer.slots_processing, 1, "Processing slots should be 1 after take and release");
+            assert_eq!(
+                peer.slots_idle, 4,
+                "Idle slots should be 4 after take and release"
+            );
+            assert_eq!(
+                peer.slots_processing, 1,
+                "Processing slots should be 1 after take and release"
+            );
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     #[test]
@@ -308,7 +334,8 @@ mod tests {
         pool.with_agents_write(|agents| {
             agents.push(peer);
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
         // This should fail gracefully, not underflow
         assert!(!pool.release_slot("test1", SystemTime::now()).unwrap());
         pool.with_agents_read(|agents| {
@@ -316,44 +343,54 @@ mod tests {
             assert_eq!(peer.slots_idle, 5); // Should remain 5
             assert_eq!(peer.slots_processing, 0); // Should remain 0
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     #[test]
     fn test_release_slot_failure() {
         let pool = UpstreamPeerPool::new();
         let peer = create_test_peer("test1", 5, 0);
-        
+
         pool.with_agents_write(|agents| {
             agents.push(peer);
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
 
         assert!(!pool.release_slot("test1", SystemTime::now()).unwrap());
-        
+
         pool.with_agents_read(|agents| {
             let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
             assert_eq!(peer.slots_idle, 5);
             assert_eq!(peer.slots_processing, 0);
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     #[test]
     fn test_race_condition_handling() {
         let pool = UpstreamPeerPool::new();
         let peer = create_test_peer("test1", 5, 0);
-        
+
         pool.with_agents_write(|agents| {
             agents.push(peer);
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
 
         assert!(pool.take_slot("test1").unwrap());
 
-        let last_update_at_selection_time = pool.with_agents_read(|agents| {
-            Ok(agents.iter().find(|p| p.agent_id == "test1").unwrap().last_update)
-        }).unwrap();
+        let last_update_at_selection_time = pool
+            .with_agents_read(|agents| {
+                Ok(agents
+                    .iter()
+                    .find(|p| p.agent_id == "test1")
+                    .unwrap()
+                    .last_update)
+            })
+            .unwrap();
 
         let status_update = StatusUpdate::new(
             Some("test1".to_string()),
@@ -365,26 +402,36 @@ mod tests {
         );
         pool.register_status_update("test1", status_update).unwrap();
 
-        assert!(!pool.release_slot("test1", last_update_at_selection_time).unwrap());
-        
+        assert!(!pool
+            .release_slot("test1", last_update_at_selection_time)
+            .unwrap());
+
         pool.with_agents_read(|agents| {
             let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
-            assert_eq!(peer.slots_idle, 0, "Idle slots should be 0 after status update");
-            assert_eq!(peer.slots_processing, 0, "Processing slots should be 0 after status update");
+            assert_eq!(
+                peer.slots_idle, 0,
+                "Idle slots should be 0 after status update"
+            );
+            assert_eq!(
+                peer.slots_processing, 0,
+                "Processing slots should be 0 after status update"
+            );
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     #[test]
     fn test_use_best_peer() {
         let pool = UpstreamPeerPool::new();
-        
+
         pool.with_agents_write(|agents| {
             agents.push(create_test_peer("test1", 5, 0));
             agents.push(create_test_peer("test2", 3, 0));
             agents.push(create_test_peer("test3", 0, 0));
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
 
         let best_peer = pool.use_best_peer().unwrap().unwrap();
         assert_eq!(best_peer.agent_id, "test1");

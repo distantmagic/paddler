@@ -52,6 +52,7 @@ impl Service for StatsdService {
         &mut self,
         #[cfg(unix)] _fds: Option<ListenFds>,
         mut shutdown: ShutdownWatch,
+        _listeners_per_fd: usize,
     ) {
         let statsd_sink_socket = UdpSocket::bind("0.0.0.0:0").expect("Failed to bind UDP socket");
         let statsd_sink = BufferedUdpMetricSink::from(self.statsd_addr, statsd_sink_socket)
