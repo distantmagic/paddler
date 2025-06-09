@@ -13,15 +13,14 @@ use ratatui::{
     },
     Frame,
 };
+use serde::Deserialize;
 use std::{
-    io,
-    time::{SystemTime, UNIX_EPOCH},
+    io, net::SocketAddr, time::{SystemTime, UNIX_EPOCH}
 };
 
 use super::ui::TableColors;
 
 use crate::{
-    balancer::{upstream_peer::UpstreamPeer, upstream_peer_pool::UpstreamPeerPool},
     errors::result::Result,
 };
 
@@ -238,8 +237,7 @@ impl App {
     pub fn set_registered_agents(&mut self, upstream_peer_pool: UpstreamPeerPool) -> Result<()> {
         let registered_agents = upstream_peer_pool
             .agents
-            .read()
-            .map(|agents_guard| agents_guard.clone())?;
+            .clone();
 
         self.items = Some(registered_agents);
         self.is_initial_load = false;
@@ -279,4 +277,19 @@ fn systemtime_strftime(dt: SystemTime) -> Result<String> {
     let formated_date = datetime.format("%Y/%m/%d, %H:%M:%S").to_string();
 
     Ok(formated_date)
+}
+
+#[derive(Deserialize, Clone)]
+pub struct UpstreamPeer {
+    pub agent_name: Option<String>,
+    pub error: Option<String>,
+    pub external_llamacpp_addr: SocketAddr,
+    pub last_update: SystemTime,
+    pub slots_idle: usize,
+    pub slots_processing: usize,
+}
+
+#[derive(Deserialize, Clone)]
+pub struct UpstreamPeerPool {
+    pub agents: Vec<UpstreamPeer>
 }

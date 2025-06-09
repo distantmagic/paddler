@@ -19,7 +19,7 @@ use tokio::{
 };
 
 use crate::{
-    balancer::upstream_peer_pool::UpstreamPeerPool, cmd::dashboard::app::App,
+     cmd::dashboard::app::UpstreamPeerPool, cmd::dashboard::app::App,
     errors::result::Result,
 };
 
