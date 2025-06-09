@@ -55,6 +55,18 @@ impl From<&str> for AppError {
     }
 }
 
+impl From<String> for AppError {
+    fn from(error: String) -> Self {
+        AppError::UnexpectedError(error)
+    }
+}
+
+impl<T> From<std::sync::PoisonError<T>> for AppError {
+    fn from(err: std::sync::PoisonError<T>) -> Self {
+        AppError::RwLockPoisonError(err.to_string())
+    }
+}
+
 impl actix_web::ResponseError for AppError {
     fn error_response(&self) -> actix_web::HttpResponse {
         actix_web::HttpResponse::InternalServerError()
@@ -63,11 +75,5 @@ impl actix_web::ResponseError for AppError {
 
     fn status_code(&self) -> actix_web::http::StatusCode {
         actix_web::http::StatusCode::INTERNAL_SERVER_ERROR
-    }
-}
-
-impl<T> From<std::sync::PoisonError<T>> for AppError {
-    fn from(err: std::sync::PoisonError<T>) -> Self {
-        AppError::RwLockPoisonError(err.to_string())
     }
 }

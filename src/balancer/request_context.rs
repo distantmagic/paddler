@@ -1,0 +1,229 @@
+use log::error;
+use pingora::upstreams::peer::HttpPeer;
+use pingora::{Error, ErrorSource, Result};
+use std::sync::Arc;
+
+use crate::balancer::upstream_peer::UpstreamPeer;
+use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
+use crate::errors::result::Result as PaddlerResult;
+
+pub struct RequestContext {
+    pub slot_taken: bool,
+    pub selected_peer: Option<UpstreamPeer>,
+    pub upstream_peer_pool: Arc<UpstreamPeerPool>,
+    pub uses_slots: bool,
+}
+
+impl RequestContext {
+    pub fn release_slot(&mut self) -> PaddlerResult<()> {
+        if let Some(peer) = &self.selected_peer {
+            self.upstream_peer_pool
+                .release_slot(&peer.agent_id, peer.last_update)?;
+            self.upstream_peer_pool.restore_integrity()?;
+
+            self.slot_taken = false;
+
+            Ok(())
+        } else {
+            Err("There is no peer available to release a slot into".into())
+        }
+    }
+
+    pub fn take_slot(&mut self) -> PaddlerResult<()> {
+        if let Some(peer) = &self.selected_peer {
+            self.upstream_peer_pool.take_slot(&peer.agent_id)?;
+            self.upstream_peer_pool.restore_integrity()?;
+
+            self.slot_taken = true;
+
+            Ok(())
+        } else {
+            Err("There is no peer available to take a slot from".into())
+        }
+    }
+
+    pub fn select_upstream_peer(&mut self) -> Result<Box<HttpPeer>> {
+        if self.selected_peer.is_none() {
+            self.selected_peer = match self.upstream_peer_pool.use_best_peer() {
+                Ok(peer) => peer,
+                Err(e) => {
+                    error!("Failed to get best peer: {}", e);
+
+                    return Err(Error::new(pingora::InternalError));
+                }
+            };
+        }
+
+        let selected_peer = match self.selected_peer.as_ref() {
+            Some(peer) => peer,
+            None => {
+                return Err(Error::create(
+                    pingora::Custom("No peer available"),
+                    ErrorSource::Upstream,
+                    None,
+                    None,
+                ));
+            }
+        };
+
+        Ok(Box::new(HttpPeer::new(
+            selected_peer.external_llamacpp_addr,
+            false,
+            "".to_string(),
+        )))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+    use std::sync::Arc;
+
+    use crate::balancer::status_update::StatusUpdate;
+    use crate::llamacpp::slot::Slot;
+
+    fn create_test_context(upstream_peer_pool: Arc<UpstreamPeerPool>) -> RequestContext {
+        RequestContext {
+            slot_taken: false,
+            selected_peer: None,
+            upstream_peer_pool,
+            uses_slots: true,
+        }
+    }
+
+    #[test]
+    fn test_take_slot_failure_and_retry() -> PaddlerResult<()> {
+        let pool = Arc::new(UpstreamPeerPool::new());
+        let mut ctx = create_test_context(pool.clone());
+
+        pool.register_status_update(
+            "test_agent",
+            StatusUpdate::new(
+                Some("test_agent".to_string()),
+                None,
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+                Some(true),
+                Some(true),
+                vec![],
+            ),
+        )?;
+
+        assert!(ctx.take_slot().is_err());
+
+        assert!(!ctx.slot_taken);
+        assert_eq!(ctx.selected_peer, None);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_release_slot_success() -> PaddlerResult<()> {
+        let pool = Arc::new(UpstreamPeerPool::new());
+        let mut ctx = create_test_context(pool.clone());
+
+        pool.register_status_update(
+            "test_agent",
+            StatusUpdate::new(
+                Some("test_agent".to_string()),
+                None,
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+                Some(true),
+                Some(true),
+                vec![
+                    Slot {
+                        id: 0,
+                        is_processing: true,
+                    },
+                    Slot {
+                        id: 1,
+                        is_processing: true,
+                    },
+                    Slot {
+                        id: 2,
+                        is_processing: true,
+                    },
+                    Slot {
+                        id: 3,
+                        is_processing: false,
+                    },
+                    Slot {
+                        id: 5,
+                        is_processing: true,
+                    },
+                ],
+            ),
+        )?;
+
+        let peer = ctx.select_upstream_peer()?;
+
+        assert_eq!(peer.to_string(), "addr: 127.0.0.1:8080, scheme: HTTP,");
+
+        ctx.take_slot()?;
+
+        assert!(ctx.slot_taken);
+
+        ctx.release_slot()?;
+
+        assert!(!ctx.slot_taken);
+
+        pool.with_agents_read(|agents| {
+            let peer = agents.iter().find(|p| p.agent_id == "test_agent").unwrap();
+            assert_eq!(peer.slots_idle, 1);
+            assert_eq!(peer.slots_processing, 4);
+            Ok(())
+        })?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_release_slot_failure() -> PaddlerResult<()> {
+        let pool = Arc::new(UpstreamPeerPool::new());
+        let mut ctx = create_test_context(pool.clone());
+
+        pool.register_status_update(
+            "test_agent",
+            StatusUpdate::new(
+                Some("test_agent".to_string()),
+                None,
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+                Some(true),
+                Some(true),
+                vec![
+                    Slot {
+                        id: 0,
+                        is_processing: false,
+                    },
+                    Slot {
+                        id: 1,
+                        is_processing: false,
+                    },
+                    Slot {
+                        id: 2,
+                        is_processing: false,
+                    },
+                    Slot {
+                        id: 3,
+                        is_processing: false,
+                    },
+                    Slot {
+                        id: 5,
+                        is_processing: false,
+                    },
+                ],
+            ),
+        )?;
+
+        assert!(ctx.release_slot().is_err());
+
+        pool.with_agents_read(|agents| {
+            let peer = agents.iter().find(|p| p.agent_id == "test_agent").unwrap();
+            assert_eq!(peer.slots_idle, 5);
+            assert_eq!(peer.slots_processing, 0);
+            Ok(())
+        })?;
+
+        Ok(())
+    }
+}

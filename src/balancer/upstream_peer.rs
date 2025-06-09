@@ -6,6 +6,7 @@ use std::{
 };
 
 use crate::balancer::status_update::StatusUpdate;
+use crate::errors::result::Result;
 
 #[derive(Clone, Debug, Eq, Serialize, Deserialize)]
 pub struct UpstreamPeer {
@@ -69,10 +70,16 @@ impl UpstreamPeer {
             && matches!(self.is_authorized, Some(true))
     }
 
-    pub fn release_slot(&mut self) {
+    pub fn release_slot(&mut self) -> Result<()> {
+        if self.slots_processing < 1 {
+            return Err("Cannot release a slot when there are no processing slots".into());
+        }
+
         self.last_update = SystemTime::now();
         self.slots_idle += 1;
         self.slots_processing -= 1;
+
+        Ok(())
     }
 
     pub fn update_status(&mut self, status_update: StatusUpdate) {
@@ -87,10 +94,16 @@ impl UpstreamPeer {
         self.slots_processing = status_update.processing_slots_count;
     }
 
-    pub fn take_slot(&mut self) {
+    pub fn take_slot(&mut self) -> Result<()> {
+        if self.slots_idle < 1 {
+            return Err("Cannot take a slot when there are no idle slots".into());
+        }
+
         self.last_update = SystemTime::now();
         self.slots_idle -= 1;
         self.slots_processing += 1;
+
+        Ok(())
     }
 }
 
@@ -140,13 +153,15 @@ mod tests {
     }
 
     #[test]
-    fn test_take_slot_success() {
+    fn test_take_slot_success() -> Result<()> {
         let mut peer = create_test_peer();
 
-        peer.take_slot();
+        peer.take_slot()?;
 
         assert_eq!(peer.slots_idle, 4);
         assert_eq!(peer.slots_processing, 1);
+
+        Ok(())
     }
 
     #[test]
@@ -154,33 +169,33 @@ mod tests {
         let mut peer = create_test_peer();
 
         peer.slots_idle = 0;
-        peer.take_slot();
 
-        assert_eq!(peer.slots_idle, 0);
-        assert_eq!(peer.slots_processing, 0);
+        assert!(peer.take_slot().is_err());
     }
 
     #[test]
-    fn test_release_slot_success() {
+    fn test_release_slot_success() -> Result<()> {
         let mut peer = create_test_peer();
         peer.slots_idle = 4;
         peer.slots_processing = 1;
 
-        peer.release_slot();
+        peer.release_slot()?;
 
         assert_eq!(peer.slots_idle, 5);
         assert_eq!(peer.slots_processing, 0);
+
+        Ok(())
     }
 
     #[test]
-    fn test_release_slot_failure() {
+    fn test_release_slot_failure() -> Result<()> {
         let mut peer = create_test_peer();
+
         peer.slots_processing = 0;
 
-        peer.release_slot();
+        assert!(peer.release_slot().is_err());
 
-        assert_eq!(peer.slots_idle, 5);
-        assert_eq!(peer.slots_processing, 0);
+        Ok(())
     }
 
     #[test]
