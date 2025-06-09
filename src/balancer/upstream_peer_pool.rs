@@ -158,49 +158,14 @@ mod tests {
     use super::*;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-    use crate::llamacpp::slot::Slot;
+    use crate::balancer::test::mock_status_update;
 
-    fn create_test_status_update(
-        agent_id: &str,
-        slots_idle: usize,
-        slots_processing: usize,
-    ) -> StatusUpdate {
-        let mut i = 0;
-        let mut slots = Vec::new();
-
-        for _ in 0..slots_idle {
-            slots.push(Slot {
-                id: i,
-                is_processing: false,
-            });
-
-            i += 1;
-        }
-
-        for _ in 0..slots_processing {
-            slots.push(Slot {
-                id: i,
-                is_processing: true,
-            });
-
-            i += 1;
-        }
-
-        StatusUpdate::new(
-            Some(agent_id.to_string()),
-            None,
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
-            Some(true),
-            Some(true),
-            slots,
-        )
-    }
 
     #[test]
     fn test_take_slot_does_not_panic_when_underflow() -> Result<()> {
         let pool = UpstreamPeerPool::new();
 
-        pool.register_status_update("test1", create_test_status_update("test1", 0, 0))?;
+        pool.register_status_update("test1", mock_status_update("test1", 0, 0))?;
 
         assert!(pool.take_slot("test1").is_err());
 
@@ -211,7 +176,7 @@ mod tests {
     fn test_race_condition_handling() -> Result<()> {
         let pool = UpstreamPeerPool::new();
 
-        pool.register_status_update("test1", create_test_status_update("test1", 5, 0))?;
+        pool.register_status_update("test1", mock_status_update("test1", 5, 0))?;
 
         pool.take_slot("test1")?;
 
@@ -257,11 +222,9 @@ mod tests {
     fn test_use_best_peer() -> Result<()> {
         let pool = UpstreamPeerPool::new();
 
-        pool.register_status_update("test1", create_test_status_update("test1", 5, 0))?;
-
-        pool.register_status_update("test2", create_test_status_update("test2", 3, 0))?;
-
-        pool.register_status_update("test3", create_test_status_update("test3", 0, 0))?;
+        pool.register_status_update("test1", mock_status_update("test1", 5, 0))?;
+        pool.register_status_update("test2", mock_status_update("test2", 3, 0))?;
+        pool.register_status_update("test3", mock_status_update("test3", 0, 0))?;
 
         let best_peer = pool.use_best_peer()?.unwrap();
 

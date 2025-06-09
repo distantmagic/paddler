@@ -77,11 +77,9 @@ impl RequestContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::sync::Arc;
 
-    use crate::balancer::status_update::StatusUpdate;
-    use crate::llamacpp::slot::Slot;
+    use crate::balancer::test::mock_status_update;
 
     fn create_test_context(upstream_peer_pool: Arc<UpstreamPeerPool>) -> RequestContext {
         RequestContext {
@@ -99,14 +97,7 @@ mod tests {
 
         pool.register_status_update(
             "test_agent",
-            StatusUpdate::new(
-                Some("test_agent".to_string()),
-                None,
-                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
-                Some(true),
-                Some(true),
-                vec![],
-            ),
+            mock_status_update("test_agent", 0, 0),
         )?;
 
         assert!(ctx.take_slot().is_err());
@@ -124,35 +115,7 @@ mod tests {
 
         pool.register_status_update(
             "test_agent",
-            StatusUpdate::new(
-                Some("test_agent".to_string()),
-                None,
-                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
-                Some(true),
-                Some(true),
-                vec![
-                    Slot {
-                        id: 0,
-                        is_processing: true,
-                    },
-                    Slot {
-                        id: 1,
-                        is_processing: true,
-                    },
-                    Slot {
-                        id: 2,
-                        is_processing: true,
-                    },
-                    Slot {
-                        id: 3,
-                        is_processing: false,
-                    },
-                    Slot {
-                        id: 5,
-                        is_processing: true,
-                    },
-                ],
-            ),
+            mock_status_update("test_agent", 1, 4),
         )?;
 
         let peer = ctx.select_upstream_peer()?;
@@ -184,35 +147,7 @@ mod tests {
 
         pool.register_status_update(
             "test_agent",
-            StatusUpdate::new(
-                Some("test_agent".to_string()),
-                None,
-                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
-                Some(true),
-                Some(true),
-                vec![
-                    Slot {
-                        id: 0,
-                        is_processing: false,
-                    },
-                    Slot {
-                        id: 1,
-                        is_processing: false,
-                    },
-                    Slot {
-                        id: 2,
-                        is_processing: false,
-                    },
-                    Slot {
-                        id: 3,
-                        is_processing: false,
-                    },
-                    Slot {
-                        id: 5,
-                        is_processing: false,
-                    },
-                ],
-            ),
+            mock_status_update("test_agent", 5, 0),
         )?;
 
         assert!(ctx.release_slot().is_err());
