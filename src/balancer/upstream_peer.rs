@@ -68,19 +68,10 @@ impl UpstreamPeer {
             && matches!(self.is_authorized, Some(true))
     }
 
-    pub fn release_slot(&mut self) -> bool {
+    pub fn release_slot(&mut self) {
         self.last_update = SystemTime::now();
-        if self.slots_processing > 0 {
-            self.slots_processing -= 1;
-            self.slots_idle += 1;
-            true
-        } else {
-            log::warn!(
-                "Peer {}: Attempted to release_slot when slots_processing is 0. Agent Name: {:?}, Agent ID: {}",
-                self.external_llamacpp_addr, self.agent_name, self.agent_id
-            );
-            false
-        }
+        self.slots_idle += 1;
+        self.slots_processing -= 1;
     }
 
     pub fn update_status(&mut self, status_update: StatusUpdate) {
@@ -95,19 +86,10 @@ impl UpstreamPeer {
         self.slots_processing = status_update.processing_slots_count;
     }
 
-    pub fn take_slot(&mut self) -> bool {
+    pub fn take_slot(&mut self) {
         self.last_update = SystemTime::now();
-        if self.slots_idle > 0 {
-            self.slots_idle -= 1;
-            self.slots_processing += 1;
-            true
-        } else {
-            log::warn!(
-                "Peer {}: Attempted to take_slot when slots_idle is 0. Agent Name: {:?}, Agent ID: {}",
-                self.external_llamacpp_addr, self.agent_name, self.agent_id
-            );
-            false
-        }
+        self.slots_idle -= 1;
+        self.slots_processing += 1;
     }
 }
 
@@ -151,15 +133,17 @@ mod tests {
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
             Some(true),
             Some(true),
-            5, // 5 idle slots
-            0, // 0 processing slots
+            5,
+            0,
         )
     }
 
     #[test]
     fn test_take_slot_success() {
         let mut peer = create_test_peer();
-        assert!(peer.take_slot());
+
+        peer.take_slot();
+
         assert_eq!(peer.slots_idle, 4);
         assert_eq!(peer.slots_processing, 1);
     }
@@ -167,8 +151,10 @@ mod tests {
     #[test]
     fn test_take_slot_failure() {
         let mut peer = create_test_peer();
+
         peer.slots_idle = 0;
-        assert!(!peer.take_slot());
+        peer.take_slot();
+
         assert_eq!(peer.slots_idle, 0);
         assert_eq!(peer.slots_processing, 0);
     }
@@ -178,7 +164,9 @@ mod tests {
         let mut peer = create_test_peer();
         peer.slots_idle = 4;
         peer.slots_processing = 1;
-        assert!(peer.release_slot());
+
+        peer.release_slot();
+
         assert_eq!(peer.slots_idle, 5);
         assert_eq!(peer.slots_processing, 0);
     }
@@ -187,7 +175,9 @@ mod tests {
     fn test_release_slot_failure() {
         let mut peer = create_test_peer();
         peer.slots_processing = 0;
-        assert!(!peer.release_slot());
+
+        peer.release_slot();
+
         assert_eq!(peer.slots_idle, 5);
         assert_eq!(peer.slots_processing, 0);
     }
@@ -201,7 +191,7 @@ mod tests {
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),
             Some(true),
             Some(true),
-            vec![], // Empty slots
+            vec![],
         );
 
         peer.update_status(status_update);

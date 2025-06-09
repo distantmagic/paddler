@@ -14,18 +14,6 @@ pub struct UpstreamPeerPool {
     pub agents: RwLock<Vec<UpstreamPeer>>,
 }
 
-impl Clone for UpstreamPeerPool {
-    fn clone(&self) -> Self {
-        let agents = self
-            .with_agents_read(|agents| Ok(agents.clone()))
-            .unwrap_or_default();
-
-        UpstreamPeerPool {
-            agents: RwLock::new(agents),
-        }
-    }
-}
-
 impl UpstreamPeerPool {
     pub fn new() -> Self {
         UpstreamPeerPool {
@@ -66,45 +54,21 @@ impl UpstreamPeerPool {
         })
     }
 
-    pub fn release_slot(
-        &self,
-        agent_id: &str,
-        last_update_from_context: SystemTime,
-    ) -> Result<bool> {
-        let mut needs_integrity_restore = false;
-        let successful_release = self.with_agents_write(|agents| {
+    pub fn release_slot(&self, agent_id: &str, last_update: SystemTime) -> Result<bool> {
+        self.with_agents_write(|agents| {
             if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
-                if peer.last_update > last_update_from_context {
-                    log::warn!(
-                        "Peer {} (Agent ID: {}): Was updated after selection (pool_time: {:?}, selection_time: {:?}). Skipping relative slot release, trusting agent update.",
-                        peer.external_llamacpp_addr,
-                        peer.agent_id,
-                        peer.last_update,
-                        last_update_from_context
-                    );
-                    Ok(false)
-                } else {
-                    if peer.release_slot() {
-                        Ok(true)
-                    } else {
-                        log::warn!(
-                            "Peer {} (Agent ID: {}): peer.release_slot() returned false. State might be inconsistent (e.g. slots_processing was 0).",
-                            peer.external_llamacpp_addr,
-                            peer.agent_id
-                        );
-                        needs_integrity_restore = true;
-                        Ok(false)
-                    }
+                if peer.last_update < last_update {
+                    // edge case, but no need to update anything anyway
+                    return Ok(false);
                 }
-            } else {
-                Ok(false)
-            }
-        })?;
 
-        if needs_integrity_restore {
-            self.restore_integrity()?;
-        }
-        Ok(successful_release)
+                peer.release_slot();
+
+                return Ok(true);
+            }
+
+            Ok(false)
+        })
     }
 
     pub fn remove_peer(&self, agent_id: &str) -> Result<()> {
@@ -126,33 +90,19 @@ impl UpstreamPeerPool {
     }
 
     pub fn take_slot(&self, agent_id: &str) -> Result<bool> {
-        let mut needs_integrity_restore = false;
-        let successful_take = self.with_agents_write(|agents| {
+        self.with_agents_write(|agents| {
             if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
-                if peer.take_slot() {
-                    Ok(true)
-                } else {
-                    log::warn!(
-                        "Peer {} (Agent ID: {}): peer.take_slot() returned false. Peer might have no idle slots.",
-                        peer.external_llamacpp_addr,
-                        peer.agent_id
-                    );
-                    needs_integrity_restore = true;
-                    Ok(false)
-                }
+                peer.take_slot();
+
+                Ok(true)
             } else {
                 Ok(false)
             }
-        })?;
-
-        if needs_integrity_restore {
-            self.restore_integrity()?;
-        }
-        Ok(successful_take)
+        })
     }
 
     #[cfg(feature = "statsd_reporter")]
-    // returns (slots_idle, slots_processing) tuple
+    /// Returns (slots_idle, slots_processing) tuple.
     pub fn total_slots(&self) -> Result<(usize, usize)> {
         self.with_agents_read(|agents| {
             let mut slots_idle = 0;

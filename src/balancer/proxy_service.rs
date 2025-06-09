@@ -60,56 +60,14 @@ impl ProxyService {
 
     #[inline]
     fn take_slot(&self, ctx: &mut LlamaCppContext) -> PaddlerResult<()> {
-        let mut initial_peer_id_attempted = None;
-
         if let Some(peer) = &ctx.selected_peer {
-            initial_peer_id_attempted = Some(peer.agent_id.clone());
-            if self.upstream_peer_pool.take_slot(&peer.agent_id)? {
-                ctx.slot_taken = true;
-                return Ok(());
-            } else {
-                log::warn!(
-                    "Failed to take slot for initially selected peer {} (Agent ID: {}). Peer might have no idle slots or take_slot failed.",
-                    peer.external_llamacpp_addr,
-                    peer.agent_id
-                );
-            }
+            self.upstream_peer_pool.take_slot(&peer.agent_id)?;
+            self.upstream_peer_pool.restore_integrity()?;
+
+            ctx.slot_taken = true;
         }
 
-        log::info!("Initial take_slot failed or no peer was suitable/selected. Attempting to find and use another best peer.");
-        ctx.selected_peer = self.upstream_peer_pool.use_best_peer()?;
-
-        if let Some(new_peer) = &ctx.selected_peer {
-            if initial_peer_id_attempted.as_ref() == Some(&new_peer.agent_id) {
-                log::warn!(
-                    "use_best_peer returned the same peer {} which already failed take_slot. Aborting.",
-                    new_peer.external_llamacpp_addr
-                );
-                return Err(
-                    "No other available peers with idle slots after initial peer failed".into(),
-                );
-            }
-
-            log::info!(
-                "Retrying take_slot with new best peer {} (Agent ID: {})",
-                new_peer.external_llamacpp_addr,
-                new_peer.agent_id
-            );
-            if self.upstream_peer_pool.take_slot(&new_peer.agent_id)? {
-                ctx.slot_taken = true;
-                return Ok(());
-            } else {
-                log::warn!(
-                    "Failed to take slot for new best peer {} (Agent ID: {}). Peer might have no idle slots or take_slot failed.",
-                    new_peer.external_llamacpp_addr,
-                    new_peer.agent_id
-                );
-                return Err("No available peers with idle slots; new best peer also failed".into());
-            }
-        } else {
-            log::warn!("No best peer available after initial attempt failed.");
-            return Err("No available peers found".into());
-        }
+        Ok(())
     }
 }
 
