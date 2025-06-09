@@ -6,6 +6,9 @@ RUST_LOG ?= debug
 # Real targets
 # -----------------------------------------------------------------------------
 
+package-lock.json: package.json
+	npm install --package-lock-only
+
 node_modules: package-lock.json
 	npm install --from-lockfile
 	touch node_modules
