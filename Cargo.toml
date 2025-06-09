@@ -3,7 +3,7 @@ description = "Stateful load balancer custom-tailored for llama.cpp"
 license = "MIT"
 name = "paddler"
 repository = "https://github.com/distantmagic/paddler"
-version = "1.0.0"
+version = "1.2.0"
 edition = "2021"
 
 [dependencies]
