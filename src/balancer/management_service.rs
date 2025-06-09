@@ -36,6 +36,7 @@ impl Service for ManagementService {
         &mut self,
         #[cfg(unix)] _fds: Option<ListenFds>,
         mut _shutdown: ShutdownWatch,
+        _listeners_per_fd: usize,
     ) {
         #[cfg(feature = "web_dashboard")]
         let management_dashboard_enable = self.management_dashboard_enable;

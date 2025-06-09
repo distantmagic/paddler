@@ -6,6 +6,9 @@ RUST_LOG ?= debug
 # Real targets
 # -----------------------------------------------------------------------------
 
+package-lock.json: package.json
+	npm install --package-lock-only
+
 node_modules: package-lock.json
 	npm install --from-lockfile
 	touch node_modules
@@ -62,3 +65,7 @@ run.balancer: esbuild
 		--management-addr="127.0.0.1:8095"  \
 		--management-dashboard-enable \
 		--reverseproxy-addr="127.0.0.1:8096"
+
+.PHONY: test
+test:
+	cargo test

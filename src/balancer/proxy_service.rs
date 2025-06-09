@@ -51,13 +51,18 @@ impl ProxyService {
     #[inline]
     fn release_slot(&self, ctx: &mut LlamaCppContext) -> PaddlerResult<()> {
         if let Some(peer) = &ctx.selected_peer {
-            self.upstream_peer_pool
-                .release_slot(&peer.agent_id, peer.last_update)?;
-            self.upstream_peer_pool.restore_integrity()?;
-
+            if !self
+                .upstream_peer_pool
+                .release_slot(&peer.agent_id, peer.last_update)?
+            {
+                log::warn!(
+                    "Failed to release slot for peer {} (Agent ID: {})",
+                    peer.external_llamacpp_addr,
+                    peer.agent_id
+                );
+            }
             ctx.slot_taken = false;
         }
-
         Ok(())
     }
 
@@ -321,5 +326,151 @@ impl<'a> RequestBufferGuard<'a> {
 impl Drop for RequestBufferGuard<'_> {
     fn drop(&mut self) {
         self.0.fetch_sub(1, Ordering::Relaxed);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+    use std::sync::Arc;
+
+    fn create_test_context() -> LlamaCppContext {
+        LlamaCppContext {
+            slot_taken: false,
+            selected_peer: Some(UpstreamPeer::new(
+                "test_agent".to_string(),
+                Some("test_name".to_string()),
+                None,
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+                Some(true),
+                Some(true),
+                5, // 5 idle slots
+                0, // 0 processing slots
+            )),
+            uses_slots: true,
+        }
+    }
+
+    #[test]
+    fn test_take_slot_success() {
+        let pool = Arc::new(UpstreamPeerPool::new());
+        let service = ProxyService::new(true, true, pool.clone());
+        let mut ctx = create_test_context();
+
+        // Add peer to pool
+        pool.with_agents_write(|agents| {
+            agents.push(ctx.selected_peer.as_ref().unwrap().clone());
+            Ok(())
+        })
+        .unwrap();
+
+        assert!(service.take_slot(&mut ctx).is_ok());
+        assert!(ctx.slot_taken);
+
+        // Verify slot was taken
+        pool.with_agents_read(|agents| {
+            let peer = agents.iter().find(|p| p.agent_id == "test_agent").unwrap();
+            assert_eq!(peer.slots_idle, 4);
+            assert_eq!(peer.slots_processing, 1);
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn test_take_slot_failure_and_retry() {
+        let pool = Arc::new(UpstreamPeerPool::new());
+        let service = ProxyService::new(true, true, pool.clone());
+        let mut ctx = create_test_context();
+
+        // Add peer with no slots
+        pool.with_agents_write(|agents| {
+            let mut peer = ctx.selected_peer.as_ref().unwrap().clone();
+            peer.slots_idle = 0;
+            agents.push(peer);
+            Ok(())
+        })
+        .unwrap();
+
+        // Add another peer with slots
+        pool.with_agents_write(|agents| {
+            agents.push(UpstreamPeer::new(
+                "test_agent2".to_string(),
+                Some("test_name2".to_string()),
+                None,
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),
+                Some(true),
+                Some(true),
+                5, // 5 idle slots
+                0, // 0 processing slots
+            ));
+            Ok(())
+        })
+        .unwrap();
+
+        assert!(service.take_slot(&mut ctx).is_ok());
+        assert!(ctx.slot_taken);
+        assert_eq!(ctx.selected_peer.as_ref().unwrap().agent_id, "test_agent2");
+    }
+
+    #[test]
+    fn test_release_slot_success() {
+        let pool = Arc::new(UpstreamPeerPool::new());
+        let service = ProxyService::new(true, true, pool.clone());
+        let mut ctx = create_test_context();
+        ctx.slot_taken = true;
+
+        // Add peer with processing slot
+        pool.with_agents_write(|agents| {
+            let mut peer = ctx.selected_peer.as_ref().unwrap().clone();
+            peer.slots_idle = 4;
+            peer.slots_processing = 1;
+            agents.push(peer);
+            Ok(())
+        })
+        .unwrap();
+
+        assert!(service.release_slot(&mut ctx).is_ok());
+        assert!(!ctx.slot_taken);
+
+        // Verify slot was released
+        pool.with_agents_read(|agents| {
+            let peer = agents.iter().find(|p| p.agent_id == "test_agent").unwrap();
+            assert_eq!(peer.slots_idle, 5);
+            assert_eq!(peer.slots_processing, 0);
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn test_release_slot_failure() {
+        let pool = Arc::new(UpstreamPeerPool::new());
+        let service = ProxyService::new(true, true, pool.clone());
+        let mut ctx = create_test_context();
+        ctx.slot_taken = true;
+
+        // Add peer with no processing slots
+        pool.with_agents_write(|agents| {
+            let mut peer = ctx.selected_peer.as_ref().unwrap().clone();
+            peer.slots_idle = 5;
+            peer.slots_processing = 0;
+            agents.push(peer);
+            Ok(())
+        })
+        .unwrap();
+
+        assert!(service.release_slot(&mut ctx).is_ok());
+        assert!(!ctx.slot_taken);
+
+        // Verify state is unchanged
+        pool.with_agents_read(|agents| {
+            let peer = agents.iter().find(|p| p.agent_id == "test_agent").unwrap();
+            assert_eq!(peer.slots_idle, 5);
+            assert_eq!(peer.slots_processing, 0);
+            Ok(())
+        })
+        .unwrap();
     }
 }

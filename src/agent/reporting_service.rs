@@ -59,6 +59,7 @@ impl Service for ReportingService {
         &mut self,
         #[cfg(unix)] _fds: Option<ListenFds>,
         mut shutdown: ShutdownWatch,
+        _listeners_per_fd: usize,
     ) {
         let mut ticker = interval(Duration::from_secs(1));
 

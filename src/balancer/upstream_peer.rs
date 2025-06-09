@@ -119,3 +119,84 @@ impl PartialOrd for UpstreamPeer {
         Some(self.cmp(other))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
+    fn create_test_peer() -> UpstreamPeer {
+        UpstreamPeer::new(
+            "test_agent".to_string(),
+            Some("test_name".to_string()),
+            None,
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+            Some(true),
+            Some(true),
+            5,
+            0,
+        )
+    }
+
+    #[test]
+    fn test_take_slot_success() {
+        let mut peer = create_test_peer();
+
+        peer.take_slot();
+
+        assert_eq!(peer.slots_idle, 4);
+        assert_eq!(peer.slots_processing, 1);
+    }
+
+    #[test]
+    fn test_take_slot_failure() {
+        let mut peer = create_test_peer();
+
+        peer.slots_idle = 0;
+        peer.take_slot();
+
+        assert_eq!(peer.slots_idle, 0);
+        assert_eq!(peer.slots_processing, 0);
+    }
+
+    #[test]
+    fn test_release_slot_success() {
+        let mut peer = create_test_peer();
+        peer.slots_idle = 4;
+        peer.slots_processing = 1;
+
+        peer.release_slot();
+
+        assert_eq!(peer.slots_idle, 5);
+        assert_eq!(peer.slots_processing, 0);
+    }
+
+    #[test]
+    fn test_release_slot_failure() {
+        let mut peer = create_test_peer();
+        peer.slots_processing = 0;
+
+        peer.release_slot();
+
+        assert_eq!(peer.slots_idle, 5);
+        assert_eq!(peer.slots_processing, 0);
+    }
+
+    #[test]
+    fn test_update_status() {
+        let mut peer = create_test_peer();
+        let status_update = StatusUpdate::new(
+            Some("new_name".to_string()),
+            None,
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),
+            Some(true),
+            Some(true),
+            vec![],
+        );
+
+        peer.update_status(status_update);
+        assert_eq!(peer.slots_idle, 0);
+        assert_eq!(peer.slots_processing, 0);
+        assert_eq!(peer.agent_name, Some("new_name".to_string()));
+    }
+}

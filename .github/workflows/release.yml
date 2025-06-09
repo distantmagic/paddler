@@ -35,6 +35,11 @@ jobs:
         run: |
           make esbuild
 
+      - id: release-version
+        uses: ./.github/workflows/composite/release-tag-to-version
+        with:
+          release-tag: "${{ github.ref_name }}"
+
       - name: build the binary
         run: |
           cargo build --features web_dashboard --release
@@ -45,23 +50,15 @@ jobs:
           fi
         shell: bash
 
-      - name: determine tag type
-        id: tag_type
-        run: |
-          if [[ ${{ github.ref }} =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$ ]]; then
-            echo "tag_type=PRE_RELEASE_TAG" >> $GITHUB_OUTPUT
-          elif [[ ${{ github.ref }} =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "tag_type=RELEASE_TAG" >> $GITHUB_OUTPUT
-          else
-            echo "tag_type=INVALID_TAG" >> $GITHUB_OUTPUT
-          fi
-        shell: bash
+      - uses: ./.github/workflows/composite/assert-version
+        with:
+          filename: "${{ matrix.artifact_name }}"
+          expected-version: "${{ steps.release-version.outputs.version }}"
 
       - name: upload binaries to release
-        if: steps.tag_type.outputs.tag_type != 'INVALID_TAG'
         uses: svenstaro/upload-release-action@v2
         with:
           file: ${{ matrix.artifact_name }}
           overwrite: true
-          prerelease: ${{ steps.tag_type.outputs.tag_type == 'PRE_RELEASE_TAG' }}
+          prerelease: ${{ steps.release-version.outputs.type == 'PRE_RELEASE' }}
           tag: ${{ github.ref }}
