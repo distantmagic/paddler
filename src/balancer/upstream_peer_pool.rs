@@ -125,7 +125,7 @@ impl UpstreamPeerPool {
                 }
             }
 
-            return Ok(None);
+            Ok(None)
         })
     }
 

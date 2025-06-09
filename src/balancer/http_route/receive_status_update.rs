@@ -19,7 +19,7 @@ struct RemovePeerGuard<'a> {
     agent_id: String,
 }
 
-impl<'a> Drop for RemovePeerGuard<'a> {
+impl Drop for RemovePeerGuard<'_> {
     fn drop(&mut self) {
         info!("Removing agent: {}", self.agent_id);
 

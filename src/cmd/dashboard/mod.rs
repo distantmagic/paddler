@@ -41,7 +41,7 @@ async fn fetch_registered_agents(management_addr: SocketAddr) -> Result<Upstream
 pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
     let mut terminal = ratatui::init();
 
-    let management_clone = management_addr.clone();
+    let management_clone = *management_addr;
 
     let (app_needs_to_stop_tx, mut app_needs_to_stop_rx_update) = broadcast::channel::<bool>(1);
     let (upstream_peer_pool_tx, mut upstream_peer_pool_rx) = mpsc::channel::<UpstreamPeerPool>(1);
@@ -64,11 +64,11 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
                     match upstream_peer_pool {
                         Ok(upstream_peer_pool) => {
                             if let Err(err) = upstream_peer_pool_tx.send(upstream_peer_pool).await {
-                                app_needs_to_render_app_error_tx.send(format!("Error sending upstream peer pool - {}", err.to_string())).await.ok();
+                                app_needs_to_render_app_error_tx.send(format!("Error sending upstream peer pool - {}", err)).await.ok();
                             }
                         },
                         Err(err) => {
-                            app_needs_to_render_app_error_tx.send(format!("Error fetching agents - {}", err.to_string())).await.ok();
+                            app_needs_to_render_app_error_tx.send(format!("Error fetching agents - {}", err)).await.ok();
                         }
                     }
                 }

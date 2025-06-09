@@ -24,6 +24,7 @@ pub struct UpstreamPeer {
 }
 
 impl UpstreamPeer {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         agent_id: String,
         agent_name: Option<String>,

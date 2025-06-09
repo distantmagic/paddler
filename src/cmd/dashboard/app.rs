@@ -162,13 +162,12 @@ impl App {
                         .height(1)
                         .white();
 
-                        let rows = items.iter().enumerate().map(|(_i, agent)| {
+                        let rows = items.iter().map(|agent| {
                             let color = self.colors.normal_row_color;
                             let mut items: [String; 6] = Default::default();
 
-                            match ref_array(agent.clone()) {
-                                Ok(array) => items = array,
-                                _ => (),
+                            if let Ok(array) = ref_array(agent.clone()) {
+                                items = array;
                             }
 
                             items
@@ -256,10 +255,7 @@ fn ref_array(peer: UpstreamPeer) -> Result<[String; 6]> {
         None => String::from("None"),
     };
 
-    let has_name = match peer.agent_name.clone() {
-        Some(issue) => issue,
-        None => String::from(""),
-    };
+    let has_name = peer.agent_name.clone().unwrap_or_default();
 
     let date_as_string = systemtime_strftime(peer.last_update)?;
 
