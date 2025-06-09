@@ -22,6 +22,8 @@ pub struct UpstreamPeer {
     pub quarantined_until: Option<SystemTime>,
     pub slots_idle: usize,
     pub slots_processing: usize,
+    pub slots_taken: usize,
+    pub slots_taken_since_last_status_update: usize,
 }
 
 impl UpstreamPeer {
@@ -47,6 +49,8 @@ impl UpstreamPeer {
             quarantined_until: None,
             slots_idle,
             slots_processing,
+            slots_taken: 0,
+            slots_taken_since_last_status_update: 0,
         }
     }
 
@@ -71,13 +75,18 @@ impl UpstreamPeer {
     }
 
     pub fn release_slot(&mut self) -> Result<()> {
-        if self.slots_processing < 1 {
-            return Err("Cannot release a slot when there are no processing slots".into());
+        if self.slots_taken < 1 {
+            return Err("Cannot release a slot when there are no taken slots".into());
         }
 
         self.last_update = SystemTime::now();
-        self.slots_idle += 1;
-        self.slots_processing -= 1;
+        self.slots_taken -= 1;
+
+        if self.slots_taken_since_last_status_update > 0 {
+            self.slots_taken_since_last_status_update -= 1;
+            self.slots_idle += 1;
+            self.slots_processing -= 1;
+        }
 
         Ok(())
     }
@@ -92,6 +101,7 @@ impl UpstreamPeer {
         self.quarantined_until = None;
         self.slots_idle = status_update.idle_slots_count;
         self.slots_processing = status_update.processing_slots_count;
+        self.slots_taken_since_last_status_update = 0;
     }
 
     pub fn take_slot(&mut self) -> Result<()> {
@@ -100,6 +110,8 @@ impl UpstreamPeer {
         }
 
         self.last_update = SystemTime::now();
+        self.slots_taken_since_last_status_update += 1;
+        self.slots_taken += 1;
         self.slots_idle -= 1;
         self.slots_processing += 1;
 
@@ -153,13 +165,18 @@ mod tests {
     }
 
     #[test]
-    fn test_take_slot_success() -> Result<()> {
+    fn test_take_release_slot() -> Result<()> {
         let mut peer = create_test_peer();
 
         peer.take_slot()?;
 
         assert_eq!(peer.slots_idle, 4);
         assert_eq!(peer.slots_processing, 1);
+
+        peer.release_slot()?;
+
+        assert_eq!(peer.slots_idle, 5);
+        assert_eq!(peer.slots_processing, 0);
 
         Ok(())
     }
@@ -171,20 +188,6 @@ mod tests {
         peer.slots_idle = 0;
 
         assert!(peer.take_slot().is_err());
-    }
-
-    #[test]
-    fn test_release_slot_success() -> Result<()> {
-        let mut peer = create_test_peer();
-        peer.slots_idle = 4;
-        peer.slots_processing = 1;
-
-        peer.release_slot()?;
-
-        assert_eq!(peer.slots_idle, 5);
-        assert_eq!(peer.slots_processing, 0);
-
-        Ok(())
     }
 
     #[test]

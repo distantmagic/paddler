@@ -156,10 +156,8 @@ impl UpstreamPeerPool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
     use crate::balancer::test::mock_status_update;
-
 
     #[test]
     fn test_take_slot_does_not_panic_when_underflow() -> Result<()> {
@@ -188,30 +186,34 @@ mod tests {
                 .last_update)
         })?;
 
-        pool.register_status_update(
-            "test1",
-            StatusUpdate::new(
-                Some("test1".to_string()),
-                None,
-                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
-                Some(true),
-                Some(true),
-                vec![],
-            ),
-        )?;
+        pool.with_agents_read(|agents| {
+            let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
+            assert_eq!(peer.slots_idle, 4);
+            assert_eq!(peer.slots_processing, 1);
+            assert_eq!(peer.slots_taken, 1);
+
+            Ok(())
+        })?;
+
+        pool.register_status_update("test1", mock_status_update("test1", 0, 0))?;
+
+        pool.with_agents_read(|agents| {
+            let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
+            assert_eq!(peer.slots_idle, 0);
+            assert_eq!(peer.slots_processing, 0);
+            assert_eq!(peer.slots_taken, 1);
+
+            Ok(())
+        })?;
 
         pool.release_slot("test1", last_update_at_selection_time)?;
 
         pool.with_agents_read(|agents| {
             let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
-            assert_eq!(
-                peer.slots_idle, 0,
-                "Idle slots should be 0 after status update"
-            );
-            assert_eq!(
-                peer.slots_processing, 0,
-                "Processing slots should be 0 after status update"
-            );
+            assert_eq!(peer.slots_idle, 0);
+            assert_eq!(peer.slots_processing, 0);
+            assert_eq!(peer.slots_taken, 0);
+
             Ok(())
         })?;
 

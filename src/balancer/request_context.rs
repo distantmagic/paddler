@@ -95,10 +95,7 @@ mod tests {
         let pool = Arc::new(UpstreamPeerPool::new());
         let mut ctx = create_test_context(pool.clone());
 
-        pool.register_status_update(
-            "test_agent",
-            mock_status_update("test_agent", 0, 0),
-        )?;
+        pool.register_status_update("test_agent", mock_status_update("test_agent", 0, 0))?;
 
         assert!(ctx.take_slot().is_err());
 
@@ -113,10 +110,7 @@ mod tests {
         let pool = Arc::new(UpstreamPeerPool::new());
         let mut ctx = create_test_context(pool.clone());
 
-        pool.register_status_update(
-            "test_agent",
-            mock_status_update("test_agent", 1, 4),
-        )?;
+        pool.register_status_update("test_agent", mock_status_update("test_agent", 1, 4))?;
 
         let peer = ctx.select_upstream_peer()?;
 
@@ -145,10 +139,7 @@ mod tests {
         let pool = Arc::new(UpstreamPeerPool::new());
         let mut ctx = create_test_context(pool.clone());
 
-        pool.register_status_update(
-            "test_agent",
-            mock_status_update("test_agent", 5, 0),
-        )?;
+        pool.register_status_update("test_agent", mock_status_update("test_agent", 5, 0))?;
 
         assert!(ctx.release_slot().is_err());
 
