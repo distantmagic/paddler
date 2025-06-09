@@ -15,7 +15,6 @@ use std::{
     },
     time::Duration,
 };
-use tokio::sync::OwnedSemaphorePermit;
 
 use crate::{
     balancer::{upstream_peer::UpstreamPeer, upstream_peer_pool::UpstreamPeerPool},
@@ -25,7 +24,6 @@ use crate::{
 pub struct LlamaCppContext {
     slot_taken: bool,
     selected_peer: Option<UpstreamPeer>,
-    semaphore_permit: Option<OwnedSemaphorePermit>,
     uses_slots: bool,
 }
 
@@ -63,6 +61,7 @@ impl ProxyService {
             }
             ctx.slot_taken = false;
         }
+
         Ok(())
     }
 
@@ -86,31 +85,9 @@ impl ProxyHttp for ProxyService {
     fn new_ctx(&self) -> Self::CTX {
         LlamaCppContext {
             selected_peer: None,
-            semaphore_permit: None,
             slot_taken: false,
             uses_slots: false,
         }
-    }
-
-    async fn connected_to_upstream(
-        &self,
-        _session: &mut Session,
-        _reused: bool,
-        _peer: &HttpPeer,
-        #[cfg(unix)] _fd: std::os::unix::io::RawFd,
-        #[cfg(windows)] _sock: std::os::windows::io::RawSocket,
-        _digest: Option<&Digest>,
-        ctx: &mut Self::CTX,
-    ) -> Result<()> {
-        if ctx.uses_slots && !ctx.slot_taken {
-            if let Err(e) = self.take_slot(ctx) {
-                error!("Failed to take slot: {}", e);
-
-                return Err(Error::new(pingora::InternalError));
-            }
-        }
-
-        Ok(())
     }
 
     fn error_while_proxy(
@@ -241,44 +218,58 @@ impl ProxyHttp for ProxyService {
             ));
         };
 
-        tokio::select! {
-            result = self.upstream_peer_pool.semaphore.clone().acquire_owned() => {
-                ctx.semaphore_permit = Some(result.expect("semaphore should never be closed"));
-            }
-            _ = tokio::time::sleep(std::time::Duration::from_secs(TIMEOUT_SECS)) => {
-                session
-                    .respond_error(pingora::http::StatusCode::GATEWAY_TIMEOUT.as_u16())
-                    .await?;
-
-                return Err(Error::create(
-                    pingora::ErrorType::ConnectTimedout,
-                    ErrorSource::Internal,
-                    None,
-                    None,
-                ));
-            }
-        }
-
-        if ctx.selected_peer.is_none() {
-            ctx.selected_peer = match self.upstream_peer_pool.use_best_peer() {
-                Ok(peer) => peer,
-                Err(e) => {
-                    error!("Failed to get best peer: {}", e);
-
-                    return Err(Error::new(pingora::InternalError));
-                }
-            };
-        }
-
-        let selected_peer = match ctx.selected_peer.as_ref() {
-            Some(peer) => peer,
+        let selected_peer = match ctx.selected_peer.clone() {
+            Some(p) => p,
             None => {
-                return Err(Error::create(
-                    pingora::Custom("No peer available"),
-                    ErrorSource::Upstream,
-                    None,
-                    None,
-                ));
+                tokio::select! {
+                    result = async {
+                        loop {
+                            let result_option_peer = if ctx.uses_slots && !ctx.slot_taken {
+                                let rop = self.upstream_peer_pool.use_best_peer_and_take_slot();
+
+                                if let Err(e) = self.upstream_peer_pool.restore_integrity() {
+                                    error!("Failed to take slot: {}", e);
+
+                                    return Err(Error::new(pingora::InternalError));
+                                }
+
+                                ctx.slot_taken = true;
+
+                                rop
+                            } else {
+                                self.upstream_peer_pool.use_best_peer()
+                            };
+
+                            match result_option_peer {
+                                Ok(Some(peer)) => return Ok(peer),
+                                Err(e) => {
+                                    error!("Failed to get best peer: {}", e);
+
+                                    return Err(Error::new(pingora::InternalError));
+                                }
+                                // To avoid wasting CPU cycles, we don't immediately retry to
+                                // `use_best_peer*` and wait for a notification from code that's
+                                // executed when a slot may become available (e.g., the
+                                // `/status_update/{agent_id}` endpoint).
+                                Ok(None) => self.upstream_peer_pool.notifier.notified().await,
+                            }
+                        }
+                    } => {
+                        result?
+                    }
+                    _ = tokio::time::sleep(std::time::Duration::from_secs(TIMEOUT_SECS)) => {
+                        session
+                            .respond_error(pingora::http::StatusCode::GATEWAY_TIMEOUT.as_u16())
+                            .await?;
+
+                        return Err(Error::create(
+                            pingora::ErrorType::ConnectTimedout,
+                            ErrorSource::Internal,
+                            None,
+                            None,
+                        ));
+                    }
+                }
             }
         };
 

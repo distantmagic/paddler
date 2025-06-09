@@ -1,14 +1,13 @@
+use crate::{
+    balancer::{status_update::StatusUpdate, upstream_peer::UpstreamPeer},
+    errors::result::Result,
+};
 use serde::{Deserialize, Serialize};
 use std::{
     sync::{atomic::AtomicUsize, Arc, RwLock},
     time::{Duration, SystemTime},
 };
-use tokio::sync::Semaphore;
-
-use crate::{
-    balancer::{status_update::StatusUpdate, upstream_peer::UpstreamPeer},
-    errors::result::Result,
-};
+use tokio::sync::Notify;
 
 #[derive(Deserialize, Serialize)]
 pub struct UpstreamPeerPoolInfo {
@@ -17,7 +16,7 @@ pub struct UpstreamPeerPoolInfo {
 
 pub struct UpstreamPeerPool {
     pub agents: RwLock<Vec<UpstreamPeer>>,
-    pub semaphore: Arc<Semaphore>,
+    pub notifier: Arc<Notify>,
     pub request_buffer_length: AtomicUsize,
 }
 
@@ -25,7 +24,7 @@ impl UpstreamPeerPool {
     pub fn new() -> Self {
         Self {
             agents: RwLock::new(Vec::new()),
-            semaphore: Arc::new(Semaphore::new(0)),
+            notifier: Arc::new(Notify::new()),
             request_buffer_length: AtomicUsize::new(0),
         }
     }
@@ -136,6 +135,20 @@ impl UpstreamPeerPool {
         self.with_agents_write(|agents| {
             for peer in agents.iter_mut() {
                 if peer.is_usable() {
+                    return Ok(Some(peer.clone()));
+                }
+            }
+
+            Ok(None)
+        })
+    }
+
+    pub fn use_best_peer_and_take_slot(&self) -> Result<Option<UpstreamPeer>> {
+        self.with_agents_write(|agents| {
+            for peer in agents.iter_mut() {
+                if peer.is_usable() {
+                    peer.take_slot();
+
                     return Ok(Some(peer.clone()));
                 }
             }

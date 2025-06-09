@@ -23,8 +23,6 @@ impl<'a> Drop for RemovePeerGuard<'a> {
     fn drop(&mut self) {
         info!("Removing agent: {}", self.agent_id);
 
-        self.pool.semaphore.forget_permits(1);
-
         if let Err(e) = self.pool.remove_peer(&self.agent_id) {
             error!("Failed to remove peer: {}", e);
         }
@@ -37,8 +35,6 @@ async fn respond(
     mut payload: web::Payload,
     upstream_peer_pool: web::Data<UpstreamPeerPool>,
 ) -> Result<HttpResponse, Error> {
-    upstream_peer_pool.semaphore.add_permits(1);
-
     let _guard = RemovePeerGuard {
         pool: &upstream_peer_pool,
         agent_id: path_params.agent_id.clone(),
@@ -49,12 +45,18 @@ async fn respond(
     while let Some(chunk) = payload.next().await {
         match serde_json::from_slice::<StatusUpdate>(&chunk?) {
             Ok(status_update) => {
+                let idle_slots_count = status_update.idle_slots_count;
+
                 if let Err(e) =
                     upstream_peer_pool.register_status_update(&path_params.agent_id, status_update)
                 {
                     error!("Failed to register status update: {}", e);
 
                     return Err(Error::from(e));
+                }
+
+                if idle_slots_count > 0 {
+                    upstream_peer_pool.notifier.notify_one();
                 }
             }
             Err(e) => {
