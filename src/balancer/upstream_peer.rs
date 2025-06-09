@@ -70,8 +70,11 @@ impl UpstreamPeer {
 
     pub fn release_slot(&mut self) {
         self.last_update = SystemTime::now();
-        self.slots_idle += 1;
-        self.slots_processing -= 1;
+
+        if let Some(slots_processing) = self.slots_processing.checked_sub(1) {
+            self.slots_processing = slots_processing;
+            self.slots_idle += 1;
+        }
     }
 
     pub fn update_status(&mut self, status_update: StatusUpdate) {
@@ -88,8 +91,11 @@ impl UpstreamPeer {
 
     pub fn take_slot(&mut self) {
         self.last_update = SystemTime::now();
-        self.slots_idle -= 1;
-        self.slots_processing += 1;
+
+        if let Some(slots_idle) = self.slots_idle.checked_sub(1) {
+            self.slots_idle = slots_idle;
+            self.slots_processing += 1;
+        }
     }
 }
 
