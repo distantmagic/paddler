@@ -1,4 +1,4 @@
-name: build
+name: test
 
 on:
   workflow_call:
@@ -8,14 +8,14 @@ on:
       - "**"
 
 jobs:
-  build:
-    name: build
+  test:
+    name: test
     runs-on: ubuntu-latest
 
     steps:
       - name: checkout code
         uses: actions/checkout@v4
 
-      - name: Build
+      - name: Test
         run: |
-          make build
+          make test
