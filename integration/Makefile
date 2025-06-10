@@ -1,3 +1,11 @@
+# -----------------------------------------------------------------------------
+# Phony targets
+# -----------------------------------------------------------------------------
+
 .PHONY: test
-test:
+test: build
 	cargo test
+
+.PHONY: build
+build:
+	cargo build --package integration

@@ -3,54 +3,27 @@
 RUST_LOG ?= debug
 
 # -----------------------------------------------------------------------------
-# Real targets
-# -----------------------------------------------------------------------------
-
-node_modules: package-lock.json
-	@npm install --from-lockfile
-	@touch node_modules
-
-# -----------------------------------------------------------------------------
 # Phony targets
 # -----------------------------------------------------------------------------
 
 .PHONY: test
-test: build
+test:
 	$(MAKE) -C integration test
 	$(MAKE) -C paddler test
 
 .PHONY: build
-build: esbuild
-	cargo build --features web_dashboard --release
+build:
+	$(MAKE) -C integration build
+	$(MAKE) -C paddler build
+
+esbuild:
+	$(MAKE) -C paddler esbuild
 
 .PHONY: clean
 clean:
 	rm -rf esbuild-meta.json
 	rm -rf node_modules
 	rm -rf target
-
-.PHONY: esbuild
-esbuild: node_modules
-	npm exec esbuild -- \
-		--bundle \
-		--asset-names="./[name]" \
-		--entry-names="./[name]" \
-		--format=esm \
-		--loader:.jpg=file \
-		--loader:.otf=file \
-		--loader:.svg=file \
-		--loader:.ttf=file \
-		--loader:.webp=file \
-		--metafile=esbuild-meta.json \
-		--minify \
-		--outdir=paddler/static \
-		--sourcemap \
-		--splitting \
-		--target=safari16 \
-		--tree-shaking=true \
-		paddler/resources/css/reset.css \
-		paddler/resources/css/page-dashboard.css \
-		paddler/resources/ts/controller_dashboard.tsx
 
 .PHONY: run.agent
 run.agent: esbuild

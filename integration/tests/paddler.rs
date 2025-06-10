@@ -587,8 +587,8 @@ pub async fn main() {
         .after(|_feature, _rule, _scenario, _scenario_finished, world| {
             Box::pin(async move {
                 world.unwrap().teardown().await.expect("Teardown Failed");
-                log::error!("Waiting 5 seconds");
-                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                log::error!("Waiting 3 seconds");
+                tokio::time::sleep(std::time::Duration::from_secs(3)).await;
             })
         })
         .run_and_exit("features")
