@@ -29,7 +29,9 @@ runs:
     - name: set release version
       id: set-release-version
       run: |
-        VERSION=$(echo "$RELEASE_TAG" | sed 's/^v//' | sed 's/-rc[0-9]\+$//')
+        VERSION=$(echo "$RELEASE_TAG" | sed 's/^v//' | sed 's/\-rc[0-9]\+$//')
+
+        echo "Version without prefix: ${VERSION}"
 
         if ! [[ ${VERSION} =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
           echo "Version is not valid. Exiting..."
