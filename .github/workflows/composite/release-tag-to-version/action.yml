@@ -29,7 +29,7 @@ runs:
     - name: set release version
       id: set-release-version
       run: |
-        VERSION=$(echo "$RELEASE_TAG" | sed 's/^v//' | sed 's/\-rc\{1,\}//')
+        VERSION=$(echo "$RELEASE_TAG" | sed 's/^v//' | sed 's/-rc[0-9]\{1,\}//')
 
         echo "Version without prefix: ${VERSION}"
 
