@@ -168,6 +168,9 @@ mod tests {
     fn test_take_release_slot() -> Result<()> {
         let mut peer = create_test_peer();
 
+        assert_eq!(peer.slots_idle, 5);
+        assert_eq!(peer.slots_processing, 0);
+
         peer.take_slot()?;
 
         assert_eq!(peer.slots_idle, 4);
