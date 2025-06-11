@@ -13,9 +13,6 @@ node_modules: package-lock.json
 	npm install --from-lockfile
 	touch node_modules
 
-target/debug/paddler:
-	cargo build
-
 # -----------------------------------------------------------------------------
 # Phony targets
 # -----------------------------------------------------------------------------
@@ -54,7 +51,8 @@ esbuild: node_modules
 		resources/ts/controller_dashboard.tsx \
 
 .PHONY: integration_tests
-integration_tests: target/debug/paddler
+integration_tests:
+	cargo build
 	$(MAKE) -C integration_tests test
 
 .PHONY: test

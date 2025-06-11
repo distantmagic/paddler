@@ -68,11 +68,11 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
                     match upstream_peer_pool {
                         Ok(upstream_peer_pool) => {
                             if let Err(err) = upstream_peer_pool_tx.send(upstream_peer_pool).await {
-                                app_needs_to_render_app_error_tx.send(format!("Error sending upstream peer pool - {}", err)).await.ok();
+                                app_needs_to_render_app_error_tx.send(format!("Error sending upstream peer pool - {err}")).await.ok();
                             }
                         },
                         Err(err) => {
-                            app_needs_to_render_app_error_tx.send(format!("Error fetching agents - {}", err)).await.ok();
+                            app_needs_to_render_app_error_tx.send(format!("Error fetching agents - {err}")).await.ok();
                         }
                     }
                 }

@@ -28,7 +28,7 @@ impl ReportingService {
         let agent_id = Uuid::new_v4();
 
         Ok(ReportingService {
-            stats_endpoint_url: format!("http://{}/status_update/{}", management_addr, agent_id),
+            stats_endpoint_url: format!("http://{management_addr}/status_update/{agent_id}"),
             status_update_tx,
         })
     }
@@ -76,7 +76,7 @@ impl Service for ReportingService {
                 },
                 _ = ticker.tick() => {
                     if let Err(err) = self.keep_connection_alive().await {
-                        error!("Failed to keep the connection alive: {}", err);
+                        error!("Failed to keep the connection alive: {err}");
                     }
                 }
             }

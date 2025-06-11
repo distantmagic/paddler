@@ -67,7 +67,7 @@ impl UpstreamPeerPool {
                 return Ok(());
             }
 
-            Err(format!("There is no agent with id: {}", agent_id).into())
+            Err(format!("There is no agent with id: {agent_id}").into())
         })
     }
 
@@ -96,7 +96,7 @@ impl UpstreamPeerPool {
 
                 Ok(())
             } else {
-                Err(format!("There is no agent with id: {}", agent_id).into())
+                Err(format!("There is no agent with id: {agent_id}").into())
             }
         })
     }
@@ -119,7 +119,7 @@ impl UpstreamPeerPool {
 
     pub fn use_best_peer(&self) -> Result<Option<UpstreamPeer>> {
         self.with_agents_write(|agents| {
-            for peer in agents.iter_mut() {
+            for peer in agents.iter() {
                 if peer.is_usable() {
                     return Ok(Some(peer.clone()));
                 }

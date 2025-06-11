@@ -5,12 +5,10 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use log::error;
 use pingora::http::RequestHeader;
-use pingora::protocols::Digest;
 use pingora::proxy::ProxyHttp;
 use pingora::proxy::Session;
 use pingora::upstreams::peer::HttpPeer;
 use pingora::Error;
-use pingora::ErrorSource;
 use pingora::Result;
 
 use crate::balancer::request_context::RequestContext;
@@ -49,27 +47,6 @@ impl ProxyHttp for ProxyService {
         }
     }
 
-    async fn connected_to_upstream(
-        &self,
-        _session: &mut Session,
-        _reused: bool,
-        _peer: &HttpPeer,
-        #[cfg(unix)] _fd: std::os::unix::io::RawFd,
-        #[cfg(windows)] _sock: std::os::windows::io::RawSocket,
-        _digest: Option<&Digest>,
-        ctx: &mut Self::CTX,
-    ) -> Result<()> {
-        if ctx.uses_slots && !ctx.slot_taken {
-            if let Err(e) = ctx.take_slot() {
-                error!("Failed to take slot: {}", e);
-
-                return Err(Error::new(pingora::InternalError));
-            }
-        }
-
-        Ok(())
-    }
-
     fn error_while_proxy(
         &self,
         peer: &HttpPeer,
@@ -78,16 +55,16 @@ impl ProxyHttp for ProxyService {
         ctx: &mut Self::CTX,
         client_reused: bool,
     ) -> Box<Error> {
-        error!("Error while proxying: {}", e);
+        error!("Error while proxying: {e}");
         if ctx.slot_taken {
             if let Err(err) = ctx.release_slot() {
-                error!("Failed to release slot: {}", err);
+                error!("Failed to release slot: {err}");
 
                 return Error::new(pingora::InternalError);
             }
         }
 
-        let mut e = e.more_context(format!("Peer: {}", peer));
+        let mut e = e.more_context(format!("Peer: {peer}"));
 
         // only reused client connections where retry buffer is not truncated
         e.retry
@@ -103,13 +80,13 @@ impl ProxyHttp for ProxyService {
         ctx: &mut Self::CTX,
         mut connection_err: Box<Error>,
     ) -> Box<Error> {
-        error!("Failed to connect: {}", connection_err);
+        error!("Failed to connect: {connection_err}");
 
         if let Some(peer) = &ctx.selected_peer {
             match self.upstream_peer_pool.quarantine_peer(&peer.agent_id) {
                 Ok(true) => {
                     if let Err(err) = self.upstream_peer_pool.restore_integrity() {
-                        error!("Failed to restore integrity: {}", err);
+                        error!("Failed to restore integrity: {err}");
 
                         return Error::new(pingora::InternalError);
                     }
@@ -122,7 +99,7 @@ impl ProxyHttp for ProxyService {
                     // no need to quarantine for some reason
                 }
                 Err(err) => {
-                    error!("Failed to quarantine peer: {}", err);
+                    error!("Failed to quarantine peer: {err}");
 
                     return Error::new(pingora::InternalError);
                 }
@@ -130,29 +107,6 @@ impl ProxyHttp for ProxyService {
         }
 
         connection_err
-    }
-
-    async fn request_filter(&self, session: &mut Session, ctx: &mut Self::CTX) -> Result<bool> {
-        ctx.uses_slots = match session.req_header().uri.path() {
-            "/slots" => {
-                if !self.slots_endpoint_enable {
-                    return Err(Error::create(
-                        pingora::Custom("Slots endpoint is disabled"),
-                        ErrorSource::Downstream,
-                        None,
-                        None,
-                    ));
-                }
-
-                false
-            }
-            "/chat/completions" => true,
-            "/completion" => true,
-            "/v1/chat/completions" => true,
-            _ => false,
-        };
-
-        Ok(false)
     }
 
     fn response_body_filter(
@@ -167,7 +121,7 @@ impl ProxyHttp for ProxyService {
     {
         if ctx.slot_taken && end_of_stream {
             if let Err(err) = ctx.release_slot() {
-                error!("Failed to release slot: {}", err);
+                error!("Failed to release slot: {err}");
 
                 return Err(Error::new(pingora::InternalError));
             }
@@ -178,10 +132,21 @@ impl ProxyHttp for ProxyService {
 
     async fn upstream_peer(
         &self,
-        _session: &mut Session,
+        session: &mut Session,
         ctx: &mut Self::CTX,
     ) -> Result<Box<HttpPeer>> {
-        ctx.select_upstream_peer()
+        let upstream_peer =
+            ctx.select_upstream_peer(session.req_header().uri.path(), self.slots_endpoint_enable);
+
+        if ctx.uses_slots && !ctx.slot_taken {
+            if let Err(err) = ctx.take_slot() {
+                error!("Failed to take slot: {err}");
+
+                return Err(Error::new(pingora::InternalError));
+            }
+        }
+
+        upstream_peer
     }
 
     async fn upstream_request_filter(

@@ -10,6 +10,7 @@ use super::llamacpp_instance::LlamaCppInstance;
 pub struct BalancerWorld {
     pub agents: DashMap<String, Child>,
     pub balancer: Option<Child>,
+    pub last_llamacpp_port_offset: u16,
     pub llamas: DashMap<String, LlamaCppInstance>,
     pub requests: DashMap<String, Response>,
 }
@@ -33,6 +34,14 @@ impl BalancerWorld {
                 panic!("Failed to kill llama {}: {}", llama.key(), err);
             }
         }
+    }
+
+    pub fn get_next_llamacpp_port(&mut self) -> u16 {
+        let port = 8000 + self.last_llamacpp_port_offset;
+
+        self.last_llamacpp_port_offset += 1;
+
+        port
     }
 
     pub fn get_llamacpp_port(&self, llamacpp_name: &str) -> Result<u16> {

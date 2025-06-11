@@ -45,15 +45,40 @@ impl RequestContext {
         }
     }
 
-    pub fn select_upstream_peer(&mut self) -> Result<Box<HttpPeer>> {
+    pub fn select_upstream_peer(
+        &mut self,
+        path: &str,
+        slots_endpoint_enable: bool,
+    ) -> Result<Box<HttpPeer>> {
         if self.selected_peer.is_none() {
             self.selected_peer = match self.upstream_peer_pool.use_best_peer() {
                 Ok(peer) => peer,
-                Err(e) => {
-                    error!("Failed to get best peer: {}", e);
+                Err(err) => {
+                    error!("Failed to get best peer: {err}");
 
                     return Err(Error::new(pingora::InternalError));
                 }
+            };
+        }
+
+        if self.selected_peer.is_some() {
+            self.uses_slots = match path {
+                "/slots" => {
+                    if !slots_endpoint_enable {
+                        return Err(Error::create(
+                            pingora::Custom("Slots endpoint is disabled"),
+                            ErrorSource::Downstream,
+                            None,
+                            None,
+                        ));
+                    }
+
+                    false
+                }
+                "/chat/completions" => true,
+                "/completion" => true,
+                "/v1/chat/completions" => true,
+                _ => false,
             };
         }
 
@@ -115,7 +140,7 @@ mod tests {
 
         pool.register_status_update("test_agent", mock_status_update("test_agent", 1, 4))?;
 
-        let peer = ctx.select_upstream_peer()?;
+        let peer = ctx.select_upstream_peer("/test", false)?;
 
         assert_eq!(peer.to_string(), "addr: 127.0.0.1:8080, scheme: HTTP,");
 
