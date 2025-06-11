@@ -1,7 +1,10 @@
+use std::sync::Arc;
+
 use log::error;
 use pingora::upstreams::peer::HttpPeer;
-use pingora::{Error, ErrorSource, Result};
-use std::sync::Arc;
+use pingora::Error;
+use pingora::ErrorSource;
+use pingora::Result;
 
 use crate::balancer::upstream_peer::UpstreamPeer;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
@@ -76,9 +79,9 @@ impl RequestContext {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::sync::Arc;
 
+    use super::*;
     use crate::balancer::test::mock_status_update;
 
     fn create_test_context(upstream_peer_pool: Arc<UpstreamPeerPool>) -> RequestContext {

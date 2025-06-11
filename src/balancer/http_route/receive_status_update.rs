@@ -1,9 +1,14 @@
-use actix_web::{post, web, Error, HttpResponse};
+use actix_web::post;
+use actix_web::web;
+use actix_web::Error;
+use actix_web::HttpResponse;
 use futures_util::StreamExt as _;
-use log::{error, info};
+use log::error;
+use log::info;
 use serde::Deserialize;
 
-use crate::balancer::{status_update::StatusUpdate, upstream_peer_pool::UpstreamPeerPool};
+use crate::balancer::status_update::StatusUpdate;
+use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);

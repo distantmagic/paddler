@@ -1,27 +1,31 @@
-use crossterm::{
-    event::{Event, EventStream, KeyCode, KeyEventKind},
-    execute,
-    terminal::{disable_raw_mode, LeaveAlternateScreen},
-};
-use futures::{FutureExt, StreamExt};
+use std::io::stdout;
+use std::io::Stdout;
+use std::net::SocketAddr;
+
+use crossterm::event::Event;
+use crossterm::event::EventStream;
+use crossterm::event::KeyCode;
+use crossterm::event::KeyEventKind;
+use crossterm::execute;
+use crossterm::terminal::disable_raw_mode;
+use crossterm::terminal::LeaveAlternateScreen;
+use futures::FutureExt;
+use futures::StreamExt;
 use ratatui::prelude::CrosstermBackend;
 use ratatui::Terminal;
-use std::io::Stdout;
-use std::{io::stdout, net::SocketAddr};
-use tokio::{
-    runtime::Runtime,
-    sync::{
-        broadcast,
-        mpsc::{self},
-    },
-    task::JoinHandle,
-    time::{interval, Duration, MissedTickBehavior},
+use tokio::runtime::Runtime;
+use tokio::sync::broadcast;
+use tokio::sync::mpsc::{
+    self,
 };
+use tokio::task::JoinHandle;
+use tokio::time::interval;
+use tokio::time::Duration;
+use tokio::time::MissedTickBehavior;
 
-use crate::{
-    balancer::upstream_peer_pool::UpstreamPeerPool, cmd::dashboard::app::App,
-    errors::result::Result,
-};
+use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
+use crate::cmd::dashboard::app::App;
+use crate::errors::result::Result;
 
 pub mod app;
 pub mod ui;

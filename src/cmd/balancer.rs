@@ -1,19 +1,18 @@
-use pingora::{
-    proxy::http_proxy_service,
-    server::{configuration::Opt, Server},
-};
-use std::{net::SocketAddr, sync::Arc};
-
+use std::net::SocketAddr;
+use std::sync::Arc;
 #[cfg(feature = "statsd_reporter")]
 use std::time::Duration;
 
+use pingora::proxy::http_proxy_service;
+use pingora::server::configuration::Opt;
+use pingora::server::Server;
+
 use crate::balancer::management_service::ManagementService;
 use crate::balancer::proxy_service::ProxyService;
-use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
-use crate::errors::result::Result;
-
 #[cfg(feature = "statsd_reporter")]
 use crate::balancer::statsd_service::StatsdService;
+use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
+use crate::errors::result::Result;
 
 pub fn handle(
     management_addr: &SocketAddr,

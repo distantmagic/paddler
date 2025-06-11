@@ -1,4 +1,7 @@
-use actix_web::{get, web, Error, Responder};
+use actix_web::get;
+use actix_web::web;
+use actix_web::Error;
+use actix_web::Responder;
 
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 

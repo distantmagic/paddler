@@ -1,14 +1,17 @@
+use std::sync::Arc;
+use std::time::Duration;
+
 use async_trait::async_trait;
 use bytes::Bytes;
 use log::error;
-use pingora::{
-    http::RequestHeader,
-    protocols::Digest,
-    proxy::{ProxyHttp, Session},
-    upstreams::peer::HttpPeer,
-    Error, ErrorSource, Result,
-};
-use std::{sync::Arc, time::Duration};
+use pingora::http::RequestHeader;
+use pingora::protocols::Digest;
+use pingora::proxy::ProxyHttp;
+use pingora::proxy::Session;
+use pingora::upstreams::peer::HttpPeer;
+use pingora::Error;
+use pingora::ErrorSource;
+use pingora::Result;
 
 use crate::balancer::request_context::RequestContext;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;

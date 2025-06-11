@@ -1,4 +1,6 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::IpAddr;
+use std::net::Ipv4Addr;
+use std::net::SocketAddr;
 
 use crate::balancer::status_update::StatusUpdate;
 use crate::llamacpp::slot::Slot;

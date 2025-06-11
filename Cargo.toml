@@ -17,7 +17,7 @@ futures = "0.3.31"
 futures-util = { version = "0.3.31", features = ["tokio-io"] }
 log = "0.4.27"
 pingora = { version = "0.5.0", features = ["proxy"] }
-reqwest = { version = "0.12.19", features = ["json", "stream"] }
+reqwest = { version = "0.12.20", features = ["json", "stream"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 thiserror = "2.0.12"

@@ -1,17 +1,23 @@
-use async_trait::async_trait;
-use cadence::{BufferedUdpMetricSink, Gauged, StatsdClient};
-use log::{debug, error};
-use pingora::{server::ShutdownWatch, services::Service};
-use std::{
-    net::{SocketAddr, UdpSocket},
-    sync::Arc,
-};
-use tokio::time::{interval, Duration, MissedTickBehavior};
+use std::net::SocketAddr;
+use std::net::UdpSocket;
+use std::sync::Arc;
 
+use async_trait::async_trait;
+use cadence::BufferedUdpMetricSink;
+use cadence::Gauged;
+use cadence::StatsdClient;
+use log::debug;
+use log::error;
 #[cfg(unix)]
 use pingora::server::ListenFds;
+use pingora::server::ShutdownWatch;
+use pingora::services::Service;
+use tokio::time::interval;
+use tokio::time::Duration;
+use tokio::time::MissedTickBehavior;
 
-use crate::{balancer::upstream_peer_pool::UpstreamPeerPool, errors::result::Result};
+use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
+use crate::errors::result::Result;
 
 pub struct StatsdService {
     statsd_addr: SocketAddr,

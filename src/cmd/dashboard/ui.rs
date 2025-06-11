@@ -1,4 +1,5 @@
-use ratatui::style::{palette::tailwind, Color};
+use ratatui::style::palette::tailwind;
+use ratatui::style::Color;
 
 #[derive(Clone, Copy)]
 pub struct TableColors {

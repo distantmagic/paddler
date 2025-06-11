@@ -1,9 +1,11 @@
-use serde::{Deserialize, Serialize};
-use std::{
-    cmp::{Eq, Ordering, PartialEq},
-    net::SocketAddr,
-    time::SystemTime,
-};
+use std::cmp::Eq;
+use std::cmp::Ordering;
+use std::cmp::PartialEq;
+use std::net::SocketAddr;
+use std::time::SystemTime;
+
+use serde::Deserialize;
+use serde::Serialize;
 
 use crate::balancer::status_update::StatusUpdate;
 use crate::errors::result::Result;
@@ -148,8 +150,11 @@ impl PartialOrd for UpstreamPeer {
 
 #[cfg(test)]
 mod tests {
+    use std::net::IpAddr;
+    use std::net::Ipv4Addr;
+    use std::net::SocketAddr;
+
     use super::*;
-    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
     fn create_test_peer() -> UpstreamPeer {
         UpstreamPeer::new(

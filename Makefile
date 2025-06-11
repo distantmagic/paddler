@@ -13,6 +13,9 @@ node_modules: package-lock.json
 	npm install --from-lockfile
 	touch node_modules
 
+target/debug/paddler:
+	cargo build
+
 # -----------------------------------------------------------------------------
 # Phony targets
 # -----------------------------------------------------------------------------
@@ -50,22 +53,10 @@ esbuild: node_modules
 		resources/css/page-dashboard.css \
 		resources/ts/controller_dashboard.tsx \
 
-.PHONY: run.agent
-run.agent: esbuild
-	cargo run -- agent \
-		--external-llamacpp-addr "127.0.0.1:8081" \
-		--local-llamacpp-addr="localhost:8081" \
-		--management-addr="localhost:8095" \
-		--name "wohoo"
-
-.PHONY: run.balancer
-run.balancer: esbuild
-	cargo run --features web_dashboard \
-		-- balancer \
-		--management-addr="127.0.0.1:8095"  \
-		--management-dashboard-enable \
-		--reverseproxy-addr="127.0.0.1:8096"
+.PHONY: integration_tests
+integration_tests: target/debug/paddler
+	$(MAKE) -C integration_tests test
 
 .PHONY: test
-test:
+test: integration_tests
 	cargo test

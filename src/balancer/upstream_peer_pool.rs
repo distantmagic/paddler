@@ -1,13 +1,13 @@
-use serde::{Deserialize, Serialize};
-use std::{
-    sync::RwLock,
-    time::{Duration, SystemTime},
-};
+use std::sync::RwLock;
+use std::time::Duration;
+use std::time::SystemTime;
 
-use crate::{
-    balancer::{status_update::StatusUpdate, upstream_peer::UpstreamPeer},
-    errors::result::Result,
-};
+use serde::Deserialize;
+use serde::Serialize;
+
+use crate::balancer::status_update::StatusUpdate;
+use crate::balancer::upstream_peer::UpstreamPeer;
+use crate::errors::result::Result;
 
 #[derive(Serialize, Deserialize)]
 pub struct UpstreamPeerPool {
@@ -156,7 +156,6 @@ impl UpstreamPeerPool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     use crate::balancer::test::mock_status_update;
 
     #[test]

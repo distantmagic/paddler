@@ -1,11 +1,13 @@
+use std::net::SocketAddr;
+use std::time::Duration;
+
+use pingora::ErrorTrait;
 use reqwest::header;
-use std::{net::SocketAddr, time::Duration};
 use url::Url;
 
-use crate::{
-    errors::result::Result,
-    llamacpp::{slot::Slot, slots_response::SlotsResponse},
-};
+use crate::errors::result::Result;
+use crate::llamacpp::slot::Slot;
+use crate::llamacpp::slots_response::SlotsResponse;
 
 pub struct LlamacppClient {
     client: reqwest::Client,
@@ -40,11 +42,24 @@ impl LlamacppClient {
     }
 
     pub async fn get_available_slots(&self) -> Result<SlotsResponse> {
-        let response = self
-            .client
-            .get(self.slots_endpoint_url.to_owned())
-            .send()
-            .await?;
+        let url = self.slots_endpoint_url.to_owned();
+
+        let response = match self.client.get(url.clone()).send().await {
+            Ok(resp) => resp,
+            Err(err) => {
+                return Err(format!(
+                    "Request to '{}' failed: '{}'; connect issue: {}; decode issue: {}; request issue: {}; status issue: {}; status: {:?}; source: {:?}",
+                    url,
+                    err,
+                    err.is_connect(),
+                    err.is_decode(),
+                    err.is_request(),
+                    err.is_status(),
+                    err.status(),
+                    err.source()
+                ).into());
+            }
+        };
 
         match response.status() {
             reqwest::StatusCode::OK => Ok(SlotsResponse {

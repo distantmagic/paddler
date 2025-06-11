@@ -1,12 +1,17 @@
-use actix_web::{web::Data, App, HttpServer};
-use async_trait::async_trait;
-use pingora::{server::ShutdownWatch, services::Service};
-use std::{net::SocketAddr, sync::Arc};
+use std::net::SocketAddr;
+use std::sync::Arc;
 
+use actix_web::web::Data;
+use actix_web::App;
+use actix_web::HttpServer;
+use async_trait::async_trait;
 #[cfg(unix)]
 use pingora::server::ListenFds;
+use pingora::server::ShutdownWatch;
+use pingora::services::Service;
 
-use crate::balancer::{http_route, upstream_peer_pool::UpstreamPeerPool};
+use crate::balancer::http_route;
+use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 
 pub struct ManagementService {
     addr: SocketAddr,

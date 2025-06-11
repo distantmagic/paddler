@@ -1,5 +1,7 @@
-use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
+
+use serde::Deserialize;
+use serde::Serialize;
 
 use crate::llamacpp::slot::Slot;
 
