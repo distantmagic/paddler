@@ -105,7 +105,7 @@ mod tests {
 
         pool.register_status_update("test_agent", mock_status_update("test_agent", 0, 0))?;
 
-        assert!(ctx.take_slot().is_err());
+        assert!(ctx.use_best_peer_and_take_slot().unwrap().is_none());
 
         assert!(!ctx.slot_taken);
         assert_eq!(ctx.selected_peer, None);
@@ -119,12 +119,11 @@ mod tests {
         let mut ctx = create_test_context(pool.clone());
 
         pool.register_status_update("test_agent", mock_status_update("test_agent", 1, 4))?;
+        ctx.select_upstream_peer()?;
 
-        let peer = ctx.select_upstream_peer()?;
+        assert_eq!(ctx.selected_peer.as_ref().unwrap().external_llamacpp_addr.to_string(), "127.0.0.1:8080");
 
-        assert_eq!(peer.to_string(), "addr: 127.0.0.1:8080, scheme: HTTP,");
-
-        ctx.take_slot()?;
+        ctx.use_best_peer_and_take_slot()?;
 
         assert!(ctx.slot_taken);
 

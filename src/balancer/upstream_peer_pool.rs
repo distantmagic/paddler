@@ -165,23 +165,17 @@ mod tests {
     use crate::balancer::test::mock_status_update;
 
     #[test]
-    fn test_take_slot_does_not_panic_when_underflow() -> Result<()> {
-        let pool = UpstreamPeerPool::new();
-
-        pool.register_status_update("test1", mock_status_update("test1", 0, 0))?;
-
-        assert!(pool.take_slot("test1").is_err());
-
-        Ok(())
-    }
-
-    #[test]
     fn test_race_condition_handling() -> Result<()> {
         let pool = UpstreamPeerPool::new();
 
         pool.register_status_update("test1", mock_status_update("test1", 5, 0))?;
-
-        pool.take_slot("test1")?;
+        pool.with_agents_write(|agents| {
+            agents
+                .iter_mut()
+                .find(|p| p.agent_id == "test1")
+                .unwrap()
+                .take_slot()
+        })?;
 
         let last_update_at_selection_time = pool.with_agents_read(|agents| {
             Ok(agents
