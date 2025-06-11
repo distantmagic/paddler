@@ -2,12 +2,23 @@ use std::time::Duration;
 
 use anyhow::Result;
 use cucumber::given;
-use serde_json::Value;
+use serde::Deserialize;
 use tokio::time::sleep;
 
 use crate::balancer_world::BalancerWorld;
 
 const MAX_ATTEMPTS: usize = 3;
+
+#[derive(Deserialize)]
+struct AgentStatus {
+    agent_name: String,
+    error: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct AgentStatusResponse {
+    agents: Vec<AgentStatus>,
+}
 
 async fn do_check(world: &mut BalancerWorld, agent_name: String) -> Result<()> {
     if !world.agents.contains_key(&agent_name) {
@@ -25,30 +36,14 @@ async fn do_check(world: &mut BalancerWorld, agent_name: String) -> Result<()> {
         ));
     }
 
-    let body = response.json::<Value>().await?;
-
-    let agents = body
-        .get("agents")
-        .and_then(|agents| agents.as_array())
-        .ok_or_else(|| anyhow::anyhow!("Invalid response format: 'agents' not found"))?;
-
-    let agent_status = agents
+    let agents_response = response.json::<AgentStatusResponse>().await?;
+    let agent_status = agents_response
+        .agents
         .iter()
-        .find(|agent| {
-            agent
-                .get("agent_name")
-                .and_then(|agent_name| agent_name.as_str())
-                == Some(&agent_name)
-        })
+        .find(|agent| agent.agent_name == agent_name)
         .ok_or_else(|| anyhow::anyhow!("not found in response"))?;
 
-    let error = agent_status.get("error");
-
-    if let Some(error_value) = error {
-        if error_value.is_null() {
-            return Ok(());
-        }
-
+    if let Some(error_value) = &agent_status.error {
         return Err(anyhow::anyhow!("agent reported error: {:?}", error_value));
     }
 
