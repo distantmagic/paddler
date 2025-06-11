@@ -44,21 +44,21 @@ jobs:
         run: |
           cargo build --features web_dashboard --release
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            mv target/release/paddler.exe ${{ matrix.artifact_name }}
+            mv ./target/release/paddler.exe ./${{ matrix.artifact_name }}
           else
-            mv target/release/paddler ${{ matrix.artifact_name }}
+            mv ./target/release/paddler ./${{ matrix.artifact_name }}
           fi
         shell: bash
 
       - uses: ./.github/workflows/composite/assert-version
         with:
-          filename: "${{ matrix.artifact_name }}"
+          filename: "./${{ matrix.artifact_name }}"
           expected-version: "${{ steps.release-version.outputs.version }}"
 
       - name: upload binaries to release
         uses: svenstaro/upload-release-action@v2
         with:
-          file: ${{ matrix.artifact_name }}
+          file: "./${{ matrix.artifact_name }}"
           overwrite: true
           prerelease: ${{ steps.release-version.outputs.type == 'PRE_RELEASE' }}
           tag: ${{ github.ref }}

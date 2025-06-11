@@ -21,7 +21,10 @@ use std::{
 use super::ui::TableColors;
 
 use crate::{
-    balancer::{upstream_peer::UpstreamPeer, upstream_peer_pool::UpstreamPeerPoolInfo},
+    balancer::{
+        upstream_peer::UpstreamPeer,
+        upstream_peer_pool::{UpstreamPeerPool, UpstreamPeerPoolInfo},
+    },
     errors::result::Result,
 };
 
@@ -162,13 +165,12 @@ impl App {
                         .height(1)
                         .white();
 
-                        let rows = items.iter().enumerate().map(|(_i, agent)| {
+                        let rows = items.iter().map(|agent| {
                             let color = self.colors.normal_row_color;
                             let mut items: [String; 6] = Default::default();
 
-                            match ref_array(agent.clone()) {
-                                Ok(array) => items = array,
-                                _ => (),
+                            if let Ok(array) = ref_array(agent.clone()) {
+                                items = array;
                             }
 
                             items

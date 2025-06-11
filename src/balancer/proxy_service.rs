@@ -3,6 +3,7 @@ use bytes::Bytes;
 use log::error;
 use pingora::{
     http::RequestHeader,
+    protocols::Digest,
     proxy::{ProxyHttp, Session},
     upstreams::peer::HttpPeer,
     Error, ErrorSource, Result,
@@ -15,16 +16,8 @@ use std::{
     time::Duration,
 };
 
-use crate::{
-    balancer::{upstream_peer::UpstreamPeer, upstream_peer_pool::UpstreamPeerPool},
-    errors::result::Result as PaddlerResult,
-};
-
-pub struct LlamaCppContext {
-    slot_taken: bool,
-    selected_peer: Option<UpstreamPeer>,
-    uses_slots: bool,
-}
+use crate::balancer::request_context::RequestContext;
+use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 
 pub struct ProxyService {
     rewrite_host_header: bool,
@@ -44,63 +37,17 @@ impl ProxyService {
             upstream_peer_pool,
         }
     }
-
-    #[inline]
-    fn release_slot(&self, ctx: &mut LlamaCppContext) -> PaddlerResult<()> {
-        if let Some(peer) = &ctx.selected_peer {
-            if !self
-                .upstream_peer_pool
-                .release_slot(&peer.agent_id, peer.last_update)?
-            {
-                log::warn!(
-                    "Failed to release slot for peer {} (Agent ID: {})",
-                    peer.external_llamacpp_addr,
-                    peer.agent_id
-                );
-            }
-            ctx.slot_taken = false;
-        }
-
-        Ok(())
-    }
-
-    #[inline]
-    fn use_best_peer_and_take_slot(
-        &self,
-        ctx: &mut LlamaCppContext,
-    ) -> PaddlerResult<Option<UpstreamPeer>> {
-        Ok(
-            if let Some(peer) = self.upstream_peer_pool.with_agents_write(|agents| {
-                for peer in agents.iter_mut() {
-                    if peer.is_usable() {
-                        peer.take_slot();
-
-                        return Ok(Some(peer.clone()));
-                    }
-                }
-
-                Ok(None)
-            })? {
-                self.upstream_peer_pool.restore_integrity()?;
-
-                ctx.slot_taken = true;
-
-                Some(peer)
-            } else {
-                None
-            },
-        )
-    }
 }
 
 #[async_trait]
 impl ProxyHttp for ProxyService {
-    type CTX = LlamaCppContext;
+    type CTX = RequestContext;
 
     fn new_ctx(&self) -> Self::CTX {
-        LlamaCppContext {
+        RequestContext {
             selected_peer: None,
             slot_taken: false,
+            upstream_peer_pool: self.upstream_peer_pool.clone(),
             uses_slots: false,
         }
     }
@@ -115,7 +62,7 @@ impl ProxyHttp for ProxyService {
     ) -> Box<Error> {
         error!("Error while proxying: {}", e);
         if ctx.slot_taken {
-            if let Err(err) = self.release_slot(ctx) {
+            if let Err(err) = ctx.release_slot() {
                 error!("Failed to release slot: {}", err);
 
                 return Error::new(pingora::InternalError);
@@ -136,9 +83,10 @@ impl ProxyHttp for ProxyService {
         _session: &mut Session,
         _peer: &HttpPeer,
         ctx: &mut Self::CTX,
-        mut e: Box<Error>,
+        mut connection_err: Box<Error>,
     ) -> Box<Error> {
-        error!("Failed to connect: {}", e);
+        error!("Failed to connect: {}", connection_err);
+
         if let Some(peer) = &ctx.selected_peer {
             match self.upstream_peer_pool.quarantine_peer(&peer.agent_id) {
                 Ok(true) => {
@@ -150,7 +98,7 @@ impl ProxyHttp for ProxyService {
 
                     // ask server to retry, but try a different best peer
                     ctx.selected_peer = None;
-                    e.set_retry(true);
+                    connection_err.set_retry(true);
                 }
                 Ok(false) => {
                     // no need to quarantine for some reason
@@ -163,7 +111,7 @@ impl ProxyHttp for ProxyService {
             }
         }
 
-        e
+        connection_err
     }
 
     async fn request_filter(&self, session: &mut Session, ctx: &mut Self::CTX) -> Result<bool> {
@@ -200,7 +148,7 @@ impl ProxyHttp for ProxyService {
         Self::CTX: Send + Sync,
     {
         if ctx.slot_taken && end_of_stream {
-            if let Err(err) = self.release_slot(ctx) {
+            if let Err(err) = ctx.release_slot() {
                 error!("Failed to release slot: {}", err);
 
                 return Err(Error::new(pingora::InternalError));
@@ -233,56 +181,39 @@ impl ProxyHttp for ProxyService {
             ));
         };
 
-        let selected_peer = match ctx.selected_peer.clone() {
-            Some(p) => p,
-            None => {
-                tokio::select! {
-                    result = async {
-                        loop {
-                            let result_option_peer = if ctx.uses_slots && !ctx.slot_taken {
-                                self.use_best_peer_and_take_slot(ctx)
-                            } else {
-                                self.upstream_peer_pool.use_best_peer()
-                            };
+        let peer = tokio::select! {
+            result = async {
+                loop {
+                    ctx.select_upstream_peer()?;
 
-                            match result_option_peer {
-                                Ok(Some(peer)) => return Ok(peer),
-                                Err(e) => {
-                                    error!("Failed to get best peer: {}", e);
-
-                                    return Err(Error::new(pingora::InternalError));
-                                }
-                                // To avoid wasting CPU cycles, we don't immediately retry to
-                                // `use_best_peer*` and wait for a notification from code that's
-                                // executed when a slot may become available (e.g., the
-                                // `/status_update/{agent_id}` endpoint).
-                                Ok(None) => self.upstream_peer_pool.notifier.notified().await,
-                            }
-                        }
-                    } => {
-                        result?
-                    }
-                    _ = tokio::time::sleep(std::time::Duration::from_secs(TIMEOUT_SECS)) => {
-                        session
-                            .respond_error(pingora::http::StatusCode::GATEWAY_TIMEOUT.as_u16())
-                            .await?;
-
-                        return Err(Error::create(
-                            pingora::ErrorType::ConnectTimedout,
-                            ErrorSource::Internal,
-                            None,
-                            None,
-                        ));
+                    if let Some(peer) = ctx.selected_peer.clone() {
+                        return Ok::<_, Box<Error>>(peer)
+                    } else {
+                        // To avoid wasting CPU cycles, we don't immediately retry to
+                        // `select_upstream_peer` and wait for a notification from code that's
+                        // executed when a slot may become available (e.g., the
+                        // `/status_update/{agent_id}` endpoint).
+                        self.upstream_peer_pool.notifier.notified().await
                     }
                 }
+            } => {
+                result?
+            }
+            _ = tokio::time::sleep(std::time::Duration::from_secs(TIMEOUT_SECS)) => {
+                session
+                    .respond_error(pingora::http::StatusCode::GATEWAY_TIMEOUT.as_u16())
+                    .await?;
+
+                return Err(Error::create(
+                    pingora::ErrorType::ConnectTimedout,
+                    ErrorSource::Internal,
+                    None,
+                    None,
+                ));
             }
         };
 
-        Ok(Box::new(HttpPeer::new(
-            selected_peer.external_llamacpp_addr,
-            false,
-            "".to_string(),
-        )))
+        Ok(HttpPeer::new(peer.external_llamacpp_addr, false, "".into()).into())
     }
 
     async fn upstream_request_filter(
@@ -322,151 +253,5 @@ impl<'a> RequestBufferGuard<'a> {
 impl Drop for RequestBufferGuard<'_> {
     fn drop(&mut self) {
         self.0.fetch_sub(1, Ordering::Relaxed);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-    use std::sync::Arc;
-
-    fn create_test_context() -> LlamaCppContext {
-        LlamaCppContext {
-            slot_taken: false,
-            selected_peer: Some(UpstreamPeer::new(
-                "test_agent".to_string(),
-                Some("test_name".to_string()),
-                None,
-                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
-                Some(true),
-                Some(true),
-                5, // 5 idle slots
-                0, // 0 processing slots
-            )),
-            uses_slots: true,
-        }
-    }
-
-    #[test]
-    fn test_take_slot_success() {
-        let pool = Arc::new(UpstreamPeerPool::new());
-        let service = ProxyService::new(true, true, pool.clone());
-        let mut ctx = create_test_context();
-
-        // Add peer to pool
-        pool.with_agents_write(|agents| {
-            agents.push(ctx.selected_peer.as_ref().unwrap().clone());
-            Ok(())
-        })
-        .unwrap();
-
-        assert!(service.use_best_peer_and_take_slot(&mut ctx).is_ok());
-        assert!(ctx.slot_taken);
-
-        // Verify slot was taken
-        pool.with_agents_read(|agents| {
-            let peer = agents.iter().find(|p| p.agent_id == "test_agent").unwrap();
-            assert_eq!(peer.slots_idle, 4);
-            assert_eq!(peer.slots_processing, 1);
-            Ok(())
-        })
-        .unwrap();
-    }
-
-    // #[test]
-    // fn test_take_slot_failure_and_retry() {
-    //     let pool = Arc::new(UpstreamPeerPool::new());
-    //     let service = ProxyService::new(true, true, pool.clone());
-    //     let mut ctx = create_test_context();
-
-    //     // Add peer with no slots
-    //     pool.with_agents_write(|agents| {
-    //         let mut peer = ctx.selected_peer.as_ref().unwrap().clone();
-    //         peer.slots_idle = 0;
-    //         agents.push(peer);
-    //         Ok(())
-    //     })
-    //     .unwrap();
-
-    //     // Add another peer with slots
-    //     pool.with_agents_write(|agents| {
-    //         agents.push(UpstreamPeer::new(
-    //             "test_agent2".to_string(),
-    //             Some("test_name2".to_string()),
-    //             None,
-    //             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),
-    //             Some(true),
-    //             Some(true),
-    //             5, // 5 idle slots
-    //             0, // 0 processing slots
-    //         ));
-    //         Ok(())
-    //     })
-    //     .unwrap();
-
-    //     assert!(service.take_slot(&mut ctx).is_ok());
-    //     assert!(ctx.slot_taken);
-    //     assert_eq!(ctx.selected_peer.as_ref().unwrap().agent_id, "test_agent2");
-    // }
-
-    #[test]
-    fn test_release_slot_success() {
-        let pool = Arc::new(UpstreamPeerPool::new());
-        let service = ProxyService::new(true, true, pool.clone());
-        let mut ctx = create_test_context();
-        ctx.slot_taken = true;
-
-        // Add peer with processing slot
-        pool.with_agents_write(|agents| {
-            let mut peer = ctx.selected_peer.as_ref().unwrap().clone();
-            peer.slots_idle = 4;
-            peer.slots_processing = 1;
-            agents.push(peer);
-            Ok(())
-        })
-        .unwrap();
-
-        assert!(service.release_slot(&mut ctx).is_ok());
-        assert!(!ctx.slot_taken);
-
-        // Verify slot was released
-        pool.with_agents_read(|agents| {
-            let peer = agents.iter().find(|p| p.agent_id == "test_agent").unwrap();
-            assert_eq!(peer.slots_idle, 5);
-            assert_eq!(peer.slots_processing, 0);
-            Ok(())
-        })
-        .unwrap();
-    }
-
-    #[test]
-    fn test_release_slot_failure() {
-        let pool = Arc::new(UpstreamPeerPool::new());
-        let service = ProxyService::new(true, true, pool.clone());
-        let mut ctx = create_test_context();
-        ctx.slot_taken = true;
-
-        // Add peer with no processing slots
-        pool.with_agents_write(|agents| {
-            let mut peer = ctx.selected_peer.as_ref().unwrap().clone();
-            peer.slots_idle = 5;
-            peer.slots_processing = 0;
-            agents.push(peer);
-            Ok(())
-        })
-        .unwrap();
-
-        assert!(service.release_slot(&mut ctx).is_ok());
-        assert!(!ctx.slot_taken);
-
-        // Verify state is unchanged
-        pool.with_agents_read(|agents| {
-            let peer = agents.iter().find(|p| p.agent_id == "test_agent").unwrap();
-            assert_eq!(peer.slots_idle, 5);
-            assert_eq!(peer.slots_processing, 0);
-            Ok(())
-        })
-        .unwrap();
     }
 }

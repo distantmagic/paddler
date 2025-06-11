@@ -6,6 +6,7 @@ use std::{
 };
 
 use crate::balancer::status_update::StatusUpdate;
+use crate::errors::result::Result;
 
 #[derive(Clone, Debug, Eq, Serialize, Deserialize)]
 pub struct UpstreamPeer {
@@ -21,9 +22,12 @@ pub struct UpstreamPeer {
     pub quarantined_until: Option<SystemTime>,
     pub slots_idle: usize,
     pub slots_processing: usize,
+    pub slots_taken: usize,
+    pub slots_taken_since_last_status_update: usize,
 }
 
 impl UpstreamPeer {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         agent_id: String,
         agent_name: Option<String>,
@@ -45,6 +49,8 @@ impl UpstreamPeer {
             quarantined_until: None,
             slots_idle,
             slots_processing,
+            slots_taken: 0,
+            slots_taken_since_last_status_update: 0,
         }
     }
 
@@ -68,13 +74,21 @@ impl UpstreamPeer {
             && matches!(self.is_authorized, Some(true))
     }
 
-    pub fn release_slot(&mut self) {
-        self.last_update = SystemTime::now();
-
-        if let Some(slots_processing) = self.slots_processing.checked_sub(1) {
-            self.slots_processing = slots_processing;
-            self.slots_idle += 1;
+    pub fn release_slot(&mut self) -> Result<()> {
+        if self.slots_taken < 1 {
+            return Err("Cannot release a slot when there are no taken slots".into());
         }
+
+        self.last_update = SystemTime::now();
+        self.slots_taken -= 1;
+
+        if self.slots_taken_since_last_status_update > 0 {
+            self.slots_taken_since_last_status_update -= 1;
+            self.slots_idle += 1;
+            self.slots_processing -= 1;
+        }
+
+        Ok(())
     }
 
     pub fn update_status(&mut self, status_update: StatusUpdate) {
@@ -87,15 +101,21 @@ impl UpstreamPeer {
         self.quarantined_until = None;
         self.slots_idle = status_update.idle_slots_count;
         self.slots_processing = status_update.processing_slots_count;
+        self.slots_taken_since_last_status_update = 0;
     }
 
-    pub fn take_slot(&mut self) {
-        self.last_update = SystemTime::now();
-
-        if let Some(slots_idle) = self.slots_idle.checked_sub(1) {
-            self.slots_idle = slots_idle;
-            self.slots_processing += 1;
+    pub fn take_slot(&mut self) -> Result<()> {
+        if self.slots_idle < 1 {
+            return Err("Cannot take a slot when there are no idle slots".into());
         }
+
+        self.last_update = SystemTime::now();
+        self.slots_taken_since_last_status_update += 1;
+        self.slots_taken += 1;
+        self.slots_idle -= 1;
+        self.slots_processing += 1;
+
+        Ok(())
     }
 }
 
@@ -145,13 +165,23 @@ mod tests {
     }
 
     #[test]
-    fn test_take_slot_success() {
+    fn test_take_release_slot() -> Result<()> {
         let mut peer = create_test_peer();
 
-        peer.take_slot();
+        assert_eq!(peer.slots_idle, 5);
+        assert_eq!(peer.slots_processing, 0);
+
+        peer.take_slot()?;
 
         assert_eq!(peer.slots_idle, 4);
         assert_eq!(peer.slots_processing, 1);
+
+        peer.release_slot()?;
+
+        assert_eq!(peer.slots_idle, 5);
+        assert_eq!(peer.slots_processing, 0);
+
+        Ok(())
     }
 
     #[test]
@@ -159,33 +189,19 @@ mod tests {
         let mut peer = create_test_peer();
 
         peer.slots_idle = 0;
-        peer.take_slot();
 
-        assert_eq!(peer.slots_idle, 0);
-        assert_eq!(peer.slots_processing, 0);
+        assert!(peer.take_slot().is_err());
     }
 
     #[test]
-    fn test_release_slot_success() {
+    fn test_release_slot_failure() -> Result<()> {
         let mut peer = create_test_peer();
-        peer.slots_idle = 4;
-        peer.slots_processing = 1;
 
-        peer.release_slot();
-
-        assert_eq!(peer.slots_idle, 5);
-        assert_eq!(peer.slots_processing, 0);
-    }
-
-    #[test]
-    fn test_release_slot_failure() {
-        let mut peer = create_test_peer();
         peer.slots_processing = 0;
 
-        peer.release_slot();
+        assert!(peer.release_slot().is_err());
 
-        assert_eq!(peer.slots_idle, 5);
-        assert_eq!(peer.slots_processing, 0);
+        Ok(())
     }
 
     #[test]
