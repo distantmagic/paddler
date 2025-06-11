@@ -25,8 +25,7 @@ impl LlamacppClient {
         );
 
         if let Some(api_key_value) = api_key {
-            let mut auth_value =
-                header::HeaderValue::from_str(&format!("Bearer {}", api_key_value))?;
+            let mut auth_value = header::HeaderValue::from_str(&format!("Bearer {api_key_value}"))?;
 
             auth_value.set_sensitive(true);
 
@@ -37,7 +36,7 @@ impl LlamacppClient {
 
         Ok(Self {
             client: builder.build()?,
-            slots_endpoint_url: Url::parse(&format!("http://{}/slots", addr))?.to_string(),
+            slots_endpoint_url: Url::parse(&format!("http://{addr}/slots"))?.to_string(),
         })
     }
 

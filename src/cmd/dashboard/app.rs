@@ -170,7 +170,7 @@ impl App {
                             let color = self.colors.normal_row_color;
                             let mut items: [String; 6] = Default::default();
 
-                            if let Ok(array) = ref_array(agent.clone()) {
+                            if let Ok(array) = ref_array(agent) {
                                 items = array;
                             }
 
@@ -253,7 +253,7 @@ impl App {
     }
 }
 
-fn ref_array(peer: UpstreamPeer) -> Result<[String; 6]> {
+fn ref_array(peer: &UpstreamPeer) -> Result<[String; 6]> {
     let has_issue = match peer.error.clone() {
         Some(issue) => issue,
         None => String::from("None"),

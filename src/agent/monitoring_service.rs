@@ -92,11 +92,11 @@ impl Service for MonitoringService {
                     match self.fetch_status().await {
                         Ok(status) => {
                             if let Err(err) = self.report_status(status).await {
-                                error!("Failed to report status: {}", err);
+                                error!("Failed to report status: {err}");
                             }
                         }
                         Err(err) => {
-                            error!("Failed to fetch status: {}", err);
+                            error!("Failed to fetch status: {err}");
                         }
                     }
                 }

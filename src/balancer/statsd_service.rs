@@ -65,7 +65,7 @@ impl Service for StatsdService {
             .expect("Failed to create statsd sink");
 
         let client = StatsdClient::builder(&self.statsd_prefix.to_owned(), statsd_sink)
-            .with_error_handler(|err| error!("Statsd error: {}", err))
+            .with_error_handler(|err| error!("Statsd error: {err}"))
             .build();
 
         let mut ticker = interval(self.statsd_reporting_interval);
@@ -80,7 +80,7 @@ impl Service for StatsdService {
                 },
                 _ = ticker.tick() => {
                     if let Err(err) = self.report_metrics(&client).await {
-                        error!("Failed to fetch status: {}", err);
+                        error!("Failed to fetch status: {err}");
                     }
                 }
             }

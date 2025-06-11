@@ -70,7 +70,7 @@ impl<T> From<std::sync::PoisonError<T>> for AppError {
 impl actix_web::ResponseError for AppError {
     fn error_response(&self) -> actix_web::HttpResponse {
         actix_web::HttpResponse::InternalServerError()
-            .body(format!("Internal Server Error: {}", self))
+            .body(format!("Internal Server Error: {self}"))
     }
 
     fn status_code(&self) -> actix_web::http::StatusCode {

@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 use cucumber::given;
+use tempfile::NamedTempFile;
 use tokio::process::Command;
 use tokio::time::sleep;
 
@@ -33,11 +34,10 @@ async fn do_check(llamacpp_port: u16) -> Result<()> {
     Ok(())
 }
 
-#[given(expr = "llama.cpp server {string} is running at :{int} \\(has {int} slots\\)")]
+#[given(expr = "llama.cpp server {string} is running \\(has {int} slot(s)\\)")]
 pub async fn given_agent_is_attached(
     world: &mut BalancerWorld,
     llamacpp_name: String,
-    llamacpp_port: u16,
     available_slots: u16,
 ) -> Result<()> {
     if world.llamas.contains_key(&llamacpp_name) {
@@ -47,15 +47,23 @@ pub async fn given_agent_is_attached(
         ));
     }
 
+    let llamacpp_port = world.get_next_llamacpp_port();
+    let log_file = NamedTempFile::new()?;
+
     world.llamas.insert(
-        llamacpp_name,
+        llamacpp_name.clone(),
         LlamaCppInstance {
             child: Command::new("./tests/fixtures/llamacpp-server-mock.mjs")
+                .arg("--completionResponseDelay=1")
+                .arg(format!("--logFile={}", log_file.path().to_string_lossy()))
+                .arg(format!("--name={llamacpp_name}"))
                 .arg(format!("--port={llamacpp_port}"))
                 .arg(format!("--slots={available_slots}"))
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .spawn()?,
+            log_file,
+            name: llamacpp_name,
             port: llamacpp_port,
         },
     );
