@@ -29,7 +29,7 @@ use ratatui::Frame;
 
 use super::ui::TableColors;
 use crate::balancer::upstream_peer::UpstreamPeer;
-use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
+use crate::balancer::upstream_peer_pool::UpstreamPeerPoolInfo;
 use crate::errors::result::Result;
 
 pub struct App {
@@ -238,13 +238,11 @@ impl App {
         frame.render_widget(info_footer, area);
     }
 
-    pub fn set_registered_agents(&mut self, upstream_peer_pool: UpstreamPeerPool) -> Result<()> {
-        let registered_agents = upstream_peer_pool
-            .agents
-            .read()
-            .map(|agents_guard| agents_guard.clone())?;
-
-        self.items = Some(registered_agents);
+    pub fn set_registered_agents(
+        &mut self,
+        upstream_peer_pool: UpstreamPeerPoolInfo,
+    ) -> Result<()> {
+        self.items = Some(upstream_peer_pool.agents);
         self.is_initial_load = false;
         self.error = None;
         self.ticks += 1;

@@ -1,24 +1,40 @@
+use std::sync::atomic::AtomicUsize;
 use std::sync::RwLock;
 use std::time::Duration;
 use std::time::SystemTime;
 
 use serde::Deserialize;
 use serde::Serialize;
+use tokio::sync::Notify;
 
 use crate::balancer::status_update::StatusUpdate;
 use crate::balancer::upstream_peer::UpstreamPeer;
 use crate::errors::result::Result;
 
 #[derive(Serialize, Deserialize)]
+pub struct UpstreamPeerPoolInfo {
+    pub agents: Vec<UpstreamPeer>,
+}
+
 pub struct UpstreamPeerPool {
     pub agents: RwLock<Vec<UpstreamPeer>>,
+    pub notifier: Notify,
+    pub request_buffer_length: AtomicUsize,
 }
 
 impl UpstreamPeerPool {
     pub fn new() -> Self {
-        UpstreamPeerPool {
+        Self {
             agents: RwLock::new(Vec::new()),
+            notifier: Notify::new(),
+            request_buffer_length: AtomicUsize::new(0),
         }
+    }
+
+    pub fn info(&self) -> Option<UpstreamPeerPoolInfo> {
+        self.agents.read().ok().map(|agents| UpstreamPeerPoolInfo {
+            agents: agents.clone(),
+        })
     }
 
     pub fn quarantine_peer(&self, agent_id: &str) -> Result<bool> {
@@ -89,18 +105,6 @@ impl UpstreamPeerPool {
         })
     }
 
-    pub fn take_slot(&self, agent_id: &str) -> Result<()> {
-        self.with_agents_write(|agents| {
-            if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
-                peer.take_slot()?;
-
-                Ok(())
-            } else {
-                Err(format!("There is no agent with id: {agent_id}").into())
-            }
-        })
-    }
-
     #[cfg(feature = "statsd_reporter")]
     /// Returns (slots_idle, slots_processing) tuple.
     pub fn total_slots(&self) -> Result<(usize, usize)> {
@@ -142,7 +146,7 @@ impl UpstreamPeerPool {
     }
 
     #[inline]
-    fn with_agents_write<TCallback, TResult>(&self, cb: TCallback) -> Result<TResult>
+    pub fn with_agents_write<TCallback, TResult>(&self, cb: TCallback) -> Result<TResult>
     where
         TCallback: FnOnce(&mut Vec<UpstreamPeer>) -> Result<TResult>,
     {
@@ -159,23 +163,17 @@ mod tests {
     use crate::balancer::test::mock_status_update;
 
     #[test]
-    fn test_take_slot_does_not_panic_when_underflow() -> Result<()> {
-        let pool = UpstreamPeerPool::new();
-
-        pool.register_status_update("test1", mock_status_update("test1", 0, 0))?;
-
-        assert!(pool.take_slot("test1").is_err());
-
-        Ok(())
-    }
-
-    #[test]
     fn test_race_condition_handling() -> Result<()> {
         let pool = UpstreamPeerPool::new();
 
         pool.register_status_update("test1", mock_status_update("test1", 5, 0))?;
-
-        pool.take_slot("test1")?;
+        pool.with_agents_write(|agents| {
+            agents
+                .iter_mut()
+                .find(|p| p.agent_id == "test1")
+                .unwrap()
+                .take_slot()
+        })?;
 
         let last_update_at_selection_time = pool.with_agents_read(|agents| {
             Ok(agents

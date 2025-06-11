@@ -1,3 +1,5 @@
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -9,6 +11,7 @@ use pingora::proxy::ProxyHttp;
 use pingora::proxy::Session;
 use pingora::upstreams::peer::HttpPeer;
 use pingora::Error;
+use pingora::ErrorSource;
 use pingora::Result;
 
 use crate::balancer::request_context::RequestContext;
@@ -135,18 +138,76 @@ impl ProxyHttp for ProxyService {
         session: &mut Session,
         ctx: &mut Self::CTX,
     ) -> Result<Box<HttpPeer>> {
-        let upstream_peer =
-            ctx.select_upstream_peer(session.req_header().uri.path(), self.slots_endpoint_enable);
+        // TODO: Make this customizable.
+        const TIMEOUT_SECS: u64 = 30;
 
-        if ctx.uses_slots && !ctx.slot_taken {
-            if let Err(err) = ctx.take_slot() {
-                error!("Failed to take slot: {err}");
+        let Some(_req_guard) =
+            RequestBufferGuard::increment(&self.upstream_peer_pool.request_buffer_length)
+        else {
+            session
+                .respond_error(pingora::http::StatusCode::TOO_MANY_REQUESTS.as_u16())
+                .await?;
 
-                return Err(Error::new(pingora::InternalError));
+            return Err(Error::create(
+                pingora::ErrorType::ConnectRefused,
+                ErrorSource::Internal,
+                None,
+                None,
+            ));
+        };
+
+        let peer = tokio::select! {
+            result = async {
+                loop {
+                    ctx.select_upstream_peer()?;
+
+                    if let Some(peer) = ctx.selected_peer.clone() {
+                        ctx.uses_slots = match session.req_header().uri.path() {
+                            "/slots" => {
+                                if !self.slots_endpoint_enable {
+                                    return Err(Error::create(
+                                        pingora::Custom("Slots endpoint is disabled"),
+                                        ErrorSource::Downstream,
+                                        None,
+                                        None,
+                                    ));
+                                }
+
+                                false
+                            }
+                            "/chat/completions" => true,
+                            "/completion" => true,
+                            "/v1/chat/completions" => true,
+                            _ => false,
+                        };
+
+                        return Ok::<_, Box<Error>>(peer)
+                    } else {
+                        // To avoid wasting CPU cycles, we don't immediately retry to
+                        // `select_upstream_peer` and wait for a notification from code that's
+                        // executed when a slot may become available (e.g., the
+                        // `/status_update/{agent_id}` endpoint).
+                        self.upstream_peer_pool.notifier.notified().await
+                    }
+                }
+            } => {
+                result?
             }
-        }
+            _ = tokio::time::sleep(std::time::Duration::from_secs(TIMEOUT_SECS)) => {
+                session
+                    .respond_error(pingora::http::StatusCode::GATEWAY_TIMEOUT.as_u16())
+                    .await?;
 
-        upstream_peer
+                return Err(Error::create(
+                    pingora::ErrorType::ConnectTimedout,
+                    ErrorSource::Internal,
+                    None,
+                    None,
+                ));
+            }
+        };
+
+        Ok(HttpPeer::new(peer.external_llamacpp_addr, false, "".into()).into())
     }
 
     async fn upstream_request_filter(
@@ -163,5 +224,28 @@ impl ProxyHttp for ProxyService {
         }
 
         Ok(())
+    }
+}
+
+struct RequestBufferGuard<'a>(&'a AtomicUsize);
+
+impl<'a> RequestBufferGuard<'a> {
+    fn increment(length: &'a AtomicUsize) -> Option<Self> {
+        // TODO: Make this customizable.
+        const REQUEST_BUFFER_CAP: usize = 32;
+
+        if length.load(Ordering::Relaxed) >= REQUEST_BUFFER_CAP {
+            None
+        } else {
+            length.fetch_add(1, Ordering::Relaxed);
+
+            Some(Self(length))
+        }
+    }
+}
+
+impl Drop for RequestBufferGuard<'_> {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::Relaxed);
     }
 }
