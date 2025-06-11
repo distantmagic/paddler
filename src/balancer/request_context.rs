@@ -1,6 +1,8 @@
-use log::error;
-use pingora::{Error, Result};
 use std::sync::Arc;
+
+use log::error;
+use pingora::Error;
+use pingora::Result;
 
 use crate::balancer::upstream_peer::UpstreamPeer;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
@@ -72,7 +74,7 @@ impl RequestContext {
                 peer
             }
             Err(e) => {
-                error!("Failed to get best peer: {}", e);
+                error!("Failed to get best peer: {e}");
 
                 return Err(Error::new(pingora::InternalError));
             }
@@ -84,9 +86,9 @@ impl RequestContext {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::sync::Arc;
 
+    use super::*;
     use crate::balancer::test::mock_status_update;
 
     fn create_test_context(upstream_peer_pool: Arc<UpstreamPeerPool>) -> RequestContext {
@@ -121,7 +123,14 @@ mod tests {
         pool.register_status_update("test_agent", mock_status_update("test_agent", 1, 4))?;
         ctx.select_upstream_peer()?;
 
-        assert_eq!(ctx.selected_peer.as_ref().unwrap().external_llamacpp_addr.to_string(), "127.0.0.1:8080");
+        assert_eq!(
+            ctx.selected_peer
+                .as_ref()
+                .unwrap()
+                .external_llamacpp_addr
+                .to_string(),
+            "127.0.0.1:8080"
+        );
 
         ctx.use_best_peer_and_take_slot()?;
 

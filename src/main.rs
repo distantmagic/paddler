@@ -1,8 +1,9 @@
-use clap::{Parser, Subcommand};
-use std::{
-    net::{SocketAddr, ToSocketAddrs},
-    time::Duration,
-};
+use std::net::SocketAddr;
+use std::net::ToSocketAddrs;
+use std::time::Duration;
+
+use clap::Parser;
+use clap::Subcommand;
 
 use crate::errors::result::Result;
 
@@ -180,7 +181,9 @@ fn main() -> Result<()> {
             statsd_reporting_interval.to_owned(),
         ),
         #[cfg(feature = "ratatui_dashboard")]
-        Some(Commands::Dashboard { management_addr }) => cmd::dashboard::handle(management_addr),
+        Some(Commands::Dashboard {
+            management_addr,
+        }) => cmd::dashboard::handle(management_addr),
         None => Ok(()),
     }
 }

@@ -1,6 +1,9 @@
+use std::net::SocketAddr;
+use std::time::Duration;
+
 use actix_web::web::Bytes;
-use pingora::server::{configuration::Opt, Server};
-use std::{net::SocketAddr, time::Duration};
+use pingora::server::configuration::Opt;
+use pingora::server::Server;
 use tokio::sync::broadcast::channel;
 
 use crate::agent::monitoring_service::MonitoringService;

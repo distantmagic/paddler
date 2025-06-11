@@ -1,0 +1,8 @@
+chain_width = 60
+fn_call_width = 60
+group_imports = "StdExternalCrate"
+imports_granularity = "Item"
+imports_layout = "Vertical"
+reorder_impl_items = true
+reorder_imports = true
+use_small_heuristics = "Off"

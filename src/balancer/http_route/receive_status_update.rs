@@ -1,9 +1,14 @@
-use actix_web::{post, web, Error, HttpResponse};
+use actix_web::post;
+use actix_web::web;
+use actix_web::Error;
+use actix_web::HttpResponse;
 use futures_util::StreamExt as _;
-use log::{error, info};
+use log::error;
+use log::info;
 use serde::Deserialize;
 
-use crate::balancer::{status_update::StatusUpdate, upstream_peer_pool::UpstreamPeerPool};
+use crate::balancer::status_update::StatusUpdate;
+use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
@@ -23,8 +28,8 @@ impl Drop for RemovePeerGuard<'_> {
     fn drop(&mut self) {
         info!("Removing agent: {}", self.agent_id);
 
-        if let Err(e) = self.pool.remove_peer(&self.agent_id) {
-            error!("Failed to remove peer: {}", e);
+        if let Err(err) = self.pool.remove_peer(&self.agent_id) {
+            error!("Failed to remove peer: {err}");
         }
     }
 }
@@ -46,23 +51,23 @@ async fn respond(
         match serde_json::from_slice::<StatusUpdate>(&chunk?) {
             Ok(status_update) => {
                 let idle_slots_count = status_update.idle_slots_count;
-                
-                if let Err(e) =
+
+                if let Err(err) =
                     upstream_peer_pool.register_status_update(&path_params.agent_id, status_update)
                 {
-                    error!("Failed to register status update: {}", e);
+                    error!("Failed to register status update: {err}");
 
-                    return Err(Error::from(e));
+                    return Err(Error::from(err));
                 }
 
                 if idle_slots_count > 0 {
                     upstream_peer_pool.notifier.notify_one();
                 }
             }
-            Err(e) => {
-                error!("Failed to parse status update: {}", e);
+            Err(err) => {
+                error!("Failed to parse status update: {err}");
 
-                return Err(Error::from(e));
+                return Err(Error::from(err));
             }
         }
     }

@@ -1,28 +1,31 @@
-use crossterm::{
-    event::{Event, EventStream, KeyCode, KeyEventKind},
-    execute,
-    terminal::{disable_raw_mode, LeaveAlternateScreen},
-};
-use futures::{FutureExt, StreamExt};
+use std::io::stdout;
+use std::io::Stdout;
+use std::net::SocketAddr;
+
+use crossterm::event::Event;
+use crossterm::event::EventStream;
+use crossterm::event::KeyCode;
+use crossterm::event::KeyEventKind;
+use crossterm::execute;
+use crossterm::terminal::disable_raw_mode;
+use crossterm::terminal::LeaveAlternateScreen;
+use futures::FutureExt;
+use futures::StreamExt;
 use ratatui::prelude::CrosstermBackend;
 use ratatui::Terminal;
-use std::io::Stdout;
-use std::{io::stdout, net::SocketAddr};
-use tokio::{
-    runtime::Runtime,
-    sync::{
-        broadcast,
-        mpsc::{self},
-    },
-    task::JoinHandle,
-    time::{interval, Duration, MissedTickBehavior},
+use tokio::runtime::Runtime;
+use tokio::sync::broadcast;
+use tokio::sync::mpsc::{
+    self,
 };
+use tokio::task::JoinHandle;
+use tokio::time::interval;
+use tokio::time::Duration;
+use tokio::time::MissedTickBehavior;
 
-use crate::{
-    balancer::upstream_peer_pool::{UpstreamPeerPool, UpstreamPeerPoolInfo},
-    cmd::dashboard::app::App,
-    errors::result::Result,
-};
+use crate::balancer::upstream_peer_pool::UpstreamPeerPoolInfo;
+use crate::cmd::dashboard::app::App;
+use crate::errors::result::Result;
 
 pub mod app;
 pub mod ui;
@@ -66,11 +69,11 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
                     match upstream_peer_pool {
                         Ok(upstream_peer_pool) => {
                             if let Err(err) = upstream_peer_pool_tx.send(upstream_peer_pool).await {
-                                app_needs_to_render_app_error_tx.send(format!("Error sending upstream peer pool - {}", err)).await.ok();
+                                app_needs_to_render_app_error_tx.send(format!("Error sending upstream peer pool - {err}")).await.ok();
                             }
                         },
                         Err(err) => {
-                            app_needs_to_render_app_error_tx.send(format!("Error fetching agents - {}", err)).await.ok();
+                            app_needs_to_render_app_error_tx.send(format!("Error fetching agents - {err}")).await.ok();
                         }
                     }
                 }

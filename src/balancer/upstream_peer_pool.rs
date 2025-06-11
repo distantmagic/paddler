@@ -1,16 +1,15 @@
-use serde::{Deserialize, Serialize};
-use std::{
-    sync::{atomic::AtomicUsize, RwLock},
-    time::{Duration, SystemTime},
-};
+use std::sync::atomic::AtomicUsize;
+use std::sync::RwLock;
+use std::time::Duration;
+use std::time::SystemTime;
+
+use serde::Deserialize;
+use serde::Serialize;
 use tokio::sync::Notify;
 
-use crate::{
-    balancer::{
-        request_context::RequestContext, status_update::StatusUpdate, upstream_peer::UpstreamPeer,
-    },
-    errors::result::Result,
-};
+use crate::balancer::status_update::StatusUpdate;
+use crate::balancer::upstream_peer::UpstreamPeer;
+use crate::errors::result::Result;
 
 #[derive(Serialize, Deserialize)]
 pub struct UpstreamPeerPoolInfo {
@@ -84,7 +83,7 @@ impl UpstreamPeerPool {
                 return Ok(());
             }
 
-            Err(format!("There is no agent with id: {}", agent_id).into())
+            Err(format!("There is no agent with id: {agent_id}").into())
         })
     }
 
@@ -124,7 +123,7 @@ impl UpstreamPeerPool {
 
     pub fn use_best_peer(&self) -> Result<Option<UpstreamPeer>> {
         self.with_agents_write(|agents| {
-            for peer in agents.iter_mut() {
+            for peer in agents.iter() {
                 if peer.is_usable() {
                     return Ok(Some(peer.clone()));
                 }
@@ -161,7 +160,6 @@ impl UpstreamPeerPool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     use crate::balancer::test::mock_status_update;
 
     #[test]

@@ -1,20 +1,21 @@
+use std::net::SocketAddr;
+
 use actix_web::web::Bytes;
 use async_trait::async_trait;
-use log::{debug, error};
-use pingora::{server::ShutdownWatch, services::Service};
-use std::net::SocketAddr;
-use tokio::{
-    sync::broadcast::Sender,
-    time::{interval, Duration, MissedTickBehavior},
-};
-
+use log::debug;
+use log::error;
 #[cfg(unix)]
 use pingora::server::ListenFds;
+use pingora::server::ShutdownWatch;
+use pingora::services::Service;
+use tokio::sync::broadcast::Sender;
+use tokio::time::interval;
+use tokio::time::Duration;
+use tokio::time::MissedTickBehavior;
 
-use crate::{
-    balancer::status_update::StatusUpdate, errors::result::Result,
-    llamacpp::llamacpp_client::LlamacppClient,
-};
+use crate::balancer::status_update::StatusUpdate;
+use crate::errors::result::Result;
+use crate::llamacpp::llamacpp_client::LlamacppClient;
 
 pub struct MonitoringService {
     external_llamacpp_addr: SocketAddr,
@@ -91,11 +92,11 @@ impl Service for MonitoringService {
                     match self.fetch_status().await {
                         Ok(status) => {
                             if let Err(err) = self.report_status(status).await {
-                                error!("Failed to report status: {}", err);
+                                error!("Failed to report status: {err}");
                             }
                         }
                         Err(err) => {
-                            error!("Failed to fetch status: {}", err);
+                            error!("Failed to fetch status: {err}");
                         }
                     }
                 }

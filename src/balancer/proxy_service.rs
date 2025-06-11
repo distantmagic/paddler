@@ -1,20 +1,18 @@
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
+use std::time::Duration;
+
 use async_trait::async_trait;
 use bytes::Bytes;
 use log::error;
-use pingora::{
-    http::RequestHeader,
-    protocols::Digest,
-    proxy::{ProxyHttp, Session},
-    upstreams::peer::HttpPeer,
-    Error, ErrorSource, Result,
-};
-use std::{
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
-    },
-    time::Duration,
-};
+use pingora::http::RequestHeader;
+use pingora::proxy::ProxyHttp;
+use pingora::proxy::Session;
+use pingora::upstreams::peer::HttpPeer;
+use pingora::Error;
+use pingora::ErrorSource;
+use pingora::Result;
 
 use crate::balancer::request_context::RequestContext;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
@@ -60,16 +58,16 @@ impl ProxyHttp for ProxyService {
         ctx: &mut Self::CTX,
         client_reused: bool,
     ) -> Box<Error> {
-        error!("Error while proxying: {}", e);
+        error!("Error while proxying: {e}");
         if ctx.slot_taken {
             if let Err(err) = ctx.release_slot() {
-                error!("Failed to release slot: {}", err);
+                error!("Failed to release slot: {err}");
 
                 return Error::new(pingora::InternalError);
             }
         }
 
-        let mut e = e.more_context(format!("Peer: {}", peer));
+        let mut e = e.more_context(format!("Peer: {peer}"));
 
         // only reused client connections where retry buffer is not truncated
         e.retry
@@ -85,13 +83,13 @@ impl ProxyHttp for ProxyService {
         ctx: &mut Self::CTX,
         mut connection_err: Box<Error>,
     ) -> Box<Error> {
-        error!("Failed to connect: {}", connection_err);
+        error!("Failed to connect: {connection_err}");
 
         if let Some(peer) = &ctx.selected_peer {
             match self.upstream_peer_pool.quarantine_peer(&peer.agent_id) {
                 Ok(true) => {
                     if let Err(err) = self.upstream_peer_pool.restore_integrity() {
-                        error!("Failed to restore integrity: {}", err);
+                        error!("Failed to restore integrity: {err}");
 
                         return Error::new(pingora::InternalError);
                     }
@@ -104,7 +102,7 @@ impl ProxyHttp for ProxyService {
                     // no need to quarantine for some reason
                 }
                 Err(err) => {
-                    error!("Failed to quarantine peer: {}", err);
+                    error!("Failed to quarantine peer: {err}");
 
                     return Error::new(pingora::InternalError);
                 }
@@ -112,29 +110,6 @@ impl ProxyHttp for ProxyService {
         }
 
         connection_err
-    }
-
-    async fn request_filter(&self, session: &mut Session, ctx: &mut Self::CTX) -> Result<bool> {
-        ctx.uses_slots = match session.req_header().uri.path() {
-            "/slots" => {
-                if !self.slots_endpoint_enable {
-                    return Err(Error::create(
-                        pingora::Custom("Slots endpoint is disabled"),
-                        ErrorSource::Downstream,
-                        None,
-                        None,
-                    ));
-                }
-
-                false
-            }
-            "/chat/completions" => true,
-            "/completion" => true,
-            "/v1/chat/completions" => true,
-            _ => false,
-        };
-
-        Ok(false)
     }
 
     fn response_body_filter(
@@ -149,7 +124,7 @@ impl ProxyHttp for ProxyService {
     {
         if ctx.slot_taken && end_of_stream {
             if let Err(err) = ctx.release_slot() {
-                error!("Failed to release slot: {}", err);
+                error!("Failed to release slot: {err}");
 
                 return Err(Error::new(pingora::InternalError));
             }
@@ -187,6 +162,25 @@ impl ProxyHttp for ProxyService {
                     ctx.select_upstream_peer()?;
 
                     if let Some(peer) = ctx.selected_peer.clone() {
+                        ctx.uses_slots = match session.req_header().uri.path() {
+                            "/slots" => {
+                                if !self.slots_endpoint_enable {
+                                    return Err(Error::create(
+                                        pingora::Custom("Slots endpoint is disabled"),
+                                        ErrorSource::Downstream,
+                                        None,
+                                        None,
+                                    ));
+                                }
+
+                                false
+                            }
+                            "/chat/completions" => true,
+                            "/completion" => true,
+                            "/v1/chat/completions" => true,
+                            _ => false,
+                        };
+
                         return Ok::<_, Box<Error>>(peer)
                     } else {
                         // To avoid wasting CPU cycles, we don't immediately retry to

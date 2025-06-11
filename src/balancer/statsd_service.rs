@@ -1,17 +1,23 @@
-use async_trait::async_trait;
-use cadence::{BufferedUdpMetricSink, Gauged, StatsdClient};
-use log::{debug, error};
-use pingora::{server::ShutdownWatch, services::Service};
-use std::{
-    net::{SocketAddr, UdpSocket},
-    sync::Arc,
-};
-use tokio::time::{interval, Duration, MissedTickBehavior};
+use std::net::SocketAddr;
+use std::net::UdpSocket;
+use std::sync::Arc;
 
+use async_trait::async_trait;
+use cadence::BufferedUdpMetricSink;
+use cadence::Gauged;
+use cadence::StatsdClient;
+use log::debug;
+use log::error;
 #[cfg(unix)]
 use pingora::server::ListenFds;
+use pingora::server::ShutdownWatch;
+use pingora::services::Service;
+use tokio::time::interval;
+use tokio::time::Duration;
+use tokio::time::MissedTickBehavior;
 
-use crate::{balancer::upstream_peer_pool::UpstreamPeerPool, errors::result::Result};
+use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
+use crate::errors::result::Result;
 
 pub struct StatsdService {
     statsd_addr: SocketAddr,
@@ -59,7 +65,7 @@ impl Service for StatsdService {
             .expect("Failed to create statsd sink");
 
         let client = StatsdClient::builder(&self.statsd_prefix.to_owned(), statsd_sink)
-            .with_error_handler(|err| error!("Statsd error: {}", err))
+            .with_error_handler(|err| error!("Statsd error: {err}"))
             .build();
 
         let mut ticker = interval(self.statsd_reporting_interval);
@@ -74,7 +80,7 @@ impl Service for StatsdService {
                 },
                 _ = ticker.tick() => {
                     if let Err(err) = self.report_metrics(&client).await {
-                        error!("Failed to fetch status: {}", err);
+                        error!("Failed to fetch status: {err}");
                     }
                 }
             }

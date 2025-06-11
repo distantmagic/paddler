@@ -1,32 +1,36 @@
 const ITEM_HEIGHT: usize = 6;
 const INFO_TEXT: [&str; 1] = ["(Esc|q) quit | (↑) move up | (↓) move down"];
 
-use chrono::{DateTime, Utc};
+use std::io;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
+
+use chrono::DateTime;
+use chrono::Utc;
 use io::Result as ioResult;
-use ratatui::{
-    layout::{Constraint, Layout, Margin, Rect},
-    style::{Modifier, Style, Stylize},
-    text::Text,
-    widgets::{
-        Cell, HighlightSpacing, Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState,
-        Table, TableState,
-    },
-    Frame,
-};
-use std::{
-    io,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use ratatui::layout::Constraint;
+use ratatui::layout::Layout;
+use ratatui::layout::Margin;
+use ratatui::layout::Rect;
+use ratatui::style::Modifier;
+use ratatui::style::Style;
+use ratatui::style::Stylize;
+use ratatui::text::Text;
+use ratatui::widgets::Cell;
+use ratatui::widgets::HighlightSpacing;
+use ratatui::widgets::Paragraph;
+use ratatui::widgets::Row;
+use ratatui::widgets::Scrollbar;
+use ratatui::widgets::ScrollbarOrientation;
+use ratatui::widgets::ScrollbarState;
+use ratatui::widgets::Table;
+use ratatui::widgets::TableState;
+use ratatui::Frame;
 
 use super::ui::TableColors;
-
-use crate::{
-    balancer::{
-        upstream_peer::UpstreamPeer,
-        upstream_peer_pool::{UpstreamPeerPool, UpstreamPeerPoolInfo},
-    },
-    errors::result::Result,
-};
+use crate::balancer::upstream_peer::UpstreamPeer;
+use crate::balancer::upstream_peer_pool::UpstreamPeerPoolInfo;
+use crate::errors::result::Result;
 
 pub struct App {
     pub colors: TableColors,
@@ -96,11 +100,8 @@ impl App {
     }
 
     pub fn draw(&mut self, frame: &mut Frame) -> ioResult<()> {
-        let vertical = &Layout::vertical([
-            Constraint::Min(5),
-            Constraint::Length(1),
-            Constraint::Length(1),
-        ]);
+        let vertical =
+            &Layout::vertical([Constraint::Min(5), Constraint::Length(1), Constraint::Length(1)]);
         let rects = vertical.split(frame.area());
 
         self.set_colors();
@@ -169,7 +170,7 @@ impl App {
                             let color = self.colors.normal_row_color;
                             let mut items: [String; 6] = Default::default();
 
-                            if let Ok(array) = ref_array(agent.clone()) {
+                            if let Ok(array) = ref_array(agent) {
                                 items = array;
                             }
 
@@ -250,7 +251,7 @@ impl App {
     }
 }
 
-fn ref_array(peer: UpstreamPeer) -> Result<[String; 6]> {
+fn ref_array(peer: &UpstreamPeer) -> Result<[String; 6]> {
     let has_issue = match peer.error.clone() {
         Some(issue) => issue,
         None => String::from("None"),

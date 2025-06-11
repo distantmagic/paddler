@@ -1,4 +1,6 @@
-use actix_web::{get, web, Responder};
+use actix_web::get;
+use actix_web::web;
+use actix_web::Responder;
 use askama_actix::Template;
 
 pub fn register(cfg: &mut web::ServiceConfig) {

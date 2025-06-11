@@ -1,17 +1,20 @@
+use std::net::SocketAddr;
+
 use actix_web::web::Bytes;
 use async_trait::async_trait;
-use log::{debug, error, info};
-use pingora::{server::ShutdownWatch, services::Service};
-use std::net::SocketAddr;
-use tokio::{
-    sync::broadcast::Sender,
-    time::{interval, Duration, MissedTickBehavior},
-};
-use tokio_stream::wrappers::BroadcastStream;
-use uuid::Uuid;
-
+use log::debug;
+use log::error;
+use log::info;
 #[cfg(unix)]
 use pingora::server::ListenFds;
+use pingora::server::ShutdownWatch;
+use pingora::services::Service;
+use tokio::sync::broadcast::Sender;
+use tokio::time::interval;
+use tokio::time::Duration;
+use tokio::time::MissedTickBehavior;
+use tokio_stream::wrappers::BroadcastStream;
+use uuid::Uuid;
 
 use crate::errors::result::Result;
 
@@ -25,7 +28,7 @@ impl ReportingService {
         let agent_id = Uuid::new_v4();
 
         Ok(ReportingService {
-            stats_endpoint_url: format!("http://{}/status_update/{}", management_addr, agent_id),
+            stats_endpoint_url: format!("http://{management_addr}/status_update/{agent_id}"),
             status_update_tx,
         })
     }
@@ -73,7 +76,7 @@ impl Service for ReportingService {
                 },
                 _ = ticker.tick() => {
                     if let Err(err) = self.keep_connection_alive().await {
-                        error!("Failed to keep the connection alive: {}", err);
+                        error!("Failed to keep the connection alive: {err}");
                     }
                 }
             }
