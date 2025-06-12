@@ -9,7 +9,9 @@
   "dependencies": {
     "@hotwired/stimulus": "^3.2.2",
     "@hotwired/turbo": "^8.0.13",
+    "axios": "^1.9.0",
     "clsx": "^2.1.1",
+    "express": "^5.1.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "typed-css-modules": "^0.9.1",
