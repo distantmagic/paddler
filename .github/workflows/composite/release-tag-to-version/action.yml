@@ -6,7 +6,7 @@ inputs:
 
 outputs:
   type:
-    value: ${{ steps.tag_type.outputs.tag-type }}
+    value: ${{ steps.tag-type.outputs.tag-type }}
   version:
     value: ${{ steps.set-release-version.outputs.release-version }}
 
