@@ -4,7 +4,7 @@ Feature: Report llama.cpp metrics
         Given balancer is running
         Given statsd is running
         Given prometheus is running (scrapes every 1 second)
-
+ 
     @serial
     Scenario: There is no agent attached
         Given llama.cpp server "llama-1" is running (has 4 slots)
