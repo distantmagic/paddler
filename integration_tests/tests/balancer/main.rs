@@ -14,6 +14,7 @@ async fn main() {
                 world.unwrap().cleanup().await;
             })
         })
+        .fail_fast()
         .fail_on_skipped()
         .run("tests/features/balancer")
         .await;

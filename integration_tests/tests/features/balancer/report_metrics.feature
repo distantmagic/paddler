@@ -3,14 +3,25 @@ Feature: Report llama.cpp metrics
     Background:
         Given balancer is running
         Given statsd is running
-        Given prometheus is running (scrapes every 1 second)
  
     @serial
     Scenario: There is no agent attached
+        Then metrics response is "{'paddler_slots_idle': 0, 'paddler_slots_processing': 0}"
+
+    @serial
+    Scenario: There are multiple agents attached
         Given llama.cpp server "llama-1" is running (has 4 slots)
+        Given llama.cpp server "llama-2" is running (has 4 slots)
         Given agent "agent-1" is running (observes "llama-1")
         Given agent "agent-1" is healthy
-
-        # When 1 requests are proxied to balancer-1 in 127.0.0.1:8071
-        # Then prometheus-1 must tell 1 slot is processing at 0.0.0.0:9090 from 0.0.0.0:9102
-        # Then prometheus-1 must tell 6 slots are idle at 0.0.0.0:9090 from 0.0.0.0:9102
+        Given agent "agent-2" is running (observes "llama-2")
+        Given agent "agent-2" is healthy
+        Then metrics response is "{'paddler_slots_idle': 8, 'paddler_slots_processing': 0}"
+        When multiple requests are sent to "/chat/completions"
+            | req-1 |
+            | req-2 |
+        Then metrics response is "{'paddler_slots_idle': 6, 'paddler_slots_processing': 2}"
+        Then "req-1" response code is 200
+        Then "req-1" request landed in "llama-1"
+        Then "req-2" response code is 200
+        Then "req-2" request landed in "llama-2"

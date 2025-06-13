@@ -15,7 +15,7 @@ use ratatui::prelude::CrosstermBackend;
 use ratatui::Terminal;
 use tokio::runtime::Runtime;
 use tokio::sync::broadcast;
-use tokio::sync::mpsc::{self;
+use tokio::sync::mpsc::{self};
 use tokio::task::JoinHandle;
 use tokio::time::interval;
 use tokio::time::Duration;

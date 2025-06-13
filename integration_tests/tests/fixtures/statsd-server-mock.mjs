@@ -3,7 +3,6 @@
 import { parseArgs } from 'node:util';
 import dgram from 'node:dgram';
 import express from 'express';
-import { log } from 'node:console';
 
 const {
   values: {
@@ -60,14 +59,35 @@ udpServer.liste
 
 const app = express();
 
-app.get('/metrics', (_req, res) => {
-  let output = '';
-  for (const [name, { type, value }] of Object.entries(metrics)) {
-    const promType = type === 'c' ? 'counter' : 'gauge';
-    output += `# TYPE ${name} ${promType}\n`;
-    output += `${name} ${value}\n`;
+app.get('/metrics', (req, res) => {
+  const { query: query } = req.query;
+  
+  if (!query) {
+    let output = '';
+    for (const [name, { type, value }] of Object.entries(metrics)) {
+      output += `${name} ${value}\n`;
+    }
+
+    return res.type('text/plain').send(output);
   }
+
+  const sanitizedQuery = query.replace(/[^a-zA-Z0-9_]/g, '_');
+  const metric = metrics[sanitizedQuery];
+  
+  if (!metric) {
+    return res.status(404)
+      .type('text/plain')
+      .send(`# ERROR: Metric "${sanitizedQuery}" not found\n`);
+  }
+
+  const output = `${sanitizedQuery} ${metric.value}\n`;
   res.type('text/plain').send(output);
 });
 
-app.listen(parseInt(exposePort), "localhost");
+app.get("/health", (_req, res) => {
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'text/plain');
+  res.end('OK');
+})
+
+app.listen(parseInt(exposePort), "127.0.0.1");
