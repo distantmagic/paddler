@@ -59,28 +59,13 @@ udpServer.liste
 
 const app = express();
 
-app.get('/metrics', (req, res) => {
-  const { query: query } = req.query;
-  
-  if (!query) {
-    let output = '';
-    for (const [name, { type, value }] of Object.entries(metrics)) {
-      output += `${name} ${value}\n`;
-    }
+app.get('/metrics', (_req, res) => {
+  let output = '';
 
-    return res.type('text/plain').send(output);
+  for (const [name, { type, value }] of Object.entries(metrics)) {
+    output += `${name} ${value}\n`;
   }
 
-  const sanitizedQuery = query.replace(/[^a-zA-Z0-9_]/g, '_');
-  const metric = metrics[sanitizedQuery];
-  
-  if (!metric) {
-    return res.status(404)
-      .type('text/plain')
-      .send(`# ERROR: Metric "${sanitizedQuery}" not found\n`);
-  }
-
-  const output = `${sanitizedQuery} ${metric.value}\n`;
   res.type('text/plain').send(output);
 });
 
