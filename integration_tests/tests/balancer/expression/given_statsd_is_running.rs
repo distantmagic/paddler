@@ -1,8 +1,10 @@
-use std::{process::Stdio, time::Duration};
+use std::process::Stdio;
+use std::time::Duration;
 
 use anyhow::Result;
 use cucumber::given;
-use tokio::{process::Command, time::sleep};
+use tokio::process::Command;
+use tokio::time::sleep;
 
 use crate::balancer_world::BalancerWorld;
 
