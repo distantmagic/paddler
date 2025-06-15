@@ -52,6 +52,10 @@ sequenceDiagram
 
 ## Usage
 
+### Quick Start with Docker Compose
+
+For a quick demonstration of Paddler, see the Docker Compose example in the `example/` directory.
+
 ### Installation
 
 Download the latest release for Linux, Mac, or Windows from the 
