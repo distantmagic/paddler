@@ -15,6 +15,6 @@ async fn main() {
             })
         })
         .fail_on_skipped()
-        .run("tests/features/balancer")
+        .run_and_exit("tests/features/balancer")
         .await;
 }
