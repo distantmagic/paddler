@@ -59,11 +59,18 @@ udpServer.liste
 
 const app = express();
 
-app.get('/metrics', (_req, res) => {
+app.get('/metrics', (req, res) => {
+  const query = req.query.query
   let output = '';
 
   for (const [name, { type, value }] of Object.entries(metrics)) {
-    output += `${name} ${value}\n`;
+    if (query) {
+      if (name == query) {
+        output += `${name} ${value}\n`;
+      }
+    } else {
+        output += `${name} ${value}\n`;
+    }
   }
 
   res.type('text/plain').send(output);
