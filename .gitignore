@@ -2,7 +2,6 @@
 /esbuild-meta.json
 /godepgraph.png
 /node_modules
-/paddler
 /static
 /target
-/integration
+/paddler
