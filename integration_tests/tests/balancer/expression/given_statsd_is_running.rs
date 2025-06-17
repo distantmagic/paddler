@@ -1,0 +1,70 @@
+use std::process::Stdio;
+use std::time::Duration;
+
+use anyhow::Result;
+use cucumber::given;
+use tokio::process::Command;
+use tokio::time::sleep;
+
+use crate::balancer_world::BalancerWorld;
+
+const MAX_ATTEMPTS: usize = 3;
+
+async fn do_check(statsd_port: u16) -> Result<()> {
+    let response = reqwest::get(format!("http://127.0.0.1:{statsd_port}/health")).await?;
+
+    if !response.status().is_success() {
+        return Err(anyhow::anyhow!(
+            "Health check failed: Expected status 200, got {}",
+            response.status()
+        ));
+    }
+
+    let body = response.text().await?;
+
+    if body.trim() != "OK" {
+        return Err(anyhow::anyhow!(
+            "Health check failed: Expected 'OK', got '{}'",
+            body
+        ));
+    }
+
+    Ok(())
+}
+
+#[given("statsd is running")]
+pub async fn given_statsd_is_running(world: &mut BalancerWorld) -> Result<()> {
+    if world.statsd.is_some() {
+        return Err(anyhow::anyhow!("Statsd is already running"));
+    }
+
+    let statsd_port = 9102;
+
+    world.statsd = Some(
+        Command::new("./tests/fixtures/statsd-server-mock.mjs")
+            .arg("--managementPort=9125")
+            .arg("--exposePort=9102")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?,
+    );
+
+    let mut attempts = 0;
+
+    while attempts < MAX_ATTEMPTS {
+        sleep(Duration::from_secs(1)).await;
+
+        match do_check(statsd_port).await {
+            Ok(_) => return Ok(()),
+            Err(err) => eprintln!("Attempt {}: statsd is not ready yet: {err}", attempts + 1),
+        };
+
+        attempts += 1;
+    }
+
+    Err(anyhow::anyhow!(
+        "Statsd server at port {} did not start after {} attempts",
+        statsd_port,
+        MAX_ATTEMPTS
+    ))
+}

@@ -10,6 +10,8 @@ use super::llamacpp_instance::LlamaCppInstance;
 pub struct BalancerWorld {
     pub agents: DashMap<String, Child>,
     pub balancer: Option<Child>,
+    pub statsd: Option<Child>,
+    pub prometheus: Option<Child>,
     pub last_llamacpp_port_offset: u16,
     pub llamas: DashMap<String, LlamaCppInstance>,
     pub requests: DashMap<String, Response>,
@@ -26,6 +28,18 @@ impl BalancerWorld {
         for mut agent in self.agents.iter_mut() {
             if let Err(err) = agent.value_mut().kill().await {
                 panic!("Failed to kill agent {}: {}", agent.key(), err);
+            }
+        }
+
+        if let Some(mut statsd) = self.statsd.take() {
+            if let Err(err) = statsd.kill().await {
+                panic!("Failed to kill statsd: {err}");
+            }
+        }
+
+        if let Some(mut prometheus) = self.prometheus.take() {
+            if let Err(err) = prometheus.kill().await {
+                panic!("Failed to kill prometheus: {err}");
             }
         }
 

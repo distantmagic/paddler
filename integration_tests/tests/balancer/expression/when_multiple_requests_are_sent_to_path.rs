@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use anyhow::Result;
-use cucumber::when;
 use cucumber::gherkin::Step;
+use cucumber::when;
 use futures::future::join_all;
 use tokio::time::sleep;
 

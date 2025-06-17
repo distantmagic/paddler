@@ -6,6 +6,9 @@ repository = "https://github.com/distantmagic/paddler"
 version = "1.2.1"
 edition = "2021"
 
+[workspace]
+members = ["integration_tests"]
+
 [dependencies]
 actix = "0.13.5"
 actix-web = "4.11.0"
