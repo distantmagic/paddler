@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import { parseArgs } from 'node:util';
+import { createServer } from 'node:http';
 import dgram from 'node:dgram';
-import express from 'express';
 
 const {
   values: {
@@ -57,29 +57,33 @@ udpServer.on('listening', () => {
 udpServer.bind(parseInt(managementPort));
 udpServer.liste
 
-const app = express();
-
-app.get('/metrics', (req, res) => {
-  const query = req.query.query
-  let output = '';
-
-  for (const [name, { type, value }] of Object.entries(metrics)) {
-    if (query) {
-      if (name == query) {
+const server = createServer(function (req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  
+  if (url.pathname === "/health") {
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'text/plain');
+    res.end('OK');
+  } else if (url.pathname === '/metrics') {
+    const query = url.searchParams.get('query');
+    let output = '';
+  
+    for (const [name, { type, value }] of Object.entries(metrics)) {
+      if (!query || name === query) {
         output += `${name} ${value}\n`;
       }
-    } else {
-        output += `${name} ${value}\n`;
     }
+  
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'text/plain');
+    res.end(output); // 🟩 This was missing
+  } else {
+    res.statusCode = 404;
+    res.setHeader('Content-Type', 'text/plain');
+    res.end('Not Found');
   }
-
-  res.type('text/plain').send(output);
 });
 
-app.get("/health", (_req, res) => {
-  res.statusCode = 200;
-  res.setHeader('Content-Type', 'text/plain');
-  res.end('OK');
-})
-
-app.listen(parseInt(exposePort), "127.0.0.1");
+server.listen(parseInt(exposePort, 10), function () {
+  console.log(`Statsd server is listening on port ${parseInt(exposePort)}`);
+});
