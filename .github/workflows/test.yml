@@ -9,6 +9,7 @@ on:
       - opened
       - ready_for_review
       - review_requested
+      - synchronize
   push:
     branches:
       - "**"
