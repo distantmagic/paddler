@@ -160,31 +160,30 @@ impl ProxyHttp for ProxyService {
             ));
         };
 
+        ctx.uses_slots = match session.req_header().uri.path() {
+            "/slots" => {
+                if !self.slots_endpoint_enable {
+                    return Err(Error::create(
+                        pingora::Custom("Slots endpoint is disabled"),
+                        ErrorSource::Downstream,
+                        None,
+                        None,
+                    ));
+                }
+                false
+            }
+            "/chat/completions" => true,
+            "/completion" => true,
+            "/v1/chat/completions" => true,
+            _ => false,
+        };
+
         let peer = tokio::select! {
             result = async {
                 loop {
                     ctx.select_upstream_peer()?;
 
                     if let Some(peer) = ctx.selected_peer.clone() {
-                        ctx.uses_slots = match session.req_header().uri.path() {
-                            "/slots" => {
-                                if !self.slots_endpoint_enable {
-                                    return Err(Error::create(
-                                        pingora::Custom("Slots endpoint is disabled"),
-                                        ErrorSource::Downstream,
-                                        None,
-                                        None,
-                                    ));
-                                }
-
-                                false
-                            }
-                            "/chat/completions" => true,
-                            "/completion" => true,
-                            "/v1/chat/completions" => true,
-                            _ => false,
-                        };
-
                         return Ok::<_, Box<Error>>(peer)
                     } else {
                         // To avoid wasting CPU cycles, we don't immediately retry to

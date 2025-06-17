@@ -19,6 +19,7 @@ pub async fn given_balancer_is_running(world: &mut PaddlerWorld) -> Result<()> {
             .arg("--reverseproxy-addr=127.0.1:8096")
             .arg("--statsd-addr=localhost:9125")
             .arg("--statsd-reporting-interval=1")
+            .arg("--request-timeout=3")
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()?,
