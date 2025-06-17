@@ -1,0 +1,64 @@
+x-llm-common: &llm-common
+  image: ghcr.io/ggml-org/llama.cpp:server-b5630
+  volumes:
+    - hf-cache:/root/.cache/llama.cpp
+  init: true
+  env_file: 
+    - llm.env
+  expose:
+    - "8080"
+
+x-paddler-common: &paddler-common
+  image: paddler:v1.2.1-rc1
+  build: ..
+
+services:
+  llm1:
+    <<: *llm-common
+    container_name: llm1
+
+  llm2:
+    <<: *llm-common
+    container_name: llm2
+
+  paddler-balancer:
+    <<: *paddler-common
+    container_name: paddler-balancer
+    ports:
+      - "8080:8080"  # OpenAI API endpoint
+      - "8085:8085"  # Paddler management dashboard
+    command: [
+      "balancer",
+      "--management-addr", "0.0.0.0:8085",
+      "--reverseproxy-addr", "0.0.0.0:8080",
+      "--management-dashboard-enable"
+    ]
+
+  paddler-agent1:
+    <<: *paddler-common
+    container_name: paddler-agent1
+    depends_on:
+      - paddler-balancer
+    command: [
+      "agent",
+      "--name", "llm-1",
+      "--external-llamacpp-addr", "llm1:8080",
+      "--local-llamacpp-addr", "llm1:8080",
+      "--management-addr", "paddler-balancer:8085"
+    ]
+
+  paddler-agent2:
+    <<: *paddler-common
+    container_name: paddler-agent2
+    depends_on:
+      - paddler-balancer
+    command: [
+      "agent", 
+      "--name", "llm-2",
+      "--external-llamacpp-addr", "llm2:8080",
+      "--local-llamacpp-addr", "llm2:8080",
+      "--management-addr", "paddler-balancer:8085"
+    ]
+
+volumes:
+  hf-cache:
