@@ -3,6 +3,8 @@ mod expression;
 mod llamacpp_instance;
 mod llamacpp_instance_collection;
 mod paddler_world;
+mod upstream_peer;
+mod upstream_peer_pool;
 
 use cucumber::World as _;
 
