@@ -149,17 +149,24 @@ impl ProxyHttp for ProxyService {
                 if let Some(content_type) = session.get_header("Content-Type") {
                     if let Ok(content_type_str) = content_type.to_str() {
                         if content_type_str.contains("application/json") {
-                            // Read the request body
-                            let body = session.read_request_body().await?;
-                            if let Some(body) = body {
-                                // Parse the JSON payload into a serde_json::Value
-                                if let Ok(json_value) = serde_json::from_slice::<serde_json::Value>(&body) {
+                            // Enable retry buffering to preserve the request body, reference: https://github.com/cloudflare/pingora/issues/349#issuecomment-2377277028
+                            session.enable_retry_buffering();
+                            session.read_body_or_idle(false).await.unwrap().unwrap();
+                            let request_body = session.get_retry_buffer();
+
+                            // Parse the JSON payload into a serde_json::Value
+                            if let Some(body_bytes) = request_body {
+                                if let Ok(json_value) = serde_json::from_slice::<serde_json::Value>(&body_bytes) {
                                     if let Some(model) = json_value.get("model").and_then(|v| v.as_str()) {
                                         // Set the requested_model field in the RequestContext
                                         ctx.requested_model = Some(model.to_string());
                                         info!("Model in request: {:?}", ctx.requested_model);
                                     }
+                                } else {
+                                    error!("Failed to parse JSON payload");
                                 }
+                            } else {
+                                error!("Request body is None");
                             }
                         }
                     }

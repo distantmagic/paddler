@@ -125,12 +125,12 @@ impl UpstreamPeerPool {
                 let is_usable = peer.is_usable();
                 let is_usable_for_model = peer.is_usable_for_model(model_str);
 
-                info!("Peer {} is usable: {}, usable for model '{}': {}", peer.agent_id, is_usable, model_str, is_usable_for_model);
-
                 if is_usable && (model.is_none() || is_usable_for_model) {
+                    info!("Peer {} is usable: {}, usable for model '{}': {}", peer.agent_id, is_usable, model_str, is_usable_for_model);
                     return Ok(Some(peer.clone()));
                 }
             }
+
             Ok(None)
         })
     }
