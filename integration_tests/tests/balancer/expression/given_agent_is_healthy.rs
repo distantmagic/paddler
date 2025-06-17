@@ -21,7 +21,7 @@ struct AgentStatusResponse {
 }
 
 async fn do_check(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
-    if !world.agents.contains_key(&agent_name) {
+    if !world.agents.instances.contains_key(&agent_name) {
         return Err(anyhow::anyhow!(
             "Agent {agent_name} does not exist in the world"
         ));

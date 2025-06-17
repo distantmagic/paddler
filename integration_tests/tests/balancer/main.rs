@@ -1,3 +1,4 @@
+mod agents_collection;
 mod expression;
 mod llamacpp_instance;
 mod llamacpp_instance_collection;

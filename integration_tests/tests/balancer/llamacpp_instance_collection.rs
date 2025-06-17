@@ -14,6 +14,9 @@ impl LlamaCppInstanceCollection {
         for mut llama in self.instances.iter_mut() {
             llama.cleanup().await;
         }
+
+        self.instances.clear();
+        self.last_llamacpp_port_offset = 0;
     }
 
     pub fn llamacpp_port(&self, llamacpp_name: &str) -> Result<u16> {

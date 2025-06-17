@@ -3,11 +3,12 @@ use dashmap::DashMap;
 use reqwest::Response;
 use tokio::process::Child;
 
+use crate::agents_collection::AgentsCollection;
 use crate::llamacpp_instance_collection::LlamaCppInstanceCollection;
 
 #[derive(Debug, Default, World)]
 pub struct PaddlerWorld {
-    pub agents: DashMap<String, Child>,
+    pub agents: AgentsCollection,
     pub balancer: Option<Child>,
     pub statsd: Option<Child>,
     pub llamas: LlamaCppInstanceCollection,
@@ -16,17 +17,12 @@ pub struct PaddlerWorld {
 
 impl PaddlerWorld {
     pub async fn cleanup(&mut self) {
+        self.agents.cleanup().await;
         self.llamas.cleanup().await;
 
         if let Some(mut balancer) = self.balancer.take() {
             if let Err(err) = balancer.kill().await {
                 panic!("Failed to kill balancer: {err}");
-            }
-        }
-
-        for mut agent in self.agents.iter_mut() {
-            if let Err(err) = agent.value_mut().kill().await {
-                panic!("Failed to kill agent {}: {}", agent.key(), err);
             }
         }
 

@@ -8,7 +8,7 @@ use tokio::time::sleep;
 
 use crate::paddler_world::PaddlerWorld;
 
-const MAX_ATTEMPTS: usize = 3;
+const MAX_ATTEMPTS: usize = 5;
 
 async fn do_check(statsd_port: u16) -> Result<()> {
     let response = reqwest::get(format!("http://127.0.0.1:{statsd_port}/health")).await?;
