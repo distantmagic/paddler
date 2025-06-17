@@ -5,7 +5,7 @@ use cucumber::given;
 use serde::Deserialize;
 use tokio::time::sleep;
 
-use crate::balancer_world::BalancerWorld;
+use crate::paddler_world::PaddlerWorld;
 
 const MAX_ATTEMPTS: usize = 3;
 
@@ -20,7 +20,7 @@ struct AgentStatusResponse {
     agents: Vec<AgentStatus>,
 }
 
-async fn do_check(world: &mut BalancerWorld, agent_name: String) -> Result<()> {
+async fn do_check(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
     if !world.agents.contains_key(&agent_name) {
         return Err(anyhow::anyhow!(
             "Agent {agent_name} does not exist in the world"
@@ -51,7 +51,7 @@ async fn do_check(world: &mut BalancerWorld, agent_name: String) -> Result<()> {
 }
 
 #[given(expr = "agent {string} is healthy")]
-pub async fn given_agent_is_healthy(world: &mut BalancerWorld, agent_name: String) -> Result<()> {
+pub async fn given_agent_is_healthy(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
     let mut attempts = 0;
 
     while attempts < MAX_ATTEMPTS {

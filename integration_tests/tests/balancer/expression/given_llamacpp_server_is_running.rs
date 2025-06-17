@@ -7,8 +7,8 @@ use tempfile::NamedTempFile;
 use tokio::process::Command;
 use tokio::time::sleep;
 
-use crate::balancer_world::BalancerWorld;
 use crate::llamacpp_instance::LlamaCppInstance;
+use crate::paddler_world::PaddlerWorld;
 
 const MAX_ATTEMPTS: usize = 3;
 
@@ -36,21 +36,21 @@ async fn do_check(llamacpp_port: u16) -> Result<()> {
 
 #[given(expr = "llama.cpp server {string} is running \\(has {int} slot(s)\\)")]
 pub async fn given_agent_is_attached(
-    world: &mut BalancerWorld,
+    world: &mut PaddlerWorld,
     llamacpp_name: String,
     available_slots: u16,
 ) -> Result<()> {
-    if world.llamas.contains_key(&llamacpp_name) {
+    if world.llamas.instances.contains_key(&llamacpp_name) {
         return Err(anyhow::anyhow!(
             "Llama.cpp server {} is already running",
             llamacpp_name
         ));
     }
 
-    let llamacpp_port = world.get_next_llamacpp_port();
+    let llamacpp_port = world.llamas.next_llamacpp_port();
     let log_file = NamedTempFile::new()?;
 
-    world.llamas.insert(
+    world.llamas.instances.insert(
         llamacpp_name.clone(),
         LlamaCppInstance {
             child: Command::new("./tests/fixtures/llamacpp-server-mock.mjs")

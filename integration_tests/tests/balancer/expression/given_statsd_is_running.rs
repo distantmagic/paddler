@@ -6,7 +6,7 @@ use cucumber::given;
 use tokio::process::Command;
 use tokio::time::sleep;
 
-use crate::balancer_world::BalancerWorld;
+use crate::paddler_world::PaddlerWorld;
 
 const MAX_ATTEMPTS: usize = 3;
 
@@ -33,7 +33,7 @@ async fn do_check(statsd_port: u16) -> Result<()> {
 }
 
 #[given("statsd is running")]
-pub async fn given_statsd_is_running(world: &mut BalancerWorld) -> Result<()> {
+pub async fn given_statsd_is_running(world: &mut PaddlerWorld) -> Result<()> {
     if world.statsd.is_some() {
         return Err(anyhow::anyhow!("Statsd is already running"));
     }

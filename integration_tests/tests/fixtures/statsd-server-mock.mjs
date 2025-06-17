@@ -29,15 +29,15 @@ udpServer.on('message', (msg, rinfo) => {
   for (const oneMetric of totalMetrics) {
     const [name, typeData] = oneMetric.split(':');
     if (!typeData) return;
-  
+
     const [rawValue, type] = typeData.split('|');
     const value = parseInt(rawValue);
     const metric = name.replace(/[^a-zA-Z0-9_]/g, '_');
-  
+
     if (!metrics[metric]) {
       metrics[metric] = { type, value: 0 };
     }
-  
+
     switch (type) {
       case 'c':
         metrics[metric].value += value;
@@ -50,7 +50,7 @@ udpServer.on('message', (msg, rinfo) => {
 });
 
 udpServer.on('listening', () => {
-  const { _address, port } = udpServer.address();
+  const { port } = udpServer.address();
   console.log(`StatsD server listening on port ${port}`);
 });
 
@@ -59,7 +59,7 @@ udpServer.liste
 
 const server = createServer(function (req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
-  
+
   if (url.pathname === "/health") {
     res.statusCode = 200;
     res.setHeader('Content-Type', 'text/plain');
@@ -67,16 +67,16 @@ const server = createServer(function (req, res) {
   } else if (url.pathname === '/metrics') {
     const query = url.searchParams.get('query');
     let output = '';
-  
-    for (const [name, { type, value }] of Object.entries(metrics)) {
+
+    for (const [name, { value }] of Object.entries(metrics)) {
       if (!query || name === query) {
         output += `${name} ${value}\n`;
       }
     }
-  
+
     res.statusCode = 200;
     res.setHeader('Content-Type', 'text/plain');
-    res.end(output); // 🟩 This was missing
+    res.end(output);
   } else {
     res.statusCode = 404;
     res.setHeader('Content-Type', 'text/plain');
