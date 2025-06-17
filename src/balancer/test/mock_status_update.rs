@@ -38,5 +38,6 @@ pub fn mock_status_update(
         Some(true),
         Some(true),
         slots,
+        Some("llama3".to_string()),
     )
 }

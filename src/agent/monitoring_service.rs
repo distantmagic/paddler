@@ -3,6 +3,7 @@ use std::net::SocketAddr;
 use actix_web::web::Bytes;
 use async_trait::async_trait;
 use log::debug;
+use log::info;
 use log::error;
 #[cfg(unix)]
 use pingora::server::ListenFds;
@@ -23,6 +24,7 @@ pub struct MonitoringService {
     monitoring_interval: Duration,
     name: Option<String>,
     status_update_tx: Sender<Bytes>,
+    check_model: bool, // Store the check_model flag
 }
 
 impl MonitoringService {
@@ -32,6 +34,7 @@ impl MonitoringService {
         monitoring_interval: Duration,
         name: Option<String>,
         status_update_tx: Sender<Bytes>,
+        check_model: bool, // Include the check_model flag
     ) -> Result<Self> {
         Ok(MonitoringService {
             external_llamacpp_addr,
@@ -39,19 +42,31 @@ impl MonitoringService {
             monitoring_interval,
             name,
             status_update_tx,
+            check_model,
         })
     }
 
     async fn fetch_status(&self) -> Result<StatusUpdate> {
         match self.llamacpp_client.get_available_slots().await {
-            Ok(slots_response) => Ok(StatusUpdate::new(
-                self.name.to_owned(),
-                None,
-                self.external_llamacpp_addr.to_owned(),
-                slots_response.is_authorized,
-                slots_response.is_slot_endpoint_enabled,
-                slots_response.slots,
-            )),
+            Ok(slots_response) => {
+                let model = if self.check_model {
+                    self.llamacpp_client.get_model().await?
+                } else {
+                    None
+                };
+
+                info!("Agent: {:?} Model: {:?}", self.name, model);
+
+                Ok(StatusUpdate::new(
+                    self.name.to_owned(),
+                    None,
+                    self.external_llamacpp_addr.to_owned(),
+                    slots_response.is_authorized,
+                    slots_response.is_slot_endpoint_enabled,
+                    slots_response.slots,
+                    model,
+                ))
+            },
             Err(err) => Ok(StatusUpdate::new(
                 self.name.to_owned(),
                 Some(err.to_string()),
@@ -59,6 +74,7 @@ impl MonitoringService {
                 None,
                 None,
                 vec![],
+                None,
             )),
         }
     }

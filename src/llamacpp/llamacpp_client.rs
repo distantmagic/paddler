@@ -6,12 +6,14 @@ use reqwest::header;
 use url::Url;
 
 use crate::errors::result::Result;
-use crate::llamacpp::slot::Slot;
 use crate::llamacpp::slots_response::SlotsResponse;
+use crate::llamacpp::slot::Slot;
+use crate::llamacpp::models_response::ModelsResponse;
 
 pub struct LlamacppClient {
     client: reqwest::Client,
     slots_endpoint_url: String,
+    models_endpoint_url: String,
 }
 
 impl LlamacppClient {
@@ -37,6 +39,7 @@ impl LlamacppClient {
         Ok(Self {
             client: builder.build()?,
             slots_endpoint_url: Url::parse(&format!("http://{addr}/slots"))?.to_string(),
+            models_endpoint_url: Url::parse(&format!("http://{addr}/v1/models"))?.to_string(),
         })
     }
 
@@ -61,11 +64,14 @@ impl LlamacppClient {
         };
 
         match response.status() {
-            reqwest::StatusCode::OK => Ok(SlotsResponse {
-                is_authorized: Some(true),
-                is_slot_endpoint_enabled: Some(true),
-                slots: response.json::<Vec<Slot>>().await?,
-            }),
+            reqwest::StatusCode::OK => {
+                let slots: Vec<Slot> = response.json().await?;
+                Ok(SlotsResponse {
+                    is_authorized: Some(true),
+                    is_slot_endpoint_enabled: Some(true),
+                    slots,
+                })
+            },
             reqwest::StatusCode::UNAUTHORIZED => Ok(SlotsResponse {
                 is_authorized: Some(false),
                 is_slot_endpoint_enabled: None,
@@ -76,6 +82,43 @@ impl LlamacppClient {
                 is_slot_endpoint_enabled: Some(false),
                 slots: vec![],
             }),
+            _ => Err("Unexpected response status".into()),
+        }
+    }
+
+    pub async fn get_model(&self) -> Result<Option<String>> {
+        let url = self.models_endpoint_url.to_owned();
+
+        let response = match self.client.get(url.clone()).send().await {
+            Ok(resp) => resp,
+            Err(err) => {
+                return Err(format!(
+                    "Request to '{}' failed: '{}'; connect issue: {}; decode issue: {}; request issue: {}; status issue: {}; status: {:?}; source: {:?}",
+                    url,
+                    err,
+                    err.is_connect(),
+                    err.is_decode(),
+                    err.is_request(),
+                    err.is_status(),
+                    err.status(),
+                    err.source()
+                ).into());
+            }
+        };
+
+        match response.status() {
+            reqwest::StatusCode::OK => {
+                let models_response: ModelsResponse = response.json().await?;
+                if let Some(models) = models_response.models {
+                    if models.is_empty() {
+                        Ok(None)
+                    } else {
+                        Ok(models.first().and_then(|m| Some(m.model.clone())))
+                    }
+                } else {
+                    Ok(None)
+                }
+            },
             _ => Err("Unexpected response status".into()),
         }
     }

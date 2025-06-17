@@ -80,6 +80,10 @@ enum Commands {
         #[arg(long)]
         /// Name of the agent (optional)
         name: Option<String>,
+
+        #[arg(long)]
+        /// Flag whether to check the model served by llama.cpp and reject requests for other models
+        check_model: bool,
     },
     /// Balances incoming requests to llama.cpp instances and optionally provides a web dashboard
     Balancer {
@@ -104,6 +108,10 @@ enum Commands {
         #[arg(long)]
         /// Enable the slots endpoint (not recommended)
         slots_endpoint_enable: bool,
+
+        #[arg(long)]
+        /// Flag to check the model served by llama.cpp and reject requests for other models
+        check_model: bool,
 
         #[cfg(feature = "statsd_reporter")]
         #[arg(long, value_parser = parse_socket_addr)]
@@ -142,6 +150,7 @@ fn main() -> Result<()> {
             management_addr,
             monitoring_interval,
             name,
+            check_model,
         }) => cmd::agent::handle(
             match external_llamacpp_addr {
                 Some(addr) => addr.to_owned(),
@@ -152,6 +161,7 @@ fn main() -> Result<()> {
             management_addr.to_owned(),
             monitoring_interval.to_owned(),
             name.to_owned(),
+            *check_model
         ),
         Some(Commands::Balancer {
             management_addr,
@@ -159,6 +169,7 @@ fn main() -> Result<()> {
             management_dashboard_enable,
             reverseproxy_addr,
             rewrite_host_header,
+            check_model,
             slots_endpoint_enable,
             #[cfg(feature = "statsd_reporter")]
             statsd_addr,
@@ -172,6 +183,7 @@ fn main() -> Result<()> {
             management_dashboard_enable.to_owned(),
             reverseproxy_addr,
             rewrite_host_header.to_owned(),
+            *check_model,
             slots_endpoint_enable.to_owned(),
             #[cfg(feature = "statsd_reporter")]
             statsd_addr.to_owned(),

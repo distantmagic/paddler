@@ -14,6 +14,7 @@ use crate::errors::result::Result;
 pub struct UpstreamPeer {
     pub agent_id: String,
     pub agent_name: Option<String>,
+    pub model: Option<String>,
     pub error: Option<String>,
     pub external_llamacpp_addr: SocketAddr,
     /// None means undetermined, probably due to an error
@@ -39,6 +40,7 @@ impl UpstreamPeer {
         is_slots_endpoint_enabled: Option<bool>,
         slots_idle: usize,
         slots_processing: usize,
+        model: Option<String>,
     ) -> Self {
         UpstreamPeer {
             agent_id,
@@ -53,6 +55,7 @@ impl UpstreamPeer {
             slots_processing,
             slots_taken: 0,
             slots_taken_since_last_status_update: 0,
+            model,
         }
     }
 
@@ -66,6 +69,7 @@ impl UpstreamPeer {
             status_update.is_slots_endpoint_enabled,
             status_update.idle_slots_count,
             status_update.processing_slots_count,
+            status_update.model,
         )
     }
 
@@ -74,6 +78,10 @@ impl UpstreamPeer {
             && self.quarantined_until.is_none()
             && self.error.is_none()
             && matches!(self.is_authorized, Some(true))
+    }
+
+    pub fn is_usable_for_model(&self, requested_model: &str) -> bool {
+        self.is_usable() && (requested_model.is_empty() || self.model.as_deref() == Some(requested_model))
     }
 
     pub fn release_slot(&mut self) -> Result<()> {
@@ -166,6 +174,7 @@ mod tests {
             Some(true),
             5,
             0,
+            Some("llama3".to_string()),
         )
     }
 
@@ -219,6 +228,7 @@ mod tests {
             Some(true),
             Some(true),
             vec![],
+            Some("llama3".to_string()),
         );
 
         peer.update_status(status_update);

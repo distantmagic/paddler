@@ -15,6 +15,7 @@ pub struct RequestContext {
     pub selected_peer: Option<UpstreamPeer>,
     pub upstream_peer_pool: Arc<UpstreamPeerPool>,
     pub uses_slots: bool,
+    pub requested_model: Option<String>,
 }
 
 impl RequestContext {
@@ -51,7 +52,7 @@ impl RequestContext {
         slots_endpoint_enable: bool,
     ) -> Result<Box<HttpPeer>> {
         if self.selected_peer.is_none() {
-            self.selected_peer = match self.upstream_peer_pool.use_best_peer() {
+            self.selected_peer = match self.upstream_peer_pool.use_best_peer(self.requested_model.clone()) {
                 Ok(peer) => peer,
                 Err(err) => {
                     error!("Failed to get best peer: {err}");
@@ -115,6 +116,7 @@ mod tests {
             selected_peer: None,
             upstream_peer_pool,
             uses_slots: true,
+            requested_model: Some("llama3".to_string()),
         }
     }
 

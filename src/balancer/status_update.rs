@@ -14,6 +14,7 @@ pub struct StatusUpdate {
     pub is_authorized: Option<bool>,
     pub is_slots_endpoint_enabled: Option<bool>,
     pub processing_slots_count: usize,
+    pub model: Option<String>,
     slots: Vec<Slot>,
 }
 
@@ -25,6 +26,7 @@ impl StatusUpdate {
         is_authorized: Option<bool>,
         is_slots_endpoint_enabled: Option<bool>,
         slots: Vec<Slot>,
+        model: Option<String>,
     ) -> Self {
         let idle_slots_count = slots.iter().filter(|slot| !slot.is_processing).count();
 
@@ -37,6 +39,7 @@ impl StatusUpdate {
             is_slots_endpoint_enabled,
             processing_slots_count: slots.len() - idle_slots_count,
             slots,
+            model,
         }
     }
 }
