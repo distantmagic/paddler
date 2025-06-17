@@ -64,14 +64,11 @@ impl LlamacppClient {
         };
 
         match response.status() {
-            reqwest::StatusCode::OK => {
-                let slots: Vec<Slot> = response.json().await?;
-                Ok(SlotsResponse {
-                    is_authorized: Some(true),
-                    is_slot_endpoint_enabled: Some(true),
-                    slots,
-                })
-            },
+            reqwest::StatusCode::OK => Ok(SlotsResponse {
+                is_authorized: Some(true),
+                is_slot_endpoint_enabled: Some(true),
+                slots: response.json::<Vec<Slot>>().await?,
+            }),
             reqwest::StatusCode::UNAUTHORIZED => Ok(SlotsResponse {
                 is_authorized: Some(false),
                 is_slot_endpoint_enabled: None,
