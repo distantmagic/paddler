@@ -1,16 +1,16 @@
 use std::time::Duration;
 
 use anyhow::Result;
-use cucumber::when;
 use cucumber::gherkin::Step;
+use cucumber::when;
 use futures::future::join_all;
 use tokio::time::sleep;
 
-use crate::balancer_world::BalancerWorld;
+use crate::paddler_world::PaddlerWorld;
 
 #[when(expr = "multiple requests are sent to {string}")]
 pub async fn when_multiple_requests_are_sent_to_path(
-    world: &mut BalancerWorld,
+    world: &mut PaddlerWorld,
     step: &Step,
     path: String,
 ) -> Result<()> {

@@ -1,11 +1,20 @@
 name: test
 
 on:
-  workflow_call:
-  workflow_dispatch:
+  pull_request:
+    branches:
+      - "**"
+    types:
+      - edited
+      - opened
+      - ready_for_review
+      - review_requested
+      - synchronize
   push:
     branches:
       - "**"
+  workflow_call:
+  workflow_dispatch:
 
 jobs:
   test:

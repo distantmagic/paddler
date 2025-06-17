@@ -1,11 +1,11 @@
 use anyhow::Result;
 use cucumber::then;
 
-use crate::balancer_world::BalancerWorld;
+use crate::paddler_world::PaddlerWorld;
 
 #[then(expr = "{string} response code is {int}")]
 pub async fn then_response_code_is(
-    world: &mut BalancerWorld,
+    world: &mut PaddlerWorld,
     name: String,
     expected_code: u16,
 ) -> Result<()> {
