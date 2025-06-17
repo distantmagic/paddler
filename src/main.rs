@@ -101,6 +101,17 @@ enum Commands {
         /// instead of the reverse client server
         rewrite_host_header: bool,
 
+        #[arg(long, default_value = "30", value_parser = parse_duration)]
+        /// The request timeout (in seconds). For all requests that a timely response from an
+        /// upstream isn't received for, the 504 (Gateway Timeout) error is issued.
+        request_timeout: Duration,
+
+        #[arg(long, default_value = "32")]
+        /// The maximum number of buffered requests. Like with usual requests, the request timeout
+        /// is also applied to buffered ones. If the maximum number is reached, all new requests are
+        /// rejected with the 429 (Too Many Requests) error.
+        max_requests: usize,
+
         #[arg(long)]
         /// Enable the slots endpoint (not recommended)
         slots_endpoint_enable: bool,
@@ -166,6 +177,8 @@ fn main() -> Result<()> {
             statsd_prefix,
             #[cfg(feature = "statsd_reporter")]
             statsd_reporting_interval,
+            request_timeout,
+            max_requests,
         }) => cmd::balancer::handle(
             management_addr,
             #[cfg(feature = "web_dashboard")]
@@ -179,6 +192,8 @@ fn main() -> Result<()> {
             statsd_prefix.to_owned(),
             #[cfg(feature = "statsd_reporter")]
             statsd_reporting_interval.to_owned(),
+            *request_timeout,
+            *max_requests,
         ),
         #[cfg(feature = "ratatui_dashboard")]
         Some(Commands::Dashboard {
