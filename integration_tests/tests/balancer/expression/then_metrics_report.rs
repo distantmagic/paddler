@@ -4,7 +4,7 @@ use anyhow::Result;
 use cucumber::gherkin::Step;
 use cucumber::then;
 
-use crate::balancer_world::BalancerWorld;
+use crate::paddler_world::PaddlerWorld;
 
 async fn fetch_metrics(statsd_port: u16, metric_name: String) -> Result<String> {
     let response = reqwest::get(format!(
@@ -28,7 +28,7 @@ async fn fetch_metrics(statsd_port: u16, metric_name: String) -> Result<String> 
 }
 
 #[then(expr = "metrics report:")]
-pub async fn statsd_reports_metrics(_world: &mut BalancerWorld, step: &Step) -> Result<()> {
+pub async fn then_metrics_report(_world: &mut PaddlerWorld, step: &Step) -> Result<()> {
     if let Some(table) = step.table.as_ref() {
         for row in &table.rows {
             let metric_name = row[0].clone();

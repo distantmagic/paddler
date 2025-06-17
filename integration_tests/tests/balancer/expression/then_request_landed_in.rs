@@ -1,16 +1,17 @@
 use anyhow::Result;
 use cucumber::then;
 
-use crate::balancer_world::BalancerWorld;
+use crate::paddler_world::PaddlerWorld;
 
 #[then(expr = "{string} request landed in {string}")]
 pub async fn then_request_landed_in(
-    world: &mut BalancerWorld,
+    world: &mut PaddlerWorld,
     request_name: String,
     llamacpp_name: String,
 ) -> Result<()> {
     let llamacpp = world
         .llamas
+        .instances
         .get(&llamacpp_name)
         .ok_or_else(|| anyhow::anyhow!("Llama.cpp server {} not found", llamacpp_name))?;
 
