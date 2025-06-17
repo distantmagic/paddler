@@ -4,21 +4,21 @@ use anyhow::Result;
 use cucumber::given;
 use tokio::process::Command;
 
-use crate::balancer_world::BalancerWorld;
+use crate::paddler_world::PaddlerWorld;
 
 #[given(expr = "agent {string} is running \\(observes {string}\\)")]
 pub async fn given_agent_is_attached(
-    world: &mut BalancerWorld,
+    world: &mut PaddlerWorld,
     agent_name: String,
     llamacpp_name: String,
 ) -> Result<()> {
-    if world.agents.contains_key(&agent_name) {
+    if world.agents.instances.contains_key(&agent_name) {
         return Err(anyhow::anyhow!("Agent {} is already running", agent_name));
     }
 
-    let local_llamacpp_port = world.get_llamacpp_port(&llamacpp_name)?;
+    let local_llamacpp_port = world.llamas.llamacpp_port(&llamacpp_name)?;
 
-    world.agents.insert(
+    world.agents.instances.insert(
         agent_name.clone(),
         Command::new("../target/debug/paddler")
             .arg("agent")

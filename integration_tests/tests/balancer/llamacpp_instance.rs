@@ -29,4 +29,10 @@ impl LlamaCppInstance {
 
         Ok(false)
     }
+
+    pub async fn cleanup(&mut self) {
+        if let Err(err) = self.child.kill().await {
+            panic!("Failed to kill llama {}: {}", self.name, err);
+        }
+    }
 }
