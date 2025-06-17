@@ -19,6 +19,7 @@ impl PaddlerWorld {
     pub async fn cleanup(&mut self) {
         self.agents.cleanup().await;
         self.llamas.cleanup().await;
+        self.requests.clear();
 
         if let Some(mut balancer) = self.balancer.take() {
             if let Err(err) = balancer.kill().await {
