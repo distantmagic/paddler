@@ -1,14 +1,22 @@
 use core::panic;
-use std::time::Duration;
 
 use anyhow::Result;
 use cucumber::gherkin::Step;
 use cucumber::then;
 use reqwest::Response;
-use tokio::time::sleep;
 
 use crate::agent_status::AgentStatusResponse;
 use crate::paddler_world::PaddlerWorld;
+
+#[derive(Debug)]
+pub struct ReqwestError {
+    pub url: String,
+    pub message: String,
+    pub is_connect: bool,
+    pub is_decode: bool,
+    pub is_request: bool,
+    pub is_status: bool,
+}
 
 async fn fetch_dashboard(balancer_port: u16) -> Result<Response> {
     let response = reqwest::get(format!("http://127.0.0.1:{balancer_port}/api/v1/agents")).await?;
@@ -33,16 +41,18 @@ pub async fn then_dashboard_report(_world: &mut PaddlerWorld, step: &Step) -> Re
             // panic!("{:#?}", table.rows.iter().skip(1).enumerate());
 
             // panic!("{:#?}", &upstream_peer_pool.agents);
-
+panic!("{")
             let peer = &upstream_peer_pool.agents[i];
 
             let agent_name = row[0].clone();
             let slots_idle = row[1].clone();
             let slots_processing = row[2].clone();
+            let error = row[3].clone();
 
             assert_eq!(agent_name, peer.agent_name.clone());
             assert_eq!(slots_idle, peer.slots_idle.to_string());
             assert_eq!(slots_processing, peer.slots_processing.to_string());
+            assert_eq!(error, peer.error.clone().unwrap_or("none".to_string()));
         }
     };
 
