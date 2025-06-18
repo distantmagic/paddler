@@ -14,7 +14,7 @@ pub async fn when_agent_detaches(
         ));
     }
 
-    world.agents.kill(llamacpp_name).await;
+    world.llamas.kill(llamacpp_name).await;
 
     Ok(())
 }

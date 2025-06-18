@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct AgentStatus {
     pub agent_name: String,
     pub slots_idle: usize,
@@ -8,7 +8,7 @@ pub struct AgentStatus {
     pub error: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct AgentStatusResponse {
     pub agents: Vec<AgentStatus>,
 }
