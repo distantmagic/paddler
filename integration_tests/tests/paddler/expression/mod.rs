@@ -7,6 +7,6 @@ mod then_dashboard_report;
 mod then_metrics_report;
 mod then_request_landed_in;
 mod then_response_code_is;
+mod when_llamacpp_stops_running;
 mod when_multiple_requests_are_sent_to_path;
 mod when_request_is_sent_to_path;
-mod when_llamacpp_stops_running;

@@ -4,7 +4,8 @@ use anyhow::Result;
 use cucumber::given;
 use tokio::time::sleep;
 
-use crate::{agent_status::AgentStatusResponse, paddler_world::PaddlerWorld};
+use crate::agent_status::AgentStatusResponse;
+use crate::paddler_world::PaddlerWorld;
 
 const MAX_ATTEMPTS: usize = 3;
 
