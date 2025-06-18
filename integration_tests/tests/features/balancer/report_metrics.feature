@@ -15,9 +15,9 @@ Feature: Report llama.cpp metrics
         Given llama.cpp server "llama-1" is running (has 4 slots)
         Given llama.cpp server "llama-2" is running (has 4 slots)
         Given agent "agent-1" is running (observes "llama-1")
-        Given agent "agent-1" is healthy
+        Given agent "agent-1" is registered
         Given agent "agent-2" is running (observes "llama-2")
-        Given agent "agent-2" is healthy
+        Given agent "agent-2" is registered
         Then metrics report:
             | slots_idle | 8 |
             | slots_processing | 0 |

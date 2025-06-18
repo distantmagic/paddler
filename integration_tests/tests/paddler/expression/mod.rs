@@ -1,4 +1,4 @@
-mod given_agent_is_healthy;
+mod given_agent_is_registered;
 mod given_agent_is_running;
 mod given_balancer_is_running;
 mod given_llamacpp_server_is_running;
@@ -9,3 +9,4 @@ mod then_request_landed_in;
 mod then_response_code_is;
 mod when_multiple_requests_are_sent_to_path;
 mod when_request_is_sent_to_path;
+mod when_llamacpp_stops_running;

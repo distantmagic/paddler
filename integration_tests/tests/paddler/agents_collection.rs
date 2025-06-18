@@ -16,4 +16,14 @@ impl AgentsCollection {
 
         self.instances.clear();
     }
+
+    pub async fn kill(&self, llamacpp_name: String) {
+        if let Some(mut agent) = self.instances.get_mut(&llamacpp_name) {
+            if let Err(err) = agent.value_mut().kill().await {
+                eprintln!("Failed to kill agent {}: {}", llamacpp_name, err);
+            }
+            
+            self.instances.remove(&llamacpp_name);
+        }
+    }
 }

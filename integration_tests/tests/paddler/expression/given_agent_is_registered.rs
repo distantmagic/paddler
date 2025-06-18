@@ -2,23 +2,11 @@ use std::time::Duration;
 
 use anyhow::Result;
 use cucumber::given;
-use serde::Deserialize;
 use tokio::time::sleep;
 
-use crate::paddler_world::PaddlerWorld;
+use crate::{agent_status::AgentStatusResponse, paddler_world::PaddlerWorld};
 
 const MAX_ATTEMPTS: usize = 3;
-
-#[derive(Deserialize)]
-struct AgentStatus {
-    agent_name: String,
-    error: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct AgentStatusResponse {
-    agents: Vec<AgentStatus>,
-}
 
 async fn do_check(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
     if !world.agents.instances.contains_key(&agent_name) {
@@ -50,7 +38,7 @@ async fn do_check(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
     Ok(())
 }
 
-#[given(expr = "agent {string} is healthy")]
+#[given(expr = "agent {string} is registered")]
 pub async fn given_agent_is_healthy(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
     let mut attempts = 0;
 
