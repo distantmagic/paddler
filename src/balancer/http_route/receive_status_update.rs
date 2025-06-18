@@ -50,12 +50,18 @@ async fn respond(
     while let Some(chunk) = payload.next().await {
         match serde_json::from_slice::<StatusUpdate>(&chunk?) {
             Ok(status_update) => {
+                let idle_slots_count = status_update.idle_slots_count;
+
                 if let Err(err) =
                     upstream_peer_pool.register_status_update(&path_params.agent_id, status_update)
                 {
                     error!("Failed to register status update: {err}");
 
                     return Err(Error::from(err));
+                }
+
+                if idle_slots_count > 0 {
+                    upstream_peer_pool.notifier.notify_one();
                 }
             }
             Err(err) => {

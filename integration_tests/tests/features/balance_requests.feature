@@ -6,7 +6,7 @@ Feature: Balance llama.cpp requests
     @serial
     Scenario: There are no agents attached
         When request "foo" is sent to "/chat/completions"
-        Then "foo" response code is 502
+        Then "foo" response code is 504
 
     @serial
     Scenario: There is one agent attached
@@ -49,4 +49,4 @@ Feature: Balance llama.cpp requests
         Then "req-1" request landed in "llama-1"
         Then "req-2" response code is 200
         Then "req-2" request landed in "llama-2"
-        Then "req-3" response code is 502
+        Then "req-3" response code is 504
