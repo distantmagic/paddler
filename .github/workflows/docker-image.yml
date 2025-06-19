@@ -18,10 +18,10 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image(s)
-        run: docker-compose -f example/docker-compose.yml build
+        run: docker compose -f example/docker-compose.yml build
 
       - name: Run Docker Compose in background
-        run: docker-compose -f example/docker-compose.yml up -d
+        run: docker compose -f example/docker-compose.yml up -d
 
       - name: Wait for services to be ready
         run: sleep 60
@@ -35,4 +35,4 @@ jobs:
         run: docker ps
 
       - name: Shut down
-        run: docker-compose -f example/docker-compose.yml down -v
+        run: docker compose -f example/docker-compose.yml down -v
