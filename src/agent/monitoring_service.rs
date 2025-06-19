@@ -42,10 +42,10 @@ impl MonitoringService {
         })
     }
 
-    async fn fetch_status(&self) -> Result<StatusUpdate> {
-        let slots_response = self.llamacpp_client.get_available_slots().await?;
+    async fn fetch_status(&self) -> StatusUpdate {
+        let slots_response = self.llamacpp_client.get_available_slots().await;
 
-        Ok(StatusUpdate::new(
+        StatusUpdate::new(
             self.name.to_owned(),
             slots_response.error,
             slots_response.is_llamacpp_reachable,
@@ -55,7 +55,7 @@ impl MonitoringService {
             None,
             None,
             slots_response.slots,
-        ))
+        )
     }
 
     async fn report_status(&self, status: StatusUpdate) -> Result<usize> {
@@ -84,15 +84,10 @@ impl Service for MonitoringService {
                     return;
                 },
                 _ = ticker.tick() => {
-                    match self.fetch_status().await {
-                        Ok(status) => {
-                            if let Err(err) = self.report_status(status).await {
-                                error!("Failed to report status: {err}");
-                            }
-                        }
-                        Err(err) => {
-                            error!("Failed to fetch status: {err}");
-                        }
+                    let status = self.fetch_status().await;
+                    
+                    if let Err(err) = self.report_status(status).await {
+                        error!("Failed to report status: {err}");
                     }
                 }
             }
