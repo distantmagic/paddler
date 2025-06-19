@@ -34,7 +34,7 @@ impl Drop for RemovePeerGuard<'_> {
     }
 }
 
-#[post("/status_update/{agent_id}")]
+#[post("/api/v1/agent_status_update/{agent_id}")]
 async fn respond(
     path_params: web::Path<PathParams>,
     mut payload: web::Payload,
