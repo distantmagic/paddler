@@ -4,7 +4,20 @@
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.6",
     "esbuild": "^0.25.5",
-    "tslib": "^2.8.1"
+    "eslint": "^9.29.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "fs-extra": "^11.3.0",
+    "glob": "^11.0.3",
+    "jarmuz": "^0.4.0",
+    "lodash": "^4.17.21",
+    "node-notifier": "^10.0.1",
+    "prettier": "^3.5.3",
+    "prettier-plugin-organize-imports": "^4.1.0",
+    "stylelint": "^16.21.0",
+    "stylelint-config-recommended": "^16.0.0",
+    "tslib": "^2.8.1",
+    "typed-css-modules": "^0.9.1",
+    "typescript-eslint": "^8.34.1"
   },
   "dependencies": {
     "@hotwired/stimulus": "^3.2.2",
@@ -12,7 +25,8 @@
     "clsx": "^2.1.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "typed-css-modules": "^0.9.1",
     "zod": "^3.25.56"
-  }
+  },
+  "name": "paddler",
+  "type": "module"
 }

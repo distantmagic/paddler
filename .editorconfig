@@ -8,18 +8,14 @@ indent_style = space
 indent_size = 4
 trim_trailing_whitespace = true
 
-[*.example]
-indent_size = 2
-
-[*.go]
-indent_size = 4
-indent_style = tab
-
 [*.md]
 trim_trailing_whitespace = false
 
-[*.{css,scss,js,json,mjs,tf,ts,tsx,yml,yaml}]
+[*.{css,scss,js,mjs,tf,ts,tsx,yml,yaml}]
 indent_size = 2
+
+[*.rs]
+indent_size = 4
 
 [Dockerfile]
 indent_size = 2

@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import React, { useEffect, useState, CSSProperties } from "react";
+import React, { CSSProperties, useEffect, useState } from "react";
 import { z } from "zod";
 
 import { DashboardLayout } from "./DashboardLayout";
@@ -73,7 +73,7 @@ export function Dashboard() {
           setIsError(false);
           setAgents(agentsResponse.agents);
         })
-        .catch(function (error) {
+        .catch(function (error: unknown) {
           setIsError(true);
           console.error(error);
         })
