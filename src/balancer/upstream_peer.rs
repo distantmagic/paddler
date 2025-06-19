@@ -227,7 +227,7 @@ mod tests {
         Ok(())
     }
 
-     #[test]
+    #[test]
     fn test_update_status() {
         let mut peer = create_test_peer();
         let status_update = StatusUpdate::new(
