@@ -178,7 +178,7 @@ export function Dashboard() {
                       <p>Llama.cpp server is unreachable. It is likely down.</p>
                   )}
                   {false == agent.is_llamacpp_response_decodeable && (
-                      <p>Llama.cpp server returned an unexpected response. Are your sure that agent observers llama.cpp, and does that at a correct port?</p>
+                      <p>Llama.cpp server returned an unexpected response. Are you sure that the agent is configured to monitor llama.cpp and is using the correct port?</p>
                   )}
                   {false === agent.is_authorized && (
                     <>
