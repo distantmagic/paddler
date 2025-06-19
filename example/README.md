@@ -1,5 +1,3 @@
-testing 4
-
 # Paddler Docker Compose Example
 
 This example demonstrates how to set up a complete Paddler cluster using Docker Compose.
