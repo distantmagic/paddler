@@ -8,6 +8,9 @@ const agentSchema = z.object({
   agent_id: z.string(),
   agent_name: z.string().nullable(),
   error: z.string().nullable(),
+  is_llamacpp_reachable: z.boolean().nullable(),
+  is_llamacpp_response_decodeable: z.boolean().nullable(),
+  is_llamacpp_request_error: z.boolean().nullable(),
   external_llamacpp_addr: z.string(),
   is_authorized: z.boolean().nullable(),
   is_slots_endpoint_enabled: z.boolean().nullable(),
@@ -146,12 +149,17 @@ export function Dashboard() {
         </thead>
         <tbody>
           {agents.map(function (agent: Agent) {
+            console.log(agent)
             const hasIssues =
-              agent.error ||
-              true !== agent.is_authorized ||
-              true !== agent.is_slots_endpoint_enabled ||
-              agent.quarantined_until;
-
+              agent.error != null ||
+              agent.is_authorized === false ||
+              agent.is_slots_endpoint_enabled === false ||
+              agent.is_llamacpp_reachable === false ||
+              agent.is_llamacpp_response_decodeable === false ||
+              agent.is_llamacpp_request_error === true ||
+              agent.quarantined_until != null;
+          
+            console.log(hasIssues)
             return (
               <tr
                 className={clsx("agent-row", {
@@ -166,6 +174,12 @@ export function Dashboard() {
                       <p>Agent reported an Error</p>
                       <p>{agent.error}</p>
                     </>
+                  )}
+                  {false == agent.is_llamacpp_reachable && (
+                      <p>Llama.cpp server is unreachable. It is likely down.</p>
+                  )}
+                  {false == agent.is_llamacpp_response_decodeable && (
+                      <p>Llama.cpp server returned an unexpected response. Are your sure that agent observers llama.cpp, and does that at a correct port?</p>
                   )}
                   {false === agent.is_authorized && (
                     <>
