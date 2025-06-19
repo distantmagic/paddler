@@ -86,12 +86,8 @@ impl Service for MonitoringService {
                 _ = ticker.tick() => {
                     match self.fetch_status().await {
                         Ok(status) => {
-                            if let Some(err) = status.error {
-                                error!("Failed to fetch status: {err}");
-                            } else {
-                                if let Err(err) = self.report_status(status).await {
-                                    error!("Failed to report status: {err}");
-                                }
+                            if let Err(err) = self.report_status(status).await {
+                                error!("Failed to report status: {err}");
                             }
                         }
                         Err(err) => {
