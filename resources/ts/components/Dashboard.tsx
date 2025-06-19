@@ -149,7 +149,6 @@ export function Dashboard() {
         </thead>
         <tbody>
           {agents.map(function (agent: Agent) {
-            console.log(agent)
             const hasIssues =
               agent.error != null ||
               agent.is_authorized === false ||
