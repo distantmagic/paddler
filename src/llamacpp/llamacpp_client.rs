@@ -46,33 +46,43 @@ impl LlamacppClient {
         let response = match self.client.get(url.clone()).send().await {
             Ok(resp) => resp,
             Err(err) => {
-                return Err(format!(
-                    "Request to '{}' failed: '{}'; connect issue: {}; decode issue: {}; request issue: {}; status issue: {}; status: {:?}; source: {:?}",
-                    url,
-                    err,
-                    err.is_connect(),
-                    err.is_decode(),
-                    err.is_request(),
-                    err.is_status(),
-                    err.status(),
-                    err.source()
-                ).into());
+                return Ok(SlotsResponse {
+                    is_authorized: None,
+                    error: Some(format!("Request to {} Failed. Is it running?", url)),
+                    is_slot_endpoint_enabled: None,
+                    is_llamacpp_reachable: Some(!err.is_connect()),
+                    is_llamacpp_response_decodeable: Some(!err.is_decode()),
+                    is_llamacpp_request_error: Some(err.is_request()),
+                    slots: vec![],
+                })
             }
         };
 
         match response.status() {
             reqwest::StatusCode::OK => Ok(SlotsResponse {
                 is_authorized: Some(true),
+                error: None,
                 is_slot_endpoint_enabled: Some(true),
+                is_llamacpp_reachable: Some(true),
+                is_llamacpp_response_decodeable: Some(true),
+                is_llamacpp_request_error: Some(response.status().is_server_error()),
                 slots: response.json::<Vec<Slot>>().await?,
             }),
             reqwest::StatusCode::UNAUTHORIZED => Ok(SlotsResponse {
                 is_authorized: Some(false),
+                error: None,
                 is_slot_endpoint_enabled: None,
+                is_llamacpp_reachable: Some(true),
+                is_llamacpp_response_decodeable: Some(true),
+                is_llamacpp_request_error: Some(response.status().is_server_error()),
                 slots: vec![],
             }),
             reqwest::StatusCode::NOT_IMPLEMENTED => Ok(SlotsResponse {
                 is_authorized: None,
+                error: None,
+                is_llamacpp_reachable: Some(true),
+                is_llamacpp_response_decodeable: Some(true),
+                is_llamacpp_request_error: Some(response.status().is_server_error()),
                 is_slot_endpoint_enabled: Some(false),
                 slots: vec![],
             }),
