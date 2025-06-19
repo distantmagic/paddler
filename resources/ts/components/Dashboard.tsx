@@ -158,7 +158,6 @@ export function Dashboard() {
               agent.is_llamacpp_request_error === true ||
               agent.quarantined_until != null;
           
-            console.log(hasIssues)
             return (
               <tr
                 className={clsx("agent-row", {
