@@ -227,21 +227,24 @@ mod tests {
         Ok(())
     }
 
-    // #[test]
-    // fn test_update_status() {
-    //     let mut peer = create_test_peer();
-    //     let status_update = StatusUpdate::new(
-    //         Some("new_name".to_string()),
-    //         None,
-    //         SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),
-    //         Some(true),
-    //         Some(true),
-    //         vec![],
-    //     );
+     #[test]
+    fn test_update_status() {
+        let mut peer = create_test_peer();
+        let status_update = StatusUpdate::new(
+            Some("new_name".to_string()),
+            None,
+            None,
+            None,
+            None,
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),
+            Some(true),
+            Some(true),
+            vec![],
+        );
 
-    //     peer.update_status(status_update);
-    //     assert_eq!(peer.slots_idle, 0);
-    //     assert_eq!(peer.slots_processing, 0);
-    //     assert_eq!(peer.agent_name, Some("new_name".to_string()));
-    // }
+        peer.update_status(status_update);
+        assert_eq!(peer.slots_idle, 0);
+        assert_eq!(peer.slots_processing, 0);
+        assert_eq!(peer.agent_name, Some("new_name".to_string()));
+    }
 }

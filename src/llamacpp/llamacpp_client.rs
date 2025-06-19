@@ -1,7 +1,6 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use pingora::ErrorTrait;
 use reqwest::header;
 use url::Url;
 

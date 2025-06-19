@@ -157,79 +157,79 @@ impl UpstreamPeerPool {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::balancer::test::mock_status_update;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::balancer::test::mock_status_update;
 
-//     #[test]
-//     fn test_race_condition_handling() -> Result<()> {
-//         let pool = UpstreamPeerPool::new();
+    #[test]
+    fn test_race_condition_handling() -> Result<()> {
+        let pool = UpstreamPeerPool::new();
 
-//         pool.register_status_update("test1", mock_status_update("test1", 5, 0))?;
-//         pool.with_agents_write(|agents| {
-//             agents
-//                 .iter_mut()
-//                 .find(|p| p.agent_id == "test1")
-//                 .unwrap()
-//                 .take_slot()
-//         })?;
+        pool.register_status_update("test1", mock_status_update("test1", 5, 0))?;
+        pool.with_agents_write(|agents| {
+            agents
+                .iter_mut()
+                .find(|p| p.agent_id == "test1")
+                .unwrap()
+                .take_slot()
+        })?;
 
-//         let last_update_at_selection_time = pool.with_agents_read(|agents| {
-//             Ok(agents
-//                 .iter()
-//                 .find(|p| p.agent_id == "test1")
-//                 .unwrap()
-//                 .last_update)
-//         })?;
+        let last_update_at_selection_time = pool.with_agents_read(|agents| {
+            Ok(agents
+                .iter()
+                .find(|p| p.agent_id == "test1")
+                .unwrap()
+                .last_update)
+        })?;
 
-//         pool.with_agents_read(|agents| {
-//             let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
-//             assert_eq!(peer.slots_idle, 4);
-//             assert_eq!(peer.slots_processing, 1);
-//             assert_eq!(peer.slots_taken, 1);
+        pool.with_agents_read(|agents| {
+            let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
+            assert_eq!(peer.slots_idle, 4);
+            assert_eq!(peer.slots_processing, 1);
+            assert_eq!(peer.slots_taken, 1);
 
-//             Ok(())
-//         })?;
+            Ok(())
+        })?;
 
-//         pool.register_status_update("test1", mock_status_update("test1", 0, 0))?;
+        pool.register_status_update("test1", mock_status_update("test1", 0, 0))?;
 
-//         pool.with_agents_read(|agents| {
-//             let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
-//             assert_eq!(peer.slots_idle, 0);
-//             assert_eq!(peer.slots_processing, 0);
-//             assert_eq!(peer.slots_taken, 1);
+        pool.with_agents_read(|agents| {
+            let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
+            assert_eq!(peer.slots_idle, 0);
+            assert_eq!(peer.slots_processing, 0);
+            assert_eq!(peer.slots_taken, 1);
 
-//             Ok(())
-//         })?;
+            Ok(())
+        })?;
 
-//         pool.release_slot("test1", last_update_at_selection_time)?;
+        pool.release_slot("test1", last_update_at_selection_time)?;
 
-//         pool.with_agents_read(|agents| {
-//             let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
-//             assert_eq!(peer.slots_idle, 0);
-//             assert_eq!(peer.slots_processing, 0);
-//             assert_eq!(peer.slots_taken, 0);
+        pool.with_agents_read(|agents| {
+            let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
+            assert_eq!(peer.slots_idle, 0);
+            assert_eq!(peer.slots_processing, 0);
+            assert_eq!(peer.slots_taken, 0);
 
-//             Ok(())
-//         })?;
+            Ok(())
+        })?;
 
-//         Ok(())
-//     }
+        Ok(())
+    }
 
-//     #[test]
-//     fn test_use_best_peer() -> Result<()> {
-//         let pool = UpstreamPeerPool::new();
+    #[test]
+    fn test_use_best_peer() -> Result<()> {
+        let pool = UpstreamPeerPool::new();
 
-//         pool.register_status_update("test1", mock_status_update("test1", 5, 0))?;
-//         pool.register_status_update("test2", mock_status_update("test2", 3, 0))?;
-//         pool.register_status_update("test3", mock_status_update("test3", 0, 0))?;
+        pool.register_status_update("test1", mock_status_update("test1", 5, 0))?;
+        pool.register_status_update("test2", mock_status_update("test2", 3, 0))?;
+        pool.register_status_update("test3", mock_status_update("test3", 0, 0))?;
 
-//         let best_peer = pool.use_best_peer()?.unwrap();
+        let best_peer = pool.use_best_peer()?.unwrap();
 
-//         assert_eq!(best_peer.agent_id, "test1");
-//         assert_eq!(best_peer.slots_idle, 5);
+        assert_eq!(best_peer.agent_id, "test1");
+        assert_eq!(best_peer.slots_idle, 5);
 
-//         Ok(())
-//     }
-// }
+        Ok(())
+    }
+}
