@@ -42,20 +42,25 @@ impl MonitoringService {
         })
     }
 
-    async fn fetch_status(&self) -> StatusUpdate {
-        let slots_response = self.llamacpp_client.get_available_slots().await;
-
-        StatusUpdate::new(
-            self.name.to_owned(),
-            slots_response.error,
-            slots_response.is_llamacpp_reachable,
-            slots_response.is_llamacpp_request_error,
-            slots_response.is_llamacpp_response_decodeable,
-            self.external_llamacpp_addr.to_owned(),
-            slots_response.is_authorized,
-            slots_response.is_slot_endpoint_enabled,
-            slots_response.slots,
-        )
+    async fn fetch_status(&self) -> Result<StatusUpdate> {
+        match self.llamacpp_client.get_available_slots().await {
+            Ok(slots_response) => Ok(StatusUpdate::new(
+                self.name.to_owned(),
+                None,
+                self.external_llamacpp_addr.to_owned(),
+                slots_response.is_authorized,
+                slots_response.is_slot_endpoint_enabled,
+                slots_response.slots,
+            )),
+            Err(err) => Ok(StatusUpdate::new(
+                self.name.to_owned(),
+                Some(err.to_string()),
+                self.external_llamacpp_addr.to_owned(),
+                None,
+                None,
+                vec![],
+            )),
+        }
     }
 
     async fn report_status(&self, status: StatusUpdate) -> Result<usize> {
@@ -84,10 +89,15 @@ impl Service for MonitoringService {
                     return;
                 },
                 _ = ticker.tick() => {
-                    let status = self.fetch_status().await;
-
-                    if let Err(err) = self.report_status(status).await {
-                        error!("Failed to report status: {err}");
+                    match self.fetch_status().await {
+                        Ok(status) => {
+                            if let Err(err) = self.report_status(status).await {
+                                error!("Failed to report status: {err}");
+                            }
+                        }
+                        Err(err) => {
+                            error!("Failed to fetch status: {err}");
+                        }
                     }
                 }
             }
