@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use log::error;
-use pingora::upstreams::peer::HttpPeer;
+use log::info;
 use pingora::Error;
-use pingora::ErrorSource;
 use pingora::Result;
 
 use crate::balancer::upstream_peer::UpstreamPeer;
@@ -33,73 +32,61 @@ impl RequestContext {
         }
     }
 
-    pub fn take_slot(&mut self) -> PaddlerResult<()> {
-        if let Some(peer) = &self.selected_peer {
-            self.upstream_peer_pool.take_slot(&peer.agent_id)?;
-            self.upstream_peer_pool.restore_integrity()?;
+    pub fn use_best_peer_and_take_slot(&mut self, model: Option<String>) -> PaddlerResult<Option<UpstreamPeer>> {
+        Ok(
+            if let Some(peer) = self.upstream_peer_pool.with_agents_write(|agents| {
+                let model_str = model.as_deref().unwrap_or("");
+                for peer in agents.iter_mut() {
+                    let is_usable = peer.is_usable();
+                    let is_usable_for_model = peer.is_usable_for_model(model_str);
 
-            self.slot_taken = true;
+                    if is_usable && (model.is_none() || is_usable_for_model) {
+                        info!("Peer {} is usable: {}, usable for model '{}': {}", peer.agent_id, is_usable, model_str, is_usable_for_model);
+                        peer.take_slot()?;
+                        return Ok(Some(peer.clone()));
+                    }
+                }
 
-            Ok(())
-        } else {
-            Err("There is no peer available to take a slot from".into())
-        }
+                Ok(None)
+            })? {
+                self.upstream_peer_pool.restore_integrity()?;
+
+                self.slot_taken = true;
+
+                Some(peer)
+            } else {
+                None
+            },
+        )
     }
 
-    pub fn select_upstream_peer(
-        &mut self,
-        path: &str,
-        slots_endpoint_enable: bool,
-    ) -> Result<Box<HttpPeer>> {
-        if self.selected_peer.is_none() {
-            self.selected_peer = match self.upstream_peer_pool.use_best_peer(self.requested_model.clone()) {
-                Ok(peer) => peer,
-                Err(err) => {
-                    error!("Failed to get best peer: {err}");
+    pub fn select_upstream_peer(&mut self) -> Result<()> {
+        let result_option_peer = if self.uses_slots && !self.slot_taken {
+            self.use_best_peer_and_take_slot(self.requested_model.clone())
+        } else {
+            self.upstream_peer_pool.use_best_peer(self.requested_model.clone())
+        };
 
-                    return Err(Error::new(pingora::InternalError));
-                }
-            };
-        }
+        self.selected_peer = match result_option_peer {
+            Ok(peer) => {
+                if peer.is_some() {
+                    if let Err(e) = self.upstream_peer_pool.restore_integrity() {
+                        error!("Failed to restore integrity: {e}");
 
-        if self.selected_peer.is_some() {
-            self.uses_slots = match path {
-                "/slots" => {
-                    if !slots_endpoint_enable {
-                        return Err(Error::create(
-                            pingora::Custom("Slots endpoint is disabled"),
-                            ErrorSource::Downstream,
-                            None,
-                            None,
-                        ));
+                        return Err(Error::new(pingora::InternalError));
                     }
-
-                    false
                 }
-                "/chat/completions" => true,
-                "/completion" => true,
-                "/v1/chat/completions" => true,
-                _ => false,
-            };
-        }
 
-        let selected_peer = match self.selected_peer.as_ref() {
-            Some(peer) => peer,
-            None => {
-                return Err(Error::create(
-                    pingora::Custom("No peer available"),
-                    ErrorSource::Upstream,
-                    None,
-                    None,
-                ));
+                peer
+            }
+            Err(e) => {
+                error!("Failed to get best peer: {e}");
+
+                return Err(Error::new(pingora::InternalError));
             }
         };
 
-        Ok(Box::new(HttpPeer::new(
-            selected_peer.external_llamacpp_addr,
-            false,
-            "".to_string(),
-        )))
+        Ok(())
     }
 }
 
@@ -127,7 +114,7 @@ mod tests {
 
         pool.register_status_update("test_agent", mock_status_update("test_agent", 0, 0))?;
 
-        assert!(ctx.take_slot().is_err());
+        assert!(ctx.use_best_peer_and_take_slot().unwrap().is_none());
 
         assert!(!ctx.slot_taken);
         assert_eq!(ctx.selected_peer, None);
@@ -141,12 +128,18 @@ mod tests {
         let mut ctx = create_test_context(pool.clone());
 
         pool.register_status_update("test_agent", mock_status_update("test_agent", 1, 4))?;
+        ctx.select_upstream_peer()?;
 
-        let peer = ctx.select_upstream_peer("/test", false)?;
+        assert_eq!(
+            ctx.selected_peer
+                .as_ref()
+                .unwrap()
+                .external_llamacpp_addr
+                .to_string(),
+            "127.0.0.1:8080"
+        );
 
-        assert_eq!(peer.to_string(), "addr: 127.0.0.1:8080, scheme: HTTP,");
-
-        ctx.take_slot()?;
+        ctx.use_best_peer_and_take_slot()?;
 
         assert!(ctx.slot_taken);
 

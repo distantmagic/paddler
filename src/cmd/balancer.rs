@@ -15,6 +15,7 @@ use crate::balancer::statsd_service::StatsdService;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 use crate::errors::result::Result;
 
+#[expect(clippy::too_many_arguments)]
 pub fn handle(
     management_addr: &SocketAddr,
     #[cfg(feature = "web_dashboard")] management_dashboard_enable: bool,
@@ -25,6 +26,8 @@ pub fn handle(
     #[cfg(feature = "statsd_reporter")] statsd_addr: Option<SocketAddr>,
     #[cfg(feature = "statsd_reporter")] statsd_prefix: String,
     #[cfg(feature = "statsd_reporter")] statsd_reporting_interval: Duration,
+    request_timeout: Duration,
+    max_requests: usize,
 ) -> Result<()> {
     let mut pingora_server = Server::new(Opt {
         upgrade: false,
@@ -45,6 +48,8 @@ pub fn handle(
             check_model,
             slots_endpoint_enable,
             upstream_peer_pool.clone(),
+            request_timeout,
+            max_requests,
         ),
     );
 
