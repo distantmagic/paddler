@@ -149,40 +149,6 @@ impl ProxyHttp for ProxyService {
         session: &mut Session,
         ctx: &mut Self::CTX,
     ) -> Result<Box<HttpPeer>> {
-        info!("upstream_peer - {:?} request | rewrite_host_header? {} check_model? {}", session.req_header().method, self.rewrite_host_header, self.check_model);
-
-        // Check if the request method is POST and the content type is JSON
-        if self.check_model {
-            if session.req_header().method == "POST" {
-                // Check if the content type is application/json
-                if let Some(content_type) = session.get_header("Content-Type") {
-                    if let Ok(content_type_str) = content_type.to_str() {
-                        if content_type_str.contains("application/json") {
-                            // Enable retry buffering to preserve the request body, reference: https://github.com/cloudflare/pingora/issues/349#issuecomment-2377277028
-                            session.enable_retry_buffering();
-                            session.read_body_or_idle(false).await.unwrap().unwrap();
-                            let request_body = session.get_retry_buffer();
-
-                            // Parse the JSON payload into a serde_json::Value
-                            if let Some(body_bytes) = request_body {
-                                if let Ok(json_value) = serde_json::from_slice::<serde_json::Value>(&body_bytes) {
-                                    if let Some(model) = json_value.get("model").and_then(|v| v.as_str()) {
-                                        // Set the requested_model field in the RequestContext
-                                        ctx.requested_model = Some(model.to_string());
-                                        info!("Model in request: {:?}", ctx.requested_model);
-                                    }
-                                } else {
-                                    error!("Failed to parse JSON payload");
-                                }
-                            } else {
-                                error!("Request body is None");
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         let Some(_req_guard) = RequestBufferGuard::increment(
             &self.upstream_peer_pool.request_buffer_length,
             self.max_requests,
@@ -213,9 +179,78 @@ impl ProxyHttp for ProxyService {
             }
             "/chat/completions" => true,
             "/completion" => true,
+            "/v1/completions" => true,
             "/v1/chat/completions" => true,
             _ => false,
         };
+
+        info!("upstream_peer - {:?} request | rewrite_host_header? {} check_model? {}", session.req_header().method, self.rewrite_host_header, self.check_model);
+
+        // Check if the request method is POST and the content type is JSON // cnbREaxdMcQVBS
+        if self.check_model && ctx.uses_slots {
+            info!("Checking model...");
+            ctx.requested_model = None;
+            if session.req_header().method == "POST" {
+                // Check if the content type is application/json
+                if let Some(content_type) = session.get_header("Content-Type") {
+                    if let Ok(content_type_str) = content_type.to_str() {
+                        if content_type_str.contains("application/json") {
+                            // Enable retry buffering to preserve the request body, reference: https://github.com/cloudflare/pingora/issues/349#issuecomment-2377277028
+                            session.enable_retry_buffering();
+                            session.read_body_or_idle(false).await.unwrap().unwrap();
+                            let request_body = session.get_retry_buffer();
+
+                            // Parse the JSON payload into a serde_json::Value
+                            if let Some(body_bytes) = request_body {
+                                if let Ok(json_value) = serde_json::from_slice::<serde_json::Value>(&body_bytes) {
+                                    if let Some(model) = json_value.get("model").and_then(|v| v.as_str()) {
+                                        // Set the requested_model field in the RequestContext
+                                        ctx.requested_model = Some(model.to_string());
+                                        info!("Model in request: {:?}", ctx.requested_model);
+                                    }
+                                } else {
+                                    info!("Failed to parse JSON payload, trying regex extraction");
+
+                                    // Try extracting the model using regex
+                                    let body_str = String::from_utf8(body_bytes.to_vec()).unwrap();
+                                    let re = regex::Regex::new(r#""model"\s*:\s*["']([^"']*)["']"#).unwrap();
+                                    if let Some(caps) = re.captures(&body_str) {
+                                        if let Some(model) = caps.get(1) {
+                                            ctx.requested_model = Some(model.as_str().to_string());
+                                            info!("Model via regex: {:?}", ctx.requested_model);
+                                        }
+                                    } else {
+                                        info!("Failed to extract model using regex");
+                                    }
+                                }
+                            } else {
+                                info!("Request body is None");
+                            }
+                        }
+                    }
+                }
+            }
+            // abort if model has not been set
+            if ctx.requested_model == None {
+                info!("Model missing in request");
+                session
+                    .respond_error(pingora::http::StatusCode::BAD_REQUEST.as_u16())
+                    .await?;
+
+                return Err(Error::new_down(pingora::ErrorType::ConnectRefused));
+            }
+            else if ctx.has_peer_supporting_model() == false {
+                info!("Model {:?} not supported by upstream", ctx.requested_model);
+                session
+                    .respond_error(pingora::http::StatusCode::NOT_FOUND.as_u16())
+                    .await?;
+
+                return Err(Error::new_down(pingora::ErrorType::ConnectRefused));
+            }
+            else {
+                info!("Model {:?}", ctx.requested_model);
+            }
+        }
 
         let peer = tokio::select! {
             result = async {

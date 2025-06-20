@@ -45,6 +45,7 @@ itertools = "0.13.0"
 color-eyre = "0.6.5"
 time = "0.3.41"
 chrono = "0.4.41"
+regex = "1.11.1"
 
 [features]
 default = ["statsd_reporter", "ratatui_dashboard"]

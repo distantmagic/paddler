@@ -2449,6 +2449,7 @@ dependencies = [
  "mime_guess",
  "pingora",
  "ratatui",
+ "regex",
  "reqwest",
  "rust-embed",
  "serde",

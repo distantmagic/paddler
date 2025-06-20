@@ -60,6 +60,21 @@ impl RequestContext {
         )
     }
 
+    pub fn has_peer_supporting_model(&self) -> bool {
+        let model_str = self.requested_model.as_deref().unwrap_or("");
+        match self.upstream_peer_pool.with_agents_read(|agents| {
+            for peer in agents.iter() {
+                if peer.is_usable_for_model(model_str) {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        }) {
+            Ok(result) => result,
+            Err(_) => false, // or handle the error as needed
+        }
+    }
+
     pub fn select_upstream_peer(&mut self) -> Result<()> {
         let result_option_peer = if self.uses_slots && !self.slot_taken {
             self.use_best_peer_and_take_slot(self.requested_model.clone())
@@ -114,7 +129,7 @@ mod tests {
 
         pool.register_status_update("test_agent", mock_status_update("test_agent", 0, 0))?;
 
-        assert!(ctx.use_best_peer_and_take_slot().unwrap().is_none());
+        assert!(ctx.use_best_peer_and_take_slot(ctx.requested_model.clone()).unwrap().is_none());
 
         assert!(!ctx.slot_taken);
         assert_eq!(ctx.selected_peer, None);
@@ -139,7 +154,7 @@ mod tests {
             "127.0.0.1:8080"
         );
 
-        ctx.use_best_peer_and_take_slot()?;
+        ctx.use_best_peer_and_take_slot(ctx.requested_model.clone())?;
 
         assert!(ctx.slot_taken);
 
