@@ -1,5 +1,4 @@
-pub mod receive_status_update;
-pub mod registered_agents;
+pub mod api;
 
 #[cfg(feature = "web_dashboard")]
 pub mod dashboard;

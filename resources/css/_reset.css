@@ -1,16 +1,3 @@
-:root {
-  --color-body-background: black;
-  --color-body-font: #eee;
-  --color-border: #555;
-  --font-family-body: "Noto Sans", sans-serif;
-  --font-family-monospace: "Noto Sans Mono", monospace;
-  --font-size-base: 20px;
-  --font-size-l1: calc(1.5 * var(--font-size-base));
-  --font-size-l2: calc(1.5 * var(--font-size-l1));
-  --padding-base: 20px;
-  --padding-half: calc(0.5 * var(--padding-base));
-}
-
 *,
 * * {
   box-sizing: border-box;
@@ -60,16 +47,26 @@ textarea {
   font-weight: inherit;
 }
 
-hr {
-  border: none;
-  height: 0;
-  margin: 0;
-  padding: 0;
+button {
+  cursor: pointer;
 }
 
 input,
 textarea {
   color: inherit;
+}
+
+button:disabled,
+input:disabled {
+  cursor: not-allowed;
+  user-select: none;
+}
+
+hr {
+  border: none;
+  height: 0;
+  margin: 0;
+  padding: 0;
 }
 
 a:active,
@@ -89,16 +86,6 @@ body {
   margin: 0;
   padding: 0;
   row-gap: var(--padding-base);
-}
-
-button {
-  cursor: pointer;
-}
-
-button:disabled,
-input:disabled {
-  cursor: not-allowed;
-  user-select: none;
 }
 
 canvas {

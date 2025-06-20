@@ -9,5 +9,8 @@ pub mod upstream_peer_pool;
 #[cfg(feature = "statsd_reporter")]
 pub mod statsd_service;
 
+#[cfg(feature = "web_dashboard")]
+pub mod response;
+
 #[cfg(test)]
 pub mod test;

@@ -3,11 +3,8 @@ use actix_web::web;
 use actix_web::HttpResponse;
 use actix_web::Responder;
 use mime_guess::from_path;
-use rust_embed::RustEmbed;
 
-#[derive(RustEmbed)]
-#[folder = "static"]
-struct StaticFiles;
+use crate::static_files::StaticFiles;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
