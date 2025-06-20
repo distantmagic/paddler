@@ -3,7 +3,6 @@ use std::net::SocketAddr;
 use actix_web::web::Bytes;
 use async_trait::async_trait;
 use log::debug;
-use log::info;
 use log::error;
 #[cfg(unix)]
 use pingora::server::ListenFds;
@@ -46,37 +45,30 @@ impl MonitoringService {
         })
     }
 
-    async fn fetch_status(&self) -> Result<StatusUpdate> {
-        match self.llamacpp_client.get_available_slots().await {
-            Ok(slots_response) => {
-                let model = if self.check_model {
-                    self.llamacpp_client.get_model().await?
-                } else {
-                    None
-                };
+    async fn fetch_status(&self) -> StatusUpdate {
+        let slots_response = self.llamacpp_client.get_available_slots().await;
 
-                info!("Agent: {:?} Model: {:?}", self.name, model);
+        let model: Option<String> = if self.check_model {
+            match self.llamacpp_client.get_model().await {
+                Ok(model) => model,
+                Err(_) => None,
+            }
+        } else {
+            Some("".to_string())
+        };
 
-                Ok(StatusUpdate::new(
-                    self.name.to_owned(),
-                    None,
-                    self.external_llamacpp_addr.to_owned(),
-                    slots_response.is_authorized,
-                    slots_response.is_slot_endpoint_enabled,
-                    slots_response.slots,
-                    model,
-                ))
-            },
-            Err(err) => Ok(StatusUpdate::new(
-                self.name.to_owned(),
-                Some(err.to_string()),
-                self.external_llamacpp_addr.to_owned(),
-                None,
-                None,
-                vec![],
-                None,
-            )),
-        }
+        StatusUpdate::new(
+            self.name.to_owned(),
+            slots_response.error,
+            slots_response.is_llamacpp_reachable,
+            slots_response.is_llamacpp_request_error,
+            slots_response.is_llamacpp_response_decodeable,
+            self.external_llamacpp_addr.to_owned(),
+            slots_response.is_authorized,
+            slots_response.is_slot_endpoint_enabled,
+            slots_response.slots,
+            model,
+        )
     }
 
     async fn report_status(&self, status: StatusUpdate) -> Result<usize> {
@@ -105,15 +97,10 @@ impl Service for MonitoringService {
                     return;
                 },
                 _ = ticker.tick() => {
-                    match self.fetch_status().await {
-                        Ok(status) => {
-                            if let Err(err) = self.report_status(status).await {
-                                error!("Failed to report status: {err}");
-                            }
-                        }
-                        Err(err) => {
-                            error!("Failed to fetch status: {err}");
-                        }
+                    let status = self.fetch_status().await;
+
+                    if let Err(err) = self.report_status(status).await {
+                        error!("Failed to report status: {err}");
                     }
                 }
             }

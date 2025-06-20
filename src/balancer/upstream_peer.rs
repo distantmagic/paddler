@@ -16,6 +16,9 @@ pub struct UpstreamPeer {
     pub agent_name: Option<String>,
     pub model: Option<String>,
     pub error: Option<String>,
+    pub is_llamacpp_reachable: Option<bool>,
+    pub is_llamacpp_response_decodeable: Option<bool>,
+    pub is_llamacpp_request_error: Option<bool>,
     pub external_llamacpp_addr: SocketAddr,
     /// None means undetermined, probably due to an error
     pub is_authorized: Option<bool>,
@@ -35,6 +38,9 @@ impl UpstreamPeer {
         agent_id: String,
         agent_name: Option<String>,
         error: Option<String>,
+        is_llamacpp_reachable: Option<bool>,
+        is_llamacpp_response_decodeable: Option<bool>,
+        is_llamacpp_request_error: Option<bool>,
         external_llamacpp_addr: SocketAddr,
         is_authorized: Option<bool>,
         is_slots_endpoint_enabled: Option<bool>,
@@ -46,6 +52,9 @@ impl UpstreamPeer {
             agent_id,
             agent_name,
             error,
+            is_llamacpp_reachable,
+            is_llamacpp_response_decodeable,
+            is_llamacpp_request_error,
             external_llamacpp_addr,
             is_authorized,
             is_slots_endpoint_enabled,
@@ -64,6 +73,9 @@ impl UpstreamPeer {
             agent_id,
             status_update.agent_name.to_owned(),
             status_update.error.to_owned(),
+            status_update.is_llamacpp_reachable,
+            status_update.is_llamacpp_response_decodeable,
+            status_update.is_llamacpp_request_error,
             status_update.external_llamacpp_addr,
             status_update.is_authorized,
             status_update.is_slots_endpoint_enabled,
@@ -109,6 +121,9 @@ impl UpstreamPeer {
         self.is_slots_endpoint_enabled = status_update.is_slots_endpoint_enabled;
         self.last_update = SystemTime::now();
         self.quarantined_until = None;
+        self.is_llamacpp_reachable = status_update.is_llamacpp_reachable;
+        self.is_llamacpp_response_decodeable = status_update.is_llamacpp_response_decodeable;
+        self.is_llamacpp_request_error = status_update.is_llamacpp_request_error;
         self.slots_idle = status_update.idle_slots_count;
         self.slots_processing = status_update.processing_slots_count;
         self.slots_taken_since_last_status_update = 0;
@@ -169,6 +184,9 @@ mod tests {
             "test_agent".to_string(),
             Some("test_name".to_string()),
             None,
+            None,
+            None,
+            None,
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
             Some(true),
             Some(true),
@@ -223,6 +241,9 @@ mod tests {
         let mut peer = create_test_peer();
         let status_update = StatusUpdate::new(
             Some("new_name".to_string()),
+            None,
+            None,
+            None,
             None,
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),
             Some(true),

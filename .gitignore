@@ -1,7 +1,9 @@
 /*.db
 /esbuild-meta.json
 /godepgraph.png
+/models
 /node_modules
+/paddler
 /static
 /target
-/paddler
+/tsconfig.tsbuildinfo

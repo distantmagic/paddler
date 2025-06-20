@@ -1,17 +1,25 @@
+mod agent;
+mod balancer;
+mod cmd;
+mod errors;
+mod llamacpp;
+#[cfg(feature = "web_dashboard")]
+mod static_files;
+mod supervisor;
+
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::time::Duration;
 
 use clap::Parser;
 use clap::Subcommand;
+#[cfg(feature = "web_dashboard")]
+use esbuild_metafile::instance::initialize_instance;
 
 use crate::errors::result::Result;
 
-mod agent;
-mod balancer;
-mod cmd;
-mod errors;
-mod llamacpp;
+#[cfg(feature = "web_dashboard")]
+pub const ESBUILD_META_CONTENTS: &str = include_str!("../esbuild-meta.json");
 
 fn resolve_socket_addr(s: &str) -> Result<SocketAddr> {
     let addrs: Vec<SocketAddr> = s.to_socket_addrs()?.collect();
@@ -190,23 +198,28 @@ fn main() -> Result<()> {
             statsd_reporting_interval,
             request_timeout,
             max_requests,
-        }) => cmd::balancer::handle(
-            management_addr,
+        }) => {
             #[cfg(feature = "web_dashboard")]
-            management_dashboard_enable.to_owned(),
-            reverseproxy_addr,
-            rewrite_host_header.to_owned(),
-            *check_model,
-            slots_endpoint_enable.to_owned(),
-            #[cfg(feature = "statsd_reporter")]
-            statsd_addr.to_owned(),
-            #[cfg(feature = "statsd_reporter")]
-            statsd_prefix.to_owned(),
-            #[cfg(feature = "statsd_reporter")]
-            statsd_reporting_interval.to_owned(),
-            *request_timeout,
-            *max_requests,
-        ),
+            initialize_instance(ESBUILD_META_CONTENTS);
+
+            cmd::balancer::handle(
+                management_addr,
+                #[cfg(feature = "web_dashboard")]
+                management_dashboard_enable.to_owned(),
+                reverseproxy_addr,
+                rewrite_host_header.to_owned(),
+                *check_model,
+                slots_endpoint_enable.to_owned(),
+                #[cfg(feature = "statsd_reporter")]
+                statsd_addr.to_owned(),
+                #[cfg(feature = "statsd_reporter")]
+                statsd_prefix.to_owned(),
+                #[cfg(feature = "statsd_reporter")]
+                statsd_reporting_interval.to_owned(),
+                *request_timeout,
+                *max_requests,
+            )
+        }
         #[cfg(feature = "ratatui_dashboard")]
         Some(Commands::Dashboard {
             management_addr,

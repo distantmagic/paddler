@@ -1,7 +1,11 @@
 use actix_web::get;
 use actix_web::web;
 use actix_web::Responder;
-use askama_actix::Template;
+use askama::Template;
+use esbuild_metafile::filters;
+use esbuild_metafile::HttpPreloader;
+
+use crate::balancer::response::view;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
@@ -9,9 +13,13 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 
 #[derive(Template)]
 #[template(path = "dashboard.html")]
-struct DashboardTemplate {}
+struct DashboardTemplate {
+    preloads: HttpPreloader,
+}
 
 #[get("/dashboard")]
-async fn respond() -> impl Responder {
-    DashboardTemplate {}
+async fn respond(preloads: HttpPreloader) -> impl Responder {
+    view(DashboardTemplate {
+        preloads,
+    })
 }

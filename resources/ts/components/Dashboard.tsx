@@ -1,13 +1,24 @@
 import clsx from "clsx";
-import React, { useEffect, useState, CSSProperties } from "react";
+import React, { CSSProperties, useEffect, useState } from "react";
 import { z } from "zod";
 
 import { DashboardLayout } from "./DashboardLayout";
+
+import {
+  agentRow,
+  agentRowError,
+  agentUsage,
+  agentUsage__progress,
+  agentsTable,
+} from "./Dashboard.module.css";
 
 const agentSchema = z.object({
   agent_id: z.string(),
   agent_name: z.string().nullable(),
   error: z.string().nullable(),
+  is_llamacpp_reachable: z.boolean().nullable(),
+  is_llamacpp_response_decodeable: z.boolean().nullable(),
+  is_llamacpp_request_error: z.boolean().nullable(),
   external_llamacpp_addr: z.string(),
   is_authorized: z.boolean().nullable(),
   is_slots_endpoint_enabled: z.boolean().nullable(),
@@ -73,7 +84,7 @@ export function Dashboard() {
           setIsError(false);
           setAgents(agentsResponse.agents);
         })
-        .catch(function (error) {
+        .catch(function (error: unknown) {
           setIsError(true);
           console.error(error);
         })
@@ -133,7 +144,7 @@ export function Dashboard() {
     <DashboardLayout currentTick={currentTick}>
       <h1>Paddler 🏓</h1>
       <h2>Registered Agents</h2>
-      <table>
+      <table className={agentsTable}>
         <thead>
           <tr>
             <th>Name</th>
@@ -147,15 +158,18 @@ export function Dashboard() {
         <tbody>
           {agents.map(function (agent: Agent) {
             const hasIssues =
-              agent.error ||
-              true !== agent.is_authorized ||
-              true !== agent.is_slots_endpoint_enabled ||
-              agent.quarantined_until;
-
+              agent.error != null ||
+              agent.is_authorized === false ||
+              agent.is_slots_endpoint_enabled === false ||
+              agent.is_llamacpp_reachable === false ||
+              agent.is_llamacpp_response_decodeable === false ||
+              agent.is_llamacpp_request_error === true ||
+              agent.quarantined_until != null;
+          
             return (
               <tr
-                className={clsx("agent-row", {
-                  "agent-row--error": hasIssues,
+                className={clsx(agentRow, {
+                  [agentRowError]: hasIssues,
                 })}
                 key={agent.agent_id}
               >
@@ -166,6 +180,12 @@ export function Dashboard() {
                       <p>Agent reported an Error</p>
                       <p>{agent.error}</p>
                     </>
+                  )}
+                  {false == agent.is_llamacpp_reachable && (
+                      <p>Llama.cpp server is unreachable. It is likely down.</p>
+                  )}
+                  {false == agent.is_llamacpp_response_decodeable && (
+                      <p>Llama.cpp server returned an unexpected response. Are you sure that the agent is configured to monitor llama.cpp and is using the correct port?</p>
                   )}
                   {false === agent.is_authorized && (
                     <>
@@ -207,14 +227,14 @@ export function Dashboard() {
                 <td>{agent.slots_idle}</td>
                 <td>{agent.slots_processing}</td>
                 <td
-                  className="agent-usage"
+                  className={agentUsage}
                   style={
                     {
                       "--slots-usage": `${(agent.slots_processing / (agent.slots_idle + agent.slots_processing)) * 100}%`,
                     } as CSSProperties
                   }
                 >
-                  <div className="agent-usage__progress"></div>
+                  <div className={agentUsage__progress}></div>
                 </td>
               </tr>
             );
