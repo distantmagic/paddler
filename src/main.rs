@@ -1,3 +1,12 @@
+mod agent;
+mod balancer;
+mod cmd;
+mod errors;
+mod llamacpp;
+#[cfg(feature = "web_dashboard")]
+mod static_files;
+mod supervisor;
+
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::time::Duration;
@@ -11,13 +20,6 @@ use crate::errors::result::Result;
 
 #[cfg(feature = "web_dashboard")]
 pub const ESBUILD_META_CONTENTS: &str = include_str!("../esbuild-meta.json");
-
-mod agent;
-mod balancer;
-mod cmd;
-mod errors;
-mod llamacpp;
-mod supervisor;
 
 fn resolve_socket_addr(s: &str) -> Result<SocketAddr> {
     let addrs: Vec<SocketAddr> = s.to_socket_addrs()?.collect();
