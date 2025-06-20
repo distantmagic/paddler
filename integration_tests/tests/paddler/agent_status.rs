@@ -6,6 +6,7 @@ pub struct AgentStatus {
     pub slots_idle: usize,
     pub slots_processing: usize,
     pub error: Option<String>,
+    pub is_llamacpp_reachable: Option<bool>,
 }
 
 #[derive(Deserialize, Debug)]

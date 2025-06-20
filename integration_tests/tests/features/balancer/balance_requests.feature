@@ -14,8 +14,8 @@ Feature: Balance llama.cpp requests
         Given agent "agent-1" is running (observes "llama-1")
         Given agent "agent-1" is registered
         Then dashboard report:
-            |  agent  | slots_idle | slots_processing |  error |
-            | agent-1 |     3      |        0         |  None  |
+            |  agent  | slots_idle | slots_processing |  is_llamacpp_reachable |
+            | agent-1 |     3      |        0         |         true           |
         When request "foo" is sent to "/chat/completions"
         Then "foo" response code is 200
         Then "foo" request landed in "llama-1"

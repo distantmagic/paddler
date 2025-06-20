@@ -57,8 +57,8 @@ impl LlamacppClient {
             }
         };
 
-        let is_server_error = response.status().is_server_error();
-        let is_request_error = response.status().is_success();
+        let is_llamacpp_reachable = !response.status().is_server_error();
+        let is_request_error = response.status().is_server_error();
 
         match response.status() {
             reqwest::StatusCode::OK => {
@@ -69,8 +69,8 @@ impl LlamacppClient {
                 SlotsResponse {
                     is_authorized: Some(true),
                     error: None,
-                    is_llamacpp_reachable: Some(is_server_error),
-                    is_llamacpp_response_decodeable: Some(err.is_some()),
+                    is_llamacpp_reachable: Some(is_llamacpp_reachable),
+                    is_llamacpp_response_decodeable: Some(err.is_none()),
                     is_llamacpp_request_error: Some(is_request_error),
                     is_slot_endpoint_enabled: Some(true),
                     slots: slots.unwrap_or_default(),
@@ -79,7 +79,7 @@ impl LlamacppClient {
             reqwest::StatusCode::UNAUTHORIZED => SlotsResponse {
                 is_authorized: Some(false),
                 error: Some("Unauthorized request".into()),
-                is_llamacpp_reachable: Some(is_server_error),
+                is_llamacpp_reachable: Some(is_llamacpp_reachable),
                 is_llamacpp_response_decodeable: Some(true),
                 is_llamacpp_request_error: Some(is_request_error),
                 is_slot_endpoint_enabled: None,
@@ -88,7 +88,7 @@ impl LlamacppClient {
             reqwest::StatusCode::NOT_IMPLEMENTED => SlotsResponse {
                 is_authorized: None,
                 error: Some("Not implemented request".into()),
-                is_llamacpp_reachable: Some(is_server_error),
+                is_llamacpp_reachable: Some(is_llamacpp_reachable),
                 is_llamacpp_response_decodeable: Some(true),
                 is_llamacpp_request_error: Some(is_request_error),
                 is_slot_endpoint_enabled: Some(false),
@@ -97,7 +97,7 @@ impl LlamacppClient {
             _ => SlotsResponse {
                 is_authorized: None,
                 error: Some("Unexpected response status".into()),
-                is_llamacpp_reachable: Some(is_server_error),
+                is_llamacpp_reachable: Some(is_llamacpp_reachable),
                 is_llamacpp_response_decodeable: Some(true),
                 is_llamacpp_request_error: Some(is_request_error),
                 is_slot_endpoint_enabled: Some(false),

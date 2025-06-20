@@ -10,5 +10,5 @@ Feature: Observe llama.cpp instances
     Scenario: Agent detaches llama.cpp
         When llama.cpp server "llama-1" stops running
         Then dashboard report:
-        |  agent  | slots_idle | slots_processing |  error  |
-        | agent-1 |     0      |        0         |  "Unexpected error: Request to 'http://127.0.0.1:8000/slots' failed" |
+        |  agent  | is_llamacpp_reachable |
+        | agent-1 |         false         |
