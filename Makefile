@@ -25,6 +25,7 @@ build:
 clean:
 	rm -rf esbuild-meta.json
 	rm -rf node_modules
+	rm -rf static
 	rm -rf target
 
 .PHONY: fmt
