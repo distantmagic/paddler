@@ -48,6 +48,7 @@ for (let i = 0; i < slotsInt; i += 1) {
 const server = createServer(function (req, res) {
   if (req.url === "/chat/completions") {
     const requestName = req.headers['x-request-name'];
+    console.log(requestName)
 
     if (!requestName) {
       res.statusCode = 400;
