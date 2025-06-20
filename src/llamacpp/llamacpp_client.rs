@@ -40,74 +40,69 @@ impl LlamacppClient {
     }
 
     pub async fn get_available_slots(&self) -> SlotsResponse {
-        let url = self.slots_endpoint_url.clone();
-    
-        let response = match self.client.get(&url).send().await {
-            Ok(r) => r,
-            Err(e) => {
+        let url = self.slots_endpoint_url.to_owned();
+
+        let response = match self.client.get(url.clone()).send().await {
+            Ok(resp) => resp,
+            Err(err) => {
                 return SlotsResponse {
-                    error: Some(format!("Request to {} failed: {}", url, e)),
-                    is_llamacpp_reachable: Some(!e.is_connect()),
-                    is_llamacpp_response_decodeable: Some(!e.is_decode()),
-                    is_llamacpp_request_error: Some(e.is_request()),
-                    is_slot_endpoint_enabled: None,
-                    is_authorized: None,
+                    is_authorized: Some(false),
+                    error: Some(format!("Request to {url} Failed. Is it running? {err}")),
+                    is_llamacpp_reachable: Some(false),
+                    is_llamacpp_response_decodeable: Some(false),
+                    is_llamacpp_request_error: Some(true),
+                    is_slot_endpoint_enabled: Some(true),
                     slots: vec![],
-                };
+                }
             }
         };
-    
-        let status = response.status();
-        let reachable = Some(true);
-        let decodeable = Some(true);
-        let request_error = Some(status.is_server_error());
-    
-        match status {
+
+        let is_server_error = response.status().is_server_error();
+        let is_request_error = response.status().is_success();
+
+        match response.status() {
             reqwest::StatusCode::OK => {
-                let slots = response.json::<Vec<Slot>>().await.unwrap_or_else(|e| {
-                    eprintln!("JSON decode failed: {}", e);
-                    vec![]
-                });
-    
+                let (slots, err) = match response.json::<Vec<Slot>>().await {
+                    Ok(slots) => (Some(slots), None),
+                    Err(err) => (None, Some(err)),
+                };
                 SlotsResponse {
-                    error: None,
-                    is_llamacpp_reachable: reachable,
-                    is_llamacpp_response_decodeable: decodeable,
-                    is_llamacpp_request_error: Some(false),
-                    is_slot_endpoint_enabled: Some(true),
                     is_authorized: Some(true),
-                    slots,
+                    error: None,
+                    is_llamacpp_reachable: Some(is_server_error),
+                    is_llamacpp_response_decodeable: Some(err.is_some()),
+                    is_llamacpp_request_error: Some(is_request_error),
+                    is_slot_endpoint_enabled: Some(true),
+                    slots: slots.unwrap_or_default(),
                 }
             }
             reqwest::StatusCode::UNAUTHORIZED => SlotsResponse {
-                error: None,
-                is_llamacpp_reachable: reachable,
-                is_llamacpp_response_decodeable: decodeable,
-                is_llamacpp_request_error: Some(false),
-                is_slot_endpoint_enabled: None,
                 is_authorized: Some(false),
+                error: Some("Unauthorized request".into()),
+                is_llamacpp_reachable: Some(is_server_error),
+                is_llamacpp_response_decodeable: Some(true),
+                is_llamacpp_request_error: Some(is_request_error),
+                is_slot_endpoint_enabled: None,
                 slots: vec![],
             },
             reqwest::StatusCode::NOT_IMPLEMENTED => SlotsResponse {
-                error: None,
-                is_llamacpp_reachable: reachable,
-                is_llamacpp_response_decodeable: decodeable,
-                is_llamacpp_request_error: Some(false),
-                is_slot_endpoint_enabled: Some(false),
                 is_authorized: None,
+                error: Some("Not implemented request".into()),
+                is_llamacpp_reachable: Some(is_server_error),
+                is_llamacpp_response_decodeable: Some(true),
+                is_llamacpp_request_error: Some(is_request_error),
+                is_slot_endpoint_enabled: Some(false),
                 slots: vec![],
             },
             _ => SlotsResponse {
-                error: Some(format!("Unexpected status: {}", status)),
-                is_llamacpp_reachable: reachable,
-                is_llamacpp_response_decodeable: decodeable,
-                is_llamacpp_request_error: request_error,
-                is_slot_endpoint_enabled: Some(false),
                 is_authorized: None,
+                error: Some("Unexpected response status".into()),
+                is_llamacpp_reachable: Some(is_server_error),
+                is_llamacpp_response_decodeable: Some(true),
+                is_llamacpp_request_error: Some(is_request_error),
+                is_slot_endpoint_enabled: Some(false),
                 slots: vec![],
             },
         }
     }
-    
-    
 }

@@ -49,11 +49,11 @@ impl MonitoringService {
             self.name.to_owned(),
             slots_response.error,
             slots_response.is_llamacpp_reachable,
-            slots_response.is_llamacpp_response_decodeable,
             slots_response.is_llamacpp_request_error,
+            slots_response.is_llamacpp_response_decodeable,
             self.external_llamacpp_addr.to_owned(),
-            None,
-            None,
+            slots_response.is_authorized,
+            slots_response.is_slot_endpoint_enabled,
             slots_response.slots,
         )
     }
@@ -85,7 +85,7 @@ impl Service for MonitoringService {
                 },
                 _ = ticker.tick() => {
                     let status = self.fetch_status().await;
-                    
+
                     if let Err(err) = self.report_status(status).await {
                         error!("Failed to report status: {err}");
                     }
