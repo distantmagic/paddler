@@ -20,13 +20,16 @@ node_modules: package-lock.json
 .PHONY: build
 build:
 	./jarmuz-release.mjs
-	cargo build --features web_dashboard --release
 
 .PHONY: clean
 clean:
 	rm -rf esbuild-meta.json
 	rm -rf node_modules
 	rm -rf target
+
+.PHONY: fmt
+fmt:
+	./jarmuz-fmt.mjs
 
 .PHONY: integration_tests
 integration_tests:
@@ -36,3 +39,7 @@ integration_tests:
 .PHONY: test
 test: integration_tests
 	cargo test
+
+.PHONY: watch
+watch:
+	./jarmuz-watch.mjs

@@ -1,5 +1,13 @@
 import React, { ReactNode } from "react";
 
+import {
+  dashboard,
+  dashboard__content,
+  dashboard__statusBar,
+  dashboard__statusBar__ticker__icon,
+  dashobard__statusBar__ticker,
+} from "./DashboardLayout.module.css";
+
 export function DashboardLayout({
   children,
   currentTick,
@@ -10,12 +18,15 @@ export function DashboardLayout({
   const degrees = (currentTick % 60) * 6;
 
   return (
-    <div className="dashboard">
-      <div className="dashboard__content">{children}</div>
-      <div className="dashboard__status-bar">
+    <div className={dashboard}>
+      <div className={dashboard__content}>{children}</div>
+      <div className={dashboard__statusBar}>
         <div>current tick: {currentTick}</div>
-        <div className="dashobard__status-bar__ticker">
-          <svg viewBox="0 0 100 100">
+        <div className={dashobard__statusBar__ticker}>
+          <svg
+            className={dashboard__statusBar__ticker__icon}
+            viewBox="0 0 100 100"
+          >
             <circle
               cx="50"
               cy="50"

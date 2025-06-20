@@ -4,6 +4,14 @@ import { z } from "zod";
 
 import { DashboardLayout } from "./DashboardLayout";
 
+import {
+  agentRow,
+  agentRowError,
+  agentUsage,
+  agentUsage__progress,
+  agentsTable,
+} from "./Dashboard.module.css";
+
 const agentSchema = z.object({
   agent_id: z.string(),
   agent_name: z.string().nullable(),
@@ -133,7 +141,7 @@ export function Dashboard() {
     <DashboardLayout currentTick={currentTick}>
       <h1>Paddler 🏓</h1>
       <h2>Registered Agents</h2>
-      <table>
+      <table className={agentsTable}>
         <thead>
           <tr>
             <th>Name</th>
@@ -154,8 +162,8 @@ export function Dashboard() {
 
             return (
               <tr
-                className={clsx("agent-row", {
-                  "agent-row--error": hasIssues,
+                className={clsx(agentRow, {
+                  [agentRowError]: hasIssues,
                 })}
                 key={agent.agent_id}
               >
@@ -207,14 +215,14 @@ export function Dashboard() {
                 <td>{agent.slots_idle}</td>
                 <td>{agent.slots_processing}</td>
                 <td
-                  className="agent-usage"
+                  className={agentUsage}
                   style={
                     {
                       "--slots-usage": `${(agent.slots_processing / (agent.slots_idle + agent.slots_processing)) * 100}%`,
                     } as CSSProperties
                   }
                 >
-                  <div className="agent-usage__progress"></div>
+                  <div className={agentUsage__progress}></div>
                 </td>
               </tr>
             );

@@ -4,8 +4,13 @@ use std::time::Duration;
 
 use clap::Parser;
 use clap::Subcommand;
+#[cfg(feature = "web_dashboard")]
+use esbuild_metafile::instance::initialize_instance;
 
 use crate::errors::result::Result;
+
+#[cfg(feature = "web_dashboard")]
+pub const ESBUILD_META_CONTENTS: &str = include_str!("../esbuild-meta.json");
 
 mod agent;
 mod balancer;
@@ -180,22 +185,27 @@ fn main() -> Result<()> {
             statsd_reporting_interval,
             request_timeout,
             max_requests,
-        }) => cmd::balancer::handle(
-            management_addr,
+        }) => {
             #[cfg(feature = "web_dashboard")]
-            management_dashboard_enable.to_owned(),
-            reverseproxy_addr,
-            rewrite_host_header.to_owned(),
-            slots_endpoint_enable.to_owned(),
-            #[cfg(feature = "statsd_reporter")]
-            statsd_addr.to_owned(),
-            #[cfg(feature = "statsd_reporter")]
-            statsd_prefix.to_owned(),
-            #[cfg(feature = "statsd_reporter")]
-            statsd_reporting_interval.to_owned(),
-            *request_timeout,
-            *max_requests,
-        ),
+            initialize_instance(ESBUILD_META_CONTENTS);
+
+            cmd::balancer::handle(
+                management_addr,
+                #[cfg(feature = "web_dashboard")]
+                management_dashboard_enable.to_owned(),
+                reverseproxy_addr,
+                rewrite_host_header.to_owned(),
+                slots_endpoint_enable.to_owned(),
+                #[cfg(feature = "statsd_reporter")]
+                statsd_addr.to_owned(),
+                #[cfg(feature = "statsd_reporter")]
+                statsd_prefix.to_owned(),
+                #[cfg(feature = "statsd_reporter")]
+                statsd_reporting_interval.to_owned(),
+                *request_timeout,
+                *max_requests,
+            )
+        }
         #[cfg(feature = "ratatui_dashboard")]
         Some(Commands::Dashboard {
             management_addr,

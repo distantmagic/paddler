@@ -1,9 +1,11 @@
 import * as esbuild from "esbuild";
 import { emptyDir } from "fs-extra";
 import { glob } from "glob";
+import { writeFile } from "node:fs/promises";
 
 import { basic } from "jarmuz/job-types";
 
+const metafileFilename = "esbuild-meta.json";
 const outdir = "static";
 const publicPath = "/static/";
 
@@ -43,9 +45,9 @@ export function jobEsbuild({ development }) {
         ".webp": "file",
         ".woff2": "file",
       },
-      assetNames: `[name]`,
-      entryNames: `[name]`,
-      metafile: false,
+      assetNames: `[name]_${buildId}`,
+      entryNames: `[name]_${buildId}`,
+      metafile: true,
       define: {
         "process.env.NODE_ENV": JSON.stringify(
           development ? "development" : "production",
@@ -64,6 +66,9 @@ export function jobEsbuild({ development }) {
 
     const result = await esbuild.build(settings);
 
+    await writeFile(metafileFilename, JSON.stringify(result.metafile));
+
+    console.log(`Build metafile written to: ${metafileFilename}`);
     console.log(`Build finished with ID: ${buildId}`);
 
     if (result.errors.length > 0 || result.warnings.length > 0) {
