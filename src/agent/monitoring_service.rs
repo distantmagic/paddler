@@ -45,18 +45,21 @@ impl MonitoringService {
     async fn fetch_status(&self) -> StatusUpdate {
         let slots_response = self.llamacpp_client.get_available_slots().await;
 
-        StatusUpdate::new(
+        let status = StatusUpdate::new(
             self.name.to_owned(),
             slots_response.error,
-            slots_response.is_reachable,
-            slots_response.is_response_decodeable,
-            slots_response.is_response_deserializable,
+            slots_response.is_unexpected_reponse_status,
+            slots_response.is_connect_error,
+            slots_response.is_decode_error,
+            slots_response.is_deserialize_error,
             slots_response.is_request_error,
             self.external_llamacpp_addr.to_owned(),
             slots_response.is_authorized,
             slots_response.is_slot_endpoint_enabled,
             slots_response.slots,
-        )
+        );
+
+        status
     }
 
     async fn report_status(&self, status: StatusUpdate) -> Result<usize> {
