@@ -45,7 +45,7 @@ impl MonitoringService {
     async fn fetch_status(&self) -> StatusUpdate {
         let slots_response = self.llamacpp_client.get_available_slots().await;
 
-        let status = StatusUpdate::new(
+        StatusUpdate::new(
             self.name.to_owned(),
             slots_response.error,
             slots_response.is_connect_error,
@@ -57,9 +57,7 @@ impl MonitoringService {
             slots_response.is_authorized,
             slots_response.is_slot_endpoint_enabled,
             slots_response.slots,
-        );
-
-        status
+        )
     }
 
     async fn report_status(&self, status: StatusUpdate) -> Result<usize> {
