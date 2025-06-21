@@ -54,6 +54,7 @@ export function Dashboard() {
 
       agentsSource.addEventListener("open", function () {
         setIsConnectionError(false);
+        setIsDeserializationError(false);
       });
 
       return function () {
