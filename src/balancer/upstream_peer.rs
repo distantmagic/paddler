@@ -20,6 +20,7 @@ pub struct UpstreamPeer {
     pub is_authorized: Option<bool>,
     pub is_reachable: Option<bool>,
     pub is_response_decodeable: Option<bool>,
+    pub is_response_deserializable: Option<bool>,
     pub is_request_error: Option<bool>,
     /// None means undetermined, probably due to an error
     pub is_slots_endpoint_enabled: Option<bool>,
@@ -39,6 +40,7 @@ impl UpstreamPeer {
         error: Option<String>,
         is_reachable: Option<bool>,
         is_response_decodeable: Option<bool>,
+        is_response_deserializable: Option<bool>,
         is_request_error: Option<bool>,
         external_llamacpp_addr: SocketAddr,
         is_authorized: Option<bool>,
@@ -52,6 +54,7 @@ impl UpstreamPeer {
             error,
             is_reachable,
             is_response_decodeable,
+            is_response_deserializable,
             is_request_error,
             external_llamacpp_addr,
             is_authorized,
@@ -72,6 +75,7 @@ impl UpstreamPeer {
             status_update.error.to_owned(),
             status_update.is_reachable,
             status_update.is_response_decodeable,
+            status_update.is_response_deserializable,
             status_update.is_request_error,
             status_update.external_llamacpp_addr,
             status_update.is_authorized,
@@ -176,6 +180,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
             Some(true),
             Some(true),
@@ -229,6 +234,7 @@ mod tests {
         let mut peer = create_test_peer();
         let status_update = StatusUpdate::new(
             Some("new_name".to_string()),
+            None,
             None,
             None,
             None,
