@@ -52,7 +52,7 @@ impl MonitoringService {
             slots_response.is_decode_error,
             slots_response.is_deserialize_error,
             slots_response.is_request_error,
-            slots_response.is_unexpected_reponse_status,
+            slots_response.is_unexpected_response_status,
             self.external_llamacpp_addr.to_owned(),
             slots_response.is_authorized,
             slots_response.is_slot_endpoint_enabled,

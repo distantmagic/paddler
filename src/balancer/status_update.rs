@@ -9,7 +9,7 @@ use crate::llamacpp::slot::Slot;
 pub struct StatusUpdate {
     pub agent_name: Option<String>,
     pub error: Option<String>,
-    pub is_unexpected_reponse_status: Option<bool>,
+    pub is_unexpected_response_status: Option<bool>,
     pub is_connect_error: Option<bool>,
     pub is_decode_error: Option<bool>,
     pub is_deserialize_error: Option<bool>,
@@ -30,7 +30,7 @@ impl StatusUpdate {
         is_decode_error: Option<bool>,
         is_deserialize_error: Option<bool>,
         is_request_error: Option<bool>,
-        is_unexpected_reponse_status: Option<bool>,
+        is_unexpected_response_status: Option<bool>,
         external_llamacpp_addr: SocketAddr,
         is_authorized: Option<bool>,
         is_slots_endpoint_enabled: Option<bool>,
@@ -41,7 +41,7 @@ impl StatusUpdate {
         Self {
             agent_name,
             error,
-            is_unexpected_reponse_status,
+            is_unexpected_response_status,
             is_connect_error,
             is_decode_error,
             is_deserialize_error,

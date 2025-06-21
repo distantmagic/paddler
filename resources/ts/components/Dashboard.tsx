@@ -17,7 +17,7 @@ const agentSchema = z.object({
   agent_name: z.string().nullable(),
   error: z.string().nullable(),
   external_llamacpp_addr: z.string(),
-  is_unexpected_reponse_status: z.boolean().nullable(),
+  is_unexpected_response_status: z.boolean().nullable(),
   is_connect_error: z.boolean().nullable(),
   is_decode_error: z.boolean().nullable(),
   is_deserialize_error: z.boolean().nullable(),
@@ -166,7 +166,7 @@ export function Dashboard() {
               true === agent.is_request_error ||
               true === agent.is_decode_error ||
               true === agent.is_deserialize_error ||
-              true === agent.is_unexpected_reponse_status ||
+              true === agent.is_unexpected_response_status ||
               true !== agent.is_slots_endpoint_enabled ||
               agent.quarantined_until;
 
@@ -204,7 +204,7 @@ export function Dashboard() {
                   {true == agent.is_deserialize_error && (
                       <p>Llama.cpp server response could not be deserialized.</p>
                   )}
-                  {true == agent.is_unexpected_reponse_status && (
+                  {true == agent.is_unexpected_response_status && (
                       <p>Llama.cpp server response status is unexpected.</p>
                   )}
                   {false === agent.is_slots_endpoint_enabled && (

@@ -52,7 +52,7 @@ impl LlamacppClient {
                     is_decode_error: Some(err.is_decode()),
                     is_deserialize_error: None,
                     is_request_error: Some(err.is_request()),
-                    is_unexpected_reponse_status: None,
+                    is_unexpected_response_status: None,
                     is_slot_endpoint_enabled: Some(true),
                     slots: vec![],
                 };
@@ -71,7 +71,7 @@ impl LlamacppClient {
                 SlotsResponse {
                     error: error.clone(),
                     is_authorized: Some(true),
-                    is_unexpected_reponse_status: Some(false),
+                    is_unexpected_response_status: Some(false),
                     is_connect_error: Some(false),
                     is_decode_error: Some(false),
                     is_deserialize_error: Some(error.is_some()),
@@ -83,7 +83,7 @@ impl LlamacppClient {
             reqwest::StatusCode::UNAUTHORIZED => SlotsResponse {
                 error: Some("Unauthorized".into()),
                 is_authorized: Some(false),
-                is_unexpected_reponse_status: Some(false),
+                is_unexpected_response_status: Some(false),
                 is_connect_error: Some(false),
                 is_decode_error: Some(false),
                 is_deserialize_error: None,
@@ -94,7 +94,7 @@ impl LlamacppClient {
             reqwest::StatusCode::NOT_IMPLEMENTED => SlotsResponse {
                 error: Some("Not implemented".into()),
                 is_authorized: None,
-                is_unexpected_reponse_status: Some(false),
+                is_unexpected_response_status: Some(false),
                 is_connect_error: Some(false),
                 is_decode_error: Some(false),
                 is_deserialize_error: None,
@@ -105,7 +105,7 @@ impl LlamacppClient {
             _ => SlotsResponse {
                 error: Some("Unexpected response status".into()),
                 is_authorized: None,
-                is_unexpected_reponse_status: Some(true),
+                is_unexpected_response_status: Some(true),
                 is_connect_error: Some(false),
                 is_decode_error: Some(false),
                 is_deserialize_error: None,
