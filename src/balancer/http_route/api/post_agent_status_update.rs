@@ -61,7 +61,7 @@ async fn respond(
                 }
 
                 if idle_slots_count > 0 {
-                    upstream_peer_pool.notifier.notify_one();
+                    upstream_peer_pool.available_slots_notifier.notify_waiters();
                 }
             }
             Err(err) => {
