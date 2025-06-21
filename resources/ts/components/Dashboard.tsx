@@ -19,6 +19,7 @@ const agentSchema = z.object({
   external_llamacpp_addr: z.string(),
   is_reachable: z.boolean().nullable(),
   is_response_decodeable: z.boolean().nullable(),
+  is_response_deserializable: z.boolean().nullable(),
   is_request_error: z.boolean().nullable(),
   is_authorized: z.boolean().nullable(),
   is_slots_endpoint_enabled: z.boolean().nullable(),
@@ -163,6 +164,7 @@ export function Dashboard() {
               true !== agent.is_reachable ||
               true === agent.is_request_error ||
               true !== agent.is_response_decodeable ||
+              true !== agent.is_response_deserializable ||
               true !== agent.is_slots_endpoint_enabled ||
               agent.quarantined_until;
 
@@ -196,6 +198,9 @@ export function Dashboard() {
                   )}
                   {false == agent.is_response_decodeable && (
                       <p>Llama.cpp server returned an unexpected response. Are you sure that the agent is configured to monitor llama.cpp and is using the correct port?</p>
+                  )}
+                  {false == agent.is_response_deserializable && (
+                      <p>Llama.cpp server response could not be deserialized.</p>
                   )}
                   {false === agent.is_slots_endpoint_enabled && (
                     <>

@@ -75,26 +75,28 @@ impl LlamacppClient {
                 Ok(slots) => (Some(slots), None),
                 Err(err) => (None, Some(err.to_string())),
             },
-            None => (None, Some("Error while serializing empty response.".to_string()))
+            None => (
+                None,
+                Some("Error while serializing empty response.".to_string()),
+            ),
         };
 
-        let is_succesful = status.is_success() && decoding_err.is_none() && serializing_err.is_none();
+        let is_succesful =
+            status.is_success() && decoding_err.is_none() && serializing_err.is_none();
         let is_decodeable = body.is_some() && decoding_err.is_none();
         let is_deserializable = slots.is_some() && serializing_err.is_none();
 
         match status {
-            reqwest::StatusCode::OK => {
-                SlotsResponse {
-                    is_authorized: Some(true),
-                    error: None,
-                    is_reachable: Some(is_reachable),
-                    is_response_decodeable: Some(is_decodeable),
-                    is_response_deserializable: Some(is_deserializable),
-                    is_request_error: Some(!is_succesful),
-                    is_slot_endpoint_enabled: Some(true),
-                    slots: slots.unwrap_or_default(),
-                }
-            }
+            reqwest::StatusCode::OK => SlotsResponse {
+                is_authorized: Some(true),
+                error: None,
+                is_reachable: Some(is_reachable),
+                is_response_decodeable: Some(is_decodeable),
+                is_response_deserializable: Some(is_deserializable),
+                is_request_error: Some(!is_succesful),
+                is_slot_endpoint_enabled: Some(true),
+                slots: slots.unwrap_or_default(),
+            },
             reqwest::StatusCode::UNAUTHORIZED => SlotsResponse {
                 is_authorized: Some(false),
                 error: Some("Unauthorized".into()),
