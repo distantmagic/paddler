@@ -53,6 +53,7 @@ impl Service for ManagementService {
             let mut app = App::new()
                 .app_data(upstream_peers.clone())
                 .configure(http_route::api::get_agents::register)
+                .configure(http_route::api::get_agents_stream::register)
                 .configure(http_route::api::post_agent_status_update::register);
 
             #[cfg(feature = "web_dashboard")]

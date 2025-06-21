@@ -1,15 +1,15 @@
 .agentsTable {
   border-collapse: collapse;
-  margin: var(--padding-base) 0;
+  margin: var(--spacing-base) 0;
   table-layout: fixed;
 
   td,
   th {
     border: 1px solid var(--color-border);
-    padding: var(--padding-base);
+    padding: var(--spacing-base);
 
     p + p {
-      margin-top: var(--padding-half);
+      margin-top: var(--spacing-half);
     }
   }
 }
@@ -35,11 +35,11 @@
     #ff8000,
     #ff0000
   );
-  bottom: var(--padding-half);
-  left: var(--padding-half);
+  bottom: var(--spacing-half);
+  left: var(--spacing-half);
   position: absolute;
-  right: var(--padding-half);
-  top: var(--padding-half);
+  right: var(--spacing-half);
+  top: var(--spacing-half);
 
   &:after {
     /* mask the progress bar to show the agent's state */
