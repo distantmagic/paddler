@@ -9,6 +9,9 @@ use crate::llamacpp::slot::Slot;
 pub struct StatusUpdate {
     pub agent_name: Option<String>,
     pub error: Option<String>,
+    pub is_reachable: Option<bool>,
+    pub is_response_decodeable: Option<bool>,
+    pub is_request_error: Option<bool>,
     pub external_llamacpp_addr: SocketAddr,
     pub idle_slots_count: usize,
     pub is_authorized: Option<bool>,
@@ -21,6 +24,9 @@ impl StatusUpdate {
     pub fn new(
         agent_name: Option<String>,
         error: Option<String>,
+        is_reachable: Option<bool>,
+        is_response_decodeable: Option<bool>,
+        is_request_error: Option<bool>,
         external_llamacpp_addr: SocketAddr,
         is_authorized: Option<bool>,
         is_slots_endpoint_enabled: Option<bool>,
@@ -31,6 +37,9 @@ impl StatusUpdate {
         Self {
             agent_name,
             error,
+            is_reachable,
+            is_response_decodeable,
+            is_request_error,
             external_llamacpp_addr,
             idle_slots_count,
             is_authorized,
