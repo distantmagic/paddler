@@ -50,14 +50,14 @@ impl LlamacppClient {
                 let is_decodable = !err.is_decode();
 
                 return SlotsResponse {
-                    is_authorized: Some(false),
                     error: Some(format!("Request to {url} Failed. Is it running? {err}")),
+                    is_authorized: Some(false),
                     is_reachable: Some(is_reachable),
                     is_response_decodeable: Some(is_decodable),
                     is_request_error: Some(is_request_error),
                     is_slot_endpoint_enabled: Some(true),
                     slots: vec![],
-                }
+                };
             }
         };
 

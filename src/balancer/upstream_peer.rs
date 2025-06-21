@@ -15,12 +15,12 @@ pub struct UpstreamPeer {
     pub agent_id: String,
     pub agent_name: Option<String>,
     pub error: Option<String>,
-    pub is_reachable: Option<bool>,
-    pub is_response_decodeable: Option<bool>,
-    pub is_request_error: Option<bool>,
     pub external_llamacpp_addr: SocketAddr,
     /// None means undetermined, probably due to an error
     pub is_authorized: Option<bool>,
+    pub is_reachable: Option<bool>,
+    pub is_response_decodeable: Option<bool>,
+    pub is_request_error: Option<bool>,
     /// None means undetermined, probably due to an error
     pub is_slots_endpoint_enabled: Option<bool>,
     pub last_update: SystemTime,

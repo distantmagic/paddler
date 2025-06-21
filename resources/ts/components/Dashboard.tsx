@@ -17,6 +17,9 @@ const agentSchema = z.object({
   agent_name: z.string().nullable(),
   error: z.string().nullable(),
   external_llamacpp_addr: z.string(),
+  is_reachable: z.boolean().nullable(),
+  is_response_decodeable: z.boolean().nullable(),
+  is_request_error: z.boolean().nullable(),
   is_authorized: z.boolean().nullable(),
   is_slots_endpoint_enabled: z.boolean().nullable(),
   last_update: z.object({
@@ -157,6 +160,9 @@ export function Dashboard() {
             const hasIssues =
               agent.error ||
               true !== agent.is_authorized ||
+              true !== agent.is_reachable ||
+              true === agent.is_request_error ||
+              true !== agent.is_response_decodeable ||
               true !== agent.is_slots_endpoint_enabled ||
               agent.quarantined_until;
 
@@ -184,6 +190,12 @@ export function Dashboard() {
                         `--llamacpp-api-key=YOURKEY` flag.
                       </p>
                     </>
+                  )}
+                  {false == agent.is_reachable && (
+                      <p>Llama.cpp server is unreachable. It is likely down.</p>
+                  )}
+                  {false == agent.is_response_decodeable && (
+                      <p>Llama.cpp server returned an unexpected response. Are you sure that the agent is configured to monitor llama.cpp and is using the correct port?</p>
                   )}
                   {false === agent.is_slots_endpoint_enabled && (
                     <>
