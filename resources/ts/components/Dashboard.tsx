@@ -17,6 +17,11 @@ const agentSchema = z.object({
   agent_name: z.string().nullable(),
   error: z.string().nullable(),
   external_llamacpp_addr: z.string(),
+  is_unexpected_response_status: z.boolean().nullable(),
+  is_connect_error: z.boolean().nullable(),
+  is_decode_error: z.boolean().nullable(),
+  is_deserialize_error: z.boolean().nullable(),
+  is_request_error: z.boolean().nullable(),
   is_authorized: z.boolean().nullable(),
   is_slots_endpoint_enabled: z.boolean().nullable(),
   last_update: z.object({
@@ -157,6 +162,11 @@ export function Dashboard() {
             const hasIssues =
               agent.error ||
               true !== agent.is_authorized ||
+              true === agent.is_connect_error ||
+              true === agent.is_request_error ||
+              true === agent.is_decode_error ||
+              true === agent.is_deserialize_error ||
+              true === agent.is_unexpected_response_status ||
               true !== agent.is_slots_endpoint_enabled ||
               agent.quarantined_until;
 
@@ -184,6 +194,18 @@ export function Dashboard() {
                         `--llamacpp-api-key=YOURKEY` flag.
                       </p>
                     </>
+                  )}
+                  {true == agent.is_connect_error && (
+                      <p>Llama.cpp server is unreachable. It is likely down.</p>
+                  )}
+                  {true == agent.is_decode_error && (
+                      <p>Llama.cpp server returned an unexpected response. Are you sure that the agent is configured to monitor llama.cpp and is using the correct port?</p>
+                  )}
+                  {true == agent.is_deserialize_error && (
+                      <p>Llama.cpp server response could not be deserialized.</p>
+                  )}
+                  {true == agent.is_unexpected_response_status && (
+                      <p>Llama.cpp server response status is unexpected.</p>
                   )}
                   {false === agent.is_slots_endpoint_enabled && (
                     <>

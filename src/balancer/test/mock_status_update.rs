@@ -34,6 +34,11 @@ pub fn mock_status_update(
     StatusUpdate::new(
         Some(agent_id.to_string()),
         None,
+        None,
+        None,
+        None,
+        None,
+        None,
         SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
         Some(true),
         Some(true),
