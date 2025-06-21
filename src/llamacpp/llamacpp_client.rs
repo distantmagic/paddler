@@ -48,11 +48,11 @@ impl LlamacppClient {
                 return SlotsResponse {
                     error: Some(format!("Request to {url} Failed. Is it running? {err}")),
                     is_authorized: None,
-                    is_unexpected_reponse_status: None,
                     is_connect_error: Some(err.is_connect()),
                     is_decode_error: Some(err.is_decode()),
                     is_deserialize_error: None,
                     is_request_error: Some(err.is_request()),
+                    is_unexpected_reponse_status: None,
                     is_slot_endpoint_enabled: Some(true),
                     slots: vec![],
                 };

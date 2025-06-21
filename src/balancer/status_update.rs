@@ -26,11 +26,11 @@ impl StatusUpdate {
     pub fn new(
         agent_name: Option<String>,
         error: Option<String>,
-        is_unexpected_reponse_status: Option<bool>,
         is_connect_error: Option<bool>,
         is_decode_error: Option<bool>,
         is_deserialize_error: Option<bool>,
         is_request_error: Option<bool>,
+        is_unexpected_reponse_status: Option<bool>,
         external_llamacpp_addr: SocketAddr,
         is_authorized: Option<bool>,
         is_slots_endpoint_enabled: Option<bool>,
