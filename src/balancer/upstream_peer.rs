@@ -174,9 +174,8 @@ mod tests {
     use std::net::Ipv4Addr;
     use std::net::SocketAddr;
 
-    use crate::llamacpp::slot::Slot;
-
     use super::*;
+    use crate::llamacpp::slot::Slot;
 
     fn create_test_peer() -> UpstreamPeer {
         UpstreamPeer {
