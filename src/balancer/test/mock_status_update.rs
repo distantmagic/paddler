@@ -46,7 +46,7 @@ pub fn mock_status_update(
         is_authorized: Some(true),
         is_slots_endpoint_enabled: Some(true),
         processing_slots_count: slots.len() - idle_slots_count,
+        model: Some("llama3".to_string()),
         slots: slots,
-        Some("llama3".to_string()),
     }
 }
