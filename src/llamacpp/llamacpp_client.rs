@@ -1,7 +1,6 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use pingora::ErrorTrait;
 use reqwest::header;
 use url::Url;
 
@@ -40,43 +39,80 @@ impl LlamacppClient {
         })
     }
 
-    pub async fn get_available_slots(&self) -> Result<SlotsResponse> {
+    pub async fn get_available_slots(&self) -> SlotsResponse {
         let url = self.slots_endpoint_url.to_owned();
 
         let response = match self.client.get(url.clone()).send().await {
             Ok(resp) => resp,
             Err(err) => {
-                return Err(format!(
-                    "Request to '{}' failed: '{}'; connect issue: {}; decode issue: {}; request issue: {}; status issue: {}; status: {:?}; source: {:?}",
-                    url,
-                    err,
-                    err.is_connect(),
-                    err.is_decode(),
-                    err.is_request(),
-                    err.is_status(),
-                    err.status(),
-                    err.source()
-                ).into());
+                return SlotsResponse {
+                    error: Some(format!("Request to {url} Failed. Is it running? {err}")),
+                    is_authorized: None,
+                    is_connect_error: Some(err.is_connect()),
+                    is_decode_error: Some(err.is_decode()),
+                    is_deserialize_error: None,
+                    is_request_error: Some(err.is_request()),
+                    is_unexpected_response_status: None,
+                    is_slot_endpoint_enabled: Some(true),
+                    slots: vec![],
+                };
             }
         };
 
-        match response.status() {
-            reqwest::StatusCode::OK => Ok(SlotsResponse {
-                is_authorized: Some(true),
-                is_slot_endpoint_enabled: Some(true),
-                slots: response.json::<Vec<Slot>>().await?,
-            }),
-            reqwest::StatusCode::UNAUTHORIZED => Ok(SlotsResponse {
+        let status = response.status();
+
+        match status {
+            reqwest::StatusCode::OK => {
+                let (slots, error) = match response.json::<Vec<Slot>>().await {
+                    Ok(slots) => (Some(slots), None),
+                    Err(err) => (None, Some(err.to_string())),
+                };
+
+                SlotsResponse {
+                    error: error.clone(),
+                    is_authorized: Some(true),
+                    is_unexpected_response_status: Some(false),
+                    is_connect_error: Some(false),
+                    is_decode_error: Some(false),
+                    is_deserialize_error: Some(error.is_some()),
+                    is_request_error: Some(false),
+                    is_slot_endpoint_enabled: Some(true),
+                    slots: slots.unwrap_or_default(),
+                }
+            }
+            reqwest::StatusCode::UNAUTHORIZED => SlotsResponse {
+                error: Some("Unauthorized".into()),
                 is_authorized: Some(false),
+                is_unexpected_response_status: Some(false),
+                is_connect_error: Some(false),
+                is_decode_error: Some(false),
+                is_deserialize_error: None,
+                is_request_error: Some(false),
                 is_slot_endpoint_enabled: None,
                 slots: vec![],
-            }),
-            reqwest::StatusCode::NOT_IMPLEMENTED => Ok(SlotsResponse {
+            },
+            reqwest::StatusCode::NOT_IMPLEMENTED => SlotsResponse {
+                error: Some("Not implemented".into()),
                 is_authorized: None,
+                is_unexpected_response_status: Some(false),
+                is_connect_error: Some(false),
+                is_decode_error: Some(false),
+                is_deserialize_error: None,
+                is_request_error: Some(false),
                 is_slot_endpoint_enabled: Some(false),
                 slots: vec![],
-            }),
-            _ => Err("Unexpected response status".into()),
+            },
+            _ => SlotsResponse {
+                error: Some("Unexpected response status".into()),
+                is_authorized: None,
+                is_unexpected_response_status: Some(true),
+                is_connect_error: Some(false),
+                is_decode_error: Some(false),
+                is_deserialize_error: None,
+                is_request_error: Some(false),
+                is_slot_endpoint_enabled: None,
+                slots: vec![],
+            },
         }
     }
 }

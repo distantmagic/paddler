@@ -6,6 +6,11 @@ export const AgentSchema = z.object({
   error: z.string().nullable(),
   external_llamacpp_addr: z.string(),
   is_authorized: z.boolean().nullable(),
+  is_connect_error: z.boolean().nullable(),
+  is_decode_error: z.boolean().nullable(),
+  is_deserialize_error: z.boolean().nullable(),
+  is_request_error: z.boolean().nullable(),
+  is_unexpected_response_status: z.boolean().nullable(),
   is_slots_endpoint_enabled: z.boolean().nullable(),
   last_update: z.object({
     nanos_since_epoch: z.number(),
