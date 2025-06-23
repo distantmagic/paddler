@@ -19,11 +19,13 @@ spawner(async function ({ buildId, command }) {
     command(`
       target/debug/paddler agent
         --management-addr 127.0.0.1:8060
+        --name agent-1
         --local-llamacpp-addr 127.0.0.1:8050
     `),
     command(`
       target/debug/paddler agent
         --management-addr 127.0.0.1:8060
+        --name agent-2
         --local-llamacpp-addr 127.0.0.1:8051
     `),
   ]);
