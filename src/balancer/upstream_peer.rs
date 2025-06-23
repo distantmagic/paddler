@@ -22,9 +22,9 @@ pub struct UpstreamPeer {
     pub is_decode_error: Option<bool>,
     pub is_deserialize_error: Option<bool>,
     pub is_request_error: Option<bool>,
-    pub is_unexpected_response_status: Option<bool>,
     /// None means undetermined, probably due to an error
     pub is_slots_endpoint_enabled: Option<bool>,
+    pub is_unexpected_response_status: Option<bool>,
     pub last_update: SystemTime,
     pub quarantined_until: Option<SystemTime>,
     pub slots_idle: usize,
@@ -34,59 +34,42 @@ pub struct UpstreamPeer {
 }
 
 impl UpstreamPeer {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub fn new_from_status_update(
         agent_id: String,
-        agent_name: Option<String>,
-        error: Option<String>,
-        is_connect_error: Option<bool>,
-        is_decode_error: Option<bool>,
-        is_deserialize_error: Option<bool>,
-        is_request_error: Option<bool>,
-        is_unexpected_response_status: Option<bool>,
-        external_llamacpp_addr: SocketAddr,
-        is_authorized: Option<bool>,
-        is_slots_endpoint_enabled: Option<bool>,
-        slots_idle: usize,
-        slots_processing: usize,
-    ) -> Self {
-        UpstreamPeer {
-            agent_id,
+        StatusUpdate {
             agent_name,
             error,
+            external_llamacpp_addr,
+            idle_slots_count,
+            is_authorized,
             is_connect_error,
             is_decode_error,
             is_deserialize_error,
             is_request_error,
+            is_slots_endpoint_enabled,
             is_unexpected_response_status,
+            processing_slots_count,
+        }: StatusUpdate,
+    ) -> Self {
+        Self {
+            agent_id,
+            agent_name,
+            error,
             external_llamacpp_addr,
             is_authorized,
+            is_connect_error,
+            is_decode_error,
+            is_deserialize_error,
+            is_request_error,
             is_slots_endpoint_enabled,
+            is_unexpected_response_status,
             last_update: SystemTime::now(),
             quarantined_until: None,
-            slots_idle,
-            slots_processing,
+            slots_idle: idle_slots_count,
+            slots_processing: processing_slots_count,
             slots_taken: 0,
             slots_taken_since_last_status_update: 0,
         }
-    }
-
-    pub fn new_from_status_update(agent_id: String, status_update: StatusUpdate) -> Self {
-        Self::new(
-            agent_id,
-            status_update.agent_name.to_owned(),
-            status_update.error.to_owned(),
-            status_update.is_unexpected_response_status,
-            status_update.is_connect_error,
-            status_update.is_decode_error,
-            status_update.is_deserialize_error,
-            status_update.is_request_error,
-            status_update.external_llamacpp_addr,
-            status_update.is_authorized,
-            status_update.is_slots_endpoint_enabled,
-            status_update.idle_slots_count,
-            status_update.processing_slots_count,
-        )
     }
 
     pub fn is_usable(&self) -> bool {
@@ -255,11 +238,10 @@ mod tests {
             is_deserialize_error: None,
             is_request_error: None,
             external_llamacpp_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),
-            idle_slots_count: idle_slots_count,
+            idle_slots_count,
             is_authorized: Some(true),
             is_slots_endpoint_enabled: Some(true),
             processing_slots_count: slots.len() - idle_slots_count,
-            slots: slots,
         };
 
         peer.update_status(status_update);
