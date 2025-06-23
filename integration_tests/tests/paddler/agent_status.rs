@@ -6,7 +6,7 @@ pub struct AgentStatus {
     pub slots_idle: usize,
     pub slots_processing: usize,
     pub error: Option<String>,
-    pub is_connect_error: Option<bool>,
+    pub is_decode_error: Option<bool>,
 }
 
 #[derive(Deserialize, Debug)]

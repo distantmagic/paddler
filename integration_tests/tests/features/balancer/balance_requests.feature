@@ -1,7 +1,7 @@
 Feature: Balance llama.cpp requests
 
     Background:
-        Given balancer is running
+        Given balancer is running (2 max requests)
 
     @serial
     Scenario: There are no agents attached
@@ -10,20 +10,20 @@ Feature: Balance llama.cpp requests
 
     @serial
     Scenario: There is one agent attached
-        Given llama.cpp server "llama-1" is running (has 3 slots)
+        Given llama.cpp server "llama-1" is running (has 2 slots)
         Given agent "agent-1" is running (observes "llama-1")
         Given agent "agent-1" is registered
         Then dashboard report:
-            |  agent  | slots_idle | slots_processing | is_connect_error |
-            | agent-1 |     3      |        0         |       false      |
+            |  agent  | slots_idle | slots_processing | is_decode_error |
+            | agent-1 |     2      |        0         |       false      |
         When request "foo" is sent to "/chat/completions"
         Then "foo" response code is 200
         Then "foo" request landed in "llama-1"
 
     @serial
     Scenario: There are multiple agents attached
-        Given llama.cpp server "llama-1" is running (has 4 slots)
-        Given llama.cpp server "llama-2" is running (has 4 slots)
+        Given llama.cpp server "llama-1" is running (has 1 slots)
+        Given llama.cpp server "llama-2" is running (has 1 slots)
         Given agent "agent-1" is running (observes "llama-1")
         Given agent "agent-1" is registered
         Given agent "agent-2" is running (observes "llama-2")

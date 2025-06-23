@@ -161,16 +161,20 @@ export function Dashboard() {
                     </>
                   )}
                   {true == agent.is_connect_error && (
-                      <p>Llama.cpp server is unreachable. It is likely down.</p>
+                    <p>Llama.cpp server is unreachable. It is likely down.</p>
                   )}
                   {true == agent.is_decode_error && (
-                      <p>Llama.cpp server returned an unexpected response. Are you sure that the agent is configured to monitor llama.cpp and is using the correct port?</p>
+                    <p>
+                      Llama.cpp server returned an unexpected response. Are you
+                      sure that the agent is configured to monitor llama.cpp and
+                      is using the correct port?
+                    </p>
                   )}
                   {true == agent.is_deserialize_error && (
-                      <p>Llama.cpp server response could not be deserialized.</p>
+                    <p>Llama.cpp server response could not be deserialized.</p>
                   )}
                   {true == agent.is_unexpected_response_status && (
-                      <p>Llama.cpp server response status is unexpected.</p>
+                    <p>Llama.cpp server response status is unexpected.</p>
                   )}
                   {false === agent.is_slots_endpoint_enabled && (
                     <>

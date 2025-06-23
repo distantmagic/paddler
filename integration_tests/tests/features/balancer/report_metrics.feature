@@ -1,7 +1,7 @@
 Feature: Report llama.cpp metrics
 
     Background:
-        Given balancer is running
+        Given balancer is running (2 max requests)
         Given statsd is running
  
     @serial

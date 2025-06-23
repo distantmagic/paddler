@@ -1,7 +1,10 @@
+use std::time::Duration;
+
 use anyhow::Result;
 use cucumber::gherkin::Step;
 use cucumber::then;
 use reqwest::Response;
+use tokio::time::sleep;
 
 use crate::agent_status::AgentStatusResponse;
 use crate::paddler_world::PaddlerWorld;
@@ -53,10 +56,11 @@ pub async fn then_dashboard_report(_world: &mut PaddlerWorld, step: &Step) -> Re
                         table_fields.push(row.get(col_idx));
                         peer_fields.push(peer.slots_processing.to_string());
                     }
-                    "is_llamacpp_reachable" => {
+                    "error" => {
                         table_fields.push(row.get(col_idx));
                         peer_fields.push(
-                            peer.is_connect_error
+                            peer.error
+                                .as_ref()
                                 .map(|b| b.to_string())
                                 .unwrap_or("None".to_string()),
                         );
@@ -64,6 +68,9 @@ pub async fn then_dashboard_report(_world: &mut PaddlerWorld, step: &Step) -> Re
                     _ => continue,
                 }
             }
+            // panic!("{:#?}, {:#?}", table_fields, peer_fields);
+
+            // sleep(Duration::from_secs(2)).await;
 
             assert_fields(table_fields, peer_fields);
         }
