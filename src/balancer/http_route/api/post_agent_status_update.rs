@@ -34,7 +34,7 @@ impl Drop for RemovePeerGuard<'_> {
     }
 }
 
-#[post("/status_update/{agent_id}")]
+#[post("/api/v1/agent_status_update/{agent_id}")]
 async fn respond(
     path_params: web::Path<PathParams>,
     mut payload: web::Payload,
@@ -61,7 +61,7 @@ async fn respond(
                 }
 
                 if idle_slots_count > 0 {
-                    upstream_peer_pool.notifier.notify_one();
+                    upstream_peer_pool.available_slots_notifier.notify_waiters();
                 }
             }
             Err(err) => {

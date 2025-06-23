@@ -52,8 +52,9 @@ impl Service for ManagementService {
             #[allow(unused_mut)]
             let mut app = App::new()
                 .app_data(upstream_peers.clone())
-                .configure(http_route::registered_agents::register)
-                .configure(http_route::receive_status_update::register);
+                .configure(http_route::api::get_agents::register)
+                .configure(http_route::api::get_agents_stream::register)
+                .configure(http_route::api::post_agent_status_update::register);
 
             #[cfg(feature = "web_dashboard")]
             if management_dashboard_enable {

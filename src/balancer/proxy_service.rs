@@ -189,8 +189,8 @@ impl ProxyHttp for ProxyService {
                         // To avoid wasting CPU cycles, we don't immediately retry to
                         // `select_upstream_peer` and wait for a notification from code that's
                         // executed when a slot may become available (e.g., the
-                        // `/status_update/{agent_id}` endpoint).
-                        self.upstream_peer_pool.notifier.notified().await
+                        // `/api/v1/agent_status_update/{agent_id}` endpoint).
+                        self.upstream_peer_pool.available_slots_notifier.notified().await
                     }
                 }
             } => {

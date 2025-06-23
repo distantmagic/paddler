@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <link rel="stylesheet" type="text/css" href="/static/reset.css">
-    <link rel="stylesheet" type="text/css" href="/static/page-dashboard.css">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <script defer src="/static/controller_dashboard.js" type="module"></script>
     <title>Paddler Dashboard</title>
+
+    {{ "resources/css/page-dashboard.css"|asset(preloads) }}
+    {{ "resources/ts/controller_dashboard.tsx"|asset(preloads) }}
+
+    {{ preloads|render_assets|safe }}
 </head>
 <body>
     <div id="paddler-dashboard"></div>

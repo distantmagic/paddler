@@ -18,37 +18,19 @@ node_modules: package-lock.json
 # -----------------------------------------------------------------------------
 
 .PHONY: build
-build: esbuild
-	cargo build --features web_dashboard --release
+build: node_modules
+	./jarmuz-release.mjs
 
 .PHONY: clean
 clean:
 	rm -rf esbuild-meta.json
 	rm -rf node_modules
+	rm -rf static
 	rm -rf target
 
-.PHONY: esbuild
-esbuild: node_modules
-	npm exec esbuild -- \
-		--bundle \
-		--asset-names="./[name]" \
-		--entry-names="./[name]" \
-		--format=esm \
-		--loader:.jpg=file \
-		--loader:.otf=file \
-		--loader:.svg=file \
-		--loader:.ttf=file \
-		--loader:.webp=file \
-		--metafile=esbuild-meta.json \
-		--minify \
-		--outdir=static \
-		--sourcemap \
-		--splitting \
-		--target=safari16 \
-		--tree-shaking=true \
-		resources/css/reset.css \
-		resources/css/page-dashboard.css \
-		resources/ts/controller_dashboard.tsx \
+.PHONY: fmt
+fmt: node_modules
+	./jarmuz-fmt.mjs
 
 .PHONY: integration_tests
 integration_tests:
@@ -58,3 +40,7 @@ integration_tests:
 .PHONY: test
 test: integration_tests
 	cargo test
+
+.PHONY: watch
+watch: node_modules
+	./jarmuz-watch.mjs

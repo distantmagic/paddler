@@ -28,7 +28,9 @@ impl ReportingService {
         let agent_id = Uuid::new_v4();
 
         Ok(ReportingService {
-            stats_endpoint_url: format!("http://{management_addr}/status_update/{agent_id}"),
+            stats_endpoint_url: format!(
+                "http://{management_addr}/api/v1/agent_status_update/{agent_id}"
+            ),
             status_update_tx,
         })
     }

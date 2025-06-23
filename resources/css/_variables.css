@@ -1,0 +1,12 @@
+:root {
+  --color-body-background: black;
+  --color-body-font: #eee;
+  --color-border: #555;
+  --font-family-body: "Noto Sans", sans-serif;
+  --font-family-monospace: "Noto Sans Mono", monospace;
+  --font-size-base: 16px;
+  --font-size-l1: calc(1.5 * var(--font-size-base));
+  --font-size-l2: calc(1.5 * var(--font-size-l1));
+  --spacing-base: 16px;
+  --spacing-half: calc(0.5 * var(--spacing-base));
+}
