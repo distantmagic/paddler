@@ -59,12 +59,7 @@ impl LlamacppClient {
             }
         };
 
-<<<<<<< HEAD
-        let is_llamacpp_reachable = !response.status().is_server_error();
-        let is_request_error = response.status().is_server_error();
-=======
         let status = response.status();
->>>>>>> b74bf2bc7563e85667314dbc1ae0b39d655e2fbc
 
         match status {
             reqwest::StatusCode::OK => {
@@ -76,18 +71,11 @@ impl LlamacppClient {
                 SlotsResponse {
                     error: error.clone(),
                     is_authorized: Some(true),
-<<<<<<< HEAD
-                    error: None,
-                    is_llamacpp_reachable: Some(is_llamacpp_reachable),
-                    is_llamacpp_response_decodeable: Some(err.is_none()),
-                    is_llamacpp_request_error: Some(is_request_error),
-=======
                     is_unexpected_response_status: Some(false),
                     is_connect_error: Some(false),
                     is_decode_error: Some(false),
                     is_deserialize_error: Some(error.is_some()),
                     is_request_error: Some(false),
->>>>>>> b74bf2bc7563e85667314dbc1ae0b39d655e2fbc
                     is_slot_endpoint_enabled: Some(true),
                     slots: slots.unwrap_or_default(),
                 }
@@ -95,47 +83,27 @@ impl LlamacppClient {
             reqwest::StatusCode::UNAUTHORIZED => SlotsResponse {
                 error: Some("Unauthorized".into()),
                 is_authorized: Some(false),
-<<<<<<< HEAD
-                error: Some("Unauthorized request".into()),
-                is_llamacpp_reachable: Some(is_llamacpp_reachable),
-                is_llamacpp_response_decodeable: Some(true),
-                is_llamacpp_request_error: Some(is_request_error),
-=======
                 is_unexpected_response_status: Some(false),
                 is_connect_error: Some(false),
                 is_decode_error: Some(false),
                 is_deserialize_error: None,
                 is_request_error: Some(false),
->>>>>>> b74bf2bc7563e85667314dbc1ae0b39d655e2fbc
                 is_slot_endpoint_enabled: None,
                 slots: vec![],
             },
             reqwest::StatusCode::NOT_IMPLEMENTED => SlotsResponse {
                 error: Some("Not implemented".into()),
                 is_authorized: None,
-<<<<<<< HEAD
-                error: Some("Not implemented request".into()),
-                is_llamacpp_reachable: Some(is_llamacpp_reachable),
-                is_llamacpp_response_decodeable: Some(true),
-                is_llamacpp_request_error: Some(is_request_error),
-=======
                 is_unexpected_response_status: Some(false),
                 is_connect_error: Some(false),
                 is_decode_error: Some(false),
                 is_deserialize_error: None,
                 is_request_error: Some(false),
->>>>>>> b74bf2bc7563e85667314dbc1ae0b39d655e2fbc
                 is_slot_endpoint_enabled: Some(false),
                 slots: vec![],
             },
             _ => SlotsResponse {
                 error: Some("Unexpected response status".into()),
-<<<<<<< HEAD
-                is_llamacpp_reachable: Some(is_llamacpp_reachable),
-                is_llamacpp_response_decodeable: Some(true),
-                is_llamacpp_request_error: Some(is_request_error),
-                is_slot_endpoint_enabled: Some(false),
-=======
                 is_authorized: None,
                 is_unexpected_response_status: Some(true),
                 is_connect_error: Some(false),
@@ -143,7 +111,6 @@ impl LlamacppClient {
                 is_deserialize_error: None,
                 is_request_error: Some(false),
                 is_slot_endpoint_enabled: None,
->>>>>>> b74bf2bc7563e85667314dbc1ae0b39d655e2fbc
                 slots: vec![],
             },
         }

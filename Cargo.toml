@@ -41,19 +41,9 @@ cadence = { version = "1.5.0", optional = true }
 askama = { version = "0.14.0", optional = true }
 esbuild-metafile = { version = "0.2.0", optional = true }
 mime_guess = { version = "2.0.5", optional = true }
-<<<<<<< HEAD
-rust-embed = { version = "8.7.2", optional = true }
-itertools = "0.13.0"
-color-eyre = "0.6.5"
-time = "0.3.41"
-chrono = "0.4.41"
-httpmock = "0.7.0"
-isahc = "1.7.2"
-=======
 rust-embed = { version = "8.7.2", optional = true, features = ["interpolate-folder-path"] }
 actix-web-lab = "0.24.1"
 async-stream = "0.3.6"
->>>>>>> b74bf2bc7563e85667314dbc1ae0b39d655e2fbc
 
 [features]
 default = ["statsd_reporter", "ratatui_dashboard"]

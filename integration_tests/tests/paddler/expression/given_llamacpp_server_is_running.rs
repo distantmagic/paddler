@@ -60,8 +60,8 @@ pub async fn given_agent_is_attached(
                 .arg(format!("--name={llamacpp_name}"))
                 .arg(format!("--port={llamacpp_port}"))
                 .arg(format!("--slots={available_slots}"))
-                // .stdout(Stdio::null())
-                // .stderr(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
                 .spawn()?,
             log_file,
             name: llamacpp_name,

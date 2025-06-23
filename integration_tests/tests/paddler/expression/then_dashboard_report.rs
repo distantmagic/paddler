@@ -56,9 +56,9 @@ pub async fn then_dashboard_report(_world: &mut PaddlerWorld, step: &Step) -> Re
                     "is_llamacpp_reachable" => {
                         table_fields.push(row.get(col_idx));
                         peer_fields.push(
-                            peer.is_llamacpp_reachable
+                            peer.is_connect_error
                                 .map(|b| b.to_string())
-                                .unwrap_or("none".to_string()),
+                                .unwrap_or("None".to_string()),
                         );
                     }
                     _ => continue,
