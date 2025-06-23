@@ -174,24 +174,30 @@ mod tests {
     use std::net::Ipv4Addr;
     use std::net::SocketAddr;
 
+    use crate::llamacpp::slot::Slot;
+
     use super::*;
 
     fn create_test_peer() -> UpstreamPeer {
-        UpstreamPeer::new(
-            "test_agent".to_string(),
-            Some("test_name".to_string()),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
-            Some(true),
-            Some(true),
-            5,
-            0,
-        )
+        UpstreamPeer {
+            agent_id: "test_agent".to_string(),
+            agent_name: Some("test_name".to_string()),
+            error: None,
+            external_llamacpp_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+            is_authorized: Some(true),
+            is_connect_error: None,
+            is_decode_error: None,
+            is_deserialize_error: None,
+            is_request_error: None,
+            is_unexpected_response_status: None,
+            is_slots_endpoint_enabled: Some(true),
+            last_update: SystemTime::now(),
+            quarantined_until: None,
+            slots_idle: 5,
+            slots_processing: 0,
+            slots_taken: 0,
+            slots_taken_since_last_status_update: 0,
+        }
     }
 
     #[test]
@@ -237,19 +243,25 @@ mod tests {
     #[test]
     fn test_update_status() {
         let mut peer = create_test_peer();
-        let status_update = StatusUpdate::new(
-            Some("new_name".to_string()),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),
-            Some(true),
-            Some(true),
-            vec![],
-        );
+
+        let slots: Vec<Slot> = vec![];
+        let idle_slots_count = slots.iter().filter(|slot| !slot.is_processing).count();
+
+        let status_update = StatusUpdate {
+            agent_name: Some("new_name".to_string()),
+            error: None,
+            is_unexpected_response_status: None,
+            is_connect_error: None,
+            is_decode_error: None,
+            is_deserialize_error: None,
+            is_request_error: None,
+            external_llamacpp_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),
+            idle_slots_count: idle_slots_count,
+            is_authorized: Some(true),
+            is_slots_endpoint_enabled: Some(true),
+            processing_slots_count: slots.len() - idle_slots_count,
+            slots: slots,
+        };
 
         peer.update_status(status_update);
         assert_eq!(peer.slots_idle, 0);
