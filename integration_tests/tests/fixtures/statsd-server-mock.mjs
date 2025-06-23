@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import { parseArgs } from "node:util";
-import { createServer } from "node:http";
 import dgram from "node:dgram";
+import { createServer } from "node:http";
+import { parseArgs } from "node:util";
 
 const {
   values: { managementPort = "9125", exposePort = "9102" },
