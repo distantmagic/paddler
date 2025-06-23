@@ -14,4 +14,4 @@ Feature: Observe llama.cpp instances
         When llama.cpp server "llama-1" stops running
         Then dashboard report:
         |  agent  | error |
-        | agent-1 | Request to http://127.0.0.1:8000/slots Failed. Is it running? error sending request |
+        | agent-1 | Request to llamacpp Failed. Is it running? error sending request |

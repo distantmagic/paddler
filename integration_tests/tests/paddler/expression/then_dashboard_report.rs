@@ -61,16 +61,13 @@ pub async fn then_dashboard_report(_world: &mut PaddlerWorld, step: &Step) -> Re
                         peer_fields.push(
                             peer.error
                                 .as_ref()
-                                .map(|b| b.to_string())
+                                .map(|b| b.to_string().replace("http://127.0.0.1:8000/slots", "llamacpp"))
                                 .unwrap_or("None".to_string()),
                         );
                     }
                     _ => continue,
                 }
             }
-            // panic!("{:#?}, {:#?}", table_fields, peer_fields);
-
-            // sleep(Duration::from_secs(2)).await;
 
             assert_fields(table_fields, peer_fields);
         }
