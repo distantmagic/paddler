@@ -264,7 +264,7 @@ impl ProxyHttp for ProxyService {
                         // `select_upstream_peer` and wait for a notification from code that's
                         // executed when a slot may become available (e.g., the
                         // `/api/v1/agent_status_update/{agent_id}` endpoint).
-                        self.upstream_peer_pool.notifier.notified().await
+                        self.upstream_peer_pool.available_slots_notifier.notified().await
                     }
                 }
             } => {

@@ -16,12 +16,14 @@ pub struct UpstreamPeer {
     pub agent_name: Option<String>,
     pub model: Option<String>,
     pub error: Option<String>,
-    pub is_llamacpp_reachable: Option<bool>,
-    pub is_llamacpp_response_decodeable: Option<bool>,
-    pub is_llamacpp_request_error: Option<bool>,
     pub external_llamacpp_addr: SocketAddr,
     /// None means undetermined, probably due to an error
     pub is_authorized: Option<bool>,
+    pub is_connect_error: Option<bool>,
+    pub is_decode_error: Option<bool>,
+    pub is_deserialize_error: Option<bool>,
+    pub is_request_error: Option<bool>,
+    pub is_unexpected_response_status: Option<bool>,
     /// None means undetermined, probably due to an error
     pub is_slots_endpoint_enabled: Option<bool>,
     pub last_update: SystemTime,
@@ -38,9 +40,11 @@ impl UpstreamPeer {
         agent_id: String,
         agent_name: Option<String>,
         error: Option<String>,
-        is_llamacpp_reachable: Option<bool>,
-        is_llamacpp_response_decodeable: Option<bool>,
-        is_llamacpp_request_error: Option<bool>,
+        is_connect_error: Option<bool>,
+        is_decode_error: Option<bool>,
+        is_deserialize_error: Option<bool>,
+        is_request_error: Option<bool>,
+        is_unexpected_response_status: Option<bool>,
         external_llamacpp_addr: SocketAddr,
         is_authorized: Option<bool>,
         is_slots_endpoint_enabled: Option<bool>,
@@ -52,9 +56,11 @@ impl UpstreamPeer {
             agent_id,
             agent_name,
             error,
-            is_llamacpp_reachable,
-            is_llamacpp_response_decodeable,
-            is_llamacpp_request_error,
+            is_connect_error,
+            is_decode_error,
+            is_deserialize_error,
+            is_request_error,
+            is_unexpected_response_status,
             external_llamacpp_addr,
             is_authorized,
             is_slots_endpoint_enabled,
@@ -73,9 +79,11 @@ impl UpstreamPeer {
             agent_id,
             status_update.agent_name.to_owned(),
             status_update.error.to_owned(),
-            status_update.is_llamacpp_reachable,
-            status_update.is_llamacpp_response_decodeable,
-            status_update.is_llamacpp_request_error,
+            status_update.is_unexpected_response_status,
+            status_update.is_connect_error,
+            status_update.is_decode_error,
+            status_update.is_deserialize_error,
+            status_update.is_request_error,
             status_update.external_llamacpp_addr,
             status_update.is_authorized,
             status_update.is_slots_endpoint_enabled,
@@ -121,9 +129,6 @@ impl UpstreamPeer {
         self.is_slots_endpoint_enabled = status_update.is_slots_endpoint_enabled;
         self.last_update = SystemTime::now();
         self.quarantined_until = None;
-        self.is_llamacpp_reachable = status_update.is_llamacpp_reachable;
-        self.is_llamacpp_response_decodeable = status_update.is_llamacpp_response_decodeable;
-        self.is_llamacpp_request_error = status_update.is_llamacpp_request_error;
         self.slots_idle = status_update.idle_slots_count;
         self.slots_processing = status_update.processing_slots_count;
         self.slots_taken_since_last_status_update = 0;
@@ -177,23 +182,31 @@ mod tests {
     use std::net::Ipv4Addr;
     use std::net::SocketAddr;
 
+    use crate::llamacpp::slot::Slot;
+
     use super::*;
 
     fn create_test_peer() -> UpstreamPeer {
-        UpstreamPeer::new(
-            "test_agent".to_string(),
-            Some("test_name".to_string()),
-            None,
-            None,
-            None,
-            None,
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
-            Some(true),
-            Some(true),
-            5,
-            0,
-            Some("llama3".to_string()),
-        )
+        UpstreamPeer {
+            agent_id: "test_agent".to_string(),
+            agent_name: Some("test_name".to_string()),
+            model: Some("llama3".to_string()),
+            error: None,
+            external_llamacpp_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+            is_authorized: Some(true),
+            is_connect_error: None,
+            is_decode_error: None,
+            is_deserialize_error: None,
+            is_request_error: None,
+            is_unexpected_response_status: None,
+            is_slots_endpoint_enabled: Some(true),
+            last_update: SystemTime::now(),
+            quarantined_until: None,
+            slots_idle: 5,
+            slots_processing: 0,
+            slots_taken: 0,
+            slots_taken_since_last_status_update: 0,
+        }
     }
 
     #[test]
@@ -239,18 +252,25 @@ mod tests {
     #[test]
     fn test_update_status() {
         let mut peer = create_test_peer();
-        let status_update = StatusUpdate::new(
-            Some("new_name".to_string()),
-            None,
-            None,
-            None,
-            None,
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),
-            Some(true),
-            Some(true),
-            vec![],
-            Some("llama3".to_string()),
-        );
+        let slots: Vec<Slot> = vec![];
+        let idle_slots_count = slots.iter().filter(|slot| !slot.is_processing).count();
+
+        let status_update = StatusUpdate {
+            agent_name: Some("new_name".to_string()),
+            error: None,
+            is_unexpected_response_status: None,
+            is_connect_error: None,
+            is_decode_error: None,
+            is_deserialize_error: None,
+            is_request_error: None,
+            external_llamacpp_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),
+            idle_slots_count: idle_slots_count,
+            is_authorized: Some(true),
+            is_slots_endpoint_enabled: Some(true),
+            processing_slots_count: slots.len() - idle_slots_count,
+            model: Some("llama3".to_string()),
+            slots: slots,
+        };
 
         peer.update_status(status_update);
         assert_eq!(peer.slots_idle, 0);

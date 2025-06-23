@@ -18,7 +18,7 @@ node_modules: package-lock.json
 # -----------------------------------------------------------------------------
 
 .PHONY: build
-build:
+build: node_modules
 	./jarmuz-release.mjs
 
 .PHONY: clean
@@ -29,7 +29,7 @@ clean:
 	rm -rf target
 
 .PHONY: fmt
-fmt:
+fmt: node_modules
 	./jarmuz-fmt.mjs
 
 .PHONY: integration_tests
@@ -42,5 +42,5 @@ test: integration_tests
 	cargo test
 
 .PHONY: watch
-watch:
+watch: node_modules
 	./jarmuz-watch.mjs

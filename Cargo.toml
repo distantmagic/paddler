@@ -43,6 +43,8 @@ askama = { version = "0.14.0", optional = true }
 esbuild-metafile = { version = "0.2.0", optional = true }
 mime_guess = { version = "2.0.5", optional = true }
 rust-embed = { version = "8.7.2", optional = true, features = ["interpolate-folder-path"] }
+actix-web-lab = "0.24.1"
+async-stream = "0.3.6"
 
 [features]
 default = ["statsd_reporter", "ratatui_dashboard"]

@@ -19,16 +19,18 @@ pub struct UpstreamPeerPoolInfo {
 
 pub struct UpstreamPeerPool {
     pub agents: RwLock<Vec<UpstreamPeer>>,
-    pub notifier: Notify,
     pub request_buffer_length: AtomicUsize,
+    pub available_slots_notifier: Notify,
+    pub update_notifier: Notify,
 }
 
 impl UpstreamPeerPool {
     pub fn new() -> Self {
         Self {
             agents: RwLock::new(Vec::new()),
-            notifier: Notify::new(),
+            available_slots_notifier: Notify::new(),
             request_buffer_length: AtomicUsize::new(0),
+            update_notifier: Notify::new(),
         }
     }
 
@@ -42,6 +44,7 @@ impl UpstreamPeerPool {
         self.with_agents_write(|agents| {
             if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
                 peer.quarantined_until = Some(SystemTime::now() + Duration::from_secs(10));
+                self.update_notifier.notify_waiters();
 
                 return Ok(true);
             }
@@ -66,6 +69,7 @@ impl UpstreamPeerPool {
             }
 
             agents.sort();
+            self.update_notifier.notify_waiters();
 
             Ok(())
         })
@@ -80,6 +84,7 @@ impl UpstreamPeerPool {
                 }
 
                 peer.release_slot()?;
+                self.update_notifier.notify_waiters();
 
                 return Ok(());
             }
@@ -92,6 +97,7 @@ impl UpstreamPeerPool {
         self.with_agents_write(|agents| {
             if let Some(pos) = agents.iter().position(|p| p.agent_id == agent_id) {
                 agents.remove(pos);
+                self.update_notifier.notify_waiters();
             }
 
             Ok(())
@@ -101,6 +107,7 @@ impl UpstreamPeerPool {
     pub fn restore_integrity(&self) -> Result<()> {
         self.with_agents_write(|agents| {
             agents.sort();
+            self.update_notifier.notify_waiters();
 
             Ok(())
         })

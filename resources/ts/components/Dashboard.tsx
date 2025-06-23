@@ -2,6 +2,7 @@ import clsx from "clsx";
 import React, { CSSProperties, useEffect, useState } from "react";
 import { z } from "zod";
 
+import { AgentSchema, type Agent } from "../schemas/Agent";
 import { DashboardLayout } from "./DashboardLayout";
 
 import {
@@ -12,103 +13,60 @@ import {
   agentsTable,
 } from "./Dashboard.module.css";
 
-const agentSchema = z.object({
-  agent_id: z.string(),
-  agent_name: z.string().nullable(),
-  error: z.string().nullable(),
-  is_llamacpp_reachable: z.boolean().nullable(),
-  is_llamacpp_response_decodeable: z.boolean().nullable(),
-  is_llamacpp_request_error: z.boolean().nullable(),
-  external_llamacpp_addr: z.string(),
-  is_authorized: z.boolean().nullable(),
-  is_slots_endpoint_enabled: z.boolean().nullable(),
-  last_update: z.object({
-    nanos_since_epoch: z.number(),
-    secs_since_epoch: z.number(),
-  }),
-  quarantined_until: z
-    .object({
-      nanos_since_epoch: z.number(),
-      secs_since_epoch: z.number(),
-    })
-    .nullable(),
-  slots_idle: z.number(),
-  slots_processing: z.number(),
+const AgentsResponseSchema = z.object({
+  agents: z.array(AgentSchema),
 });
-
-const agentsResponseSchema = z.object({
-  agents: z.array(agentSchema),
-});
-
-// use zod just for the sake of integrity
-type Agent = z.infer<typeof agentSchema>;
-type AgentsResponse = z.infer<typeof agentsResponseSchema>;
-
-const TICK_MS = 500;
 
 function formatTimestamp(timestamp: number): string {
   return new Date(timestamp * 1000).toLocaleString();
 }
 
 export function Dashboard() {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [isError, setIsError] = useState(false);
-  const [isFirstLoad, setIsFirstLoad] = useState(true);
-  const [currentTick, setCurrentTick] = useState(0);
+  const [agents, setAgents] = useState<undefined | Agent[]>(undefined);
+  const [isConnectionError, setIsConnectionError] = useState(false);
+  const [isDeserializationError, setIsDeserializationError] = useState(false);
 
   useEffect(
     function () {
-      const intervalId = setInterval(function () {
-        setCurrentTick(function (previousTick) {
-          return previousTick + 1;
-        });
-      }, TICK_MS);
+      const agentsSource = new EventSource("/api/v1/agents/stream");
+
+      agentsSource.addEventListener("error", function () {
+        setIsConnectionError(true);
+      });
+
+      agentsSource.addEventListener("message", function (event) {
+        if ("string" !== typeof event.data) {
+          console.error("Received non-string data from SSE:", event.data);
+          setIsDeserializationError(true);
+
+          return;
+        }
+
+        const parsed = JSON.parse(event.data);
+        const result = AgentsResponseSchema.safeParse(parsed);
+
+        if (!result.success) {
+          setIsDeserializationError(true);
+        } else {
+          setAgents(result.data.agents);
+        }
+      });
+
+      agentsSource.addEventListener("open", function () {
+        setIsConnectionError(false);
+        setIsDeserializationError(false);
+      });
 
       return function () {
-        clearInterval(intervalId);
+        agentsSource.close();
       };
     },
-    [setCurrentTick],
+    [setAgents, setIsConnectionError, setIsDeserializationError],
   );
 
-  useEffect(
-    function () {
-      const abortController = new AbortController();
-
-      fetch("/api/v1/agents", {
-        signal: abortController.signal,
-      })
-        .then((response) => response.json())
-        .then((agents) => agentsResponseSchema.parse(agents))
-        .then(function (agentsResponse: AgentsResponse) {
-          setIsError(false);
-          setAgents(agentsResponse.agents);
-        })
-        .catch(function (error: unknown) {
-          setIsError(true);
-          console.error(error);
-        })
-        .finally(function () {
-          setIsFirstLoad(false);
-        });
-
-      return function () {
-        // abort controller prevents overlapping requests
-        abortController.abort();
-      };
-    },
-    [
-      // fetch new data every tick
-      currentTick,
-      setAgents,
-      setIsError,
-      setIsFirstLoad,
-    ],
-  );
-
-  if (isError) {
+  if (isConnectionError) {
     return (
-      <DashboardLayout currentTick={currentTick}>
+      <DashboardLayout>
         <p>
           Error while fetching current agents from the management server. Is it
           running?
@@ -118,9 +76,18 @@ export function Dashboard() {
     );
   }
 
-  if (isFirstLoad) {
+  if (isDeserializationError) {
     return (
-      <DashboardLayout currentTick={currentTick}>
+      <DashboardLayout>
+        <p>Error while parsing agents data from the management server.</p>
+        <p>Will automatically retry in a sec...</p>
+      </DashboardLayout>
+    );
+  }
+
+  if ("undefined" === typeof agents) {
+    return (
+      <DashboardLayout>
         <p>Loading agents...</p>
       </DashboardLayout>
     );
@@ -128,7 +95,7 @@ export function Dashboard() {
 
   if (agents.length < 1) {
     return (
-      <DashboardLayout currentTick={currentTick}>
+      <DashboardLayout>
         <h1>Paddler 🏓</h1>
         <h2>Registered Agents</h2>
         <p>No agents registered yet.</p>
@@ -141,7 +108,7 @@ export function Dashboard() {
   }
 
   return (
-    <DashboardLayout currentTick={currentTick}>
+    <DashboardLayout>
       <h1>Paddler 🏓</h1>
       <h2>Registered Agents</h2>
       <table className={agentsTable}>
@@ -158,14 +125,16 @@ export function Dashboard() {
         <tbody>
           {agents.map(function (agent: Agent) {
             const hasIssues =
-              agent.error != null ||
-              agent.is_authorized === false ||
-              agent.is_slots_endpoint_enabled === false ||
-              agent.is_llamacpp_reachable === false ||
-              agent.is_llamacpp_response_decodeable === false ||
-              agent.is_llamacpp_request_error === true ||
-              agent.quarantined_until != null;
-          
+              agent.error ||
+              true !== agent.is_authorized ||
+              true === agent.is_connect_error ||
+              true === agent.is_request_error ||
+              true === agent.is_decode_error ||
+              true === agent.is_deserialize_error ||
+              true === agent.is_unexpected_response_status ||
+              true !== agent.is_slots_endpoint_enabled ||
+              agent.quarantined_until;
+
             return (
               <tr
                 className={clsx(agentRow, {
@@ -181,12 +150,6 @@ export function Dashboard() {
                       <p>{agent.error}</p>
                     </>
                   )}
-                  {false == agent.is_llamacpp_reachable && (
-                      <p>Llama.cpp server is unreachable. It is likely down.</p>
-                  )}
-                  {false == agent.is_llamacpp_response_decodeable && (
-                      <p>Llama.cpp server returned an unexpected response. Are you sure that the agent is configured to monitor llama.cpp and is using the correct port?</p>
-                  )}
                   {false === agent.is_authorized && (
                     <>
                       <p>Unauthorized</p>
@@ -196,6 +159,18 @@ export function Dashboard() {
                         `--llamacpp-api-key=YOURKEY` flag.
                       </p>
                     </>
+                  )}
+                  {true == agent.is_connect_error && (
+                      <p>Llama.cpp server is unreachable. It is likely down.</p>
+                  )}
+                  {true == agent.is_decode_error && (
+                      <p>Llama.cpp server returned an unexpected response. Are you sure that the agent is configured to monitor llama.cpp and is using the correct port?</p>
+                  )}
+                  {true == agent.is_deserialize_error && (
+                      <p>Llama.cpp server response could not be deserialized.</p>
+                  )}
+                  {true == agent.is_unexpected_response_status && (
+                      <p>Llama.cpp server response status is unexpected.</p>
                   )}
                   {false === agent.is_slots_endpoint_enabled && (
                     <>
@@ -207,14 +182,12 @@ export function Dashboard() {
                     </>
                   )}
                   {agent.quarantined_until && (
-                    <>
-                      <p>
-                        Quarantined until{" "}
-                        {formatTimestamp(
-                          agent.quarantined_until.secs_since_epoch,
-                        )}
-                      </p>
-                    </>
+                    <p>
+                      Quarantined until{" "}
+                      {formatTimestamp(
+                        agent.quarantined_until.secs_since_epoch,
+                      )}
+                    </p>
                   )}
                   {!hasIssues && <p>None</p>}
                 </td>

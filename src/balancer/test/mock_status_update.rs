@@ -31,16 +31,22 @@ pub fn mock_status_update(
         i += 1;
     }
 
-    StatusUpdate::new(
-        Some(agent_id.to_string()),
-        None,
-        None,
-        None,
-        None,
-        SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
-        Some(true),
-        Some(true),
-        slots,
+    let idle_slots_count = slots.iter().filter(|slot| !slot.is_processing).count();
+
+    StatusUpdate {
+        agent_name: Some(agent_id.to_string()),
+        error: None,
+        is_unexpected_response_status: None,
+        is_connect_error: None,
+        is_decode_error: None,
+        is_deserialize_error: None,
+        is_request_error: None,
+        external_llamacpp_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+        idle_slots_count: idle_slots_count,
+        is_authorized: Some(true),
+        is_slots_endpoint_enabled: Some(true),
+        processing_slots_count: slots.len() - idle_slots_count,
+        slots: slots,
         Some("llama3".to_string()),
-    )
+    }
 }
