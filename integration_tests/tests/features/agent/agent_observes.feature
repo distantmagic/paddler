@@ -11,9 +11,6 @@ Feature: Observe llama.cpp instances
         Then dashboard report:
         |  agent  | error |
         | agent-1 | None |
-
-    @serial
-    Scenario: Agent detaches llama.cpp
         When llama.cpp server "llama-1" stops running
         Then dashboard report:
         |  agent  | error |
