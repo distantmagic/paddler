@@ -44,7 +44,7 @@ impl MonitoringService {
 
     async fn fetch_status(&self) -> StatusUpdate {
         let slots_response = self.llamacpp_client.get_available_slots().await;
-        let processing_slots_count = slots_response
+        let slots_processing = slots_response
             .slots
             .iter()
             .filter(|slot| slot.is_processing)
@@ -54,7 +54,6 @@ impl MonitoringService {
             agent_name: self.name.to_owned(),
             error: slots_response.error,
             external_llamacpp_addr: self.external_llamacpp_addr,
-            idle_slots_count: slots_response.slots.len() - processing_slots_count,
             is_authorized: slots_response.is_authorized,
             is_connect_error: slots_response.is_connect_error,
             is_decode_error: slots_response.is_decode_error,
@@ -62,7 +61,8 @@ impl MonitoringService {
             is_request_error: slots_response.is_request_error,
             is_slots_endpoint_enabled: slots_response.is_slot_endpoint_enabled,
             is_unexpected_response_status: slots_response.is_unexpected_response_status,
-            processing_slots_count,
+            slots_idle: slots_response.slots.len() - slots_processing,
+            slots_processing,
         }
     }
 

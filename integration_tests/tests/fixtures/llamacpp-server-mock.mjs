@@ -1,34 +1,28 @@
 #!/usr/bin/env node
 
-import { appendFile } from 'node:fs';
-import { createServer } from 'node:http';
-import { parseArgs } from 'node:util';
+import { appendFile } from "node:fs";
+import { createServer } from "node:http";
+import { parseArgs } from "node:util";
 
 const {
-  values: {
-    completionResponseDelay,
-    logFile,
-    name,
-    port,
-    slots,
-  },
+  values: { completionResponseDelay, logFile, name, port, slots },
 } = parseArgs({
   args: process.argv.slice(2),
   options: {
     completionResponseDelay: {
-      type: 'string',
+      type: "string",
     },
     logFile: {
-      type: 'string',
+      type: "string",
     },
     name: {
-      type: 'string',
+      type: "string",
     },
     port: {
-      type: 'string',
+      type: "string",
     },
     slots: {
-      type: 'string',
+      type: "string",
     },
   },
 });
@@ -47,11 +41,11 @@ for (let i = 0; i < slotsInt; i += 1) {
 
 const server = createServer(function (req, res) {
   if (req.url === "/chat/completions") {
-    const requestName = req.headers['x-request-name'];
+    const requestName = req.headers["x-request-name"];
 
     if (!requestName) {
       res.statusCode = 400;
-      res.setHeader('Content-Type', 'application/json');
+      res.setHeader("Content-Type", "application/json");
       res.end('{"error":"Missing x-request-name header"}');
 
       return;
@@ -61,30 +55,32 @@ const server = createServer(function (req, res) {
       appendFile(logFile, `${name};${requestName}`, function (err) {
         if (err) {
           res.statusCode = 500;
-          res.setHeader('Content-Type', 'text/plain');
+          res.setHeader("Content-Type", "text/plain");
           res.end(String(err));
         } else {
           res.statusCode = 200;
-          res.setHeader('Content-Type', 'application/json');
-          res.end('{}');
+          res.setHeader("Content-Type", "application/json");
+          res.end("{}");
         }
       });
     }, completionResponseDelayInt * 1000);
-  } else if (req.url === '/health') {
+  } else if (req.url === "/health") {
     res.statusCode = 200;
-    res.setHeader('Content-Type', 'text/plain');
-    res.end('OK');
-  } else if (req.url === '/slots') {
+    res.setHeader("Content-Type", "text/plain");
+    res.end("OK");
+  } else if (req.url === "/slots") {
     res.statusCode = 200;
-    res.setHeader('Content-Type', 'application/json');
+    res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify(slotsStatuses));
   } else {
     res.statusCode = 404;
-    res.setHeader('Content-Type', 'application/json');
+    res.setHeader("Content-Type", "application/json");
     res.end('{"status":"not found"}');
   }
 });
 
 server.listen(portInt, function () {
-  console.log(`Server ${name} is listening on port ${portInt} (with ${slotsInt} slots)`);
+  console.log(
+    `Server ${name} is listening on port ${portInt} (with ${slotsInt} slots)`,
+  );
 });

@@ -50,7 +50,7 @@ async fn respond(
     while let Some(chunk) = payload.next().await {
         match serde_json::from_slice::<StatusUpdate>(&chunk?) {
             Ok(status_update) => {
-                let idle_slots_count = status_update.idle_slots_count;
+                let idle_slots_count = status_update.slots_idle;
 
                 if let Err(err) =
                     upstream_peer_pool.register_status_update(&path_params.agent_id, status_update)
