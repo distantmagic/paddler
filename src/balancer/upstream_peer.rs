@@ -36,7 +36,6 @@ impl UpstreamPeer {
     }
 
     pub fn release_slot(&mut self) -> Result<()> {
-        println!("release slot: {:3?}", self.status);
         if self.slots_taken < 1 {
             return Err("Cannot release a slot when there are no taken slots".into());
         }
@@ -61,7 +60,6 @@ impl UpstreamPeer {
     }
 
     pub fn take_slot(&mut self) -> Result<()> {
-        println!("take_slot: {:?}", self.status);
         if self.status.slots_idle < 1 {
             return Err("Cannot take a slot when there are no idle slots".into());
         }
