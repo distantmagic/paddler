@@ -105,7 +105,7 @@ enum Commands {
         /// Enable the web management dashboard
         management_dashboard_enable: bool,
 
-        #[arg(long, default_value = "32")]
+        #[arg(long, default_value = "30")]
         /// The maximum number of buffered requests. Like with usual requests, the request timeout
         /// is also applied to buffered ones. If the maximum number is reached, all new requests are
         /// rejected with the 429 (Too Many Requests) error.

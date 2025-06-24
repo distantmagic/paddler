@@ -144,22 +144,6 @@ impl ProxyHttp for ProxyService {
         session: &mut Session,
         ctx: &mut Self::CTX,
     ) -> Result<Box<HttpPeer>> {
-        let Some(_req_guard) = RequestBufferGuard::increment(
-            &self.upstream_peer_pool.request_buffer_length,
-            self.max_buffered_requests,
-        ) else {
-            session
-                .respond_error(pingora::http::StatusCode::TOO_MANY_REQUESTS.as_u16())
-                .await?;
-
-            return Err(Error::create(
-                pingora::ErrorType::ConnectRefused,
-                ErrorSource::Internal,
-                None,
-                None,
-            ));
-        };
-
         ctx.uses_slots = match session.req_header().uri.path() {
             "/slots" => {
                 if !self.slots_endpoint_enable {
@@ -185,13 +169,29 @@ impl ProxyHttp for ProxyService {
 
                     if let Some(peer) = ctx.selected_peer.clone() {
                         return Ok::<_, Box<Error>>(peer)
-                    } else {
-                        // To avoid wasting CPU cycles, we don't immediately retry to
-                        // `select_upstream_peer` and wait for a notification from code that's
-                        // executed when a slot may become available (e.g., the
-                        // `/api/v1/agent_status_update/{agent_id}` endpoint).
-                        self.upstream_peer_pool.available_slots_notifier.notified().await
                     }
+
+                    let Some(_req_guard) = RequestBufferGuard::increment(
+                        &self.upstream_peer_pool.request_buffer_length,
+                        self.max_buffered_requests,
+                    ) else {
+                        session
+                            .respond_error(pingora::http::StatusCode::TOO_MANY_REQUESTS.as_u16())
+                            .await?;
+
+                        return Err(Error::create(
+                            pingora::ErrorType::ConnectRefused,
+                            ErrorSource::Internal,
+                            None,
+                            None,
+                        ));
+                    };
+
+                    // To avoid wasting CPU cycles, we don't immediately retry to
+                    // `select_upstream_peer` and wait for a notification from code that's
+                    // executed when a slot may become available (e.g., the
+                    // `/api/v1/agent_status_update/{agent_id}` endpoint).
+                    self.upstream_peer_pool.available_slots_notifier.notified().await
                 }
             } => {
                 result?
