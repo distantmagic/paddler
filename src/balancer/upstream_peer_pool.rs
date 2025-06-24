@@ -62,6 +62,8 @@ impl UpstreamPeerPool {
         agent_id: &str,
         status_update: StatusUpdate,
     ) -> Result<()> {
+        let has_idle_slots = status_update.slots_idle > 0;
+
         let _ = self.with_agents_write(|agents| {
             if let Some(upstream_peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
                 upstream_peer.update_status(status_update);
@@ -76,6 +78,10 @@ impl UpstreamPeerPool {
 
             Ok(())
         });
+
+        if has_idle_slots {
+            self.available_slots_notifier.notify_waiters();
+        }
 
         self.update_notifier.notify_waiters();
 
