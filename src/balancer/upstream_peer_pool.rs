@@ -77,7 +77,7 @@ impl UpstreamPeerPool {
             agents.sort();
 
             Ok(())
-        });
+        })?;
 
         if has_idle_slots {
             self.available_slots_notifier.notify_waiters();
@@ -135,7 +135,7 @@ impl UpstreamPeerPool {
             agents.sort();
 
             Ok(())
-        });
+        })?;
 
         self.update_notifier.notify_waiters();
 
