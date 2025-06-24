@@ -12,11 +12,11 @@ Feature: Observe llama.cpp instances
         Given agent "agent-2" is running (observes "llama-2")
         Given agent "agent-2" is registered
         Then balancer state is:
-        |  agent  | error |
-        | agent-1 | false |
-        | agent-2 | false |
+        |  agent  | is_request_error |
+        | agent-1 |      false       |
+        | agent-2 |      false       |
         When llama.cpp server "llama-1" stops running
         Then balancer state is:
-        |  agent  | error |
-        | agent-1 | true  |
-        | agent-2 | false |
+        |  agent  | is_request_error |
+        | agent-1 |      true        |
+        | agent-2 |      false       |

@@ -4,26 +4,9 @@ use anyhow::Result;
 use cucumber::given;
 use tokio::time::sleep;
 
-use crate::agent_status::AgentStatusResponse;
-use crate::paddler_world::PaddlerWorld;
+use crate::{agent_response::AgentStatusResponse, paddler_world::PaddlerWorld};
 
 const MAX_ATTEMPTS: usize = 30;
-
-#[derive(Deserialize)]
-struct AgentStatus {
-    agent_name: String,
-    error: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct Agent {
-    status: AgentStatus,
-}
-
-#[derive(Deserialize)]
-struct AgentsResponse {
-    agents: Vec<Agent>,
-}
 
 async fn do_check(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
     if !world.agents.instances.contains_key(&agent_name) {
@@ -41,7 +24,7 @@ async fn do_check(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
         ));
     }
 
-    let agents_response = response.json::<AgentsResponse>().await?;
+    let agents_response = response.json::<AgentStatusResponse>().await?;
     let agent = agents_response
         .agents
         .iter()

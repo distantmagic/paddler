@@ -3,7 +3,7 @@ use cucumber::gherkin::Step;
 use cucumber::then;
 use reqwest::Response;
 
-use crate::agent_status::AgentStatusResponse;
+use crate::agent_response::AgentStatusResponse;
 use crate::paddler_world::PaddlerWorld;
 
 async fn fetch_status(balancer_port: u16) -> Result<Response> {
@@ -41,7 +41,7 @@ pub async fn then_dashboard_report(_world: &mut PaddlerWorld, step: &Step) -> Re
             let peer = upstream_peer_pool
                 .agents
                 .iter()
-                .find(|p| &p.agent_name == agent_name)
+                .find(|p| &p.status.agent_name == agent_name)
                 .ok_or_else(|| anyhow!("Agent {} not found in response", agent_name))?;
 
             let mut table_fields = Vec::new();
@@ -51,27 +51,24 @@ pub async fn then_dashboard_report(_world: &mut PaddlerWorld, step: &Step) -> Re
                 match header.as_str() {
                     "agent" => {
                         table_fields.push(row.get(col_idx));
-                        peer_fields.push(peer.agent_name.clone());
+                        peer_fields.push(peer.status.agent_name.clone());
                     }
                     "slots_idle" => {
                         table_fields.push(row.get(col_idx));
-                        peer_fields.push(peer.slots_idle.to_string());
+                        peer_fields.push(peer.status.slots_idle.to_string());
                     }
                     "slots_processing" => {
                         table_fields.push(row.get(col_idx));
-                        peer_fields.push(peer.slots_processing.to_string());
+                        peer_fields.push(peer.status.slots_processing.to_string());
                     }
-                    "is_decode_error" => {
+                    "is_request_error" => {
                         table_fields.push(row.get(col_idx));
                         peer_fields.push(
-                            peer.is_decode_error
+                            peer.status
+                                .is_request_error
                                 .map(|v| v.to_string())
                                 .unwrap_or("None".to_string()),
                         );
-                    }
-                    "error" => {
-                        table_fields.push(row.get(col_idx));
-                        peer_fields.push(peer.error.is_some().to_string());
                     }
                     _ => continue,
                 }
