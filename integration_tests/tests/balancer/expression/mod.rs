@@ -1,7 +1,9 @@
 mod given_agent_is_healthy;
 mod given_agent_is_running;
 mod given_balancer_is_running;
+mod given_buffered_requests_timeout_after_seconds;
 mod given_llamacpp_server_is_running;
+mod given_request_buffering_is_disabled;
 mod given_statsd_is_running;
 mod then_request_landed_in;
 mod then_response_code_is;
