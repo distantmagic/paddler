@@ -18,11 +18,11 @@ use crate::balancer::request_context::RequestContext;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 
 pub struct ProxyService {
+    buffered_request_timeout: Duration,
+    max_buffered_requests: usize,
     rewrite_host_header: bool,
     slots_endpoint_enable: bool,
     upstream_peer_pool: Arc<UpstreamPeerPool>,
-    request_timeout: Duration,
-    max_requests: usize,
 }
 
 impl ProxyService {
@@ -30,15 +30,15 @@ impl ProxyService {
         rewrite_host_header: bool,
         slots_endpoint_enable: bool,
         upstream_peer_pool: Arc<UpstreamPeerPool>,
-        request_timeout: Duration,
-        max_requests: usize,
+        buffered_request_timeout: Duration,
+        max_buffered_requests: usize,
     ) -> Self {
         Self {
             rewrite_host_header,
             slots_endpoint_enable,
             upstream_peer_pool,
-            request_timeout,
-            max_requests,
+            buffered_request_timeout,
+            max_buffered_requests,
         }
     }
 }
@@ -146,7 +146,7 @@ impl ProxyHttp for ProxyService {
     ) -> Result<Box<HttpPeer>> {
         let Some(_req_guard) = RequestBufferGuard::increment(
             &self.upstream_peer_pool.request_buffer_length,
-            self.max_requests,
+            self.max_buffered_requests,
         ) else {
             session
                 .respond_error(pingora::http::StatusCode::TOO_MANY_REQUESTS.as_u16())
@@ -196,7 +196,7 @@ impl ProxyHttp for ProxyService {
             } => {
                 result?
             }
-            _ = tokio::time::sleep(self.request_timeout) => {
+            _ = tokio::time::sleep(self.buffered_request_timeout) => {
                 session
                     .respond_error(pingora::http::StatusCode::GATEWAY_TIMEOUT.as_u16())
                     .await?;
@@ -235,8 +235,8 @@ impl ProxyHttp for ProxyService {
 struct RequestBufferGuard<'a>(&'a AtomicUsize);
 
 impl<'a> RequestBufferGuard<'a> {
-    fn increment(length: &'a AtomicUsize, max_requests: usize) -> Option<Self> {
-        if length.load(Ordering::Relaxed) >= max_requests {
+    fn increment(length: &'a AtomicUsize, max_buffered_requests: usize) -> Option<Self> {
+        if length.load(Ordering::Relaxed) >= max_buffered_requests {
             None
         } else {
             length.fetch_add(1, Ordering::Relaxed);
