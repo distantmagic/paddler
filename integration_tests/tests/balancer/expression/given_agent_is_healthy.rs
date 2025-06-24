@@ -7,7 +7,7 @@ use tokio::time::sleep;
 
 use crate::paddler_world::PaddlerWorld;
 
-const MAX_ATTEMPTS: usize = 3;
+const MAX_ATTEMPTS: usize = 30;
 
 #[derive(Deserialize)]
 struct AgentStatus {
@@ -16,8 +16,13 @@ struct AgentStatus {
 }
 
 #[derive(Deserialize)]
-struct AgentStatusResponse {
-    agents: Vec<AgentStatus>,
+struct Agent {
+    status: AgentStatus,
+}
+
+#[derive(Deserialize)]
+struct AgentsResponse {
+    agents: Vec<Agent>,
 }
 
 async fn do_check(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
@@ -36,14 +41,14 @@ async fn do_check(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
         ));
     }
 
-    let agents_response = response.json::<AgentStatusResponse>().await?;
-    let agent_status = agents_response
+    let agents_response = response.json::<AgentsResponse>().await?;
+    let agent = agents_response
         .agents
         .iter()
-        .find(|agent| agent.agent_name == agent_name)
+        .find(|agent| agent.status.agent_name == agent_name)
         .ok_or_else(|| anyhow::anyhow!("not found in response"))?;
 
-    if let Some(error_value) = &agent_status.error {
+    if let Some(error_value) = &agent.status.error {
         return Err(anyhow::anyhow!("agent reported error: {:?}", error_value));
     }
 
@@ -55,16 +60,10 @@ pub async fn given_agent_is_healthy(world: &mut PaddlerWorld, agent_name: String
     let mut attempts = 0;
 
     while attempts < MAX_ATTEMPTS {
-        sleep(Duration::from_secs(1)).await;
+        sleep(Duration::from_millis(100)).await;
 
-        match do_check(world, agent_name.clone()).await {
-            Ok(_) => return Ok(()),
-            Err(err) => eprintln!(
-                "Attempt {}: Agent '{}' is not healthy - {}",
-                attempts + 1,
-                agent_name,
-                err
-            ),
+        if do_check(world, agent_name.clone()).await.is_ok() {
+            return Ok(());
         }
 
         attempts += 1;

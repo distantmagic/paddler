@@ -252,22 +252,22 @@ impl App {
 }
 
 fn ref_array(peer: &UpstreamPeer) -> Result<[String; 6]> {
-    let has_issue = match peer.error.clone() {
+    let has_issue = match peer.status.error.clone() {
         Some(issue) => issue,
         None => String::from("None"),
     };
 
-    let has_name = peer.agent_name.clone().unwrap_or_default();
+    let has_name = peer.status.agent_name.clone().unwrap_or_default();
 
     let date_as_string = systemtime_strftime(peer.last_update)?;
 
     Ok([
         has_name,
         has_issue,
-        peer.external_llamacpp_addr.to_string().clone(),
+        peer.status.external_llamacpp_addr.to_string().clone(),
         date_as_string,
-        peer.slots_idle.to_string(),
-        peer.slots_processing.to_string(),
+        peer.status.slots_idle.to_string(),
+        peer.status.slots_processing.to_string(),
     ])
 }
 
