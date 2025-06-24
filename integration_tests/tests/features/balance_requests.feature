@@ -94,3 +94,29 @@ Feature: Balance llama.cpp requests
         Then "req-2" response code is 200
         Then "req-2" request landed in "llama-2"
         Then "req-3" response code is 429
+
+    @serial
+    Scenario: Balancing between multiple slots and agents
+        Given balancer is running
+        Given llama.cpp server "llama-1" is running (has 2 slots)
+        Given llama.cpp server "llama-2" is running (has 2 slots)
+        Given agent "agent-1" is running (observes "llama-1")
+        Given agent "agent-1" is healthy
+        Given agent "agent-2" is running (observes "llama-2")
+        Given agent "agent-2" is healthy
+        When multiple requests are sent to "/chat/completions"
+            | req-1 |
+            | req-2 |
+            | req-3 |
+            | req-4 |
+            | req-5 |
+        Then "req-1" response code is 200
+        Then "req-1" request landed in "llama-1"
+        Then "req-2" response code is 200
+        Then "req-2" request landed in "llama-2"
+        Then "req-3" response code is 200
+        Then "req-3" request landed in "llama-1"
+        Then "req-4" response code is 200
+        Then "req-4" request landed in "llama-2"
+        Then "req-5" response code is 200
+        Then "req-5" request landed in "llama-1"
