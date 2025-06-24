@@ -2,16 +2,21 @@ Feature: Observe llama.cpp instances
 
     Background:
         Given balancer is running (2 max requests)
-        Given llama.cpp server "llama-1" is running (has 3 slots)
-        Given agent "agent-1" is running (observes "llama-1")
-        Given agent "agent-1" is registered
+        Given llama.cpp server "llama-1" is running (has 1 slot)
+        Given llama.cpp server "llama-2" is running (has 1 slot)
 
     @serial
     Scenario: Agent attaches llama.cpp
-        Then dashboard report:
+        Given agent "agent-1" is running (observes "llama-1")
+        Given agent "agent-1" is registered
+        Given agent "agent-2" is running (observes "llama-2")
+        Given agent "agent-2" is registered
+        Then balancer state is:
         |  agent  | error |
-        | agent-1 | None |
+        | agent-1 | false |
+        | agent-2 | false |
         When llama.cpp server "llama-1" stops running
-        Then dashboard report:
+        Then balancer state is:
         |  agent  | error |
-        | agent-1 | Request to llamacpp Failed. Is it running? error sending request |
+        | agent-1 | true  |
+        | agent-2 | false |

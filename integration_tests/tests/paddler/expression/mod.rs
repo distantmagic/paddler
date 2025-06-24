@@ -3,7 +3,7 @@ mod given_agent_is_running;
 mod given_balancer_is_running;
 mod given_llamacpp_server_is_running;
 mod given_statsd_is_running;
-mod then_dashboard_report;
+mod then_balancer_state_is;
 mod then_metrics_report;
 mod then_request_landed_in;
 mod then_response_code_is;
