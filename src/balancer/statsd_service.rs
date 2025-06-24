@@ -80,7 +80,7 @@ impl Service for StatsdService {
                 },
                 _ = ticker.tick() => {
                     if let Err(err) = self.report_metrics(&client).await {
-                        error!("Failed to fetch status: {err}");
+                        error!("Failed to report metrics: {err}");
                     }
                 }
             }

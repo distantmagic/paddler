@@ -1,29 +1,24 @@
 import { z } from "zod";
 
-export const AgentSchema = z.object({
-  agent_id: z.string(),
-  agent_name: z.string().nullable(),
-  error: z.string().nullable(),
-  external_llamacpp_addr: z.string(),
-  is_authorized: z.boolean().nullable(),
-  is_connect_error: z.boolean().nullable(),
-  is_decode_error: z.boolean().nullable(),
-  is_deserialize_error: z.boolean().nullable(),
-  is_request_error: z.boolean().nullable(),
-  is_unexpected_response_status: z.boolean().nullable(),
-  is_slots_endpoint_enabled: z.boolean().nullable(),
-  last_update: z.object({
-    nanos_since_epoch: z.number(),
-    secs_since_epoch: z.number(),
-  }),
-  quarantined_until: z
-    .object({
+import { StatusUpdateSchema } from "./StatusUpdate";
+
+export const AgentSchema = z
+  .object({
+    agent_id: z.string(),
+    last_update: z.object({
       nanos_since_epoch: z.number(),
       secs_since_epoch: z.number(),
-    })
-    .nullable(),
-  slots_idle: z.number(),
-  slots_processing: z.number(),
-});
+    }),
+    quarantined_until: z
+      .object({
+        nanos_since_epoch: z.number(),
+        secs_since_epoch: z.number(),
+      })
+      .nullable(),
+    slots_taken: z.number(),
+    slots_taken_since_last_status_update: z.number(),
+    status: StatusUpdateSchema,
+  })
+  .strict();
 
 export type Agent = z.infer<typeof AgentSchema>;

@@ -1,7 +1,6 @@
 use std::cmp::Eq;
 use std::cmp::Ordering;
 use std::cmp::PartialEq;
-use std::net::SocketAddr;
 use std::time::SystemTime;
 
 use serde::Deserialize;
@@ -13,87 +12,27 @@ use crate::errors::result::Result;
 #[derive(Clone, Debug, Eq, Serialize, Deserialize)]
 pub struct UpstreamPeer {
     pub agent_id: String,
-    pub agent_name: Option<String>,
-    pub error: Option<String>,
-    pub external_llamacpp_addr: SocketAddr,
-    /// None means undetermined, probably due to an error
-    pub is_authorized: Option<bool>,
-    pub is_connect_error: Option<bool>,
-    pub is_decode_error: Option<bool>,
-    pub is_deserialize_error: Option<bool>,
-    pub is_request_error: Option<bool>,
-    pub is_unexpected_response_status: Option<bool>,
-    /// None means undetermined, probably due to an error
-    pub is_slots_endpoint_enabled: Option<bool>,
     pub last_update: SystemTime,
     pub quarantined_until: Option<SystemTime>,
-    pub slots_idle: usize,
-    pub slots_processing: usize,
     pub slots_taken: usize,
     pub slots_taken_since_last_status_update: usize,
+    pub status: StatusUpdate,
 }
 
 impl UpstreamPeer {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        agent_id: String,
-        agent_name: Option<String>,
-        error: Option<String>,
-        is_connect_error: Option<bool>,
-        is_decode_error: Option<bool>,
-        is_deserialize_error: Option<bool>,
-        is_request_error: Option<bool>,
-        is_unexpected_response_status: Option<bool>,
-        external_llamacpp_addr: SocketAddr,
-        is_authorized: Option<bool>,
-        is_slots_endpoint_enabled: Option<bool>,
-        slots_idle: usize,
-        slots_processing: usize,
-    ) -> Self {
-        UpstreamPeer {
+    pub fn new_from_status_update(agent_id: String, status: StatusUpdate) -> Self {
+        Self {
             agent_id,
-            agent_name,
-            error,
-            is_connect_error,
-            is_decode_error,
-            is_deserialize_error,
-            is_request_error,
-            is_unexpected_response_status,
-            external_llamacpp_addr,
-            is_authorized,
-            is_slots_endpoint_enabled,
             last_update: SystemTime::now(),
             quarantined_until: None,
-            slots_idle,
-            slots_processing,
             slots_taken: 0,
             slots_taken_since_last_status_update: 0,
+            status,
         }
     }
 
-    pub fn new_from_status_update(agent_id: String, status_update: StatusUpdate) -> Self {
-        Self::new(
-            agent_id,
-            status_update.agent_name.to_owned(),
-            status_update.error.to_owned(),
-            status_update.is_unexpected_response_status,
-            status_update.is_connect_error,
-            status_update.is_decode_error,
-            status_update.is_deserialize_error,
-            status_update.is_request_error,
-            status_update.external_llamacpp_addr,
-            status_update.is_authorized,
-            status_update.is_slots_endpoint_enabled,
-            status_update.idle_slots_count,
-            status_update.processing_slots_count,
-        )
-    }
-
     pub fn is_usable(&self) -> bool {
-        self.slots_idle > 0
-            && self.quarantined_until.is_none()
-            && self.error.is_none()
-            && matches!(self.is_authorized, Some(true))
+        !self.status.has_issues() && self.status.slots_idle > 0 && self.quarantined_until.is_none()
     }
 
     pub fn release_slot(&mut self) -> Result<()> {
@@ -106,36 +45,30 @@ impl UpstreamPeer {
 
         if self.slots_taken_since_last_status_update > 0 {
             self.slots_taken_since_last_status_update -= 1;
-            self.slots_idle += 1;
-            self.slots_processing -= 1;
+            self.status.slots_idle += 1;
+            self.status.slots_processing -= 1;
         }
 
         Ok(())
     }
 
     pub fn update_status(&mut self, status_update: StatusUpdate) {
-        self.agent_name = status_update.agent_name.to_owned();
-        self.error = status_update.error.to_owned();
-        self.external_llamacpp_addr = status_update.external_llamacpp_addr;
-        self.is_authorized = status_update.is_authorized;
-        self.is_slots_endpoint_enabled = status_update.is_slots_endpoint_enabled;
         self.last_update = SystemTime::now();
         self.quarantined_until = None;
-        self.slots_idle = status_update.idle_slots_count;
-        self.slots_processing = status_update.processing_slots_count;
         self.slots_taken_since_last_status_update = 0;
+        self.status = status_update;
     }
 
     pub fn take_slot(&mut self) -> Result<()> {
-        if self.slots_idle < 1 {
+        if self.status.slots_idle < 1 {
             return Err("Cannot take a slot when there are no idle slots".into());
         }
 
         self.last_update = SystemTime::now();
         self.slots_taken_since_last_status_update += 1;
         self.slots_taken += 1;
-        self.slots_idle -= 1;
-        self.slots_processing += 1;
+        self.status.slots_idle -= 1;
+        self.status.slots_processing += 1;
 
         Ok(())
     }
@@ -146,13 +79,7 @@ impl Ord for UpstreamPeer {
         other
             .is_usable()
             .cmp(&self.is_usable())
-            .then_with(|| other.slots_idle.cmp(&self.slots_idle))
-            .then_with(|| self.slots_processing.cmp(&other.slots_processing))
-            // compare by addr for stable sorting
-            .then_with(|| {
-                self.external_llamacpp_addr
-                    .cmp(&other.external_llamacpp_addr)
-            })
+            .then_with(|| self.status.cmp(&other.status))
     }
 }
 
@@ -174,29 +101,33 @@ mod tests {
     use std::net::Ipv4Addr;
     use std::net::SocketAddr;
 
-    use crate::llamacpp::slot::Slot;
-
     use super::*;
+    use crate::llamacpp::slot::Slot;
 
     fn create_test_peer() -> UpstreamPeer {
         UpstreamPeer {
             agent_id: "test_agent".to_string(),
-            agent_name: Some("test_name".to_string()),
-            error: None,
-            external_llamacpp_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
-            is_authorized: Some(true),
-            is_connect_error: None,
-            is_decode_error: None,
-            is_deserialize_error: None,
-            is_request_error: None,
-            is_unexpected_response_status: None,
-            is_slots_endpoint_enabled: Some(true),
             last_update: SystemTime::now(),
             quarantined_until: None,
-            slots_idle: 5,
-            slots_processing: 0,
             slots_taken: 0,
             slots_taken_since_last_status_update: 0,
+            status: StatusUpdate {
+                agent_name: Some("test_name".to_string()),
+                error: None,
+                external_llamacpp_addr: SocketAddr::new(
+                    IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+                    8080,
+                ),
+                is_authorized: Some(true),
+                is_connect_error: None,
+                is_decode_error: None,
+                is_deserialize_error: None,
+                is_request_error: None,
+                is_slots_endpoint_enabled: Some(true),
+                is_unexpected_response_status: None,
+                slots_idle: 5,
+                slots_processing: 0,
+            },
         }
     }
 
@@ -204,18 +135,18 @@ mod tests {
     fn test_take_release_slot() -> Result<()> {
         let mut peer = create_test_peer();
 
-        assert_eq!(peer.slots_idle, 5);
-        assert_eq!(peer.slots_processing, 0);
+        assert_eq!(peer.status.slots_idle, 5);
+        assert_eq!(peer.status.slots_processing, 0);
 
         peer.take_slot()?;
 
-        assert_eq!(peer.slots_idle, 4);
-        assert_eq!(peer.slots_processing, 1);
+        assert_eq!(peer.status.slots_idle, 4);
+        assert_eq!(peer.status.slots_processing, 1);
 
         peer.release_slot()?;
 
-        assert_eq!(peer.slots_idle, 5);
-        assert_eq!(peer.slots_processing, 0);
+        assert_eq!(peer.status.slots_idle, 5);
+        assert_eq!(peer.status.slots_processing, 0);
 
         Ok(())
     }
@@ -224,7 +155,7 @@ mod tests {
     fn test_take_slot_failure() {
         let mut peer = create_test_peer();
 
-        peer.slots_idle = 0;
+        peer.status.slots_idle = 0;
 
         assert!(peer.take_slot().is_err());
     }
@@ -233,7 +164,7 @@ mod tests {
     fn test_release_slot_failure() -> Result<()> {
         let mut peer = create_test_peer();
 
-        peer.slots_processing = 0;
+        peer.status.slots_processing = 0;
 
         assert!(peer.release_slot().is_err());
 
@@ -245,27 +176,26 @@ mod tests {
         let mut peer = create_test_peer();
 
         let slots: Vec<Slot> = vec![];
-        let idle_slots_count = slots.iter().filter(|slot| !slot.is_processing).count();
+        let slots_idle = slots.iter().filter(|slot| !slot.is_processing).count();
 
         let status_update = StatusUpdate {
             agent_name: Some("new_name".to_string()),
             error: None,
-            is_unexpected_response_status: None,
+            external_llamacpp_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),
+            is_authorized: Some(true),
             is_connect_error: None,
             is_decode_error: None,
             is_deserialize_error: None,
             is_request_error: None,
-            external_llamacpp_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),
-            idle_slots_count: idle_slots_count,
-            is_authorized: Some(true),
             is_slots_endpoint_enabled: Some(true),
-            processing_slots_count: slots.len() - idle_slots_count,
-            slots: slots,
+            is_unexpected_response_status: None,
+            slots_idle,
+            slots_processing: slots.len() - slots_idle,
         };
 
         peer.update_status(status_update);
-        assert_eq!(peer.slots_idle, 0);
-        assert_eq!(peer.slots_processing, 0);
-        assert_eq!(peer.agent_name, Some("new_name".to_string()));
+        assert_eq!(peer.status.slots_idle, 0);
+        assert_eq!(peer.status.slots_processing, 0);
+        assert_eq!(peer.status.agent_name, Some("new_name".to_string()));
     }
 }

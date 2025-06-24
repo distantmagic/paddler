@@ -120,8 +120,8 @@ impl UpstreamPeerPool {
             let mut slots_processing = 0;
 
             for peer in agents.iter() {
-                slots_idle += peer.slots_idle;
-                slots_processing += peer.slots_processing;
+                slots_idle += peer.status.slots_idle;
+                slots_processing += peer.status.slots_processing;
             }
 
             Ok((slots_idle, slots_processing))
@@ -192,9 +192,9 @@ mod tests {
 
         pool.with_agents_read(|agents| {
             let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
-            assert_eq!(peer.slots_idle, 4);
-            assert_eq!(peer.slots_processing, 1);
             assert_eq!(peer.slots_taken, 1);
+            assert_eq!(peer.status.slots_idle, 4);
+            assert_eq!(peer.status.slots_processing, 1);
 
             Ok(())
         })?;
@@ -203,9 +203,9 @@ mod tests {
 
         pool.with_agents_read(|agents| {
             let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
-            assert_eq!(peer.slots_idle, 0);
-            assert_eq!(peer.slots_processing, 0);
             assert_eq!(peer.slots_taken, 1);
+            assert_eq!(peer.status.slots_idle, 0);
+            assert_eq!(peer.status.slots_processing, 0);
 
             Ok(())
         })?;
@@ -214,9 +214,9 @@ mod tests {
 
         pool.with_agents_read(|agents| {
             let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
-            assert_eq!(peer.slots_idle, 0);
-            assert_eq!(peer.slots_processing, 0);
             assert_eq!(peer.slots_taken, 0);
+            assert_eq!(peer.status.slots_idle, 0);
+            assert_eq!(peer.status.slots_processing, 0);
 
             Ok(())
         })?;
@@ -235,7 +235,7 @@ mod tests {
         let best_peer = pool.use_best_peer()?.unwrap();
 
         assert_eq!(best_peer.agent_id, "test1");
-        assert_eq!(best_peer.slots_idle, 5);
+        assert_eq!(best_peer.status.slots_idle, 5);
 
         Ok(())
     }

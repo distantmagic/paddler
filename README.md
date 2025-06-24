@@ -216,6 +216,17 @@ If you do not provide the `--statsd-addr` flag, the StatsD metrics will not be c
 
 ## Changelog
 
+### v2.0.0 (in progress)
+
+#### Breaking Changes
+
+- Change the agent object structure (which in turn changes the response from the API)
+- Rename the `agents` endpoint from `/agents` to `/api/v1/agents`
+
+#### Features
+
+- Add `/api/v1/agents/stream` endpoint that streams the updates from the agents in real-time
+
 ### v1.2.0
 
 #### Features

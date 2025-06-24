@@ -8,7 +8,7 @@ use tokio::time::sleep;
 
 use crate::paddler_world::PaddlerWorld;
 
-const MAX_ATTEMPTS: usize = 5;
+const MAX_ATTEMPTS: usize = 50;
 
 async fn do_check(statsd_port: u16) -> Result<()> {
     let response = reqwest::get(format!("http://127.0.0.1:{statsd_port}/health")).await?;
@@ -52,12 +52,11 @@ pub async fn given_statsd_is_running(world: &mut PaddlerWorld) -> Result<()> {
     let mut attempts = 0;
 
     while attempts < MAX_ATTEMPTS {
-        sleep(Duration::from_secs(1)).await;
+        sleep(Duration::from_millis(100)).await;
 
-        match do_check(statsd_port).await {
-            Ok(_) => return Ok(()),
-            Err(err) => eprintln!("Attempt {}: statsd is not ready yet: {err}", attempts + 1),
-        };
+        if do_check(statsd_port).await.is_ok() {
+            return Ok(());
+        }
 
         attempts += 1;
     }

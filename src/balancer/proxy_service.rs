@@ -210,7 +210,7 @@ impl ProxyHttp for ProxyService {
             }
         };
 
-        Ok(HttpPeer::new(peer.external_llamacpp_addr, false, "".into()).into())
+        Ok(HttpPeer::new(peer.status.external_llamacpp_addr, false, "".into()).into())
     }
 
     async fn upstream_request_filter(
@@ -221,8 +221,10 @@ impl ProxyHttp for ProxyService {
     ) -> Result<()> {
         if self.rewrite_host_header {
             if let Some(peer) = &ctx.selected_peer {
-                upstream_request
-                    .insert_header("Host".to_string(), peer.external_llamacpp_addr.to_string())?;
+                upstream_request.insert_header(
+                    "Host".to_string(),
+                    peer.status.external_llamacpp_addr.to_string(),
+                )?;
             }
         }
 
