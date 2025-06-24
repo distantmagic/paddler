@@ -16,16 +16,16 @@ use crate::errors::result::Result;
 
 #[expect(clippy::too_many_arguments)]
 pub fn handle(
+    buffered_request_timeout: Duration,
     management_addr: &SocketAddr,
     #[cfg(feature = "web_dashboard")] management_dashboard_enable: bool,
+    max_buffered_requests: usize,
     reverseproxy_addr: &SocketAddr,
     rewrite_host_header: bool,
     slots_endpoint_enable: bool,
     #[cfg(feature = "statsd_reporter")] statsd_addr: Option<SocketAddr>,
     #[cfg(feature = "statsd_reporter")] statsd_prefix: String,
     #[cfg(feature = "statsd_reporter")] statsd_reporting_interval: Duration,
-    request_timeout: Duration,
-    max_requests: usize,
 ) -> Result<()> {
     let mut pingora_server = Server::new(Opt {
         upgrade: false,
@@ -45,8 +45,8 @@ pub fn handle(
             rewrite_host_header,
             slots_endpoint_enable,
             upstream_peer_pool.clone(),
-            request_timeout,
-            max_requests,
+            buffered_request_timeout,
+            max_buffered_requests,
         ),
     );
 

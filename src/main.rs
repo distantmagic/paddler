@@ -91,6 +91,11 @@ enum Commands {
     },
     /// Balances incoming requests to llama.cpp instances and optionally provides a web dashboard
     Balancer {
+        #[arg(long, default_value = "10", value_parser = parse_duration)]
+        /// The request timeout (in seconds). For all requests that a timely response from an
+        /// upstream isn't received for, the 504 (Gateway Timeout) error is issued.
+        buffered_request_timeout: Duration,
+
         #[arg(long, value_parser = parse_socket_addr)]
         /// Address of the management server that the balancer will report to
         management_addr: SocketAddr,
@@ -100,6 +105,12 @@ enum Commands {
         /// Enable the web management dashboard
         management_dashboard_enable: bool,
 
+        #[arg(long, default_value = "30")]
+        /// The maximum number of buffered requests. Like with usual requests, the request timeout
+        /// is also applied to buffered ones. If the maximum number is reached, all new requests are
+        /// rejected with the 429 (Too Many Requests) error.
+        max_buffered_requests: usize,
+
         #[arg(long, value_parser = parse_socket_addr)]
         /// Address of the reverse proxy server
         reverseproxy_addr: SocketAddr,
@@ -108,17 +119,6 @@ enum Commands {
         /// Rewrite the host header of incoming requests so that it matches the upstream server
         /// instead of the reverse client server
         rewrite_host_header: bool,
-
-        #[arg(long, default_value = "30", value_parser = parse_duration)]
-        /// The request timeout (in seconds). For all requests that a timely response from an
-        /// upstream isn't received for, the 504 (Gateway Timeout) error is issued.
-        request_timeout: Duration,
-
-        #[arg(long, default_value = "32")]
-        /// The maximum number of buffered requests. Like with usual requests, the request timeout
-        /// is also applied to buffered ones. If the maximum number is reached, all new requests are
-        /// rejected with the 429 (Too Many Requests) error.
-        max_requests: usize,
 
         #[arg(long)]
         /// Enable the slots endpoint (not recommended)
@@ -173,9 +173,11 @@ fn main() -> Result<()> {
             name.to_owned(),
         ),
         Some(Commands::Balancer {
+            buffered_request_timeout,
             management_addr,
             #[cfg(feature = "web_dashboard")]
             management_dashboard_enable,
+            max_buffered_requests,
             reverseproxy_addr,
             rewrite_host_header,
             slots_endpoint_enable,
@@ -185,16 +187,16 @@ fn main() -> Result<()> {
             statsd_prefix,
             #[cfg(feature = "statsd_reporter")]
             statsd_reporting_interval,
-            request_timeout,
-            max_requests,
         }) => {
             #[cfg(feature = "web_dashboard")]
             initialize_instance(ESBUILD_META_CONTENTS);
 
             cmd::balancer::handle(
+                *buffered_request_timeout,
                 management_addr,
                 #[cfg(feature = "web_dashboard")]
                 management_dashboard_enable.to_owned(),
+                *max_buffered_requests,
                 reverseproxy_addr,
                 rewrite_host_header.to_owned(),
                 slots_endpoint_enable.to_owned(),
@@ -204,8 +206,6 @@ fn main() -> Result<()> {
                 statsd_prefix.to_owned(),
                 #[cfg(feature = "statsd_reporter")]
                 statsd_reporting_interval.to_owned(),
-                *request_timeout,
-                *max_requests,
             )
         }
         #[cfg(feature = "ratatui_dashboard")]

@@ -15,12 +15,18 @@ pub async fn given_balancer_is_running(world: &mut PaddlerWorld, max_requests: u
     world.balancer = Some(
         Command::new("../target/debug/paddler")
             .arg("balancer")
+            .arg(format!(
+                "--buffered-request-timeout={}",
+                world.buffered_request_timeout.unwrap_or(3)
+            ))
             .arg("--management-addr=127.0.0.1:8095")
+            .arg(format!(
+                "--max-buffered-requests={}",
+                world.max_buffered_requests.unwrap_or(32)
+            ))
             .arg("--reverseproxy-addr=127.0.1:8096")
             .arg("--statsd-addr=localhost:9125")
             .arg("--statsd-reporting-interval=1")
-            .arg("--request-timeout=0")
-            .arg(format!("--max-requests={max_requests}"))
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()?,

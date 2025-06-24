@@ -18,8 +18,8 @@ pub struct UpstreamPeerPoolInfo {
 
 pub struct UpstreamPeerPool {
     pub agents: RwLock<Vec<UpstreamPeer>>,
-    pub request_buffer_length: AtomicUsize,
     pub available_slots_notifier: Notify,
+    pub request_buffer_length: AtomicUsize,
     pub update_notifier: Notify,
 }
 
