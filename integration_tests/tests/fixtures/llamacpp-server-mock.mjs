@@ -52,7 +52,7 @@ const server = createServer(function (req, res) {
     }
 
     setTimeout(function () {
-      appendFile(logFile, `${name};${requestName}`, function (err) {
+      appendFile(logFile, `${name};${requestName}\n`, function (err) {
         if (err) {
           res.statusCode = 500;
           res.setHeader("Content-Type", "text/plain");
@@ -63,7 +63,7 @@ const server = createServer(function (req, res) {
           res.end("{}");
         }
       });
-    }, completionResponseDelayInt * 1000);
+    }, completionResponseDelayInt);
   } else if (req.url === "/health") {
     res.statusCode = 200;
     res.setHeader("Content-Type", "text/plain");

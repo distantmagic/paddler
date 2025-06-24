@@ -17,6 +17,26 @@ use pingora::Result;
 use crate::balancer::request_context::RequestContext;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 
+struct RequestBufferGuard<'a>(&'a AtomicUsize);
+
+impl<'a> RequestBufferGuard<'a> {
+    fn increment(length: &'a AtomicUsize, max_buffered_requests: usize) -> Option<Self> {
+        if length.load(Ordering::Relaxed) >= max_buffered_requests {
+            None
+        } else {
+            length.fetch_add(1, Ordering::Relaxed);
+
+            Some(Self(length))
+        }
+    }
+}
+
+impl Drop for RequestBufferGuard<'_> {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::Relaxed);
+    }
+}
+
 pub struct ProxyService {
     buffered_request_timeout: Duration,
     max_buffered_requests: usize,
@@ -60,11 +80,12 @@ impl ProxyHttp for ProxyService {
         &self,
         peer: &HttpPeer,
         session: &mut Session,
-        e: Box<Error>,
+        proxy_error: Box<Error>,
         ctx: &mut Self::CTX,
         client_reused: bool,
     ) -> Box<Error> {
-        error!("Error while proxying: {e}");
+        error!("Error while proxying: {proxy_error}");
+
         if ctx.slot_taken {
             if let Err(err) = ctx.release_slot() {
                 error!("Failed to release slot: {err}");
@@ -73,13 +94,14 @@ impl ProxyHttp for ProxyService {
             }
         }
 
-        let mut e = e.more_context(format!("Peer: {peer}"));
+        let mut proxy_error_with_context = proxy_error.more_context(format!("Peer: {peer}"));
 
         // only reused client connections where retry buffer is not truncated
-        e.retry
+        proxy_error_with_context
+            .retry
             .decide_reuse(client_reused && !session.as_ref().retry_buffer_truncated());
 
-        e
+        proxy_error_with_context
     }
 
     fn fail_to_connect(
@@ -191,7 +213,7 @@ impl ProxyHttp for ProxyService {
                     // `select_upstream_peer` and wait for a notification from code that's
                     // executed when a slot may become available (e.g., the
                     // `/api/v1/agent_status_update/{agent_id}` endpoint).
-                    self.upstream_peer_pool.available_slots_notifier.notified().await
+                    self.upstream_peer_pool.available_slots_notifier.notified().await;
                 }
             } => {
                 result?
@@ -229,25 +251,5 @@ impl ProxyHttp for ProxyService {
         }
 
         Ok(())
-    }
-}
-
-struct RequestBufferGuard<'a>(&'a AtomicUsize);
-
-impl<'a> RequestBufferGuard<'a> {
-    fn increment(length: &'a AtomicUsize, max_buffered_requests: usize) -> Option<Self> {
-        if length.load(Ordering::Relaxed) >= max_buffered_requests {
-            None
-        } else {
-            length.fetch_add(1, Ordering::Relaxed);
-
-            Some(Self(length))
-        }
-    }
-}
-
-impl Drop for RequestBufferGuard<'_> {
-    fn drop(&mut self) {
-        self.0.fetch_sub(1, Ordering::Relaxed);
     }
 }
