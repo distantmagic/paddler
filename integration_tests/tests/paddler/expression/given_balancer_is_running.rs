@@ -6,8 +6,8 @@ use tokio::process::Command;
 
 use crate::paddler_world::PaddlerWorld;
 
-#[given(expr = "balancer is running \\({int} max request(s)\\)")]
-pub async fn given_balancer_is_running(world: &mut PaddlerWorld, max_requests: u16) -> Result<()> {
+#[given(expr = "balancer is running")]
+pub async fn given_balancer_is_running(world: &mut PaddlerWorld) -> Result<()> {
     if world.balancer.is_some() {
         return Err(anyhow::anyhow!("Balancer is already running"));
     }

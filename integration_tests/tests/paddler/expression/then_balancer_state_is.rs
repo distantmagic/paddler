@@ -25,8 +25,8 @@ fn assert_fields(table_fields: Vec<Option<&String>>, peer_fields: Vec<String>) {
     }
 }
 
-#[then(expr = "balancer state is:")]
-pub async fn then_dashboard_report(_world: &mut PaddlerWorld, step: &Step) -> Result<()> {
+#[then("balancer state is:")]
+pub async fn then_balancer_state_is(_world: &mut PaddlerWorld, step: &Step) -> Result<()> {
     let response = fetch_status(8095).await?.text().await?;
     let upstream_peer_pool: AgentStatusResponse = serde_json::from_str(&response)?;
 

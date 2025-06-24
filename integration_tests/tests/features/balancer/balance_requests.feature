@@ -15,7 +15,7 @@ Feature: Balance llama.cpp requests
         Given agent "agent-1" is registered
         Then balancer state is:
             |  agent  | slots_idle | slots_processing | is_request_error |
-            | agent-1 |     2      |        0         |       false      |
+            | agent-1 |     4      |        0         |       false      |
         When request "foo" is sent to "/chat/completions"
         Then "foo" response code is 200
         Then "foo" request landed in "llama-1"
