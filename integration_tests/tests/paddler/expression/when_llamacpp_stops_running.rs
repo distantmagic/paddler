@@ -4,31 +4,24 @@ use anyhow::Result;
 use cucumber::when;
 use tokio::time::sleep;
 
+use crate::agent_response::AgentsResponse;
 use crate::paddler_world::PaddlerWorld;
 
-const MAX_ATTEMPTS: usize = 3;
+const MAX_ATTEMPTS: usize = 30;
 
-async fn do_check(llamacpp_port: u16) -> Result<()> {
-    let response = reqwest::get(format!("http://127.0.0.1:{llamacpp_port}/health")).await?;
+async fn do_check(balancer_port: u16) -> Result<()> {
+    let response = reqwest::get(format!("http://127.0.0.1:{balancer_port}/api/v1/agents")).await?;
+    let agents_response = response.json::<AgentsResponse>().await?;
 
-    if !response.status().is_success() {
-        return Err(anyhow::anyhow!(
-            "Health check failed: Expected status 200, got {}",
-            response.status()
-        ));
-    }
-
-    let body = response.text().await?;
-
-    if body.trim() != "OK" {
-        return Err(anyhow::anyhow!(
-            "Health check failed: Expected 'OK', got '{}'",
-            body
-        ));
-    }
+    let _ = agents_response
+        .agents
+        .iter()
+        .find(|agent| agent.status.is_connect_error == Some(true))
+        .ok_or_else(|| anyhow::anyhow!("not found in response"))?;
 
     Ok(())
 }
+
 #[when(expr = "llama.cpp server {string} stops running")]
 pub async fn when_agent_detaches(world: &mut PaddlerWorld, llamacpp_name: String) -> Result<()> {
     if !world.llamas.instances.contains_key(&llamacpp_name) {
@@ -45,9 +38,9 @@ pub async fn when_agent_detaches(world: &mut PaddlerWorld, llamacpp_name: String
     let mut attempts = 0;
 
     while attempts < MAX_ATTEMPTS {
-        sleep(Duration::from_secs(1)).await;
+        sleep(Duration::from_millis(100)).await;
 
-        if do_check(llamacpp_port).await.is_err() {
+        if do_check(8095).await.is_ok() {
             return Ok(());
         } else {
             eprintln!(
