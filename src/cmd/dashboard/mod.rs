@@ -40,10 +40,8 @@ async fn fetch_registered_agents(management_addr: SocketAddr) -> Result<Upstream
     Ok(serde_json::from_str(response_string.as_str())?)
 }
 
-pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
+pub async fn ratatui_main(management_addr: SocketAddr) -> Result<()> {
     let mut terminal = ratatui::init();
-
-    let management_clone = *management_addr;
 
     let (app_needs_to_stop_tx, mut app_needs_to_stop_rx_update) = broadcast::channel::<bool>(1);
     let (upstream_peer_pool_tx, mut upstream_peer_pool_rx) =
@@ -62,7 +60,7 @@ pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
                     break Ok(())
                 },
                 _ = ticker.tick() => {
-                    let upstream_peer_pool = fetch_registered_agents(management_clone).await;
+                    let upstream_peer_pool = fetch_registered_agents(management_addr).await;
 
                     match upstream_peer_pool {
                         Ok(upstream_peer_pool) => {
@@ -139,7 +137,7 @@ fn stop_rendering(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<(
     Ok(())
 }
 
-pub fn handle(management_addr: &SocketAddr) -> Result<()> {
+pub fn handle(management_addr: SocketAddr) -> Result<()> {
     Runtime::new()?.block_on(ratatui_main(management_addr))?;
     Ok(())
 }

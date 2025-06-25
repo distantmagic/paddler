@@ -46,8 +46,9 @@ actix-web-lab = "0.24.1"
 async-stream = "0.3.6"
 
 [features]
-default = ["statsd_reporter", "ratatui_dashboard"]
+default = ["statsd_reporter", "ratatui_dashboard", "supervisor"]
 ratatui_dashboard = ["dep:chrono", "dep:crossterm", "dep:ratatui"]
+supervisor = []
 statsd_reporter = ["dep:cadence"]
 web_dashboard = ["dep:askama", "dep:esbuild-metafile", "dep:mime_guess", "dep:rust-embed"]
 

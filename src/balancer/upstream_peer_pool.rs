@@ -64,7 +64,7 @@ impl UpstreamPeerPool {
     ) -> Result<()> {
         let has_idle_slots = status_update.slots_idle > 0;
 
-        let _ = self.with_agents_write(|agents| {
+        self.with_agents_write(|agents| {
             if let Some(upstream_peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
                 upstream_peer.update_status(status_update);
             } else {
@@ -131,7 +131,7 @@ impl UpstreamPeerPool {
     }
 
     pub fn restore_integrity(&self) -> Result<()> {
-        let _ = self.with_agents_write(|agents| {
+        self.with_agents_write(|agents| {
             agents.sort();
 
             Ok(())

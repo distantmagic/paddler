@@ -151,9 +151,7 @@ enum Commands {
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    let cli = Cli::parse();
-
-    match &cli.command {
+    match Cli::parse().command {
         Some(Commands::Agent {
             external_llamacpp_addr,
             local_llamacpp_addr,
@@ -192,11 +190,11 @@ fn main() -> Result<()> {
             initialize_instance(ESBUILD_META_CONTENTS);
 
             cmd::balancer::handle(
-                *buffered_request_timeout,
+                buffered_request_timeout,
                 management_addr,
                 #[cfg(feature = "web_dashboard")]
                 management_dashboard_enable.to_owned(),
-                *max_buffered_requests,
+                max_buffered_requests,
                 reverseproxy_addr,
                 rewrite_host_header.to_owned(),
                 slots_endpoint_enable.to_owned(),
