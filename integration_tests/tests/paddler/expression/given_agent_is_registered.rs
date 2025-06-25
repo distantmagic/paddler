@@ -2,28 +2,11 @@ use std::time::Duration;
 
 use anyhow::Result;
 use cucumber::given;
-use serde::Deserialize;
 use tokio::time::sleep;
 
-use crate::paddler_world::PaddlerWorld;
+use crate::{agent_response::AgentsResponse, paddler_world::PaddlerWorld};
 
 const MAX_ATTEMPTS: usize = 30;
-
-#[derive(Deserialize)]
-struct AgentStatus {
-    agent_name: String,
-    error: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct Agent {
-    status: AgentStatus,
-}
-
-#[derive(Deserialize)]
-struct AgentsResponse {
-    agents: Vec<Agent>,
-}
 
 async fn do_check(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
     if !world.agents.instances.contains_key(&agent_name) {
@@ -42,6 +25,7 @@ async fn do_check(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
     }
 
     let agents_response = response.json::<AgentsResponse>().await?;
+
     let agent = agents_response
         .agents
         .iter()
@@ -55,8 +39,8 @@ async fn do_check(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
     Ok(())
 }
 
-#[given(expr = "agent {string} is healthy")]
-pub async fn given_agent_is_healthy(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
+#[given(expr = "agent {string} is registered")]
+pub async fn given_agent_is_registered(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
     let mut attempts = 0;
 
     while attempts < MAX_ATTEMPTS {

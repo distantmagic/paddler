@@ -37,4 +37,19 @@ impl LlamaCppInstanceCollection {
 
         port
     }
+
+    pub async fn kill(&self, llamacpp_name: &String) -> Result<()> {
+        if let Some(mut llamacpp) = self.instances.get_mut(llamacpp_name) {
+            llamacpp.value_mut().cleanup().await
+        } else {
+            return Err(anyhow::anyhow!(
+                "LlamaCpp instance {} not found",
+                llamacpp_name
+            ));
+        }
+
+        self.instances.remove(llamacpp_name);
+
+        Ok(())
+    }
 }

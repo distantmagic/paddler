@@ -12,7 +12,7 @@ Feature: Balance llama.cpp requests
         Given balancer is running
         Given llama.cpp server "llama-1" is running (has 4 slots)
         Given agent "agent-1" is running (observes "llama-1")
-        Given agent "agent-1" is healthy
+        Given agent "agent-1" is registered
         When request "foo" is sent to "/chat/completions"
         Then "foo" response code is 200
         Then "foo" request landed in "llama-1"
@@ -23,9 +23,9 @@ Feature: Balance llama.cpp requests
         Given llama.cpp server "llama-1" is running (has 4 slots)
         Given llama.cpp server "llama-2" is running (has 4 slots)
         Given agent "agent-1" is running (observes "llama-1")
-        Given agent "agent-1" is healthy
+        Given agent "agent-1" is registered
         Given agent "agent-2" is running (observes "llama-2")
-        Given agent "agent-2" is healthy
+        Given agent "agent-2" is registered
         When multiple requests are sent to "/chat/completions"
             | req-1 |
             | req-2 |
@@ -41,9 +41,9 @@ Feature: Balance llama.cpp requests
         Given llama.cpp server "llama-1" is running (has 1 slot)
         Given llama.cpp server "llama-2" is running (has 1 slot)
         Given agent "agent-1" is running (observes "llama-1")
-        Given agent "agent-1" is healthy
+        Given agent "agent-1" is registered
         Given agent "agent-2" is running (observes "llama-2")
-        Given agent "agent-2" is healthy
+        Given agent "agent-2" is registered
         When multiple requests are sent to "/chat/completions"
             | req-1 |
             | req-2 |
@@ -61,9 +61,9 @@ Feature: Balance llama.cpp requests
         Given llama.cpp server "llama-1" is running (has 1 slot)
         Given llama.cpp server "llama-2" is running (has 1 slot)
         Given agent "agent-1" is running (observes "llama-1")
-        Given agent "agent-1" is healthy
+        Given agent "agent-1" is registered
         Given agent "agent-2" is running (observes "llama-2")
-        Given agent "agent-2" is healthy
+        Given agent "agent-2" is registered
         When multiple requests are sent to "/chat/completions"
             | req-1 |
             | req-2 |
@@ -82,9 +82,9 @@ Feature: Balance llama.cpp requests
         Given llama.cpp server "llama-1" is running (has 1 slot)
         Given llama.cpp server "llama-2" is running (has 1 slot)
         Given agent "agent-1" is running (observes "llama-1")
-        Given agent "agent-1" is healthy
+        Given agent "agent-1" is registered
         Given agent "agent-2" is running (observes "llama-2")
-        Given agent "agent-2" is healthy
+        Given agent "agent-2" is registered
         When multiple requests are sent to "/chat/completions"
             | req-1 |
             | req-2 |
@@ -101,9 +101,9 @@ Feature: Balance llama.cpp requests
         Given llama.cpp server "llama-1" is running (has 2 slots)
         Given llama.cpp server "llama-2" is running (has 2 slots)
         Given agent "agent-1" is running (observes "llama-1")
-        Given agent "agent-1" is healthy
+        Given agent "agent-1" is registered
         Given agent "agent-2" is running (observes "llama-2")
-        Given agent "agent-2" is healthy
+        Given agent "agent-2" is registered
         When multiple requests are sent to "/chat/completions"
             | req-1 |
             | req-2 |
