@@ -33,31 +33,28 @@ impl RequestContext {
     }
 
     pub fn use_best_peer_and_take_slot(&mut self, model: Option<String>) -> PaddlerResult<Option<UpstreamPeer>> {
-        Ok(
-            if let Some(peer) = self.upstream_peer_pool.with_agents_write(|agents| {
-                let model_str = model.as_deref().unwrap_or("");
-                for peer in agents.iter_mut() {
-                    let is_usable = peer.is_usable();
-                    let is_usable_for_model = peer.is_usable_for_model(model_str);
+        if let Some(peer) = self.upstream_peer_pool.with_agents_write(|agents| {
+            let model_str = model.as_deref().unwrap_or("");
+            for peer in agents.iter_mut() {
+                let is_usable = peer.is_usable();
+                let is_usable_for_model = peer.is_usable_for_model(model_str);
 
-                    if is_usable && (model.is_none() || is_usable_for_model) {
-                        info!("Peer {} is usable: {}, usable for model '{}': {}", peer.agent_id, is_usable, model_str, is_usable_for_model);
-                        peer.take_slot()?;
-                        return Ok(Some(peer.clone()));
-                    }
+                if is_usable && (model.is_none() || is_usable_for_model) {
+                    info!("Peer {} is usable: {}, usable for model '{}': {}", peer.agent_id, is_usable, model_str, is_usable_for_model);
+                    peer.take_slot()?;
+                    return Ok(Some(peer.clone()));
                 }
+            }
+            Ok(None)
+        })? {
+            self.upstream_peer_pool.restore_integrity()?;
 
-                Ok(None)
-            })? {
-                self.upstream_peer_pool.restore_integrity()?;
+            self.slot_taken = true;
 
-                self.slot_taken = true;
-
-                Some(peer)
-            } else {
-                None
-            },
-        )
+            Ok(Some(peer))
+        } else {
+            Ok(None)
+        }
     }
 
     pub fn has_peer_supporting_model(&self) -> bool {
@@ -142,19 +139,14 @@ mod tests {
         let pool = Arc::new(UpstreamPeerPool::new());
         let mut ctx = create_test_context(pool.clone());
 
-        pool.register_status_update("test_agent", mock_status_update("test_agent", 1, 4))?;
+        pool.register_status_update("test_agent", mock_status_update("test_agent_name", 1, 4))?;
+
         ctx.select_upstream_peer()?;
 
-        assert_eq!(
-            ctx.selected_peer
-                .as_ref()
-                .unwrap()
-                .external_llamacpp_addr
-                .to_string(),
-            "127.0.0.1:8080"
-        );
+        let selected_peer = ctx.selected_peer.clone().unwrap();
 
-        ctx.use_best_peer_and_take_slot(ctx.requested_model.clone())?;
+        assert_eq!(selected_peer.status.slots_idle, 0);
+        assert_eq!(selected_peer.status.slots_processing, 5);
 
         assert!(ctx.slot_taken);
 
@@ -164,8 +156,8 @@ mod tests {
 
         pool.with_agents_read(|agents| {
             let peer = agents.iter().find(|p| p.agent_id == "test_agent").unwrap();
-            assert_eq!(peer.slots_idle, 1);
-            assert_eq!(peer.slots_processing, 4);
+            assert_eq!(peer.status.slots_idle, 1);
+            assert_eq!(peer.status.slots_processing, 4);
             Ok(())
         })?;
 
@@ -183,8 +175,8 @@ mod tests {
 
         pool.with_agents_read(|agents| {
             let peer = agents.iter().find(|p| p.agent_id == "test_agent").unwrap();
-            assert_eq!(peer.slots_idle, 5);
-            assert_eq!(peer.slots_processing, 0);
+            assert_eq!(peer.status.slots_idle, 5);
+            assert_eq!(peer.status.slots_processing, 0);
             Ok(())
         })?;
 

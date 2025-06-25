@@ -10,6 +10,8 @@ use crate::llamacpp_instance_collection::LlamaCppInstanceCollection;
 pub struct PaddlerWorld {
     pub agents: AgentsCollection,
     pub balancer: Option<Child>,
+    pub buffered_request_timeout: Option<i64>,
+    pub max_buffered_requests: Option<i64>,
     pub statsd: Option<Child>,
     pub llamas: LlamaCppInstanceCollection,
     pub requests: DashMap<String, Response>,

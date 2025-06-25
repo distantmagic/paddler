@@ -19,8 +19,8 @@ pub struct UpstreamPeerPoolInfo {
 
 pub struct UpstreamPeerPool {
     pub agents: RwLock<Vec<UpstreamPeer>>,
-    pub request_buffer_length: AtomicUsize,
     pub available_slots_notifier: Notify,
+    pub request_buffer_length: AtomicUsize,
     pub update_notifier: Notify,
 }
 
@@ -41,16 +41,21 @@ impl UpstreamPeerPool {
     }
 
     pub fn quarantine_peer(&self, agent_id: &str) -> Result<bool> {
-        self.with_agents_write(|agents| {
+        let notify_waiters = self.with_agents_write(|agents| {
             if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
                 peer.quarantined_until = Some(SystemTime::now() + Duration::from_secs(10));
-                self.update_notifier.notify_waiters();
 
                 return Ok(true);
             }
 
             Ok(false)
-        })
+        })?;
+
+        if notify_waiters {
+            self.update_notifier.notify_waiters();
+        }
+
+        Ok(notify_waiters)
     }
 
     pub fn register_status_update(
@@ -58,7 +63,9 @@ impl UpstreamPeerPool {
         agent_id: &str,
         status_update: StatusUpdate,
     ) -> Result<()> {
-        self.with_agents_write(|agents| {
+        let has_idle_slots = status_update.slots_idle > 0;
+
+        let _ = self.with_agents_write(|agents| {
             if let Some(upstream_peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
                 upstream_peer.update_status(status_update);
             } else {
@@ -69,48 +76,71 @@ impl UpstreamPeerPool {
             }
 
             agents.sort();
-            self.update_notifier.notify_waiters();
 
             Ok(())
-        })
+        })?;
+
+        if has_idle_slots {
+            self.available_slots_notifier.notify_waiters();
+        }
+
+        self.update_notifier.notify_waiters();
+
+        Ok(())
     }
 
     pub fn release_slot(&self, agent_id: &str, last_update: SystemTime) -> Result<()> {
-        self.with_agents_write(|agents| {
+        let notify_available_slots = self.with_agents_write(|agents| {
             if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
                 if peer.last_update < last_update {
                     // edge case, but no need to update anything anyway
-                    return Ok(());
+                    return Ok(false);
                 }
 
                 peer.release_slot()?;
-                self.update_notifier.notify_waiters();
 
-                return Ok(());
+                return Ok(true);
             }
 
             Err(format!("There is no agent with id: {agent_id}").into())
-        })
+        })?;
+
+        if notify_available_slots {
+            self.available_slots_notifier.notify_waiters();
+            self.update_notifier.notify_waiters();
+        }
+
+        Ok(())
     }
 
     pub fn remove_peer(&self, agent_id: &str) -> Result<()> {
-        self.with_agents_write(|agents| {
+        let notify_waiters = self.with_agents_write(|agents| {
             if let Some(pos) = agents.iter().position(|p| p.agent_id == agent_id) {
                 agents.remove(pos);
-                self.update_notifier.notify_waiters();
+
+                return Ok(true);
             }
 
-            Ok(())
-        })
+            Ok(false)
+        })?;
+
+        if notify_waiters {
+            self.update_notifier.notify_waiters();
+        }
+
+        Ok(())
     }
 
     pub fn restore_integrity(&self) -> Result<()> {
-        self.with_agents_write(|agents| {
+        let _ = self.with_agents_write(|agents| {
             agents.sort();
-            self.update_notifier.notify_waiters();
 
             Ok(())
-        })
+        })?;
+
+        self.update_notifier.notify_waiters();
+
+        Ok(())
     }
 
     #[cfg(feature = "statsd_reporter")]
@@ -121,8 +151,8 @@ impl UpstreamPeerPool {
             let mut slots_processing = 0;
 
             for peer in agents.iter() {
-                slots_idle += peer.slots_idle;
-                slots_processing += peer.slots_processing;
+                slots_idle += peer.status.slots_idle;
+                slots_processing += peer.status.slots_processing;
             }
 
             Ok((slots_idle, slots_processing))
@@ -198,9 +228,9 @@ mod tests {
 
         pool.with_agents_read(|agents| {
             let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
-            assert_eq!(peer.slots_idle, 4);
-            assert_eq!(peer.slots_processing, 1);
             assert_eq!(peer.slots_taken, 1);
+            assert_eq!(peer.status.slots_idle, 4);
+            assert_eq!(peer.status.slots_processing, 1);
 
             Ok(())
         })?;
@@ -209,9 +239,9 @@ mod tests {
 
         pool.with_agents_read(|agents| {
             let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
-            assert_eq!(peer.slots_idle, 0);
-            assert_eq!(peer.slots_processing, 0);
             assert_eq!(peer.slots_taken, 1);
+            assert_eq!(peer.status.slots_idle, 0);
+            assert_eq!(peer.status.slots_processing, 0);
 
             Ok(())
         })?;
@@ -220,9 +250,9 @@ mod tests {
 
         pool.with_agents_read(|agents| {
             let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
-            assert_eq!(peer.slots_idle, 0);
-            assert_eq!(peer.slots_processing, 0);
             assert_eq!(peer.slots_taken, 0);
+            assert_eq!(peer.status.slots_idle, 0);
+            assert_eq!(peer.status.slots_processing, 0);
 
             Ok(())
         })?;
@@ -241,7 +271,7 @@ mod tests {
         let best_peer = pool.use_best_peer(None)?.unwrap();
 
         assert_eq!(best_peer.agent_id, "test1");
-        assert_eq!(best_peer.slots_idle, 5);
+        assert_eq!(best_peer.status.slots_idle, 5);
 
         Ok(())
     }

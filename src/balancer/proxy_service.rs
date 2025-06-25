@@ -18,13 +18,33 @@ use pingora::Result;
 use crate::balancer::request_context::RequestContext;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 
+struct RequestBufferGuard<'a>(&'a AtomicUsize);
+
+impl<'a> RequestBufferGuard<'a> {
+    fn increment(length: &'a AtomicUsize, max_buffered_requests: usize) -> Option<Self> {
+        if length.load(Ordering::Relaxed) >= max_buffered_requests {
+            None
+        } else {
+            length.fetch_add(1, Ordering::Relaxed);
+
+            Some(Self(length))
+        }
+    }
+}
+
+impl Drop for RequestBufferGuard<'_> {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::Relaxed);
+    }
+}
+
 pub struct ProxyService {
+    buffered_request_timeout: Duration,
+    max_buffered_requests: usize,
     rewrite_host_header: bool,
     check_model: bool,
     slots_endpoint_enable: bool,
     upstream_peer_pool: Arc<UpstreamPeerPool>,
-    request_timeout: Duration,
-    max_requests: usize,
 }
 
 impl ProxyService {
@@ -33,16 +53,16 @@ impl ProxyService {
         check_model: bool,
         slots_endpoint_enable: bool,
         upstream_peer_pool: Arc<UpstreamPeerPool>,
-        request_timeout: Duration,
-        max_requests: usize,
+        buffered_request_timeout: Duration,
+        max_buffered_requests: usize,
     ) -> Self {
         Self {
             rewrite_host_header,
             check_model,
             slots_endpoint_enable,
             upstream_peer_pool,
-            request_timeout,
-            max_requests,
+            buffered_request_timeout,
+            max_buffered_requests,
         }
     }
 }
@@ -65,11 +85,12 @@ impl ProxyHttp for ProxyService {
         &self,
         peer: &HttpPeer,
         session: &mut Session,
-        e: Box<Error>,
+        proxy_error: Box<Error>,
         ctx: &mut Self::CTX,
         client_reused: bool,
     ) -> Box<Error> {
-        error!("Error while proxying: {e}");
+        error!("Error while proxying: {proxy_error}");
+
         if ctx.slot_taken {
             if let Err(err) = ctx.release_slot() {
                 error!("Failed to release slot: {err}");
@@ -78,13 +99,14 @@ impl ProxyHttp for ProxyService {
             }
         }
 
-        let mut e = e.more_context(format!("Peer: {peer}"));
+        let mut proxy_error_with_context = proxy_error.more_context(format!("Peer: {peer}"));
 
         // only reused client connections where retry buffer is not truncated
-        e.retry
+        proxy_error_with_context
+            .retry
             .decide_reuse(client_reused && !session.as_ref().retry_buffer_truncated());
 
-        e
+        proxy_error_with_context
     }
 
     fn fail_to_connect(
@@ -149,22 +171,6 @@ impl ProxyHttp for ProxyService {
         session: &mut Session,
         ctx: &mut Self::CTX,
     ) -> Result<Box<HttpPeer>> {
-        let Some(_req_guard) = RequestBufferGuard::increment(
-            &self.upstream_peer_pool.request_buffer_length,
-            self.max_requests,
-        ) else {
-            session
-                .respond_error(pingora::http::StatusCode::TOO_MANY_REQUESTS.as_u16())
-                .await?;
-
-            return Err(Error::create(
-                pingora::ErrorType::ConnectRefused,
-                ErrorSource::Internal,
-                None,
-                None,
-            ));
-        };
-
         ctx.uses_slots = match session.req_header().uri.path() {
             "/slots" => {
                 if !self.slots_endpoint_enable {
@@ -259,18 +265,34 @@ impl ProxyHttp for ProxyService {
 
                     if let Some(peer) = ctx.selected_peer.clone() {
                         return Ok::<_, Box<Error>>(peer)
-                    } else {
-                        // To avoid wasting CPU cycles, we don't immediately retry to
-                        // `select_upstream_peer` and wait for a notification from code that's
-                        // executed when a slot may become available (e.g., the
-                        // `/api/v1/agent_status_update/{agent_id}` endpoint).
-                        self.upstream_peer_pool.available_slots_notifier.notified().await
                     }
+
+                    let Some(_req_guard) = RequestBufferGuard::increment(
+                        &self.upstream_peer_pool.request_buffer_length,
+                        self.max_buffered_requests,
+                    ) else {
+                        session
+                            .respond_error(pingora::http::StatusCode::TOO_MANY_REQUESTS.as_u16())
+                            .await?;
+
+                        return Err(Error::create(
+                            pingora::ErrorType::ConnectRefused,
+                            ErrorSource::Internal,
+                            None,
+                            None,
+                        ));
+                    };
+
+                    // To avoid wasting CPU cycles, we don't immediately retry to
+                    // `select_upstream_peer` and wait for a notification from code that's
+                    // executed when a slot may become available (e.g., the
+                    // `/api/v1/agent_status_update/{agent_id}` endpoint).
+                    self.upstream_peer_pool.available_slots_notifier.notified().await;
                 }
             } => {
                 result?
             }
-            _ = tokio::time::sleep(self.request_timeout) => {
+            _ = tokio::time::sleep(self.buffered_request_timeout) => {
                 session
                     .respond_error(pingora::http::StatusCode::GATEWAY_TIMEOUT.as_u16())
                     .await?;
@@ -284,7 +306,7 @@ impl ProxyHttp for ProxyService {
             }
         };
 
-        Ok(HttpPeer::new(peer.external_llamacpp_addr, false, "".into()).into())
+        Ok(HttpPeer::new(peer.status.external_llamacpp_addr, false, "".into()).into())
     }
 
     async fn upstream_request_filter(
@@ -295,31 +317,13 @@ impl ProxyHttp for ProxyService {
     ) -> Result<()> {
         if self.rewrite_host_header {
             if let Some(peer) = &ctx.selected_peer {
-                upstream_request
-                    .insert_header("Host".to_string(), peer.external_llamacpp_addr.to_string())?;
+                upstream_request.insert_header(
+                    "Host".to_string(),
+                    peer.status.external_llamacpp_addr.to_string(),
+                )?;
             }
         }
 
         Ok(())
-    }
-}
-
-struct RequestBufferGuard<'a>(&'a AtomicUsize);
-
-impl<'a> RequestBufferGuard<'a> {
-    fn increment(length: &'a AtomicUsize, max_requests: usize) -> Option<Self> {
-        if length.load(Ordering::Relaxed) >= max_requests {
-            None
-        } else {
-            length.fetch_add(1, Ordering::Relaxed);
-
-            Some(Self(length))
-        }
-    }
-}
-
-impl Drop for RequestBufferGuard<'_> {
-    fn drop(&mut self) {
-        self.0.fetch_sub(1, Ordering::Relaxed);
     }
 }

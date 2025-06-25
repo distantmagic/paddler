@@ -10,7 +10,7 @@ use tokio::time::sleep;
 use crate::llamacpp_instance::LlamaCppInstance;
 use crate::paddler_world::PaddlerWorld;
 
-const MAX_ATTEMPTS: usize = 3;
+const MAX_ATTEMPTS: usize = 30;
 
 async fn do_check(llamacpp_port: u16) -> Result<()> {
     let response = reqwest::get(format!("http://127.0.0.1:{llamacpp_port}/health")).await?;
@@ -54,7 +54,7 @@ pub async fn given_agent_is_attached(
         llamacpp_name.clone(),
         LlamaCppInstance {
             child: Command::new("./tests/fixtures/llamacpp-server-mock.mjs")
-                .arg("--completionResponseDelay=1")
+                .arg("--completionResponseDelay=300")
                 .arg(format!("--logFile={}", log_file.path().to_string_lossy()))
                 .arg(format!("--name={llamacpp_name}"))
                 .arg(format!("--port={llamacpp_port}"))
@@ -71,15 +71,11 @@ pub async fn given_agent_is_attached(
     let mut attempts = 0;
 
     while attempts < MAX_ATTEMPTS {
-        sleep(Duration::from_secs(1)).await;
+        sleep(Duration::from_millis(100)).await;
 
-        match do_check(llamacpp_port).await {
-            Ok(_) => return Ok(()),
-            Err(err) => eprintln!(
-                "Attempt {}: llama.cpp is not ready yet: {err}",
-                attempts + 1
-            ),
-        };
+        if do_check(llamacpp_port).await.is_ok() {
+            return Ok(());
+        }
 
         attempts += 1;
     }

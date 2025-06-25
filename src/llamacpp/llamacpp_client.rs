@@ -49,7 +49,7 @@ impl LlamacppClient {
             Ok(resp) => resp,
             Err(err) => {
                 return SlotsResponse {
-                    error: Some(format!("Request to {url} Failed. Is it running? {err}")),
+                    error: Some(format!("Request to {url} failed: {err}")),
                     is_authorized: None,
                     is_connect_error: Some(err.is_connect()),
                     is_decode_error: Some(err.is_decode()),
