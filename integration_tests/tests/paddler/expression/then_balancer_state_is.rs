@@ -53,14 +53,6 @@ pub async fn then_balancer_state_is(_world: &mut PaddlerWorld, step: &Step) -> R
                         table_fields.push(row.get(col_idx));
                         peer_fields.push(peer.status.agent_name.clone());
                     }
-                    "slots_idle" => {
-                        table_fields.push(row.get(col_idx));
-                        peer_fields.push(peer.status.slots_idle.to_string());
-                    }
-                    "slots_processing" => {
-                        table_fields.push(row.get(col_idx));
-                        peer_fields.push(peer.status.slots_processing.to_string());
-                    }
                     "is_connect_error" => {
                         table_fields.push(row.get(col_idx));
                         peer_fields.push(
