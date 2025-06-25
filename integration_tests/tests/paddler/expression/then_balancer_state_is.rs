@@ -1,4 +1,5 @@
-use anyhow::{Result, anyhow};
+use anyhow::Result;
+use anyhow::anyhow;
 use cucumber::gherkin::Step;
 use cucumber::then;
 use reqwest::Response;
