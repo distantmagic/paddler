@@ -23,7 +23,10 @@ async fn do_check(balancer_port: u16) -> Result<()> {
 }
 
 #[when(expr = "llama.cpp server {string} stops running")]
-pub async fn when_agent_detaches(world: &mut PaddlerWorld, llamacpp_name: String) -> Result<()> {
+pub async fn when_llamacpp_stops_running(
+    world: &mut PaddlerWorld,
+    llamacpp_name: String,
+) -> Result<()> {
     if !world.llamas.instances.contains_key(&llamacpp_name) {
         return Err(anyhow::anyhow!(
             "Llama.cpp server {} is not running",
