@@ -1,4 +1,4 @@
-Feature: Observe llama.cpp instances
+Feature: Monitor llama.cpp instances
 
     Background:
         Given balancer is running
@@ -11,10 +11,10 @@ Feature: Observe llama.cpp instances
         Given agent "agent-1" is registered
         Given agent "agent-2" is running (observes "llama-2")
         Given agent "agent-2" is registered
-        # Then balancer state is:
-        # |  agent  | is_connect_error |
-        # | agent-1 |      false       |
-        # | agent-2 |      false       |
+        Then balancer state is:
+        |  agent  | is_connect_error |
+        | agent-1 |      false       |
+        | agent-2 |      false       |
         When llama.cpp server "llama-1" stops running
         Then balancer state is:
         |  agent  | is_connect_error |

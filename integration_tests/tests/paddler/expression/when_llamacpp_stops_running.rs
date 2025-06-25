@@ -6,7 +6,7 @@ use tokio::time::sleep;
 
 use crate::paddler_world::PaddlerWorld;
 
-const MAX_ATTEMPTS: usize = 30;
+const MAX_ATTEMPTS: usize = 3;
 
 async fn do_check(llamacpp_port: u16) -> Result<()> {
     let response = reqwest::get(format!("http://127.0.0.1:{llamacpp_port}/health")).await?;
@@ -45,6 +45,8 @@ pub async fn when_agent_detaches(world: &mut PaddlerWorld, llamacpp_name: String
     let mut attempts = 0;
 
     while attempts < MAX_ATTEMPTS {
+        sleep(Duration::from_secs(1)).await;
+
         if do_check(llamacpp_port).await.is_err() {
             return Ok(());
         } else {
@@ -56,8 +58,6 @@ pub async fn when_agent_detaches(world: &mut PaddlerWorld, llamacpp_name: String
         }
 
         attempts += 1;
-
-        sleep(Duration::from_millis(3000)).await;
     }
 
     Err(anyhow::anyhow!(

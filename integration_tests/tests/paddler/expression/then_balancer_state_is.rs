@@ -30,8 +30,6 @@ pub async fn then_balancer_state_is(_world: &mut PaddlerWorld, step: &Step) -> R
     let response = fetch_status(8095).await?.text().await?;
     let upstream_peer_pool: AgentsResponse = serde_json::from_str(&response)?;
 
-    panic!("{:#?}", upstream_peer_pool);
-
     if let Some(table) = step.table.as_ref() {
         let headers = &table.rows[0];
 
@@ -63,12 +61,12 @@ pub async fn then_balancer_state_is(_world: &mut PaddlerWorld, step: &Step) -> R
                         table_fields.push(row.get(col_idx));
                         peer_fields.push(peer.status.slots_processing.to_string());
                     }
-                    "error" => {
+                    "is_connect_error" => {
                         table_fields.push(row.get(col_idx));
                         peer_fields.push(
                             peer.status
-                                .error.clone()
-                                // .map(|v| v.to_string())
+                                .is_connect_error
+                                .map(|v| v.to_string())
                                 .unwrap_or("None".to_string()),
                         );
                     }
