@@ -1,6 +1,3 @@
-use std::thread::sleep;
-use std::time::Duration;
-
 use anyhow::{Result, anyhow};
 use cucumber::gherkin::Step;
 use cucumber::then;
@@ -30,9 +27,10 @@ fn assert_fields(table_fields: Vec<Option<&String>>, peer_fields: Vec<String>) {
 
 #[then("balancer state is:")]
 pub async fn then_balancer_state_is(_world: &mut PaddlerWorld, step: &Step) -> Result<()> {
-    sleep(Duration::from_secs(5));
     let response = fetch_status(8095).await?.text().await?;
     let upstream_peer_pool: AgentsResponse = serde_json::from_str(&response)?;
+
+    panic!("{:#?}", upstream_peer_pool);
 
     if let Some(table) = step.table.as_ref() {
         let headers = &table.rows[0];
@@ -65,12 +63,12 @@ pub async fn then_balancer_state_is(_world: &mut PaddlerWorld, step: &Step) -> R
                         table_fields.push(row.get(col_idx));
                         peer_fields.push(peer.status.slots_processing.to_string());
                     }
-                    "is_request_error" => {
+                    "error" => {
                         table_fields.push(row.get(col_idx));
                         peer_fields.push(
                             peer.status
-                                .is_request_error
-                                .map(|v| v.to_string())
+                                .error.clone()
+                                // .map(|v| v.to_string())
                                 .unwrap_or("None".to_string()),
                         );
                     }
@@ -78,7 +76,6 @@ pub async fn then_balancer_state_is(_world: &mut PaddlerWorld, step: &Step) -> R
                 }
             }
 
-            panic!("{:#?} | {:#?}", table_fields, peer_fields);
             assert_fields(table_fields, peer_fields);
         }
     }
