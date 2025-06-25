@@ -15,11 +15,14 @@ pub async fn then_request_landed_in(
         .get(&llamacpp_name)
         .ok_or_else(|| anyhow::anyhow!("Llama.cpp server {} not found", llamacpp_name))?;
 
-    if !llamacpp.accepted_request(&request_name).await? {
+    let accepted_result = llamacpp.accepted_request(&request_name).await?;
+
+    if !accepted_result.accepted {
         return Err(anyhow::anyhow!(
-            "Request '{}' did not land in Llama.cpp server '{}'",
+            "Request '{}' did not land in Llama.cpp server '{}'.\nLogs: {}",
             request_name,
-            llamacpp_name
+            llamacpp_name,
+            accepted_result.contents,
         ));
     }
 

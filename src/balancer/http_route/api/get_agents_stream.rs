@@ -6,6 +6,7 @@ use actix_web::web;
 use actix_web::Error;
 use actix_web::Responder;
 use actix_web_lab::sse;
+use log::error;
 
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 
@@ -22,7 +23,7 @@ async fn respond(upstream_peer_pool: web::Data<UpstreamPeerPool>) -> Result<impl
             match serde_json::to_string(&info) {
                 Ok(json) => Some(Ok::<_, Infallible>(sse::Event::Data(sse::Data::new(json)))),
                 Err(err) => {
-                    eprintln!("Failed to serialize pool info: {err}");
+                    error!("Failed to serialize pool info: {err}");
                     None
                 }
             }

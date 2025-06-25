@@ -40,16 +40,21 @@ impl UpstreamPeerPool {
     }
 
     pub fn quarantine_peer(&self, agent_id: &str) -> Result<bool> {
-        self.with_agents_write(|agents| {
+        let notify_waiters = self.with_agents_write(|agents| {
             if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
                 peer.quarantined_until = Some(SystemTime::now() + Duration::from_secs(10));
-                self.update_notifier.notify_waiters();
 
                 return Ok(true);
             }
 
             Ok(false)
-        })
+        })?;
+
+        if notify_waiters {
+            self.update_notifier.notify_waiters();
+        }
+
+        Ok(notify_waiters)
     }
 
     pub fn register_status_update(
@@ -57,7 +62,9 @@ impl UpstreamPeerPool {
         agent_id: &str,
         status_update: StatusUpdate,
     ) -> Result<()> {
-        self.with_agents_write(|agents| {
+        let has_idle_slots = status_update.slots_idle > 0;
+
+        let _ = self.with_agents_write(|agents| {
             if let Some(upstream_peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
                 upstream_peer.update_status(status_update);
             } else {
@@ -68,48 +75,71 @@ impl UpstreamPeerPool {
             }
 
             agents.sort();
-            self.update_notifier.notify_waiters();
 
             Ok(())
-        })
+        })?;
+
+        if has_idle_slots {
+            self.available_slots_notifier.notify_waiters();
+        }
+
+        self.update_notifier.notify_waiters();
+
+        Ok(())
     }
 
     pub fn release_slot(&self, agent_id: &str, last_update: SystemTime) -> Result<()> {
-        self.with_agents_write(|agents| {
+        let notify_available_slots = self.with_agents_write(|agents| {
             if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
                 if peer.last_update < last_update {
                     // edge case, but no need to update anything anyway
-                    return Ok(());
+                    return Ok(false);
                 }
 
                 peer.release_slot()?;
-                self.update_notifier.notify_waiters();
 
-                return Ok(());
+                return Ok(true);
             }
 
             Err(format!("There is no agent with id: {agent_id}").into())
-        })
+        })?;
+
+        if notify_available_slots {
+            self.available_slots_notifier.notify_waiters();
+            self.update_notifier.notify_waiters();
+        }
+
+        Ok(())
     }
 
     pub fn remove_peer(&self, agent_id: &str) -> Result<()> {
-        self.with_agents_write(|agents| {
+        let notify_waiters = self.with_agents_write(|agents| {
             if let Some(pos) = agents.iter().position(|p| p.agent_id == agent_id) {
                 agents.remove(pos);
-                self.update_notifier.notify_waiters();
+
+                return Ok(true);
             }
 
-            Ok(())
-        })
+            Ok(false)
+        })?;
+
+        if notify_waiters {
+            self.update_notifier.notify_waiters();
+        }
+
+        Ok(())
     }
 
     pub fn restore_integrity(&self) -> Result<()> {
-        self.with_agents_write(|agents| {
+        let _ = self.with_agents_write(|agents| {
             agents.sort();
-            self.update_notifier.notify_waiters();
 
             Ok(())
-        })
+        })?;
+
+        self.update_notifier.notify_waiters();
+
+        Ok(())
     }
 
     #[cfg(feature = "statsd_reporter")]
