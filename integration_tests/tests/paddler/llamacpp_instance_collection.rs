@@ -38,7 +38,7 @@ impl LlamaCppInstanceCollection {
         port
     }
 
-    pub async fn kill(&self, llamacpp_name: &String) -> Result<()> {
+    pub async fn kill(&self, llamacpp_name: &str) -> Result<()> {
         if let Some(mut llamacpp) = self.instances.get_mut(llamacpp_name) {
             llamacpp.value_mut().cleanup().await
         } else {
