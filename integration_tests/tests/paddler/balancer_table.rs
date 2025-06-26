@@ -31,7 +31,7 @@ pub fn assert_balancer_table(
 
     for row in table.rows.iter().skip(1) {
         let agent_name = row
-            .get(0)
+            .first()
             .ok_or_else(|| anyhow!("Missing agent name in table row"))?;
 
         let peer = agents_response
