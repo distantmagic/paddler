@@ -1,15 +1,18 @@
+use std::time::Duration;
 use std::time::SystemTime;
 
 use anyhow::Result;
 use anyhow::anyhow;
 use cucumber::gherkin::Step;
 use cucumber::then;
-use reqwest::Response;
+use tokio::time::sleep;
 
 use crate::agent_response::AgentsResponse;
 use crate::paddler_world::PaddlerWorld;
 
-async fn fetch_status(balancer_port: u16) -> Result<Response> {
+const MAX_ATTEMPTS: usize = 30;
+
+async fn fetch_status(balancer_port: u16) -> Result<AgentsResponse> {
     let response = reqwest::get(format!("http://127.0.0.1:{balancer_port}/api/v1/agents")).await?;
     if !response.status().is_success() {
         return Err(anyhow!(
@@ -17,7 +20,19 @@ async fn fetch_status(balancer_port: u16) -> Result<Response> {
             response.status()
         ));
     }
-    Ok(response)
+
+    let agents_response = response.json::<AgentsResponse>().await?;
+    Ok(agents_response)
+}
+
+fn compare_last_update(agents: AgentsResponse, last_update: SystemTime) -> bool {
+    let mut agent_status_was_updated = false;
+
+    for agent in agents.agents {
+        agent_status_was_updated = agent.last_update > last_update
+    }
+
+    agent_status_was_updated
 }
 
 fn assert_fields(table_fields: Vec<Option<&String>>, peer_fields: Vec<String>) {
@@ -28,26 +43,26 @@ fn assert_fields(table_fields: Vec<Option<&String>>, peer_fields: Vec<String>) {
     }
 }
 
-fn get_agent_last_update(agents_response: &AgentsResponse) -> SystemTime {
-    let mut last_update = SystemTime::now();
+#[then("next balancer state is:")]
+pub async fn then_balancer_state_is(world: &mut PaddlerWorld, step: &Step) -> Result<()> {
+    let last_update = world.last_update.expect("Last update does not exist");
 
-    for agent in &agents_response.agents {
-        if agent.last_update > last_update {
-            last_update = agent.last_update;
+    let mut attempts = 0;
+
+    while attempts < MAX_ATTEMPTS {
+        sleep(Duration::from_millis(100)).await;
+
+        let agents_response = fetch_status(8095).await?;
+
+        if compare_last_update(agents_response, last_update) {
+            world.last_update = Some(SystemTime::now());
+            break;
         }
+
+        attempts += 1;
     }
 
-    last_update
-}
-
-#[then("balancer state is:")]
-pub async fn then_balancer_state_is(world: &mut PaddlerWorld, step: &Step) -> Result<()> {
-    let response = fetch_status(8095).await?;
-    let agents_response = response.json::<AgentsResponse>().await?;
-
-    let last_agents_update = get_agent_last_update(&agents_response);
-
-    world.last_update = Some(last_agents_update);
+    let agents_response = fetch_status(8095).await?;
 
     if let Some(table) = step.table.as_ref() {
         let headers = &table.rows[0];

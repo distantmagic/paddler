@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use cucumber::World;
 use dashmap::DashMap;
 use reqwest::Response;
@@ -10,10 +12,10 @@ use crate::llamacpp_instance_collection::LlamaCppInstanceCollection;
 pub struct PaddlerWorld {
     pub agents: AgentsCollection,
     pub balancer: Option<Child>,
-    pub table_fields: DashMap<String, Option<String>>,
     pub buffered_request_timeout: Option<i64>,
     pub max_buffered_requests: Option<i64>,
     pub statsd: Option<Child>,
+    pub last_update: Option<SystemTime>,
     pub llamas: LlamaCppInstanceCollection,
     pub requests: DashMap<String, Response>,
 }
