@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
@@ -9,6 +11,7 @@ pub struct AgentStatus {
 
 #[derive(Deserialize, Debug)]
 pub struct Agent {
+    pub last_update: SystemTime,
     pub status: AgentStatus,
 }
 
