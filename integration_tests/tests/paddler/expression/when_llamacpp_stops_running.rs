@@ -6,7 +6,7 @@ use tokio::time::sleep;
 
 use crate::paddler_world::PaddlerWorld;
 
-const MAX_ATTEMPTS: usize = 3;
+const MAX_ATTEMPTS: usize = 30;
 
 async fn do_check(llamacpp_port: u16) -> Result<()> {
     let response = reqwest::get(format!("http://127.0.0.1:{llamacpp_port}/health")).await?;
@@ -29,8 +29,12 @@ async fn do_check(llamacpp_port: u16) -> Result<()> {
 
     Ok(())
 }
+
 #[when(expr = "llama.cpp server {string} stops running")]
-pub async fn when_agent_detaches(world: &mut PaddlerWorld, llamacpp_name: String) -> Result<()> {
+pub async fn when_llamacpp_stops_running(
+    world: &mut PaddlerWorld,
+    llamacpp_name: String,
+) -> Result<()> {
     if !world.llamas.instances.contains_key(&llamacpp_name) {
         return Err(anyhow::anyhow!(
             "Llama.cpp server {} is not running",
@@ -45,7 +49,7 @@ pub async fn when_agent_detaches(world: &mut PaddlerWorld, llamacpp_name: String
     let mut attempts = 0;
 
     while attempts < MAX_ATTEMPTS {
-        sleep(Duration::from_secs(1)).await;
+        sleep(Duration::from_millis(100)).await;
 
         if do_check(llamacpp_port).await.is_err() {
             return Ok(());
