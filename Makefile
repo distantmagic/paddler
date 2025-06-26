@@ -31,6 +31,7 @@ clean:
 .PHONY: fmt
 fmt: node_modules
 	./jarmuz-fmt.mjs
+	$(MAKE) -C integration_tests fmt
 
 .PHONY: integration_tests
 integration_tests:
