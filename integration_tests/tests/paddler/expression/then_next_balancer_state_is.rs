@@ -14,13 +14,12 @@ use crate::paddler_world::PaddlerWorld;
 const MAX_ATTEMPTS: usize = 30;
 
 fn compare_last_update(agents: AgentsResponse, last_update: SystemTime) -> bool {
-    let mut agent_status_was_updated = false;
-
     for agent in agents.agents {
-        agent_status_was_updated = agent.last_update > last_update
+        if agent.last_update > last_update {
+            return true;
+        }
     }
-
-    agent_status_was_updated
+    false
 }
 
 #[then("next balancer state is:")]
