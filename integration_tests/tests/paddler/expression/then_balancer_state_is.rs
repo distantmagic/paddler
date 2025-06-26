@@ -1,14 +1,15 @@
 use std::time::SystemTime;
 
 use anyhow::Result;
-use anyhow::anyhow;
 use cucumber::gherkin::Step;
 use cucumber::then;
-use reqwest::Response;
 
 use crate::agent_response::AgentsResponse;
+use crate::balancer_table::assert_balancer_table;
+use crate::balancer_table::fetch_status;
 use crate::paddler_world::PaddlerWorld;
 
+<<<<<<< HEAD
 async fn fetch_status(balancer_port: u16) -> Result<Response> {
     let response = reqwest::get(format!("http://127.0.0.1:{balancer_port}/api/v1/agents")).await?;
     if !response.status().is_success() {
@@ -40,11 +41,14 @@ fn get_agent_last_update(agents_response: &AgentsResponse) -> SystemTime {
     last_update
 }
 
+=======
+>>>>>>> 4e5a40cbc4fe507e6b9a5a9ac8695b7087d2ee11
 #[then("balancer state is:")]
 pub async fn then_balancer_state_is(world: &mut PaddlerWorld, step: &Step) -> Result<()> {
     let response = fetch_status(8095).await?;
     let agents_response = response.json::<AgentsResponse>().await?;
 
+<<<<<<< HEAD
     let last_agents_update = get_agent_last_update(&agents_response);
 
     world.last_update = Some(last_agents_update);
@@ -87,6 +91,12 @@ pub async fn then_balancer_state_is(world: &mut PaddlerWorld, step: &Step) -> Re
 
             assert_fields(table_fields, peer_fields);
         }
+=======
+    world.last_balancer_state_update = Some(SystemTime::now());
+
+    if let Some(table) = step.table.as_ref() {
+        assert_balancer_table(table, &agents_response)?;
+>>>>>>> 4e5a40cbc4fe507e6b9a5a9ac8695b7087d2ee11
     }
 
     Ok(())
