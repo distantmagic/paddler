@@ -73,7 +73,7 @@ impl Service for ManagementService {
     }
 
     fn name(&self) -> &str {
-        "management"
+        "balancer::management"
     }
 
     fn threads(&self) -> Option<usize> {

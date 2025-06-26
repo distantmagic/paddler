@@ -103,7 +103,7 @@ impl Service for MonitoringService {
     }
 
     fn name(&self) -> &str {
-        "monitoring"
+        "agent::monitoring"
     }
 
     fn threads(&self) -> Option<usize> {

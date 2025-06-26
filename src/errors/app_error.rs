@@ -36,6 +36,12 @@ pub enum AppError {
         #[from] tokio::sync::broadcast::error::SendError<actix_web::web::Bytes>,
     ),
 
+    #[error("Tokio failed to send change request through channel: {0}")]
+    TokioSendError(
+        #[from]
+        tokio::sync::mpsc::error::SendError<crate::supervisor::change_request::ChangeRequest>,
+    ),
+
     #[error("Unexpected error: {0}")]
     UnexpectedError(String),
 

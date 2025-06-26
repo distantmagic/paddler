@@ -180,7 +180,13 @@ impl ProxyHttp for ProxyService {
             }
             "/chat/completions" => true,
             "/completion" => true,
+            "/embeddings" => true,
+            "/infill" => true,
+            "/rerank" => true,
             "/v1/chat/completions" => true,
+            "/v1/embeddings" => true,
+            "/v1/rerank" => true,
+            "/v1/reranking" => true,
             _ => false,
         };
 

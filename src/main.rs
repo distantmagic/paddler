@@ -3,8 +3,11 @@ mod balancer;
 mod cmd;
 mod errors;
 mod llamacpp;
+
 #[cfg(feature = "web_dashboard")]
 mod static_files;
+
+#[cfg(feature = "supervisor")]
 mod supervisor;
 
 use std::net::SocketAddr;
@@ -146,6 +149,17 @@ enum Commands {
         /// Address of the management server that the dashboard will connect to
         management_addr: SocketAddr,
     },
+    #[cfg(feature = "supervisor")]
+    /// Supervisor for managing llama.cpp instances
+    Supervisor {
+        #[arg(long, value_parser = parse_socket_addr)]
+        /// Address of the management server that the supervisor will report to
+        management_addr: SocketAddr,
+
+        #[arg(long)]
+        /// Name of the supervisor (optional)
+        name: Option<String>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -210,6 +224,11 @@ fn main() -> Result<()> {
         Some(Commands::Dashboard {
             management_addr,
         }) => cmd::dashboard::handle(management_addr),
+        #[cfg(feature = "supervisor")]
+        Some(Commands::Supervisor {
+            management_addr,
+            name,
+        }) => cmd::supervisor::handle(management_addr, name),
         None => Ok(()),
     }
 }

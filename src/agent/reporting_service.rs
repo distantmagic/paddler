@@ -86,10 +86,10 @@ impl Service for ReportingService {
     }
 
     fn name(&self) -> &str {
-        "reporting"
+        "agent::reporting"
     }
 
     fn threads(&self) -> Option<usize> {
-        None
+        Some(1)
     }
 }

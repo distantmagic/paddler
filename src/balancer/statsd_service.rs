@@ -88,7 +88,7 @@ impl Service for StatsdService {
     }
 
     fn name(&self) -> &str {
-        "statsd"
+        "balancer::statsd"
     }
 
     fn threads(&self) -> Option<usize> {

@@ -48,8 +48,8 @@ async-stream = "0.3.6"
 [features]
 default = ["statsd_reporter", "ratatui_dashboard", "supervisor"]
 ratatui_dashboard = ["dep:chrono", "dep:crossterm", "dep:ratatui"]
-supervisor = []
 statsd_reporter = ["dep:cadence"]
+supervisor = []
 web_dashboard = ["dep:askama", "dep:esbuild-metafile", "dep:mime_guess", "dep:rust-embed"]
 
 [profile.release]
