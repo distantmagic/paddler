@@ -1,6 +1,5 @@
 use std::net::SocketAddr;
 use std::net::UdpSocket;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -44,14 +43,9 @@ impl StatsdService {
 
     async fn report_metrics(&self, client: &StatsdClient) -> Result<()> {
         let (slots_idle, slots_processing) = self.upstream_peer_pool.total_slots()?;
-        let buffered_requests = self
-            .upstream_peer_pool
-            .request_buffer_length
-            .load(Ordering::SeqCst);
 
         client.gauge("slots_idle", slots_idle as u64)?;
         client.gauge("slots_processing", slots_processing as u64)?;
-        client.gauge("requests_buffered", buffered_requests as u64)?;
         client.flush()?;
 
         Ok(())
