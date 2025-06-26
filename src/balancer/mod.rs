@@ -12,5 +12,8 @@ pub mod statsd_service;
 #[cfg(feature = "web_dashboard")]
 pub mod response;
 
+#[cfg(feature = "web_dashboard")]
+pub mod web_dashboard_service;
+
 #[cfg(test)]
 pub mod test;

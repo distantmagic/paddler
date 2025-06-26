@@ -13,8 +13,9 @@ spawner(async function ({ buildId, command }) {
     command(`
       target/debug/paddler balancer
         --management-addr 127.0.0.1:8060
-        --management-dashboard-enable
-        --reverseproxy-addr 127.0.0.1:8061
+        --web-dashboard-enable
+        --web-dashboard-addr 127.0.1:8061
+        --reverseproxy-addr 127.0.0.1:8062
     `),
     command(`
       target/debug/paddler agent

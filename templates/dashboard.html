@@ -11,6 +11,9 @@
     {{ preloads|render_assets|safe }}
 </head>
 <body>
-    <div id="paddler-dashboard"></div>
+    <div
+        id="paddler-dashboard"
+        data-management-addr="//{{ web_dashboard_service_configuration.management_addr }}"
+    ></div>
 </body>
 </html>

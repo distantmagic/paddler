@@ -1,31 +1,39 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
-#[cfg(feature = "statsd_reporter")]
 use std::time::Duration;
 
 use pingora::proxy::http_proxy_service;
 use pingora::server::configuration::Opt;
 use pingora::server::Server;
 
+use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::management_service::ManagementService;
 use crate::balancer::proxy_service::ProxyService;
 #[cfg(feature = "statsd_reporter")]
+use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
+#[cfg(feature = "statsd_reporter")]
 use crate::balancer::statsd_service::StatsdService;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
+#[cfg(feature = "web_dashboard")]
+use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
+#[cfg(feature = "web_dashboard")]
+use crate::balancer::web_dashboard_service::WebDashboardService;
 use crate::errors::result::Result;
 
-#[expect(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 pub fn handle(
     buffered_request_timeout: Duration,
-    management_addr: SocketAddr,
-    #[cfg(feature = "web_dashboard")] management_dashboard_enable: bool,
+    management_service_configuration: ManagementServiceConfiguration,
     max_buffered_requests: usize,
     reverseproxy_addr: SocketAddr,
     rewrite_host_header: bool,
     slots_endpoint_enable: bool,
-    #[cfg(feature = "statsd_reporter")] statsd_addr: Option<SocketAddr>,
-    #[cfg(feature = "statsd_reporter")] statsd_prefix: String,
-    #[cfg(feature = "statsd_reporter")] statsd_reporting_interval: Duration,
+    #[cfg(feature = "statsd_reporter")] statsd_service_configuration_maybe: Option<
+        StatsdServiceConfiguration,
+    >,
+    #[cfg(feature = "web_dashboard")] web_dashboard_service_configuration: Option<
+        WebDashboardServiceConfiguration,
+    >,
 ) -> Result<()> {
     let mut pingora_server = Server::new(Opt {
         upgrade: false,
@@ -54,22 +62,26 @@ pub fn handle(
 
     pingora_server.add_service(proxy_service);
     pingora_server.add_service(ManagementService::new(
-        management_addr,
-        #[cfg(feature = "web_dashboard")]
-        management_dashboard_enable,
+        management_service_configuration,
         upstream_peer_pool.clone(),
     ));
 
     #[cfg(feature = "statsd_reporter")]
-    if let Some(statsd_addr) = statsd_addr {
-        let statsd_service = StatsdService::new(
-            statsd_addr,
-            statsd_prefix,
-            statsd_reporting_interval,
-            upstream_peer_pool.clone(),
-        )?;
+    if let Some(statsd_service_configuration) = statsd_service_configuration_maybe {
+        let statsd_service =
+            StatsdService::new(statsd_service_configuration, upstream_peer_pool.clone())?;
 
         pingora_server.add_service(statsd_service);
+    }
+
+    #[cfg(feature = "web_dashboard")]
+    if let Some(web_dashboard_service_configuration) = web_dashboard_service_configuration {
+        let web_dashboard_service = WebDashboardService::new(
+            web_dashboard_service_configuration,
+            upstream_peer_pool.clone(),
+        );
+
+        pingora_server.add_service(web_dashboard_service);
     }
 
     pingora_server.run_forever();

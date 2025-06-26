@@ -6,10 +6,10 @@ import { AgentsResponseSchema } from "../schemas/AgentsResponse";
 import { AgentsList } from "./AgentsList";
 import { DashboardLayout } from "./DashboardLayout";
 
-export function Dashboard() {
+export function Dashboard({ managementAddr }: { managementAddr: string }) {
   const eventSourceUpdateState = useEventSourceUpdates({
     schema: AgentsResponseSchema,
-    endpoint: "/api/v1/agents/stream",
+    endpoint: `${managementAddr}/api/v1/agents/stream`,
   });
 
   return matchEventSourceUpdateState(eventSourceUpdateState, {

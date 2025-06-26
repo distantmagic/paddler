@@ -1,4 +1,5 @@
-use std::net::SocketAddr;
+pub mod configuration;
+
 use std::net::UdpSocket;
 use std::sync::Arc;
 
@@ -13,30 +14,24 @@ use pingora::server::ListenFds;
 use pingora::server::ShutdownWatch;
 use pingora::services::Service;
 use tokio::time::interval;
-use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
+use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 use crate::errors::result::Result;
 
 pub struct StatsdService {
-    statsd_addr: SocketAddr,
-    statsd_prefix: String,
-    statsd_reporting_interval: Duration,
+    configuration: StatsdServiceConfiguration,
     upstream_peer_pool: Arc<UpstreamPeerPool>,
 }
 
 impl StatsdService {
     pub fn new(
-        statsd_addr: SocketAddr,
-        statsd_prefix: String,
-        statsd_reporting_interval: Duration,
+        configuration: StatsdServiceConfiguration,
         upstream_peer_pool: Arc<UpstreamPeerPool>,
     ) -> Result<Self> {
         Ok(StatsdService {
-            statsd_addr,
-            statsd_prefix,
-            statsd_reporting_interval,
+            configuration,
             upstream_peer_pool,
         })
     }
@@ -61,14 +56,16 @@ impl Service for StatsdService {
         _listeners_per_fd: usize,
     ) {
         let statsd_sink_socket = UdpSocket::bind("0.0.0.0:0").expect("Failed to bind UDP socket");
-        let statsd_sink = BufferedUdpMetricSink::from(self.statsd_addr, statsd_sink_socket)
-            .expect("Failed to create statsd sink");
+        let statsd_sink =
+            BufferedUdpMetricSink::from(self.configuration.statsd_addr, statsd_sink_socket)
+                .expect("Failed to create statsd sink");
 
-        let client = StatsdClient::builder(&self.statsd_prefix.to_owned(), statsd_sink)
-            .with_error_handler(|err| error!("Statsd error: {err}"))
-            .build();
+        let client =
+            StatsdClient::builder(&self.configuration.statsd_prefix.to_owned(), statsd_sink)
+                .with_error_handler(|err| error!("Statsd error: {err}"))
+                .build();
 
-        let mut ticker = interval(self.statsd_reporting_interval);
+        let mut ticker = interval(self.configuration.statsd_reporting_interval);
 
         ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
 

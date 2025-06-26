@@ -12,6 +12,7 @@ mod supervisor;
 
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use clap::Parser;
@@ -19,6 +20,11 @@ use clap::Subcommand;
 #[cfg(feature = "web_dashboard")]
 use esbuild_metafile::instance::initialize_instance;
 
+use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
+#[cfg(feature = "statsd_reporter")]
+use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
+#[cfg(feature = "web_dashboard")]
+use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
 use crate::errors::result::Result;
 
 #[cfg(feature = "web_dashboard")]
@@ -99,14 +105,19 @@ enum Commands {
         /// upstream isn't received for, the 504 (Gateway Timeout) error is issued.
         buffered_request_timeout: Duration,
 
-        #[arg(long, value_parser = parse_socket_addr)]
+        #[cfg(feature = "supervisor")]
+        #[arg(long)]
+        // Path to the fleet database file. If not exists, it will be created.
+        fleet_database_path: Option<PathBuf>,
+
+        #[cfg(feature = "supervisor")]
+        #[arg(long)]
+        /// Enable registering supervisor-managed llama.cpp instances in the balancer
+        fleet_management_enable: bool,
+
+        #[arg(long, default_value = "127.0.0.1:8060", value_parser = parse_socket_addr)]
         /// Address of the management server that the balancer will report to
         management_addr: SocketAddr,
-
-        #[cfg(feature = "web_dashboard")]
-        #[arg(long)]
-        /// Enable the web management dashboard
-        management_dashboard_enable: bool,
 
         #[arg(long, default_value = "30")]
         /// The maximum number of buffered requests. Like with usual requests, the request timeout
@@ -114,7 +125,7 @@ enum Commands {
         /// rejected with the 429 (Too Many Requests) error.
         max_buffered_requests: usize,
 
-        #[arg(long, value_parser = parse_socket_addr)]
+        #[arg(long, default_value = "127.0.0.1:8061", value_parser = parse_socket_addr)]
         /// Address of the reverse proxy server
         reverseproxy_addr: SocketAddr,
 
@@ -141,6 +152,15 @@ enum Commands {
         #[arg(long, default_value = "10", value_parser = parse_duration)]
         /// Interval (in seconds) at which the balancer will report metrics to statsd
         statsd_reporting_interval: Duration,
+
+        #[arg(long, default_value = "127.0.0.1:8061", value_parser = parse_socket_addr)]
+        /// Address of the web management dashboard (if enabled)
+        web_dashboard_addr: Option<SocketAddr>,
+
+        #[cfg(feature = "web_dashboard")]
+        #[arg(long, default_value = "false")]
+        /// Enable the web management dashboard
+        web_dashboard_enable: bool,
     },
     #[cfg(feature = "ratatui_dashboard")]
     /// Command-line dashboard for monitoring the balancer
@@ -187,8 +207,6 @@ fn main() -> Result<()> {
         Some(Commands::Balancer {
             buffered_request_timeout,
             management_addr,
-            #[cfg(feature = "web_dashboard")]
-            management_dashboard_enable,
             max_buffered_requests,
             reverseproxy_addr,
             rewrite_host_header,
@@ -199,25 +217,39 @@ fn main() -> Result<()> {
             statsd_prefix,
             #[cfg(feature = "statsd_reporter")]
             statsd_reporting_interval,
+            #[cfg(feature = "web_dashboard")]
+            web_dashboard_addr,
+            #[cfg(feature = "web_dashboard")]
+            web_dashboard_enable,
+            ..
         }) => {
             #[cfg(feature = "web_dashboard")]
             initialize_instance(ESBUILD_META_CONTENTS);
 
             cmd::balancer::handle(
                 buffered_request_timeout,
-                management_addr,
-                #[cfg(feature = "web_dashboard")]
-                management_dashboard_enable.to_owned(),
+                ManagementServiceConfiguration {
+                    addr: management_addr,
+                },
                 max_buffered_requests,
                 reverseproxy_addr,
                 rewrite_host_header.to_owned(),
                 slots_endpoint_enable.to_owned(),
                 #[cfg(feature = "statsd_reporter")]
-                statsd_addr.to_owned(),
-                #[cfg(feature = "statsd_reporter")]
-                statsd_prefix.to_owned(),
-                #[cfg(feature = "statsd_reporter")]
-                statsd_reporting_interval.to_owned(),
+                statsd_addr.map(|statsd_addr| StatsdServiceConfiguration {
+                    statsd_addr,
+                    statsd_prefix,
+                    statsd_reporting_interval,
+                }),
+                #[cfg(feature = "web_dashboard")]
+                if web_dashboard_enable {
+                    web_dashboard_addr.map(|web_dashboard_addr| WebDashboardServiceConfiguration {
+                        addr: web_dashboard_addr,
+                        management_addr,
+                    })
+                } else {
+                    None
+                },
             )
         }
         #[cfg(feature = "ratatui_dashboard")]

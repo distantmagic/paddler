@@ -1,6 +1,8 @@
-use std::net::SocketAddr;
+pub mod configuration;
+
 use std::sync::Arc;
 
+use actix_web::middleware::from_fn;
 use actix_web::web::Data;
 use actix_web::App;
 use actix_web::HttpServer;
@@ -11,25 +13,21 @@ use pingora::server::ShutdownWatch;
 use pingora::services::Service;
 
 use crate::balancer::http_route;
+use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 
 pub struct ManagementService {
-    addr: SocketAddr,
-    #[cfg(feature = "web_dashboard")]
-    management_dashboard_enable: bool,
+    configuration: ManagementServiceConfiguration,
     upstream_peers: Arc<UpstreamPeerPool>,
 }
 
 impl ManagementService {
     pub fn new(
-        addr: SocketAddr,
-        #[cfg(feature = "web_dashboard")] management_dashboard_enable: bool,
+        configuration: ManagementServiceConfiguration,
         upstream_peers: Arc<UpstreamPeerPool>,
     ) -> Self {
         ManagementService {
-            addr,
-            #[cfg(feature = "web_dashboard")]
-            management_dashboard_enable,
+            configuration,
             upstream_peers,
         }
     }
@@ -43,29 +41,16 @@ impl Service for ManagementService {
         mut _shutdown: ShutdownWatch,
         _listeners_per_fd: usize,
     ) {
-        #[cfg(feature = "web_dashboard")]
-        let management_dashboard_enable = self.management_dashboard_enable;
-
         let upstream_peers: Data<UpstreamPeerPool> = self.upstream_peers.clone().into();
 
         HttpServer::new(move || {
-            #[allow(unused_mut)]
-            let mut app = App::new()
+            App::new()
                 .app_data(upstream_peers.clone())
                 .configure(http_route::api::get_agents::register)
                 .configure(http_route::api::get_agents_stream::register)
-                .configure(http_route::api::post_agent_status_update::register);
-
-            #[cfg(feature = "web_dashboard")]
-            if management_dashboard_enable {
-                app = app
-                    .configure(http_route::dashboard::register)
-                    .configure(http_route::static_files::register);
-            }
-
-            app
+                .configure(http_route::api::post_agent_status_update::register)
         })
-        .bind(self.addr)
+        .bind(self.configuration.addr)
         .expect("Unable to bind server to address")
         .run()
         .await

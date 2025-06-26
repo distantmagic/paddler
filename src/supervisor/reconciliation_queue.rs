@@ -30,7 +30,7 @@ impl ReconciliationQueue {
         }
     }
 
-    pub async fn send_change_request(&self, change_request: ChangeRequest) -> Result<()> {
+    pub async fn register_change_request(&self, change_request: ChangeRequest) -> Result<()> {
         Ok(self.change_requests_sender.send(change_request).await?)
     }
 }
@@ -39,14 +39,21 @@ impl ReconciliationQueue {
 mod tests {
     use super::*;
     use crate::supervisor::change_request::ChangeRequest;
+    use crate::supervisor::llamacpp_state::LlamaCppState;
 
     #[tokio::test]
     async fn test_reconciliation_queue() -> Result<()> {
         let queue = ReconciliationQueue::new()?;
 
-        let change_request = ChangeRequest {};
+        let change_request = ChangeRequest {
+            desired_state: LlamaCppState {
+                is_alive: true,
+            },
+        };
 
-        queue.send_change_request(change_request.clone()).await?;
+        queue
+            .register_change_request(change_request.clone())
+            .await?;
 
         let received_request = queue.next_change_request().await?;
 
