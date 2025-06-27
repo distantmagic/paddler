@@ -126,11 +126,6 @@ enum Commands {
         )]
         management_cors_allowed_hosts: Vec<String>,
 
-        #[cfg(feature = "web_dashboard")]
-        #[arg(long)]
-        /// Enable the web management dashboard
-        management_dashboard_enable: bool,
-
         #[arg(long, default_value = "30")]
         /// The maximum number of buffered requests. Like with usual requests, the request timeout
         /// is also applied to buffered ones. If the maximum number is reached, all new requests are
@@ -184,6 +179,10 @@ enum Commands {
     #[cfg(feature = "supervisor")]
     /// Supervisor for managing llama.cpp instances
     Supervisor {
+        #[arg(long, value_parser = parse_socket_addr)]
+        /// Address of the Supervisor API that the supervisor will listen on
+        api_addr: SocketAddr,
+
         #[arg(long, value_parser = parse_socket_addr)]
         /// Address of the management server that the supervisor will report to
         management_addr: SocketAddr,
@@ -272,9 +271,10 @@ fn main() -> Result<()> {
         }) => cmd::dashboard::handle(management_addr),
         #[cfg(feature = "supervisor")]
         Some(Commands::Supervisor {
+            api_addr,
             management_addr,
             name,
-        }) => cmd::supervisor::handle(management_addr, name),
+        }) => cmd::supervisor::handle(api_addr, management_addr, name),
         None => Ok(()),
     }
 }

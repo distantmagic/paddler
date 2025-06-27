@@ -1,3 +1,4 @@
+pub mod api_service;
 pub mod change_request;
 pub mod http_route;
 pub mod llamacpp_process;

@@ -5,10 +5,16 @@ use pingora::server::configuration::Opt;
 use pingora::server::Server;
 
 use crate::errors::result::Result;
+use crate::supervisor::api_service::ApiService;
 use crate::supervisor::reconciliation_queue::ReconciliationQueue;
 use crate::supervisor::reconciliation_service::ReconciliationService;
 
-pub fn handle(management_addr: SocketAddr, name: Option<String>) -> Result<()> {
+pub fn handle(
+    api_addr: SocketAddr,
+    management_addr: SocketAddr,
+    name: Option<String>,
+) -> Result<()> {
+    let api_service = ApiService::new(api_addr);
     let reconciliation_queue = Arc::new(ReconciliationQueue::new()?);
     let reconciliation_service = ReconciliationService::new(name, reconciliation_queue.clone())?;
 
@@ -21,6 +27,7 @@ pub fn handle(management_addr: SocketAddr, name: Option<String>) -> Result<()> {
     })?;
 
     pingora_server.bootstrap();
+    pingora_server.add_service(api_service);
     pingora_server.add_service(reconciliation_service);
     pingora_server.run_forever();
 }
