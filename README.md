@@ -218,7 +218,7 @@ If you do not provide the `--statsd-addr` flag, the StatsD metrics will not be c
 
 #### Features
 
-- Add `--managent-cors-allowed-host` repeatable flag to be able to specify the allowed CORS hosts for the management API
+- Add `--management-cors-allowed-host` repeatable flag to be able to specify the allowed CORS hosts for the management API
 - Add `/api/v1/agents/stream` endpoint that streams the updates from the agents in real-time
 
 ### v1.2.0
