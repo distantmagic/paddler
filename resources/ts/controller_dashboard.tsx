@@ -11,8 +11,6 @@ if (!rootNode) {
 
 const managementAddr = rootNode.dataset["managementAddr"];
 
-console.log(rootNode.dataset);
-
 if ("string" !== typeof managementAddr) {
   throw new Error("Management address not found in root node data attributes");
 }

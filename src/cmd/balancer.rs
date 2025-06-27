@@ -64,6 +64,8 @@ pub fn handle(
     pingora_server.add_service(ManagementService::new(
         management_service_configuration,
         upstream_peer_pool.clone(),
+        #[cfg(feature = "web_dashboard")]
+        web_dashboard_service_configuration.clone(),
     ));
 
     #[cfg(feature = "statsd_reporter")]

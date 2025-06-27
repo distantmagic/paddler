@@ -243,7 +243,7 @@ fn main() -> Result<()> {
                 buffered_request_timeout,
                 ManagementServiceConfiguration {
                     addr: management_addr,
-                    cors_allowed_hosts: management_cors_allowed_hosts.to_owned(),
+                    cors_allowed_hosts: management_cors_allowed_hosts,
                 },
                 max_buffered_requests,
                 reverseproxy_addr,

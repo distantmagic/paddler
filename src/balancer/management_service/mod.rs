@@ -16,6 +16,7 @@ use pingora::services::Service;
 use crate::balancer::http_route;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
+use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
 
 fn create_cors_middleware(allowed_hosts: Arc<Vec<String>>) -> Cors {
     let mut cors = Cors::default()
@@ -37,16 +38,23 @@ fn create_cors_middleware(allowed_hosts: Arc<Vec<String>>) -> Cors {
 pub struct ManagementService {
     configuration: ManagementServiceConfiguration,
     upstream_peers: Arc<UpstreamPeerPool>,
+    #[cfg(feature = "web_dashboard")]
+    web_dashboard_service_configuration: Option<WebDashboardServiceConfiguration>,
 }
 
 impl ManagementService {
     pub fn new(
         configuration: ManagementServiceConfiguration,
         upstream_peers: Arc<UpstreamPeerPool>,
+        #[cfg(feature = "web_dashboard")] web_dashboard_service_configuration: Option<
+            WebDashboardServiceConfiguration,
+        >,
     ) -> Self {
         ManagementService {
             configuration,
             upstream_peers,
+            #[cfg(feature = "web_dashboard")]
+            web_dashboard_service_configuration,
         }
     }
 }
@@ -59,12 +67,19 @@ impl Service for ManagementService {
         mut _shutdown: ShutdownWatch,
         _listeners_per_fd: usize,
     ) {
-        let cors_allowed_hosts = Arc::new(self.configuration.cors_allowed_hosts.clone());
+        let mut cors_allowed_hosts = self.configuration.cors_allowed_hosts.clone();
+
+        #[cfg(feature = "web_dashboard")]
+        if let Some(web_dashboard_config) = &self.web_dashboard_service_configuration {
+            cors_allowed_hosts.push(format!("http://{}", web_dashboard_config.addr));
+        }
+
+        let cors_allowed_hosts_arc = Arc::new(cors_allowed_hosts);
         let upstream_peers: Data<UpstreamPeerPool> = self.upstream_peers.clone().into();
 
         HttpServer::new(move || {
             App::new()
-                .wrap(create_cors_middleware(cors_allowed_hosts.clone()))
+                .wrap(create_cors_middleware(cors_allowed_hosts_arc.clone()))
                 .app_data(upstream_peers.clone())
                 .configure(http_route::api::get_agents::register)
                 .configure(http_route::api::get_agents_stream::register)
