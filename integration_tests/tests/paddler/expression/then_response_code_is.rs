@@ -10,7 +10,7 @@ pub async fn then_response_code_is(
     expected_code: u16,
 ) -> Result<()> {
     let response = world
-        .requests
+        .responses
         .get(&name)
         .ok_or_else(|| anyhow::anyhow!("No request found with the name: {}", name))?;
 

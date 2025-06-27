@@ -119,6 +119,18 @@ enum Commands {
         /// Address of the management server that the balancer will report to
         management_addr: SocketAddr,
 
+        #[arg(
+            long = "management-cors-allowed-host",
+            help = "Allowed CORS host (can be specified multiple times)",
+            action = clap::ArgAction::Append
+        )]
+        management_cors_allowed_hosts: Vec<String>,
+
+        #[cfg(feature = "web_dashboard")]
+        #[arg(long)]
+        /// Enable the web management dashboard
+        management_dashboard_enable: bool,
+
         #[arg(long, default_value = "30")]
         /// The maximum number of buffered requests. Like with usual requests, the request timeout
         /// is also applied to buffered ones. If the maximum number is reached, all new requests are
@@ -207,6 +219,7 @@ fn main() -> Result<()> {
         Some(Commands::Balancer {
             buffered_request_timeout,
             management_addr,
+            management_cors_allowed_hosts,
             max_buffered_requests,
             reverseproxy_addr,
             rewrite_host_header,
@@ -230,6 +243,7 @@ fn main() -> Result<()> {
                 buffered_request_timeout,
                 ManagementServiceConfiguration {
                     addr: management_addr,
+                    cors_allowed_hosts: management_cors_allowed_hosts.to_owned(),
                 },
                 max_buffered_requests,
                 reverseproxy_addr,

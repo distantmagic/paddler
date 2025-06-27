@@ -11,6 +11,7 @@ members = ["integration_tests"]
 
 [dependencies]
 actix = "0.13.5"
+actix-cors = "0.7.1"
 actix-web = "4.11.0"
 actix-web-lab = "0.24.1"
 async-stream = "0.3.6"

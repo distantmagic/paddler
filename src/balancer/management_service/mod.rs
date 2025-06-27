@@ -2,7 +2,8 @@ pub mod configuration;
 
 use std::sync::Arc;
 
-use actix_web::middleware::from_fn;
+use actix_cors::Cors;
+use actix_web::http::header;
 use actix_web::web::Data;
 use actix_web::App;
 use actix_web::HttpServer;
@@ -15,6 +16,23 @@ use pingora::services::Service;
 use crate::balancer::http_route;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
+
+fn create_cors_middleware(allowed_hosts: Arc<Vec<String>>) -> Cors {
+    let mut cors = Cors::default()
+        .allowed_methods(vec!["GET", "POST", "OPTIONS"])
+        .allowed_headers(vec![
+            header::ACCEPT,
+            header::AUTHORIZATION,
+            header::CONTENT_TYPE,
+        ])
+        .max_age(3600);
+
+    for host in allowed_hosts.iter() {
+        cors = cors.allowed_origin(host);
+    }
+
+    cors
+}
 
 pub struct ManagementService {
     configuration: ManagementServiceConfiguration,
@@ -41,10 +59,12 @@ impl Service for ManagementService {
         mut _shutdown: ShutdownWatch,
         _listeners_per_fd: usize,
     ) {
+        let cors_allowed_hosts = Arc::new(self.configuration.cors_allowed_hosts.clone());
         let upstream_peers: Data<UpstreamPeerPool> = self.upstream_peers.clone().into();
 
         HttpServer::new(move || {
             App::new()
+                .wrap(create_cors_middleware(cors_allowed_hosts.clone()))
                 .app_data(upstream_peers.clone())
                 .configure(http_route::api::get_agents::register)
                 .configure(http_route::api::get_agents_stream::register)

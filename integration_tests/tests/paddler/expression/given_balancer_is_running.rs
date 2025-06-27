@@ -12,25 +12,35 @@ pub async fn given_balancer_is_running(world: &mut PaddlerWorld) -> Result<()> {
         return Err(anyhow::anyhow!("Balancer is already running"));
     }
 
-    world.balancer = Some(
-        Command::new("../target/debug/paddler")
-            .arg("balancer")
-            .arg(format!(
-                "--buffered-request-timeout={}",
-                world.buffered_request_timeout.unwrap_or(3)
-            ))
-            .arg("--management-addr=127.0.0.1:8095")
-            .arg(format!(
-                "--max-buffered-requests={}",
-                world.max_buffered_requests.unwrap_or(32)
-            ))
-            .arg("--reverseproxy-addr=127.0.1:8096")
-            .arg("--statsd-addr=localhost:9125")
-            .arg("--statsd-reporting-interval=1")
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()?,
-    );
+    let mut command = Command::new("../target/debug/paddler");
+
+    command
+        .arg("balancer")
+        .arg(format!(
+            "--buffered-request-timeout={}",
+            world.buffered_request_timeout.unwrap_or(3)
+        ))
+        .arg("--management-addr=127.0.0.1:8095")
+        .arg(format!(
+            "--max-buffered-requests={}",
+            world.max_buffered_requests.unwrap_or(32)
+        ))
+        .arg("--reverseproxy-addr=127.0.1:8096")
+        .arg("--statsd-addr=localhost:9125")
+        .arg("--statsd-reporting-interval=1");
+
+    for allowed_host in world.balancer_allowed_cors_hosts.iter() {
+        command.arg(format!("--management-cors-allowed-host={allowed_host}"));
+    }
+
+    world.balancer_allowed_cors_hosts.clear();
+
+    let child = command
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()?;
+
+    world.balancer = Some(child);
 
     Ok(())
 }
