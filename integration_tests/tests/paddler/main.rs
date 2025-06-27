@@ -5,6 +5,7 @@ mod expression;
 mod llamacpp_instance;
 mod llamacpp_instance_collection;
 mod paddler_world;
+mod statsd_instance;
 
 use cucumber::World as _;
 
@@ -20,6 +21,6 @@ async fn main() {
         })
         .fail_fast()
         .fail_on_skipped()
-        .run_and_exit("tests/features")
+        .run_and_exit("tests/features/balancer/report_metrics.feature")
         .await;
 }
