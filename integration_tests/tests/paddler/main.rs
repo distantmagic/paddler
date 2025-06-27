@@ -1,5 +1,6 @@
 mod agent_response;
 mod agents_collection;
+mod balancer_table;
 mod expression;
 mod llamacpp_instance;
 mod llamacpp_instance_collection;
