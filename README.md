@@ -214,6 +214,7 @@ If you do not provide the `--statsd-addr` flag, the StatsD metrics will not be c
 #### Breaking Changes
 
 - Change the agent object structure (which in turn changes the response from the API)
+- Move web dashboard to its own host (to separate it from the management API)
 - Rename the `agents` endpoint from `/agents` to `/api/v1/agents`
 
 #### Features
