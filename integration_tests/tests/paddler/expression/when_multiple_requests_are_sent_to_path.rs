@@ -42,7 +42,7 @@ pub async fn when_multiple_requests_are_sent_to_path(
         for result in results {
             match result {
                 Ok((request_name, Ok(response))) => {
-                    world.requests.insert(request_name, response);
+                    world.responses.insert(request_name, response);
                 }
                 Ok((request_name, Err(e))) => {
                     return Err(anyhow::anyhow!("Request {} failed: {}", request_name, e));

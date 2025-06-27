@@ -4,7 +4,6 @@ use anyhow::Result;
 use cucumber::given;
 use tokio::time::sleep;
 
-use crate::agent_response::AgentsResponse;
 use crate::paddler_world::PaddlerWorld;
 
 const MAX_ATTEMPTS: usize = 30;
@@ -16,17 +15,7 @@ async fn do_check(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
         ));
     }
 
-    let response = reqwest::get("http://127.0.0.1:8095/api/v1/agents").await?;
-
-    if !response.status().is_success() {
-        return Err(anyhow::anyhow!(
-            "Failed to get agent status: {}",
-            response.status()
-        ));
-    }
-
-    let agents_response = response.json::<AgentsResponse>().await?;
-
+    let agents_response = world.balancer_management_client.fetch_agents().await?;
     let agent = agents_response
         .agents
         .iter()

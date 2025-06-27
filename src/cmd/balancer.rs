@@ -18,6 +18,7 @@ use crate::errors::result::Result;
 pub fn handle(
     buffered_request_timeout: Duration,
     management_addr: &SocketAddr,
+    management_cors_allowed_hosts: Vec<String>,
     #[cfg(feature = "web_dashboard")] management_dashboard_enable: bool,
     max_buffered_requests: usize,
     reverseproxy_addr: &SocketAddr,
@@ -55,6 +56,7 @@ pub fn handle(
     pingora_server.add_service(proxy_service);
     pingora_server.add_service(ManagementService::new(
         *management_addr,
+        management_cors_allowed_hosts,
         #[cfg(feature = "web_dashboard")]
         management_dashboard_enable,
         upstream_peer_pool.clone(),

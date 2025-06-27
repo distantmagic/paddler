@@ -7,14 +7,13 @@ use cucumber::then;
 use tokio::time::sleep;
 
 use crate::agent_response::AgentsResponse;
-use crate::balancer_table::assert_balancer_table;
-use crate::balancer_table::fetch_status;
+use crate::assert_balancer_table::assert_balancer_table;
 use crate::paddler_world::PaddlerWorld;
 
 const MAX_ATTEMPTS: usize = 30;
 
-fn compare_last_update(agents: AgentsResponse, last_update: SystemTime) -> bool {
-    for agent in agents.agents {
+fn all_agents_are_updated(agents: &AgentsResponse, last_update: SystemTime) -> bool {
+    for agent in &agents.agents {
         if agent.last_update < last_update {
             return false;
         }
@@ -34,23 +33,23 @@ pub async fn then_balancer_state_is(world: &mut PaddlerWorld, step: &Step) -> Re
     while attempts < MAX_ATTEMPTS {
         sleep(Duration::from_millis(100)).await;
 
-        let response = fetch_status(8095).await?;
-        let agents_response = response.json::<AgentsResponse>().await?;
+        let agents_response = world.balancer_management_client.fetch_agents().await?;
 
-        if compare_last_update(agents_response, last_update) {
+        if all_agents_are_updated(&agents_response, last_update) {
             world.last_balancer_state_update = Some(SystemTime::now());
-            break;
+
+            if let Some(table) = step.table.as_ref() {
+                assert_balancer_table(table, &agents_response)?;
+            }
+
+            return Ok(());
         }
 
         attempts += 1;
     }
 
-    let response = fetch_status(8095).await?;
-    let agents_response = response.json::<AgentsResponse>().await?;
-
-    if let Some(table) = step.table.as_ref() {
-        assert_balancer_table(table, &agents_response)?;
-    }
-
-    Ok(())
+    Err(anyhow::anyhow!(
+        "Balancer state did not update after {} attempts",
+        MAX_ATTEMPTS
+    ))
 }

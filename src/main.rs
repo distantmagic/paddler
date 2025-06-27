@@ -100,6 +100,13 @@ enum Commands {
         /// Address of the management server that the balancer will report to
         management_addr: SocketAddr,
 
+        #[arg(
+            long = "management-cors-allowed-host",
+            help = "Allowed CORS host (can be specified multiple times)",
+            action = clap::ArgAction::Append
+        )]
+        management_cors_allowed_hosts: Vec<String>,
+
         #[cfg(feature = "web_dashboard")]
         #[arg(long)]
         /// Enable the web management dashboard
@@ -175,6 +182,7 @@ fn main() -> Result<()> {
         Some(Commands::Balancer {
             buffered_request_timeout,
             management_addr,
+            management_cors_allowed_hosts,
             #[cfg(feature = "web_dashboard")]
             management_dashboard_enable,
             max_buffered_requests,
@@ -194,6 +202,7 @@ fn main() -> Result<()> {
             cmd::balancer::handle(
                 *buffered_request_timeout,
                 management_addr,
+                management_cors_allowed_hosts.to_owned(),
                 #[cfg(feature = "web_dashboard")]
                 management_dashboard_enable.to_owned(),
                 *max_buffered_requests,

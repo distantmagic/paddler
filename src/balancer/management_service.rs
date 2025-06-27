@@ -1,6 +1,8 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use actix_cors::Cors;
+use actix_web::http::header;
 use actix_web::web::Data;
 use actix_web::App;
 use actix_web::HttpServer;
@@ -13,8 +15,26 @@ use pingora::services::Service;
 use crate::balancer::http_route;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 
+fn create_cors_middleware(allowed_hosts: Arc<Vec<String>>) -> Cors {
+    let mut cors = Cors::default()
+        .allowed_methods(vec!["GET", "POST", "OPTIONS"])
+        .allowed_headers(vec![
+            header::ACCEPT,
+            header::AUTHORIZATION,
+            header::CONTENT_TYPE,
+        ])
+        .max_age(3600);
+
+    for host in allowed_hosts.iter() {
+        cors = cors.allowed_origin(host);
+    }
+
+    cors
+}
+
 pub struct ManagementService {
     addr: SocketAddr,
+    management_cors_allowed_hosts: Arc<Vec<String>>,
     #[cfg(feature = "web_dashboard")]
     management_dashboard_enable: bool,
     upstream_peers: Arc<UpstreamPeerPool>,
@@ -23,11 +43,13 @@ pub struct ManagementService {
 impl ManagementService {
     pub fn new(
         addr: SocketAddr,
+        management_cors_allowed_hosts: Vec<String>,
         #[cfg(feature = "web_dashboard")] management_dashboard_enable: bool,
         upstream_peers: Arc<UpstreamPeerPool>,
     ) -> Self {
         ManagementService {
             addr,
+            management_cors_allowed_hosts: Arc::new(management_cors_allowed_hosts),
             #[cfg(feature = "web_dashboard")]
             management_dashboard_enable,
             upstream_peers,
@@ -47,10 +69,14 @@ impl Service for ManagementService {
         let management_dashboard_enable = self.management_dashboard_enable;
 
         let upstream_peers: Data<UpstreamPeerPool> = self.upstream_peers.clone().into();
+        let management_cors_allowed_hosts = self.management_cors_allowed_hosts.clone();
 
         HttpServer::new(move || {
             #[allow(unused_mut)]
             let mut app = App::new()
+                .wrap(create_cors_middleware(
+                    management_cors_allowed_hosts.clone(),
+                ))
                 .app_data(upstream_peers.clone())
                 .configure(http_route::api::get_agents::register)
                 .configure(http_route::api::get_agents_stream::register)
