@@ -16,6 +16,7 @@ use pingora::services::Service;
 use crate::balancer::http_route;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
+#[cfg(feature = "web_dashboard")]
 use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
 
 fn create_cors_middleware(allowed_hosts: Arc<Vec<String>>) -> Cors {
@@ -67,6 +68,7 @@ impl Service for ManagementService {
         mut _shutdown: ShutdownWatch,
         _listeners_per_fd: usize,
     ) {
+        #[allow(unused_mut)]
         let mut cors_allowed_hosts = self.configuration.cors_allowed_hosts.clone();
 
         #[cfg(feature = "web_dashboard")]
