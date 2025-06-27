@@ -1,19 +1,7 @@
 use anyhow::Result;
 use anyhow::anyhow;
-use reqwest::Response;
 
 use crate::agent_response::AgentsResponse;
-
-pub async fn fetch_status(balancer_port: u16) -> Result<Response> {
-    let response = reqwest::get(format!("http://127.0.0.1:{balancer_port}/api/v1/agents")).await?;
-    if !response.status().is_success() {
-        return Err(anyhow!(
-            "Dashboard check failed: Expected status 200, got {}",
-            response.status()
-        ));
-    }
-    Ok(response)
-}
 
 fn assert_fields(table_fields: Vec<Option<&String>>, peer_fields: Vec<String>) {
     for (index, table_field) in table_fields.iter().enumerate() {
