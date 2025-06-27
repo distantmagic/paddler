@@ -192,7 +192,7 @@ impl ProxyHttp for ProxyService {
 
         info!("upstream_peer - {:?} request | rewrite_host_header? {} check_model? {}", session.req_header().method, self.rewrite_host_header, self.check_model);
 
-        // Check if the request method is POST and the content type is JSON // cnbREaxdMcQVBS
+        // Check if the request method is POST and the content type is JSON
         if self.check_model && ctx.uses_slots {
             info!("Checking model...");
             ctx.requested_model = None;

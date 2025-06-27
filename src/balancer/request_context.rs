@@ -61,7 +61,7 @@ impl RequestContext {
         let model_str = self.requested_model.as_deref().unwrap_or("");
         match self.upstream_peer_pool.with_agents_read(|agents| {
             for peer in agents.iter() {
-                if peer.is_usable_for_model(model_str) {
+                if peer.supports_model(model_str) {
                     return Ok(true);
                 }
             }

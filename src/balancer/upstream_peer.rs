@@ -37,6 +37,10 @@ impl UpstreamPeer {
         !self.status.has_issues() && self.status.slots_idle > 0 && self.quarantined_until.is_none()
     }
 
+    pub fn supports_model(&self, requested_model: &str) -> bool {
+        requested_model.is_empty() || self.model.as_deref() == Some(requested_model)
+    }
+
     pub fn is_usable_for_model(&self, requested_model: &str) -> bool {
         self.is_usable() && (requested_model.is_empty() || self.model.as_deref() == Some(requested_model))
     }
