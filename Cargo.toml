@@ -29,6 +29,7 @@ tokio = { version = "1.45.1", features = ["full"] }
 tokio-stream = { version = "0.1.17", features = ["sync"] }
 url = { version = "2.5.4", features = ["serde"] }
 uuid = { version = "1.17.0", features = ["serde", "v4"] }
+regex = "1.11.1"
 
 # ratatui dashboard deps
 chrono = { version = "0.4.41", optional = true }

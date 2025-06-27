@@ -5,6 +5,7 @@ import { StatusUpdateSchema } from "./StatusUpdate";
 export const AgentSchema = z
   .object({
     agent_id: z.string(),
+    model: z.string(),
     last_update: z.object({
       nanos_since_epoch: z.number(),
       secs_since_epoch: z.number(),

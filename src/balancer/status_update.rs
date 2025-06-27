@@ -20,6 +20,7 @@ pub struct StatusUpdate {
     pub is_unexpected_response_status: Option<bool>,
     pub slots_idle: usize,
     pub slots_processing: usize,
+    pub model: Option<String>,
 }
 
 impl StatusUpdate {

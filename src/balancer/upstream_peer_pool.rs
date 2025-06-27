@@ -2,6 +2,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::RwLock;
 use std::time::Duration;
 use std::time::SystemTime;
+use log::info;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -158,10 +159,15 @@ impl UpstreamPeerPool {
         })
     }
 
-    pub fn use_best_peer(&self) -> Result<Option<UpstreamPeer>> {
-        self.with_agents_read(|agents| {
+    pub fn use_best_peer(&self, model: Option<String>) -> Result<Option<UpstreamPeer>> {
+        self.with_agents_write(|agents| {
             for peer in agents.iter() {
-                if peer.is_usable() {
+                let model_str = model.as_deref().unwrap_or("");
+                let is_usable = peer.is_usable();
+                let is_usable_for_model = peer.is_usable_for_model(model_str);
+
+                if is_usable && (model.is_none() || is_usable_for_model) {
+                    info!("Peer {} is usable: {}, usable for model '{}': {}", peer.agent_id, is_usable, model_str, is_usable_for_model);
                     return Ok(Some(peer.clone()));
                 }
             }
@@ -262,7 +268,7 @@ mod tests {
         pool.register_status_update("test2", mock_status_update("test2", 3, 0))?;
         pool.register_status_update("test3", mock_status_update("test3", 0, 0))?;
 
-        let best_peer = pool.use_best_peer()?.unwrap();
+        let best_peer = pool.use_best_peer(None)?.unwrap();
 
         assert_eq!(best_peer.agent_id, "test1");
         assert_eq!(best_peer.status.slots_idle, 5);
