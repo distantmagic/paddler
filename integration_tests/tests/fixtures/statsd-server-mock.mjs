@@ -1,22 +1,23 @@
 #!/usr/bin/env node
 
 import dgram from "node:dgram";
-import { appendFile } from "node:fs";
 import { createServer } from "node:http";
 import { parseArgs } from "node:util";
 
 const {
-  values: { managementPort = "9125", exposePort = "9102", logFile },
+  values: { managementPort = "9125", exposePort = "9102" },
 } = parseArgs({
   args: process.argv.slice(2),
   options: {
     managementPort: { type: "string" },
     exposePort: { type: "string" },
-    logFile: { type: "string" },
   },
 });
 
-const metrics = (1, 2);
+const metrics = {
+  last_update: null,
+  values: {},
+};
 
 const udpServer = dgram.createSocket("udp4");
 
@@ -27,22 +28,37 @@ udpServer.on("message", (msg, rinfo) => {
 
   for (const oneMetric of totalMetrics) {
     const [name, typeData] = oneMetric.split(":");
-    if (!typeData) return;
+    if (!typeData) continue;
 
     const [rawValue, type] = typeData.split("|");
     const value = parseInt(rawValue);
     const metric = name.replace(/[^a-zA-Z0-9_]/g, "_");
 
-    if (!metrics[metric]) {
-      metrics[metric] = { type, value: 0 };
+    if (!metrics.values[metric]) {
+      metrics.values[metric] = {
+        type,
+        value: type === "c" ? value : 0,
+      };
+      if (type === "g") {
+        metrics.values[metric].value = value;
+      }
+      metrics.last_update = Date.now();
+      continue;
     }
+
+    const stored = metrics.values[metric];
 
     switch (type) {
       case "c":
-        metrics[metric].value += value;
+        stored.value += value;
+        metrics.last_update = Date.now();
         break;
       case "g":
-        metrics[metric].value = value;
+        if (stored.value !== value) {
+          stored.value = value;
+          console.log("Got last update \n");
+          metrics.last_update = Date.now();
+        }
         break;
     }
   }
@@ -63,28 +79,18 @@ const server = createServer(function (req, res) {
     res.setHeader("Content-Type", "text/plain");
     res.end("OK");
   } else if (url.pathname === "/metrics") {
-    const query = url.searchParams.get("query");
     const output = new Map();
 
-    for (const [name, { value }] of Object.entries(metrics)) {
-      if (!query || name === query) {
-        output.set(name, value);
-      }
+    for (const [name, { value }] of Object.entries(metrics.values)) {
+      output.set(name, value);
     }
 
     const mapObject = Object.fromEntries(output);
+    mapObject.last_update = metrics.last_update;
 
-    appendFile(logFile, JSON.stringify(mapObject) + "\n", function (err) {
-      if (err) {
-        res.statusCode = 500;
-        res.setHeader("Content-Type", "text/plain");
-        res.end(String(err));
-      } else {
-        res.statusCode = 200;
-        res.setHeader("Content-Type", "application/json");
-        res.end("OK");
-      }
-    });
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify(mapObject));
   } else {
     res.statusCode = 404;
     res.setHeader("Content-Type", "text/plain");

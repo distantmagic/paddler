@@ -25,7 +25,8 @@ fn all_agents_are_updated(agents: &AgentsResponse, last_update: SystemTime) -> b
 #[then("next balancer state is:")]
 pub async fn then_balancer_state_is(world: &mut PaddlerWorld, step: &Step) -> Result<()> {
     let last_update = world
-        .last_balancer_state_update
+        .balancer
+        .last_update
         .expect("Last update does not exist");
 
     let mut attempts = 0;
@@ -36,7 +37,7 @@ pub async fn then_balancer_state_is(world: &mut PaddlerWorld, step: &Step) -> Re
         let agents_response = world.balancer_management_client.fetch_agents().await?;
 
         if all_agents_are_updated(&agents_response, last_update) {
-            world.last_balancer_state_update = Some(SystemTime::now());
+            world.balancer.last_update = Some(SystemTime::now());
 
             if let Some(table) = step.table.as_ref() {
                 assert_balancer_table(table, &agents_response)?;

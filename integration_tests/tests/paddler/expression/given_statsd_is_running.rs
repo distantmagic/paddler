@@ -1,5 +1,6 @@
 use std::process::Stdio;
 use std::time::Duration;
+use std::time::SystemTime;
 
 use anyhow::Result;
 use cucumber::given;
@@ -39,20 +40,17 @@ pub async fn given_statsd_is_running(world: &mut PaddlerWorld) -> Result<()> {
         return Err(anyhow::anyhow!("Statsd is already running"));
     }
 
-    let log_file = NamedTempFile::new()?;
-
     let statsd_port = 9102;
+    world.statsd.last_update = Some(SystemTime::now());
 
     world.statsd.child = Some(
         Command::new("./tests/fixtures/statsd-server-mock.mjs")
             .arg("--managementPort=9125")
             .arg(format!("--exposePort={statsd_port}"))
-            .arg(format!("--logFile={}", log_file.path().to_string_lossy()))
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            // .stdout(Stdio::null())
+            // .stderr(Stdio::null())
             .spawn()?,
     );
-    world.statsd.log_file = Some(log_file);
 
     let mut attempts = 0;
 

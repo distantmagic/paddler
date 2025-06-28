@@ -1,6 +1,7 @@
 Feature: Report llama.cpp metrics
 
     Background:
+        Given buffered requests timeout after 2 seconds
         Given balancer is running
         Given statsd is running
  
@@ -23,17 +24,17 @@ Feature: Report llama.cpp metrics
             | slots_idle        | 2 |
             | slots_processing  | 0 |
             | requests_buffered | 0 |
-        # When multiple requests are sent to "/chat/completions"
-        #     | req-1 |
-        #     | req-2 |
-        #     | req-3 |
-        # Then next metrics state is:
-        #     | slots_idle        | 0 | 
-        #     | slots_processing  | 2 |
-        #     | requests_buffered | 1 |
-        # Then "req-1" response code is 200
-        # Then "req-1" request landed in "llama-1"
-        # Then "req-2" response code is 200
-        # Then "req-2" request landed in "llama-2"
-        # Then "req-3" response code is 200
-        # Then "req-3" request landed in "llama-3"
+        When multiple requests are sent to "/chat/completions"
+            | req-1 |
+            | req-2 |
+            | req-3 |
+        Then metrics report:
+            | slots_idle        | 0 | 
+            | slots_processing  | 2 |
+            | requests_buffered | 1 |
+        Then "req-1" response code is 200
+        Then "req-1" request landed in "llama-1"
+        Then "req-2" response code is 200
+        Then "req-2" request landed in "llama-2"
+        Then "req-3" response code is 200
+        Then "req-3" request landed in "llama-1"

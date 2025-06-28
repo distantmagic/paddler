@@ -1,6 +1,7 @@
 mod agent_response;
 mod agents_collection;
 mod assert_balancer_table;
+mod balancer_instance;
 mod balancer_management_client;
 mod expression;
 mod llamacpp_instance;

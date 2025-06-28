@@ -8,7 +8,7 @@ use crate::paddler_world::PaddlerWorld;
 
 #[given("balancer is running")]
 pub async fn given_balancer_is_running(world: &mut PaddlerWorld) -> Result<()> {
-    if world.balancer.is_some() {
+    if world.balancer.child.is_some() {
         return Err(anyhow::anyhow!("Balancer is already running"));
     }
 
@@ -29,18 +29,18 @@ pub async fn given_balancer_is_running(world: &mut PaddlerWorld) -> Result<()> {
         .arg("--statsd-addr=localhost:9125")
         .arg("--statsd-reporting-interval=1");
 
-    for allowed_host in world.balancer_allowed_cors_hosts.iter() {
+    for allowed_host in world.balancer.allowed_cors_hosts.iter() {
         command.arg(format!("--management-cors-allowed-host={allowed_host}"));
     }
 
-    world.balancer_allowed_cors_hosts.clear();
+    world.balancer.allowed_cors_hosts.clear();
 
     let child = command
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()?;
 
-    world.balancer = Some(child);
+    world.balancer.child = Some(child);
 
     Ok(())
 }
