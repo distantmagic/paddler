@@ -19,9 +19,9 @@ use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
+use crate::jsonrpc::notification_params::VersionParams;
+use crate::jsonrpc::Notification as JsonRpcNotification;
 use crate::supervisor::jsonrpc::handler_collection::HandlerCollection;
-use crate::supervisor::jsonrpc::notification_params::VersionParams;
-use crate::supervisor::jsonrpc::Notification as JsonRpcNotification;
 use crate::supervisor::jsonrpc::Request as JsonRpcRequest;
 
 const MAX_CONCURRENT_HANDLERS_PER_CONNECTION: usize = 10;

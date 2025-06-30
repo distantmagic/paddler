@@ -7,7 +7,7 @@ use super::handler::Handler;
 use super::handler::SetState;
 use super::request_params::SetStateParams;
 use super::Request as JsonRpcRequest;
-use super::Response as JsonRpcResponse;
+use crate::jsonrpc::Response as JsonRpcResponse;
 
 const CONNECTION_MSG_BUFFER_SIZE: usize = 100;
 const RESPONSE_INTERNAL_ERROR: &str =

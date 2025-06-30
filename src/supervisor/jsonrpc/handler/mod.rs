@@ -6,7 +6,7 @@ use tokio::sync::mpsc::Sender;
 
 pub use self::set_state::SetState;
 use super::request_params::RequestParams;
-use super::Response as JsonRpcResponse;
+use crate::jsonrpc::Response as JsonRpcResponse;
 
 pub trait Handler<TRequestParams>
 where

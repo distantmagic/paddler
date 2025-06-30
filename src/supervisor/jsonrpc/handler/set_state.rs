@@ -2,8 +2,8 @@ use anyhow::Result;
 use tokio::sync::mpsc::Sender;
 
 use super::Handler;
+use crate::jsonrpc::Response as JsonRpcResponse;
 use crate::supervisor::jsonrpc::request_params::SetStateParams;
-use crate::supervisor::jsonrpc::Response as JsonRpcResponse;
 
 pub struct SetState {}
 

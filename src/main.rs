@@ -1,11 +1,11 @@
 mod agent;
 mod balancer;
 mod cmd;
+#[cfg(feature = "supervisor")]
+mod jsonrpc;
 mod llamacpp;
-
 #[cfg(feature = "web_dashboard")]
 mod static_files;
-
 #[cfg(feature = "supervisor")]
 mod supervisor;
 

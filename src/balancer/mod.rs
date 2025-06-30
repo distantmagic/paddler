@@ -1,4 +1,8 @@
 pub mod http_route;
+
+#[cfg(feature = "supervisor")]
+pub mod jsonrpc;
+
 pub mod management_service;
 pub mod proxy_service;
 pub mod request_context;
