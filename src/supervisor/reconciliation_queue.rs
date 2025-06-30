@@ -1,9 +1,10 @@
+use anyhow::anyhow;
+use anyhow::Result;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 
-use crate::errors::result::Result;
 use crate::supervisor::change_request::ChangeRequest;
 
 pub struct ReconciliationQueue {
@@ -26,7 +27,7 @@ impl ReconciliationQueue {
 
         match receiver.recv().await {
             Some(change_request) => Ok(change_request),
-            None => Err("No change request available".into()),
+            None => Err(anyhow!("No change request available")),
         }
     }
 

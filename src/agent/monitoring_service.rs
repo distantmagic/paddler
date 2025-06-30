@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 
 use actix_web::web::Bytes;
+use anyhow::Result;
 use async_trait::async_trait;
 use log::debug;
 use log::error;
@@ -14,7 +15,6 @@ use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
 use crate::balancer::status_update::StatusUpdate;
-use crate::errors::result::Result;
 use crate::llamacpp::llamacpp_client::LlamacppClient;
 
 pub struct MonitoringService {

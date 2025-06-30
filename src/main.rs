@@ -1,7 +1,6 @@
 mod agent;
 mod balancer;
 mod cmd;
-mod errors;
 mod llamacpp;
 
 #[cfg(feature = "web_dashboard")]
@@ -15,6 +14,8 @@ use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use anyhow::anyhow;
+use anyhow::Result;
 use clap::Parser;
 use clap::Subcommand;
 #[cfg(feature = "web_dashboard")]
@@ -25,7 +26,6 @@ use crate::balancer::management_service::configuration::Configuration as Managem
 use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
 #[cfg(feature = "web_dashboard")]
 use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
-use crate::errors::result::Result;
 
 #[cfg(feature = "web_dashboard")]
 pub const ESBUILD_META_CONTENTS: &str = include_str!("../esbuild-meta.json");
@@ -45,7 +45,7 @@ fn resolve_socket_addr(s: &str) -> Result<SocketAddr> {
         }
     }
 
-    Err("Failed to resolve socket address".into())
+    Err(anyhow!("Failed to resolve socket address"))
 }
 
 fn parse_duration(arg: &str) -> Result<Duration> {
@@ -125,6 +125,11 @@ enum Commands {
             action = clap::ArgAction::Append
         )]
         management_cors_allowed_hosts: Vec<String>,
+
+        #[cfg(feature = "web_dashboard")]
+        #[arg(long)]
+        /// Enable the web management dashboard
+        management_dashboard_enable: bool,
 
         #[arg(long, default_value = "30")]
         /// The maximum number of buffered requests. Like with usual requests, the request timeout

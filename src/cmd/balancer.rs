@@ -1,7 +1,9 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
+#[cfg(feature = "statsd_reporter")]
 use std::time::Duration;
 
+use anyhow::Result;
 use pingora::proxy::http_proxy_service;
 use pingora::server::configuration::Opt;
 use pingora::server::Server;
@@ -18,7 +20,6 @@ use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
 #[cfg(feature = "web_dashboard")]
 use crate::balancer::web_dashboard_service::WebDashboardService;
-use crate::errors::result::Result;
 
 #[allow(clippy::too_many_arguments)]
 pub fn handle(

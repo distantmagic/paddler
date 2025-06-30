@@ -1,10 +1,10 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use anyhow::Result;
 use pingora::server::configuration::Opt;
 use pingora::server::Server;
 
-use crate::errors::result::Result;
 use crate::supervisor::reconciliation_queue::ReconciliationQueue;
 use crate::supervisor::reconciliation_service::ReconciliationService;
 

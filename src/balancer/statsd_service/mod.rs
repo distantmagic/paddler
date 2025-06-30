@@ -4,6 +4,7 @@ use std::net::UdpSocket;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
+use anyhow::Result;
 use async_trait::async_trait;
 use cadence::BufferedUdpMetricSink;
 use cadence::Gauged;
@@ -19,7 +20,6 @@ use tokio::time::MissedTickBehavior;
 
 use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
-use crate::errors::result::Result;
 
 pub struct StatsdService {
     configuration: StatsdServiceConfiguration,
