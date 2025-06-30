@@ -80,12 +80,20 @@ impl Service for ManagementService {
         let upstream_peers: Data<UpstreamPeerPool> = self.upstream_peers.clone().into();
 
         HttpServer::new(move || {
-            App::new()
+            #[allow(unused_mut)]
+            let mut app = App::new()
                 .wrap(create_cors_middleware(cors_allowed_hosts_arc.clone()))
                 .app_data(upstream_peers.clone())
                 .configure(http_route::api::get_agents::register)
                 .configure(http_route::api::get_agents_stream::register)
-                .configure(http_route::api::post_agent_status_update::register)
+                .configure(http_route::api::post_agent_status_update::register);
+
+            #[cfg(feature = "supervisor")]
+            {
+                app = app.configure(http_route::api::ws_supervisor::register);
+            }
+
+            app
         })
         .bind(self.configuration.addr)
         .expect("Unable to bind server to address")

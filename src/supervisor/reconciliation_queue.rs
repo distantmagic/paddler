@@ -5,11 +5,11 @@ use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 
-use crate::supervisor::change_request::ChangeRequest;
+use super::llamacpp_state::LlamaCppState;
 
 pub struct ReconciliationQueue {
-    change_requests_receiver: Mutex<Receiver<ChangeRequest>>,
-    change_requests_sender: Sender<ChangeRequest>,
+    change_requests_receiver: Mutex<Receiver<LlamaCppState>>,
+    change_requests_sender: Sender<LlamaCppState>,
 }
 
 impl ReconciliationQueue {
@@ -22,43 +22,38 @@ impl ReconciliationQueue {
         })
     }
 
-    pub async fn next_change_request(&self) -> Result<ChangeRequest> {
+    pub async fn next_change_request(&self) -> Result<LlamaCppState> {
         let mut receiver = self.change_requests_receiver.lock().await;
 
         match receiver.recv().await {
-            Some(change_request) => Ok(change_request),
+            Some(desired_state) => Ok(desired_state),
             None => Err(anyhow!("No change request available")),
         }
     }
 
-    pub async fn register_change_request(&self, change_request: ChangeRequest) -> Result<()> {
-        Ok(self.change_requests_sender.send(change_request).await?)
+    pub async fn register_change_request(&self, desired_state: LlamaCppState) -> Result<()> {
+        Ok(self.change_requests_sender.send(desired_state).await?)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::supervisor::change_request::ChangeRequest;
     use crate::supervisor::llamacpp_state::LlamaCppState;
 
     #[tokio::test]
     async fn test_reconciliation_queue() -> Result<()> {
         let queue = ReconciliationQueue::new()?;
 
-        let change_request = ChangeRequest {
-            desired_state: LlamaCppState {
-                is_alive: true,
-            },
+        let desired_state = LlamaCppState {
+            is_alive: true,
         };
 
-        queue
-            .register_change_request(change_request.clone())
-            .await?;
+        queue.register_change_request(desired_state.clone()).await?;
 
         let received_request = queue.next_change_request().await?;
 
-        assert_eq!(change_request, received_request);
+        assert_eq!(desired_state, received_request);
 
         Ok(())
     }
