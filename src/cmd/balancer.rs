@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use log::info;
 
+use anyhow::Result;
 use pingora::proxy::http_proxy_service;
 use pingora::server::configuration::Opt;
 use pingora::server::Server;
@@ -13,12 +14,12 @@ use crate::balancer::proxy_service::ProxyService;
 #[cfg(feature = "statsd_reporter")]
 use crate::balancer::statsd_service::StatsdService;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
-use crate::errors::result::Result;
 
 #[expect(clippy::too_many_arguments)]
 pub fn handle(
     buffered_request_timeout: Duration,
     management_addr: &SocketAddr,
+    management_cors_allowed_hosts: Vec<String>,
     #[cfg(feature = "web_dashboard")] management_dashboard_enable: bool,
     max_buffered_requests: usize,
     reverseproxy_addr: &SocketAddr,
@@ -58,6 +59,7 @@ pub fn handle(
     pingora_server.add_service(proxy_service);
     pingora_server.add_service(ManagementService::new(
         *management_addr,
+        management_cors_allowed_hosts,
         #[cfg(feature = "web_dashboard")]
         management_dashboard_enable,
         upstream_peer_pool.clone(),

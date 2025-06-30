@@ -1,7 +1,6 @@
 mod agent;
 mod balancer;
 mod cmd;
-mod errors;
 mod llamacpp;
 #[cfg(feature = "web_dashboard")]
 mod static_files;
@@ -11,12 +10,12 @@ use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::time::Duration;
 
+use anyhow::anyhow;
+use anyhow::Result;
 use clap::Parser;
 use clap::Subcommand;
 #[cfg(feature = "web_dashboard")]
 use esbuild_metafile::instance::initialize_instance;
-
-use crate::errors::result::Result;
 
 #[cfg(feature = "web_dashboard")]
 pub const ESBUILD_META_CONTENTS: &str = include_str!("../esbuild-meta.json");
@@ -36,7 +35,7 @@ fn resolve_socket_addr(s: &str) -> Result<SocketAddr> {
         }
     }
 
-    Err("Failed to resolve socket address".into())
+    Err(anyhow!("Failed to resolve socket address"))
 }
 
 fn parse_duration(arg: &str) -> Result<Duration> {
@@ -103,6 +102,13 @@ enum Commands {
         #[arg(long, value_parser = parse_socket_addr)]
         /// Address of the management server that the balancer will report to
         management_addr: SocketAddr,
+
+        #[arg(
+            long = "management-cors-allowed-host",
+            help = "Allowed CORS host (can be specified multiple times)",
+            action = clap::ArgAction::Append
+        )]
+        management_cors_allowed_hosts: Vec<String>,
 
         #[cfg(feature = "web_dashboard")]
         #[arg(long)]
@@ -185,6 +191,7 @@ fn main() -> Result<()> {
         Some(Commands::Balancer {
             buffered_request_timeout,
             management_addr,
+            management_cors_allowed_hosts,
             #[cfg(feature = "web_dashboard")]
             management_dashboard_enable,
             max_buffered_requests,
@@ -205,6 +212,7 @@ fn main() -> Result<()> {
             cmd::balancer::handle(
                 *buffered_request_timeout,
                 management_addr,
+                management_cors_allowed_hosts.to_owned(),
                 #[cfg(feature = "web_dashboard")]
                 management_dashboard_enable.to_owned(),
                 *max_buffered_requests,

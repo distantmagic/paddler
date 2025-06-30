@@ -1,12 +1,5 @@
 # Paddler
 
-> [!IMPORTANT]  
-> Big changes! Paddler is rewritten into Rust (from Golang) and uses [Pingora](https://github.com/cloudflare/pingora) framework for the networking stack.
->
-> Version `1.0.0` brings some minor API changes and reporting improvements. 
-> 
-> The next plan is to introduce a supervisor who does not just monitor llamas.cpp instances, but to also manage them (replace models without dropping requests, etc.).
-
 Paddler is an open-source, production-ready, stateful load balancer and reverse proxy designed to optimize servers running [llama.cpp](https://github.com/ggerganov/llama.cpp).
 
 ## Why Paddler
@@ -225,6 +218,7 @@ If you do not provide the `--statsd-addr` flag, the StatsD metrics will not be c
 
 #### Features
 
+- Add `--management-cors-allowed-host` repeatable flag to be able to specify the allowed CORS hosts for the management API
 - Add `/api/v1/agents/stream` endpoint that streams the updates from the agents in real-time
 
 ### v1.2.0

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use anyhow::anyhow;
 use dashmap::DashMap;
 
 use crate::llamacpp_instance::LlamaCppInstance;
@@ -23,10 +24,7 @@ impl LlamaCppInstanceCollection {
         if let Some(llama) = self.instances.get(llamacpp_name) {
             Ok(llama.port)
         } else {
-            Err(anyhow::anyhow!(
-                "LlamaCpp instance {} not found",
-                llamacpp_name
-            ))
+            Err(anyhow!("LlamaCpp instance {} not found", llamacpp_name))
         }
     }
 
@@ -43,10 +41,7 @@ impl LlamaCppInstanceCollection {
             llamacpp.cleanup().await;
             Ok(())
         } else {
-            Err(anyhow::anyhow!(
-                "LlamaCpp instance {} not found",
-                llamacpp_name
-            ))
+            Err(anyhow!("LlamaCpp instance {} not found", llamacpp_name))
         }
     }
 }

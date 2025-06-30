@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use anyhow::Result;
+use anyhow::anyhow;
 use cucumber::gherkin::Step;
 use cucumber::when;
 use futures::future::join_all;
@@ -42,18 +43,18 @@ pub async fn when_multiple_requests_are_sent_to_path(
         for result in results {
             match result {
                 Ok((request_name, Ok(response))) => {
-                    world.requests.insert(request_name, response);
+                    world.responses.insert(request_name, response);
                 }
                 Ok((request_name, Err(e))) => {
-                    return Err(anyhow::anyhow!("Request {} failed: {}", request_name, e));
+                    return Err(anyhow!("Request {} failed: {}", request_name, e));
                 }
                 Err(err) => {
-                    return Err(anyhow::anyhow!("Task failed: {}", err));
+                    return Err(anyhow!("Task failed: {}", err));
                 }
             }
         }
     } else {
-        return Err(anyhow::anyhow!("Step must contain a table"));
+        return Err(anyhow!("Step must contain a table"));
     }
 
     Ok(())

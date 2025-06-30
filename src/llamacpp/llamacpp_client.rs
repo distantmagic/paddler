@@ -1,12 +1,13 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
+use anyhow::anyhow;
+use anyhow::Result;
 use reqwest::header;
 use url::Url;
 
-use crate::errors::result::Result;
-use crate::llamacpp::slots_response::SlotsResponse;
 use crate::llamacpp::slot::Slot;
+use crate::llamacpp::slots_response::SlotsResponse;
 use crate::llamacpp::models_response::ModelsResponse;
 
 pub struct LlamacppClient {
@@ -125,7 +126,7 @@ impl LlamacppClient {
         let response = match self.client.get(url.clone()).send().await {
             Ok(resp) => resp,
             Err(err) => {
-                return Err(format!(
+                return Err(anyhow!(
                     "Request to '{}' failed: '{}'; connect issue: {}; decode issue: {}; request issue: {}; status issue: {}; status: {:?}",
                     url,
                     err,
@@ -134,7 +135,7 @@ impl LlamacppClient {
                     err.is_request(),
                     err.is_status(),
                     err.status()
-                ).into());
+                ));
             }
         };
 
@@ -151,7 +152,7 @@ impl LlamacppClient {
                     Ok(None)
                 }
             },
-            _ => Err("Unexpected response status".into()),
+            _ => Err(anyhow!("Unexpected response status")),
         }
     }
 }
