@@ -22,6 +22,7 @@ use tokio::time::MissedTickBehavior;
 use crate::supervisor::handler_collection::HandlerCollection;
 use crate::supervisor::jsonrpc::notification_params::VersionParams;
 use crate::supervisor::jsonrpc::Notification as JsonRpcNotification;
+use crate::supervisor::jsonrpc::Request as JsonRpcRequest;
 
 const MAX_CONCURRENT_HANDLERS_PER_CONNECTION: usize = 10;
 const MAX_CONTINUATION_SIZE: usize = 100 * 1024;
@@ -29,6 +30,38 @@ const PING_INTERVAL: Duration = Duration::from_secs(3);
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
+}
+
+async fn handle(
+    handler_collection: Data<HandlerCollection>,
+    mut session: Session,
+    text: &str,
+) -> Result<()> {
+    match serde_json::from_str::<JsonRpcRequest>(text) {
+        Ok(request) => handler_collection.dispatch(request, session).await?,
+        Err(
+            err @ serde_json::Error {
+                ..
+            },
+        ) if err.is_data() || err.is_syntax() => {
+            session
+                .text(serde_json::to_string(&JsonRpcNotification::bad_request(
+                    Some(err),
+                ))?)
+                .await?;
+        }
+        Err(err) => {
+            error!("Error handling JSON-RPC request: {err:?}");
+
+            session
+                .text(serde_json::to_string(&JsonRpcNotification::bad_request(
+                    None,
+                ))?)
+                .await?;
+        }
+    };
+
+    Ok(())
 }
 
 async fn handle_too_many_requests(mut session: Session) -> Result<()> {
@@ -109,15 +142,15 @@ async fn respond(
                                     },
                                 };
 
-                                // if let Err(err) = handle(
-                                //     handler_collection_clone,
-                                //     session_clone,
-                                //     &text,
-                                // )
-                                // .await
-                                // {
-                                //     error!("Error handling message: {err:?}");
-                                // }
+                                if let Err(err) = handle(
+                                    handler_collection_clone,
+                                    session_clone,
+                                    &text,
+                                )
+                                .await
+                                {
+                                    error!("Error handling message: {err:?}");
+                                }
                             });
                         }
                         Some(Err(err)) => {
