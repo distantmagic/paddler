@@ -3,13 +3,14 @@ use std::sync::RwLock;
 use std::time::Duration;
 use std::time::SystemTime;
 
+use anyhow::anyhow;
+use anyhow::Result;
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::sync::Notify;
 
 use crate::balancer::status_update::StatusUpdate;
 use crate::balancer::upstream_peer::UpstreamPeer;
-use crate::errors::result::Result;
 
 #[derive(Serialize, Deserialize)]
 pub struct UpstreamPeerPoolInfo {
@@ -101,7 +102,7 @@ impl UpstreamPeerPool {
                 return Ok(true);
             }
 
-            Err(format!("There is no agent with id: {agent_id}").into())
+            Err(anyhow!("There is no agent with id: {agent_id}"))
         })?;
 
         if notify_available_slots {
@@ -178,7 +179,7 @@ impl UpstreamPeerPool {
     {
         match self.agents.read() {
             Ok(agents) => cb(&agents),
-            Err(_) => Err("Failed to acquire read lock".into()),
+            Err(_) => Err(anyhow!("Failed to acquire read lock")),
         }
     }
 
@@ -189,7 +190,7 @@ impl UpstreamPeerPool {
     {
         match self.agents.write() {
             Ok(mut agents) => cb(&mut agents),
-            Err(_) => Err("Failed to acquire write lock".into()),
+            Err(_) => Err(anyhow!("Failed to acquire write lock")),
         }
     }
 }

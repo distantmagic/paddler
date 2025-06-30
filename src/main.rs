@@ -1,7 +1,6 @@
 mod agent;
 mod balancer;
 mod cmd;
-mod errors;
 mod llamacpp;
 #[cfg(feature = "web_dashboard")]
 mod static_files;
@@ -11,12 +10,12 @@ use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::time::Duration;
 
+use anyhow::anyhow;
+use anyhow::Result;
 use clap::Parser;
 use clap::Subcommand;
 #[cfg(feature = "web_dashboard")]
 use esbuild_metafile::instance::initialize_instance;
-
-use crate::errors::result::Result;
 
 #[cfg(feature = "web_dashboard")]
 pub const ESBUILD_META_CONTENTS: &str = include_str!("../esbuild-meta.json");
@@ -36,7 +35,7 @@ fn resolve_socket_addr(s: &str) -> Result<SocketAddr> {
         }
     }
 
-    Err("Failed to resolve socket address".into())
+    Err(anyhow!("Failed to resolve socket address"))
 }
 
 fn parse_duration(arg: &str) -> Result<Duration> {

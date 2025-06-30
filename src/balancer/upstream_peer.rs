@@ -3,11 +3,12 @@ use std::cmp::Ordering;
 use std::cmp::PartialEq;
 use std::time::SystemTime;
 
+use anyhow::anyhow;
+use anyhow::Result;
 use serde::Deserialize;
 use serde::Serialize;
 
 use crate::balancer::status_update::StatusUpdate;
-use crate::errors::result::Result;
 
 #[derive(Clone, Debug, Eq, Serialize, Deserialize)]
 pub struct UpstreamPeer {
@@ -37,7 +38,9 @@ impl UpstreamPeer {
 
     pub fn release_slot(&mut self) -> Result<()> {
         if self.slots_taken < 1 {
-            return Err("Cannot release a slot when there are no taken slots".into());
+            return Err(anyhow!(
+                "Cannot release a slot when there are no taken slots"
+            ));
         }
 
         self.last_update = SystemTime::now();
@@ -61,7 +64,7 @@ impl UpstreamPeer {
 
     pub fn take_slot(&mut self) -> Result<()> {
         if self.status.slots_idle < 1 {
-            return Err("Cannot take a slot when there are no idle slots".into());
+            return Err(anyhow!("Cannot take a slot when there are no idle slots"));
         }
 
         self.last_update = SystemTime::now();

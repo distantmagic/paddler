@@ -2509,6 +2509,7 @@ dependencies = [
  "actix-cors",
  "actix-web",
  "actix-web-lab",
+ "anyhow",
  "askama",
  "async-stream",
  "async-trait",
@@ -4173,6 +4174,7 @@ dependencies = [
  "js-sys",
  "serde",
  "wasm-bindgen",
+ "zerocopy 0.8.25",
 ]
 
 [[package]]

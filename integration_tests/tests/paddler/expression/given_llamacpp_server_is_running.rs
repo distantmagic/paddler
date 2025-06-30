@@ -2,6 +2,7 @@ use std::process::Stdio;
 use std::time::Duration;
 
 use anyhow::Result;
+use anyhow::anyhow;
 use cucumber::given;
 use tempfile::NamedTempFile;
 use tokio::process::Command;
@@ -16,7 +17,7 @@ async fn do_check(llamacpp_port: u16) -> Result<()> {
     let response = reqwest::get(format!("http://127.0.0.1:{llamacpp_port}/health")).await?;
 
     if !response.status().is_success() {
-        return Err(anyhow::anyhow!(
+        return Err(anyhow!(
             "Health check failed: Expected status 200, got {}",
             response.status()
         ));
@@ -25,7 +26,7 @@ async fn do_check(llamacpp_port: u16) -> Result<()> {
     let body = response.text().await?;
 
     if body.trim() != "OK" {
-        return Err(anyhow::anyhow!(
+        return Err(anyhow!(
             "Health check failed: Expected 'OK', got '{}'",
             body
         ));
@@ -41,7 +42,7 @@ pub async fn given_agent_is_attached(
     available_slots: u16,
 ) -> Result<()> {
     if world.llamas.instances.contains_key(&llamacpp_name) {
-        return Err(anyhow::anyhow!(
+        return Err(anyhow!(
             "Llama.cpp server {} is already running",
             llamacpp_name
         ));
@@ -80,7 +81,7 @@ pub async fn given_agent_is_attached(
         attempts += 1;
     }
 
-    Err(anyhow::anyhow!(
+    Err(anyhow!(
         "Llama.cpp server at port {} did not start after {} attempts",
         llamacpp_port,
         MAX_ATTEMPTS
