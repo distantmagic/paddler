@@ -1,4 +1,6 @@
 mod error;
+pub mod handler;
+pub mod handler_collection;
 mod notification;
 pub mod notification_params;
 mod request;

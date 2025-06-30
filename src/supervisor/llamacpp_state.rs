@@ -3,5 +3,5 @@ use serde::Serialize;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct LlamaCppState {
-    pub is_alive: bool,
+    pub is_running: bool,
 }

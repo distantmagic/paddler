@@ -5,8 +5,8 @@ use serde::Serialize;
 use tokio::sync::mpsc::Sender;
 
 pub use self::set_state::SetState;
-use super::jsonrpc::request_params::RequestParams;
-use super::jsonrpc::Response as JsonRpcResponse;
+use super::request_params::RequestParams;
+use super::Response as JsonRpcResponse;
 
 pub trait Handler<TRequestParams>
 where

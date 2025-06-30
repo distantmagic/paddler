@@ -46,7 +46,7 @@ mod tests {
         let queue = ReconciliationQueue::new()?;
 
         let desired_state = LlamaCppState {
-            is_alive: true,
+            is_running: true,
         };
 
         queue.register_change_request(desired_state.clone()).await?;

@@ -19,7 +19,7 @@ use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
-use crate::supervisor::handler_collection::HandlerCollection;
+use crate::supervisor::jsonrpc::handler_collection::HandlerCollection;
 use crate::supervisor::jsonrpc::notification_params::VersionParams;
 use crate::supervisor::jsonrpc::Notification as JsonRpcNotification;
 use crate::supervisor::jsonrpc::Request as JsonRpcRequest;
