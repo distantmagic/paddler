@@ -19,7 +19,7 @@ use uuid::Uuid;
 use crate::errors::result::Result;
 
 pub struct ReportingService {
-    stats_endpoint_url: String,
+    status_endpoint_url: String,
     status_update_tx: Sender<Bytes>,
 }
 
@@ -28,7 +28,7 @@ impl ReportingService {
         let agent_id = Uuid::new_v4();
 
         Ok(ReportingService {
-            stats_endpoint_url: format!(
+            status_endpoint_url: format!(
                 "http://{management_addr}/api/v1/agent_status_update/{agent_id}"
             ),
             status_update_tx,
@@ -43,7 +43,7 @@ impl ReportingService {
         info!("Establishing connection with management server");
 
         match reqwest::Client::new()
-            .post(self.stats_endpoint_url.to_owned())
+            .post(self.status_endpoint_url.to_owned())
             .body(reqwest_body)
             .send()
             .await
