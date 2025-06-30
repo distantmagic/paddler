@@ -3,10 +3,10 @@ use actix_ws::Session;
 use anyhow::Result;
 use tokio::sync::mpsc::channel;
 
-use super::handler::Handler;
 use super::handler::SetState;
 use super::request_params::SetStateParams;
 use super::Request as JsonRpcRequest;
+use crate::jsonrpc::Handler;
 use crate::jsonrpc::Response as JsonRpcResponse;
 
 const CONNECTION_MSG_BUFFER_SIZE: usize = 100;

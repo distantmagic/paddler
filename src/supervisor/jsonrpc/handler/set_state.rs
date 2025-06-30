@@ -1,7 +1,7 @@
 use anyhow::Result;
 use tokio::sync::mpsc::Sender;
 
-use super::Handler;
+use crate::jsonrpc::Handler;
 use crate::jsonrpc::Response as JsonRpcResponse;
 use crate::supervisor::jsonrpc::request_params::SetStateParams;
 

@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
-use super::request_params::RequestParams as _;
 use super::request_params::SetStateParams;
+use crate::jsonrpc::RequestParams as _;
 
 #[derive(Deserialize)]
 #[serde(tag = "method", content = "params")]

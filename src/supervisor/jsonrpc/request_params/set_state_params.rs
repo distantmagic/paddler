@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-use super::RequestParams;
+use crate::jsonrpc::RequestParams;
 use crate::supervisor::llamacpp_state::LlamaCppState;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
