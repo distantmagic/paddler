@@ -3,6 +3,7 @@ use std::sync::Arc;
 use actix_web::get;
 use actix_web::rt;
 use actix_web::web;
+use actix_web::web::Data;
 use actix_web::web::Payload;
 use actix_web::Error;
 use actix_web::HttpRequest;
@@ -18,6 +19,7 @@ use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
+use crate::supervisor::handler_collection::HandlerCollection;
 use crate::supervisor::jsonrpc::notification_params::VersionParams;
 use crate::supervisor::jsonrpc::Notification as JsonRpcNotification;
 
@@ -27,6 +29,16 @@ const PING_INTERVAL: Duration = Duration::from_secs(3);
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
+}
+
+async fn handle_too_many_requests(mut session: Session) -> Result<()> {
+    session
+        .text(serde_json::to_string(
+            &JsonRpcNotification::too_many_requests(),
+        )?)
+        .await?;
+
+    Ok(())
 }
 
 async fn send_version(session: &mut Session, version: String) -> Result<()> {
@@ -40,7 +52,11 @@ async fn send_version(session: &mut Session, version: String) -> Result<()> {
 }
 
 #[get("/api/v1/supervisor")]
-async fn respond(payload: Payload, req: HttpRequest) -> Result<HttpResponse, Error> {
+async fn respond(
+    handler_collection: Data<HandlerCollection>,
+    payload: Payload,
+    req: HttpRequest,
+) -> Result<HttpResponse, Error> {
     let (res, mut session, msg_stream) = actix_ws::handle(&req, payload)?;
 
     let mut aggregated_msg_stream = msg_stream
@@ -50,6 +66,12 @@ async fn respond(payload: Payload, req: HttpRequest) -> Result<HttpResponse, Err
     let concurrent_handlers_sem = Arc::new(Semaphore::new(MAX_CONCURRENT_HANDLERS_PER_CONNECTION));
 
     rt::spawn(async move {
+        if let Err(err) = send_version(&mut session, env!("CARGO_PKG_VERSION").to_string()).await {
+            error!("Error sending version: {err:?}");
+
+            return;
+        }
+
         let mut ping_ticker = interval(PING_INTERVAL);
 
         ping_ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
@@ -59,7 +81,7 @@ async fn respond(payload: Payload, req: HttpRequest) -> Result<HttpResponse, Err
                 msg = aggregated_msg_stream.next() => {
                     match msg {
                         Some(Ok(AggregatedMessage::Binary(_))) => {
-                            debug!("[system_socket] Received binary message, but only text messages are supported");
+                            debug!("Received binary message, but only text messages are supported");
                         }
                         Some(Ok(AggregatedMessage::Close(_))) => break,
                         Some(Ok(AggregatedMessage::Ping(msg))) => {
@@ -71,32 +93,32 @@ async fn respond(payload: Payload, req: HttpRequest) -> Result<HttpResponse, Err
                             // ignore pong messages
                         }
                         Some(Ok(AggregatedMessage::Text(text))) => {
-                            // let handler_collection_clone = handler_collection.clone();
-                            // let sem_clone = concurrent_handlers_sem.clone();
-                            // let session_clone = session.clone();
-                            //
-                            // rt::spawn(async move {
-                            //     let _permit = match sem_clone.acquire().await {
-                            //         Ok(permit) => permit,
-                            //         Err(_) => {
-                            //             if let Some(err) = handle_too_many_requests(session_clone).await.err() {
-                            //                 error!("Error handling too many requests: {err:?}");
-                            //             }
-                            //
-                            //             return;
-                            //         },
-                            //     };
-                            //
-                            //     if let Err(err) = handle(
-                            //         handler_collection_clone,
-                            //         session_clone,
-                            //         &text,
-                            //     )
-                            //     .await
-                            //     {
-                            //         error!("Error handling message: {err:?}");
-                            //     }
-                            // });
+                            let handler_collection_clone = handler_collection.clone();
+                            let sem_clone = concurrent_handlers_sem.clone();
+                            let session_clone = session.clone();
+
+                            rt::spawn(async move {
+                                let _permit = match sem_clone.acquire().await {
+                                    Ok(permit) => permit,
+                                    Err(_) => {
+                                        if let Some(err) = handle_too_many_requests(session_clone).await.err() {
+                                            error!("Too many concurrent requests: {err:?}");
+                                        }
+
+                                        return;
+                                    },
+                                };
+
+                                // if let Err(err) = handle(
+                                //     handler_collection_clone,
+                                //     session_clone,
+                                //     &text,
+                                // )
+                                // .await
+                                // {
+                                //     error!("Error handling message: {err:?}");
+                                // }
+                            });
                         }
                         Some(Err(err)) => {
                             error!("Error receiving message: {err:?}");

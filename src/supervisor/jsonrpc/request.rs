@@ -1,12 +1,12 @@
 use serde::Deserialize;
 
-use super::request_params::DesiredStateParams;
 use super::request_params::RequestParams as _;
+use super::request_params::SetStateParams;
 
 #[derive(Deserialize)]
 #[serde(tag = "method", content = "params")]
 pub enum Request {
-    SetState(DesiredStateParams),
+    SetState(SetStateParams),
 }
 
 impl Request {

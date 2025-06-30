@@ -1,6 +1,6 @@
-mod desired_state_params;
+mod set_state_params;
 
-pub use self::desired_state_params::DesiredStateParams;
+pub use self::set_state_params::SetStateParams;
 
 pub trait RequestParams {
     fn request_id(&self) -> String;
