@@ -2,6 +2,7 @@ use std::time::Duration;
 use std::time::SystemTime;
 
 use anyhow::Result;
+use anyhow::anyhow;
 use cucumber::gherkin::Step;
 use cucumber::then;
 use tokio::time::sleep;
@@ -48,7 +49,7 @@ pub async fn then_balancer_state_is(world: &mut PaddlerWorld, step: &Step) -> Re
         attempts += 1;
     }
 
-    Err(anyhow::anyhow!(
+    Err(anyhow!(
         "Balancer state did not update after {} attempts",
         MAX_ATTEMPTS
     ))

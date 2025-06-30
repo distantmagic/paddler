@@ -1,10 +1,8 @@
-const ITEM_HEIGHT: usize = 6;
-const INFO_TEXT: [&str; 1] = ["(Esc|q) quit | (↑) move up | (↓) move down"];
-
 use std::io;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
+use anyhow::Result;
 use chrono::DateTime;
 use chrono::Utc;
 use io::Result as ioResult;
@@ -30,7 +28,9 @@ use ratatui::Frame;
 use super::ui::TableColors;
 use crate::balancer::upstream_peer::UpstreamPeer;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPoolInfo;
-use crate::errors::result::Result;
+
+const ITEM_HEIGHT: usize = 6;
+const INFO_TEXT: [&str; 1] = ["(Esc|q) quit | (↑) move up | (↓) move down"];
 
 pub struct App {
     pub colors: TableColors,

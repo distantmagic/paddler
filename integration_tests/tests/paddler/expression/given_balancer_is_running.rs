@@ -1,6 +1,7 @@
 use std::process::Stdio;
 
 use anyhow::Result;
+use anyhow::anyhow;
 use cucumber::given;
 use tokio::process::Command;
 
@@ -9,7 +10,7 @@ use crate::paddler_world::PaddlerWorld;
 #[given("balancer is running")]
 pub async fn given_balancer_is_running(world: &mut PaddlerWorld) -> Result<()> {
     if world.balancer.is_some() {
-        return Err(anyhow::anyhow!("Balancer is already running"));
+        return Err(anyhow!("Balancer is already running"));
     }
 
     let mut command = Command::new("../target/debug/paddler");

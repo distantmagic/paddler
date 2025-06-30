@@ -1,4 +1,5 @@
 use anyhow::Result;
+use anyhow::anyhow;
 
 use crate::agent_response::AgentsResponse;
 
@@ -10,10 +11,7 @@ impl BalancerManagementClient {
         let response = reqwest::get("http://127.0.0.1:8095/api/v1/agents").await?;
 
         if !response.status().is_success() {
-            return Err(anyhow::anyhow!(
-                "Failed to get agent status: {}",
-                response.status()
-            ));
+            return Err(anyhow!("Failed to get agent status: {}", response.status()));
         }
 
         Ok(response.json::<AgentsResponse>().await?)

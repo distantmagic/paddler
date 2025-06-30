@@ -2,13 +2,13 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use actix_web::web::Bytes;
+use anyhow::Result;
 use pingora::server::configuration::Opt;
 use pingora::server::Server;
 use tokio::sync::broadcast::channel;
 
 use crate::agent::monitoring_service::MonitoringService;
 use crate::agent::reporting_service::ReportingService;
-use crate::errors::result::Result;
 use crate::llamacpp::llamacpp_client::LlamacppClient;
 
 pub fn handle(
