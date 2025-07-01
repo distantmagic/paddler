@@ -22,10 +22,7 @@ async fn do_check(llamacpp_port: u16) -> Result<()> {
     let body = response.text().await?;
 
     if body.trim() != "OK" {
-        return Err(anyhow!(
-            "Health check failed: Expected 'OK', got '{}'",
-            body
-        ));
+        return Err(anyhow!("Health check failed: Expected 'OK', got '{body}'"));
     }
 
     Ok(())
@@ -37,7 +34,7 @@ pub async fn when_llamacpp_stops_running(
     llamacpp_name: String,
 ) -> Result<()> {
     if !world.llamas.instances.contains_key(&llamacpp_name) {
-        return Err(anyhow!("Llama.cpp server {} is not running", llamacpp_name));
+        return Err(anyhow!("Llama.cpp server {llamacpp_name} is not running"));
     }
 
     let llamacpp_port = world.llamas.llamacpp_port(&llamacpp_name)?;
@@ -53,9 +50,8 @@ pub async fn when_llamacpp_stops_running(
             return Ok(());
         } else {
             eprintln!(
-                "Attempt {}: llama.cpp at port {} is still alive.",
-                attempts + 1,
-                llamacpp_port
+                "Attempt {}: llama.cpp at port {llamacpp_port} is still alive.",
+                attempts + 1
             );
         }
 
@@ -63,8 +59,6 @@ pub async fn when_llamacpp_stops_running(
     }
 
     Err(anyhow!(
-        "Llama.cpp server at port {} is still running after {} attempts",
-        llamacpp_port,
-        MAX_ATTEMPTS
+        "Llama.cpp server at port {llamacpp_port} is still running after {MAX_ATTEMPTS} attempts"
     ))
 }

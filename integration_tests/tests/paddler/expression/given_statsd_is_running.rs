@@ -24,10 +24,7 @@ async fn do_check(statsd_port: u16) -> Result<()> {
     let body = response.text().await?;
 
     if body.trim() != "OK" {
-        return Err(anyhow!(
-            "Health check failed: Expected 'OK', got '{}'",
-            body
-        ));
+        return Err(anyhow!("Health check failed: Expected 'OK', got '{body}'"));
     }
 
     Ok(())
@@ -63,8 +60,6 @@ pub async fn given_statsd_is_running(world: &mut PaddlerWorld) -> Result<()> {
     }
 
     Err(anyhow!(
-        "Statsd server at port {} did not start after {} attempts",
-        statsd_port,
-        MAX_ATTEMPTS
+        "Statsd server at port {statsd_port} did not start after {MAX_ATTEMPTS} attempts"
     ))
 }

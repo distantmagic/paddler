@@ -31,7 +31,7 @@ impl LlamaCppInstanceCollection {
 
     pub async fn kill(&self, llamacpp_name: &str) -> Result<()> {
         if let Some((_, mut llamacpp)) = self.instances.remove(llamacpp_name) {
-            Ok(llamacpp.cleanup().await?)
+            Ok(llamacpp.kill().await?)
         } else {
             Err(anyhow!("LlamaCpp instance {} not found", llamacpp_name))
         }

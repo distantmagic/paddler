@@ -26,10 +26,7 @@ async fn do_check(llamacpp_port: u16) -> Result<()> {
     let body = response.text().await?;
 
     if body.trim() != "OK" {
-        return Err(anyhow!(
-            "Health check failed: Expected 'OK', got '{}'",
-            body
-        ));
+        return Err(anyhow!("Health check failed: Expected 'OK', got '{body}'"));
     }
 
     Ok(())
@@ -43,8 +40,7 @@ pub async fn given_agent_is_attached(
 ) -> Result<()> {
     if world.llamas.instances.contains_key(&llamacpp_name) {
         return Err(anyhow!(
-            "Llama.cpp server {} is already running",
-            llamacpp_name
+            "Llama.cpp server {llamacpp_name} is already running"
         ));
     }
 
@@ -82,8 +78,6 @@ pub async fn given_agent_is_attached(
     }
 
     Err(anyhow!(
-        "Llama.cpp server at port {} did not start after {} attempts",
-        llamacpp_port,
-        MAX_ATTEMPTS
+        "Llama.cpp server at port {llamacpp_port} did not start after {MAX_ATTEMPTS} attempts"
     ))
 }

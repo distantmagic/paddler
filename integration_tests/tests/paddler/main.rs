@@ -1,5 +1,5 @@
+mod agent_collection;
 mod agent_response;
-mod agents_collection;
 mod assert_balancer_table;
 mod balancer_management_client;
 mod cleanable;
@@ -9,11 +9,15 @@ mod llamacpp_instance_collection;
 mod paddler_world;
 mod request_builder;
 mod request_headers_to_be_set;
+mod supervisor_collection;
 
 use cucumber::World as _;
 
 use self::cleanable::Cleanable as _;
 use self::paddler_world::PaddlerWorld;
+
+pub const BALANCER_PORT: u16 = 8095;
+pub const REVERSE_PROXY_PORT: u16 = 8096;
 
 #[tokio::main]
 async fn main() {

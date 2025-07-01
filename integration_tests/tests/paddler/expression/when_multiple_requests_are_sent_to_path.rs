@@ -7,6 +7,7 @@ use cucumber::when;
 use futures::future::join_all;
 use tokio::time::sleep;
 
+use crate::REVERSE_PROXY_PORT;
 use crate::paddler_world::PaddlerWorld;
 
 #[when(expr = "multiple requests are sent to {string}")]
@@ -28,7 +29,7 @@ pub async fn when_multiple_requests_are_sent_to_path(
                 sleep(Duration::from_millis(50 * row_index as u64)).await;
 
                 let response = client_clone
-                    .get(format!("http://127.0.0.1:8096{path_clone}"))
+                    .get(format!("http://127.0.0.1:{REVERSE_PROXY_PORT}{path_clone}"))
                     .header("X-Request-Name", request_name.clone())
                     .send()
                     .await;
@@ -45,11 +46,11 @@ pub async fn when_multiple_requests_are_sent_to_path(
                 Ok((request_name, Ok(response))) => {
                     world.responses.insert(request_name, response);
                 }
-                Ok((request_name, Err(e))) => {
-                    return Err(anyhow!("Request {} failed: {}", request_name, e));
+                Ok((request_name, Err(err))) => {
+                    return Err(anyhow!("Request {request_name} failed: {err}"));
                 }
                 Err(err) => {
-                    return Err(anyhow!("Task failed: {}", err));
+                    return Err(anyhow!("Task failed: {err}"));
                 }
             }
         }

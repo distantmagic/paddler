@@ -8,15 +8,16 @@ use dashmap::DashMap;
 use reqwest::Response;
 use tokio::process::Child;
 
-use crate::agents_collection::AgentsCollection;
+use crate::agent_collection::AgentCollection;
 use crate::balancer_management_client::BalancerManagementClient;
 use crate::cleanable::Cleanable;
 use crate::llamacpp_instance_collection::LlamaCppInstanceCollection;
 use crate::request_builder::RequestBuilder;
+use crate::supervisor_collection::SupervisorCollection;
 
 #[derive(Debug, Default, World)]
 pub struct PaddlerWorld {
-    pub agents: AgentsCollection,
+    pub agents: AgentCollection,
     pub balancer: Option<Child>,
     pub balancer_allowed_cors_hosts: Vec<String>,
     pub balancer_management_client: BalancerManagementClient,
@@ -27,6 +28,7 @@ pub struct PaddlerWorld {
     pub request_builder: RequestBuilder,
     pub responses: DashMap<String, Response>,
     pub statsd: Option<Child>,
+    pub supervisors: SupervisorCollection,
 }
 
 #[async_trait]
@@ -37,6 +39,7 @@ impl Cleanable for PaddlerWorld {
         self.llamas.cleanup().await?;
         self.request_builder.cleanup().await?;
         self.responses.clear();
+        self.supervisors.cleanup().await?;
 
         if let Some(mut balancer) = self.balancer.take()
             && let Err(err) = balancer.kill().await

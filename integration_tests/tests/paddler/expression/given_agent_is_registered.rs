@@ -22,7 +22,7 @@ async fn do_check(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
         .ok_or_else(|| anyhow!("not found in response"))?;
 
     if let Some(error_value) = &agent.status.error {
-        return Err(anyhow!("agent reported error: {:?}", error_value));
+        return Err(anyhow!("agent reported error: {error_value:?}"));
     }
 
     Ok(())
@@ -43,8 +43,6 @@ pub async fn given_agent_is_registered(world: &mut PaddlerWorld, agent_name: Str
     }
 
     Err(anyhow!(
-        "Agent '{}' is not healthy after {} attempts",
-        agent_name,
-        MAX_ATTEMPTS
+        "Agent '{agent_name}' is not healthy after {MAX_ATTEMPTS} attempts"
     ))
 }

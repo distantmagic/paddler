@@ -6,12 +6,12 @@ use tokio::process::Child;
 use crate::cleanable::Cleanable;
 
 #[derive(Debug, Default)]
-pub struct AgentsCollection {
+pub struct SupervisorCollection {
     pub instances: DashMap<String, Child>,
 }
 
 #[async_trait]
-impl Cleanable for AgentsCollection {
+impl Cleanable for SupervisorCollection {
     async fn cleanup(&mut self) -> Result<()> {
         for mut agent in self.instances.iter_mut() {
             agent.value_mut().kill().await?;
