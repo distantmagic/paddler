@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = { version = "1.0.98", features = ["backtrace"] }
+async-trait = "0.1.88"
 cucumber = "0.21.1"
 dashmap = "6.1.0"
 futures = "0.3.31"

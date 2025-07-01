@@ -1,8 +1,12 @@
 use anyhow::Result;
+use anyhow::anyhow;
+use async_trait::async_trait;
 use tempfile::NamedTempFile;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 use tokio::process::Child;
+
+use crate::cleanable::Cleanable;
 
 pub struct AcceptedRequestResult {
     pub accepted: bool,
@@ -41,9 +45,18 @@ impl LlamaCppInstance {
         })
     }
 
-    pub async fn cleanup(&mut self) {
+    pub async fn kill(&mut self) -> Result<()> {
         if let Err(err) = self.child.kill().await {
-            panic!("Failed to kill llama {}: {}", self.name, err);
+            return Err(anyhow!("Failed to kill LlamaCppInstance: {err}"));
         }
+
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Cleanable for LlamaCppInstance {
+    async fn cleanup(&mut self) -> Result<()> {
+        self.kill().await
     }
 }

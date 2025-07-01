@@ -1,5 +1,8 @@
 use std::time::SystemTime;
 
+use anyhow::Result;
+use anyhow::anyhow;
+use async_trait::async_trait;
 use cucumber::World;
 use dashmap::DashMap;
 use reqwest::Response;
@@ -7,6 +10,7 @@ use tokio::process::Child;
 
 use crate::agents_collection::AgentsCollection;
 use crate::balancer_management_client::BalancerManagementClient;
+use crate::cleanable::Cleanable;
 use crate::llamacpp_instance_collection::LlamaCppInstanceCollection;
 use crate::request_builder::RequestBuilder;
 
@@ -25,24 +29,27 @@ pub struct PaddlerWorld {
     pub statsd: Option<Child>,
 }
 
-impl PaddlerWorld {
-    pub async fn cleanup(&mut self) {
-        self.agents.cleanup().await;
+#[async_trait]
+impl Cleanable for PaddlerWorld {
+    async fn cleanup(&mut self) -> Result<()> {
+        self.agents.cleanup().await?;
         self.balancer_allowed_cors_hosts.clear();
-        self.llamas.cleanup().await;
-        self.request_builder.cleanup();
+        self.llamas.cleanup().await?;
+        self.request_builder.cleanup().await?;
         self.responses.clear();
 
-        if let Some(mut balancer) = self.balancer.take() {
-            if let Err(err) = balancer.kill().await {
-                panic!("Failed to kill balancer: {err}");
-            }
+        if let Some(mut balancer) = self.balancer.take()
+            && let Err(err) = balancer.kill().await
+        {
+            return Err(anyhow!("Failed to kill balancer: {err}"));
         }
 
-        if let Some(mut statsd) = self.statsd.take() {
-            if let Err(err) = statsd.kill().await {
-                panic!("Failed to kill statsd: {err}");
-            }
+        if let Some(mut statsd) = self.statsd.take()
+            && let Err(err) = statsd.kill().await
+        {
+            return Err(anyhow!("Failed to kill statsd: {err}"));
         }
+
+        Ok(())
     }
 }

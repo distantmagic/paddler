@@ -1,7 +1,9 @@
 use anyhow::Result;
 use anyhow::anyhow;
+use async_trait::async_trait;
 use dashmap::DashMap;
 
+use crate::cleanable::Cleanable;
 use crate::llamacpp_instance::LlamaCppInstance;
 
 #[derive(Debug, Default)]
@@ -11,15 +13,6 @@ pub struct LlamaCppInstanceCollection {
 }
 
 impl LlamaCppInstanceCollection {
-    pub async fn cleanup(&mut self) {
-        for mut llama in self.instances.iter_mut() {
-            llama.cleanup().await;
-        }
-
-        self.instances.clear();
-        self.last_llamacpp_port_offset = 0;
-    }
-
     pub fn llamacpp_port(&self, llamacpp_name: &str) -> Result<u16> {
         if let Some(llama) = self.instances.get(llamacpp_name) {
             Ok(llama.port)
@@ -38,10 +31,23 @@ impl LlamaCppInstanceCollection {
 
     pub async fn kill(&self, llamacpp_name: &str) -> Result<()> {
         if let Some((_, mut llamacpp)) = self.instances.remove(llamacpp_name) {
-            llamacpp.cleanup().await;
-            Ok(())
+            Ok(llamacpp.cleanup().await?)
         } else {
             Err(anyhow!("LlamaCpp instance {} not found", llamacpp_name))
         }
+    }
+}
+
+#[async_trait]
+impl Cleanable for LlamaCppInstanceCollection {
+    async fn cleanup(&mut self) -> Result<()> {
+        for mut llama in self.instances.iter_mut() {
+            llama.cleanup().await?;
+        }
+
+        self.instances.clear();
+        self.last_llamacpp_port_offset = 0;
+
+        Ok(())
     }
 }

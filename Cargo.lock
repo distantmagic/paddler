@@ -2148,6 +2148,7 @@ name = "integration_tests"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "cucumber",
  "dashmap",
  "futures 0.3.31",

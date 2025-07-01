@@ -1,4 +1,8 @@
+use anyhow::Result;
+use async_trait::async_trait;
 use dashmap::DashMap;
+
+use crate::cleanable::Cleanable;
 
 #[derive(Debug, Default)]
 pub struct RequestHeadersToBeSet {
@@ -6,10 +10,6 @@ pub struct RequestHeadersToBeSet {
 }
 
 impl RequestHeadersToBeSet {
-    pub fn cleanup(&self) {
-        self.headers.clear();
-    }
-
     pub fn insert_header(&self, name: String, header: (String, String)) {
         self.headers.entry(name).or_default().push(header);
     }
@@ -19,5 +19,14 @@ impl RequestHeadersToBeSet {
             Some((_, headers)) => headers,
             None => vec![],
         }
+    }
+}
+
+#[async_trait]
+impl Cleanable for RequestHeadersToBeSet {
+    async fn cleanup(&mut self) -> Result<()> {
+        self.headers.clear();
+
+        Ok(())
     }
 }
