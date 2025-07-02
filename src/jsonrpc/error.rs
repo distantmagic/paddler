@@ -2,9 +2,10 @@ use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
+use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Error {
     pub code: i32,
     pub description: Option<String>,

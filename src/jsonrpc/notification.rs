@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use serde::Serialize;
 
 use super::error::Error;
@@ -5,7 +6,7 @@ use super::notification_params::BadRequestParams;
 use super::notification_params::TooManyRequestsParams;
 use super::notification_params::VersionParams;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "notification", content = "content")]
 pub enum Notification {
     BadRequest(BadRequestParams),

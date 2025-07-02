@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use anyhow::Context;
 use anyhow::Result;
 use async_trait::async_trait;
 use futures_util::SinkExt;
@@ -20,6 +21,8 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 use uuid::Uuid;
 
 use crate::jsonrpc::request_params::SetStateParams;
+use crate::jsonrpc::Message as JsonRpcMessage;
+use crate::jsonrpc::Notification as JsonRpcNotification;
 use crate::jsonrpc::Request as JsonRpcRequest;
 use crate::supervisor::reconciliation_queue::ReconciliationQueue;
 
@@ -58,14 +61,25 @@ impl ManagementSocketClientService {
 
         while let Some(msg) = read.next().await {
             match msg? {
-                Message::Text(text) => match serde_json::from_str::<JsonRpcRequest>(&text)? {
-                    JsonRpcRequest::SetState(SetStateParams {
+                Message::Text(text) => match serde_json::from_str::<JsonRpcMessage>(&text)
+                    .context(format!("Failed to parse JSON-RPC request: {text}"))?
+                {
+                    JsonRpcMessage::Request(JsonRpcRequest::SetState(SetStateParams {
                         desired_state,
                         request_id: _,
-                    }) => {
+                    })) => {
                         self.reconciliation_queue
                             .register_change_request(desired_state)
                             .await?;
+                    }
+                    JsonRpcMessage::Notification(JsonRpcNotification::BadRequest(params)) => {
+                        error!("Received notification: {params:?}");
+                    }
+                    JsonRpcMessage::Notification(JsonRpcNotification::TooManyRequests(params)) => {
+                        error!("Received notification: {params:?}");
+                    }
+                    JsonRpcMessage::Notification(JsonRpcNotification::Version(params)) => {
+                        info!("Received notification: {params:?}");
                     }
                 },
                 Message::Binary(_) => {
@@ -106,7 +120,7 @@ impl Service for ManagementSocketClientService {
                 },
                 _ = ticker.tick() => {
                     if let Err(err) = self.keep_connection_alive().await {
-                        error!("Failed to keep the connection alive: {err}");
+                        error!("Failed to keep the connection alive: {err:?}");
                     }
                 }
             }

@@ -28,8 +28,8 @@ pub async fn given_supervisor_is_running(
                 "--llamacpp-listen-addr=127.0.0.1:{llamacpp_listen_port}"
             ))
             .arg(format!("--management-addr=127.0.0.1:{BALANCER_PORT}"))
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            // .stdout(Stdio::null())
+            // .stderr(Stdio::null())
             .spawn()?,
     );
 
