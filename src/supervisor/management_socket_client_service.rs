@@ -9,6 +9,7 @@ use futures_util::StreamExt;
 use log::debug;
 use log::error;
 use log::info;
+use log::warn;
 #[cfg(unix)]
 use pingora::server::ListenFds;
 use pingora::server::ShutdownWatch;
@@ -20,6 +21,7 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use uuid::Uuid;
 
+use crate::jsonrpc::notification_params::VersionParams;
 use crate::jsonrpc::request_params::SetStateParams;
 use crate::jsonrpc::Message as JsonRpcMessage;
 use crate::jsonrpc::Notification as JsonRpcNotification;
@@ -52,10 +54,7 @@ impl ManagementSocketClientService {
     async fn keep_connection_alive(&self) -> Result<()> {
         let (ws_stream, _response) = connect_async(self.status_endpoint_url.clone()).await?;
 
-        info!(
-            "Connected to management server at {}",
-            self.status_endpoint_url
-        );
+        info!("Connected to management server");
 
         let (mut write, mut read) = ws_stream.split();
 
@@ -78,8 +77,15 @@ impl ManagementSocketClientService {
                     JsonRpcMessage::Notification(JsonRpcNotification::TooManyRequests(params)) => {
                         error!("Received notification: {params:?}");
                     }
-                    JsonRpcMessage::Notification(JsonRpcNotification::Version(params)) => {
-                        info!("Received notification: {params:?}");
+                    JsonRpcMessage::Notification(JsonRpcNotification::Version(VersionParams {
+                        version,
+                    })) => {
+                        if version != env!("CARGO_PKG_VERSION") {
+                            warn!(
+                                "Version mismatch: server version is {version}, client version is {}",
+                                env!("CARGO_PKG_VERSION")
+                            );
+                        }
                     }
                 },
                 Message::Binary(_) => {

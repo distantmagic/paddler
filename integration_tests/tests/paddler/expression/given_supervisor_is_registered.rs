@@ -48,6 +48,6 @@ pub async fn given_supervisor_is_registered(
     }
 
     Err(anyhow!(
-        "Supervisor '{supervisor_name}' is not healthy after {MAX_ATTEMPTS} attempts"
+        "Supervisor '{supervisor_name}' is not registered after {MAX_ATTEMPTS} attempts"
     ))
 }

@@ -15,6 +15,8 @@ use pingora::services::Service;
 
 use crate::balancer::http_route;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
+#[cfg(feature = "supervisor")]
+use crate::balancer::supervisor_pool::SupervisorPool;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 #[cfg(feature = "web_dashboard")]
 use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
@@ -71,6 +73,9 @@ impl Service for ManagementService {
         #[allow(unused_mut)]
         let mut cors_allowed_hosts = self.configuration.cors_allowed_hosts.clone();
 
+        #[cfg(feature = "supervisor")]
+        let supervisor_pool: Data<SupervisorPool> = Data::new(SupervisorPool::new());
+
         #[cfg(feature = "web_dashboard")]
         if let Some(web_dashboard_config) = &self.web_dashboard_service_configuration {
             cors_allowed_hosts.push(format!("http://{}", web_dashboard_config.addr));
@@ -90,7 +95,9 @@ impl Service for ManagementService {
 
             #[cfg(feature = "supervisor")]
             {
-                app = app.configure(http_route::api::ws_supervisor::register);
+                app = app
+                    .app_data(supervisor_pool.clone())
+                    .configure(http_route::api::ws_supervisor::register);
             }
 
             app

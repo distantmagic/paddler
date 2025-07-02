@@ -43,6 +43,6 @@ pub async fn given_agent_is_registered(world: &mut PaddlerWorld, agent_name: Str
     }
 
     Err(anyhow!(
-        "Agent '{agent_name}' is not healthy after {MAX_ATTEMPTS} attempts"
+        "Agent '{agent_name}' is not registered after {MAX_ATTEMPTS} attempts"
     ))
 }

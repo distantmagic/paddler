@@ -1,7 +1,6 @@
-use std::sync::Arc;
-
 use actix_web::get;
 use actix_web::rt;
+use actix_web::web::Data;
 use actix_web::web::Path;
 use actix_web::web::Payload;
 use actix_web::web::ServiceConfig;
@@ -14,17 +13,17 @@ use anyhow::Result;
 use futures_util::StreamExt as _;
 use log::debug;
 use log::error;
+use log::info;
 use serde::Deserialize;
-use tokio::sync::Semaphore;
 use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
+use crate::balancer::supervisor_pool::SupervisorPool;
 use crate::jsonrpc::notification_params::VersionParams;
 use crate::jsonrpc::Notification as JsonRpcNotification;
 use crate::jsonrpc::Request as JsonRpcRequest;
 
-const MAX_CONCURRENT_HANDLERS_PER_CONNECTION: usize = 10;
 const MAX_CONTINUATION_SIZE: usize = 100 * 1024;
 const PING_INTERVAL: Duration = Duration::from_secs(3);
 
@@ -62,16 +61,6 @@ async fn handle_text_message(mut session: Session, text: &str) -> Result<()> {
     Ok(())
 }
 
-async fn handle_too_many_requests(mut session: Session) -> Result<()> {
-    session
-        .text(serde_json::to_string(
-            &JsonRpcNotification::too_many_requests(),
-        )?)
-        .await?;
-
-    Ok(())
-}
-
 async fn send_version(session: &mut Session, version: String) -> Result<()> {
     Ok(session
         .text(serde_json::to_string(&JsonRpcNotification::Version(
@@ -87,19 +76,44 @@ struct PathParams {
     supervisor_id: String,
 }
 
+struct RemoveSupervisorGuard<'a> {
+    pool: &'a SupervisorPool,
+    supervisor_id: String,
+}
+
+impl Drop for RemoveSupervisorGuard<'_> {
+    fn drop(&mut self) {
+        info!("Removing supervisor: {}", self.supervisor_id);
+
+        if let Err(err) = self.pool.remove_supervisor(&self.supervisor_id) {
+            error!("Failed to remove supervisor: {err}");
+        }
+    }
+}
+
 #[get("/api/v1/supervisor_socket/{supervisor_id}")]
 async fn respond(
     path_params: Path<PathParams>,
     payload: Payload,
     req: HttpRequest,
+    supervisor_pool: Data<SupervisorPool>,
 ) -> Result<HttpResponse, Error> {
+    if let Err(err) = supervisor_pool.register_supervisor(path_params.supervisor_id.clone()) {
+        let msg = format!("Supervisor registration failed: {err}");
+
+        return Ok(HttpResponse::BadRequest().body(msg));
+    }
+
+    let _guard = RemoveSupervisorGuard {
+        pool: &supervisor_pool,
+        supervisor_id: path_params.supervisor_id.clone(),
+    };
+
     let (res, mut session, msg_stream) = actix_ws::handle(&req, payload)?;
 
     let mut aggregated_msg_stream = msg_stream
         .aggregate_continuations()
         .max_continuation_size(MAX_CONTINUATION_SIZE);
-
-    let concurrent_handlers_sem = Arc::new(Semaphore::new(MAX_CONCURRENT_HANDLERS_PER_CONNECTION));
 
     rt::spawn(async move {
         if let Err(err) = send_version(&mut session, env!("CARGO_PKG_VERSION").to_string()).await {
@@ -129,30 +143,11 @@ async fn respond(
                             // ignore pong messages
                         }
                         Some(Ok(AggregatedMessage::Text(text))) => {
-                            let sem_clone = concurrent_handlers_sem.clone();
                             let session_clone = session.clone();
 
-                            rt::spawn(async move {
-                                let _permit = match sem_clone.acquire().await {
-                                    Ok(permit) => permit,
-                                    Err(_) => {
-                                        if let Some(err) = handle_too_many_requests(session_clone).await.err() {
-                                            error!("Too many concurrent requests: {err:?}");
-                                        }
-
-                                        return;
-                                    },
-                                };
-
-                                if let Err(err) = handle_text_message(
-                                    session_clone,
-                                    &text,
-                                )
-                                .await
-                                {
-                                    error!("Error handling message: {err:?}");
-                                }
-                            });
+                            if let Err(err) = handle_text_message(session_clone, &text).await {
+                                error!("Error handling message: {err:?}");
+                            }
                         }
                         Some(Err(err)) => {
                             error!("Error receiving message: {err:?}");

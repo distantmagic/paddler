@@ -1,23 +1,21 @@
 pub mod http_route;
-
 #[cfg(feature = "supervisor")]
 pub mod jsonrpc;
-
 pub mod management_service;
 pub mod proxy_service;
 pub mod request_context;
-pub mod status_update;
-pub mod upstream_peer;
-pub mod upstream_peer_pool;
-
-#[cfg(feature = "statsd_reporter")]
-pub mod statsd_service;
-
 #[cfg(feature = "web_dashboard")]
 pub mod response;
-
-#[cfg(feature = "web_dashboard")]
-pub mod web_dashboard_service;
-
+#[cfg(feature = "statsd_reporter")]
+pub mod statsd_service;
+pub mod status_update;
+#[cfg(feature = "supervisor")]
+pub mod supervisor;
+#[cfg(feature = "supervisor")]
+pub mod supervisor_pool;
 #[cfg(test)]
 pub mod test;
+pub mod upstream_peer;
+pub mod upstream_peer_pool;
+#[cfg(feature = "web_dashboard")]
+pub mod web_dashboard_service;

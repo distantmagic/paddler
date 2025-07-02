@@ -2623,6 +2623,7 @@ dependencies = [
  "chrono",
  "clap 4.5.39",
  "crossterm",
+ "dashmap",
  "env_logger",
  "esbuild-metafile",
  "futures 0.3.31",
