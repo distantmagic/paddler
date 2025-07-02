@@ -7,9 +7,12 @@ use std::time::UNIX_EPOCH;
 use anyhow::Result;
 use cucumber::gherkin::Step;
 use cucumber::then;
+use futures::SinkExt;
 use reqwest::Response;
 use tokio::time::sleep;
 
+use crate::metrics::get_average;
+use crate::metrics::Metrics;
 use crate::paddler_world::PaddlerWorld;
 
 const MAX_ATTEMPTS: u64 = 30;
@@ -51,42 +54,52 @@ async fn get_metrics_map(
 
 #[then(expr = "metrics report:")]
 pub async fn then_metrics_report(world: &mut PaddlerWorld, step: &Step) -> Result<()> {
-    let mut table_metric_fields = BTreeMap::new();
+    let all_metrics = match world.statsd.metrics.len() {
+        0 => vec![Metrics::default(), Metrics::default()],
+        _ => world.statsd.metrics.clone()
+    };
+
+    let average_metrics = get_average(all_metrics.clone());
+
+    let mut table_metrics = Metrics::default();
 
     if let Some(table) = step.table.as_ref() {
         for row in &table.rows {
-            let value: u64 = row
-                .get(1)
-                .expect("No metric value found")
-                .parse()
-                .expect("Failed to parse number");
-            table_metric_fields.insert(
-                "paddler_".to_string() + row.get(0).expect("No metric name found"),
-                value,
-            );
+            match row[0].as_str() {
+                "slots_idle" => table_metrics.paddler_slots_idle = row[1].parse().unwrap(),
+                "slots_processing" => table_metrics.paddler_slots_processing = row[1].parse().unwrap(),
+                "requests_buffered" => table_metrics.paddler_requests_buffered = row[1].parse().unwrap(),
+                _ => ()
+            }
         }
     };
 
-    let mut attempts = 0;
+    panic!("{:#?} AVERAGE: {:#?}", all_metrics, average_metrics);
 
-    while attempts < MAX_ATTEMPTS {
-        sleep(Duration::from_millis(100)).await;
+    assert_eq!(table_metrics, average_metrics);
 
-        let text_body = fetch_metrics(9102).await?.text().await?;
-        let statsd_last_udpate = world.statsd.last_update.expect("Last update not found");
+    Ok(())
 
-        if let Ok(stastd_metric_fields) = get_metrics_map(text_body, statsd_last_udpate).await {
-            assert_eq!(table_metric_fields, stastd_metric_fields);
-            world.statsd.last_update = Some(SystemTime::now());
+    // let mut attempts = 0;
 
-            return Ok(());
-        }
+    // while attempts < MAX_ATTEMPTS {
+    //     sleep(Duration::from_millis(100)).await;
 
-        attempts += 1;
-    }
+    //     let text_body = fetch_metrics(9102).await?.text().await?;
+    //     let statsd_last_udpate = world.statsd.last_update.expect("Last update not found");
 
-    Err(anyhow::anyhow!(
-        "Balancer state did not update after {} attempts",
-        MAX_ATTEMPTS
-    ))
+    //     if let Ok(stastd_metric_fields) = get_metrics_map(text_body, statsd_last_udpate).await {
+    //         assert_eq!(table_metric_fields, stastd_metric_fields);
+    //         world.statsd.last_update = Some(SystemTime::now());
+
+    //         return Ok(());
+    //     }
+
+    //     attempts += 1;
+    // }
+
+    // Err(anyhow::anyhow!(
+    //     "Balancer state did not update after {} attempts",
+    //     MAX_ATTEMPTS
+    // ))
 }

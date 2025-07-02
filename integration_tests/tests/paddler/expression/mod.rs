@@ -8,6 +8,7 @@ mod given_request_buffering_is_disabled;
 mod given_request_has_header_with_value;
 mod given_statsd_is_running;
 mod then_balancer_state_is;
+mod then_metrics_are_stored;
 mod then_metrics_report;
 mod then_next_balancer_state_is;
 mod then_request_landed_in;

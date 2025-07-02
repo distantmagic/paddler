@@ -6,6 +6,7 @@ mod balancer_management_client;
 mod expression;
 mod llamacpp_instance;
 mod llamacpp_instance_collection;
+mod metrics;
 mod paddler_world;
 mod request_builder;
 mod request_headers_to_be_set;
