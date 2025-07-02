@@ -17,15 +17,12 @@ async fn do_check(world: &mut PaddlerWorld, supervisor_name: String) -> Result<(
     }
 
     let supervisors_response = world.balancer_management_client.fetch_supervisors().await?;
-    let supervisor = supervisors_response
+
+    supervisors_response
         .supervisors
         .iter()
-        .find(|supervisor| supervisor.status.supervisor_name == supervisor_name)
+        .find(|supervisor| supervisor.name == Some(supervisor_name.clone()))
         .ok_or_else(|| anyhow!("not found in response"))?;
-
-    if let Some(error_value) = &supervisor.status.error {
-        return Err(anyhow!("supervisor reported error: {error_value:?}"));
-    }
 
     Ok(())
 }
@@ -40,7 +37,9 @@ pub async fn given_supervisor_is_registered(
     while attempts < MAX_ATTEMPTS {
         sleep(Duration::from_millis(100)).await;
 
-        if do_check(world, supervisor_name.clone()).await.is_ok() {
+        if let Err(err) = do_check(world, supervisor_name.clone()).await {
+            eprintln!("Supervisor check failed: {err}");
+        } else {
             return Ok(());
         }
 

@@ -1,8 +1,8 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-use super::super::error::Error;
 use super::NotificationParams;
+use crate::jsonrpc::error::Error;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BadRequestParams {

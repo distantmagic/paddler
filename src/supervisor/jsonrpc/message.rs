@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use super::request::Request;
-use crate::jsonrpc::Notification;
+use super::Notification;
 
 #[derive(Deserialize)]
 #[serde(untagged)]

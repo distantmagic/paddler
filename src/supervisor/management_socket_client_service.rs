@@ -21,10 +21,12 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use uuid::Uuid;
 
-use crate::jsonrpc::notification_params::VersionParams;
-use crate::jsonrpc::Notification as JsonRpcNotification;
+use crate::balancer::http_route::api::ws_supervisor::jsonrpc::notification_params::RegisterSupervisorParams;
+use crate::balancer::http_route::api::ws_supervisor::jsonrpc::Notification as ManagementJsonRpcNotification;
+use crate::supervisor::jsonrpc::notification_params::VersionParams;
 use crate::supervisor::jsonrpc::request_params::SetStateParams;
 use crate::supervisor::jsonrpc::Message as JsonRpcMessage;
+use crate::supervisor::jsonrpc::Notification as JsonRpcNotification;
 use crate::supervisor::jsonrpc::Request as JsonRpcRequest;
 use crate::supervisor::reconciliation_queue::ReconciliationQueue;
 
@@ -58,6 +60,18 @@ impl ManagementSocketClientService {
 
         let (mut write, mut read) = ws_stream.split();
 
+        write
+            .send(Message::Text(
+                serde_json::to_string(&ManagementJsonRpcNotification::RegisterSupervisor(
+                    RegisterSupervisorParams {
+                        name: self.name.clone(),
+                    },
+                ))
+                .context("Failed to serialize RegisterSupervisor notification")?
+                .into(),
+            ))
+            .await?;
+
         while let Some(msg) = read.next().await {
             match msg? {
                 Message::Text(text) => match serde_json::from_str::<JsonRpcMessage>(&text)
@@ -72,9 +86,6 @@ impl ManagementSocketClientService {
                             .await?;
                     }
                     JsonRpcMessage::Notification(JsonRpcNotification::BadRequest(params)) => {
-                        error!("Received notification: {params:?}");
-                    }
-                    JsonRpcMessage::Notification(JsonRpcNotification::TooManyRequests(params)) => {
                         error!("Received notification: {params:?}");
                     }
                     JsonRpcMessage::Notification(JsonRpcNotification::Version(VersionParams {

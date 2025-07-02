@@ -1,4 +1,4 @@
-mod jsonrpc;
+pub mod jsonrpc;
 
 use actix_web::get;
 use actix_web::rt;
@@ -21,10 +21,12 @@ use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
-use self::jsonrpc::Request as JsonRpcRequest;
+use self::jsonrpc::notification_params::RegisterSupervisorParams;
+use self::jsonrpc::Notification as BalancerJsonRpcNotification;
+use crate::balancer::supervisor::Supervisor;
 use crate::balancer::supervisor_pool::SupervisorPool;
-use crate::jsonrpc::notification_params::VersionParams;
-use crate::jsonrpc::Notification as JsonRpcNotification;
+use crate::supervisor::jsonrpc::notification_params::VersionParams;
+use crate::supervisor::jsonrpc::Notification as SupervisorJsonRpcNotification;
 
 const MAX_CONTINUATION_SIZE: usize = 100 * 1024;
 const PING_INTERVAL: Duration = Duration::from_secs(3);
@@ -35,12 +37,21 @@ pub fn register(cfg: &mut ServiceConfig) {
 
 async fn handle_text_message(
     mut session: Session,
+    supervisor_id: String,
     supervisor_pool: Data<SupervisorPool>,
     text: &str,
 ) -> Result<()> {
-    match serde_json::from_str::<JsonRpcRequest>(text) {
-        Ok(_request) => {
-            debug!("Received JSON-RPC request: {text:?}");
+    match serde_json::from_str::<BalancerJsonRpcNotification>(text) {
+        Ok(BalancerJsonRpcNotification::RegisterSupervisor(RegisterSupervisorParams {
+            name,
+        })) => {
+            supervisor_pool.register_supervisor(
+                supervisor_id.clone(),
+                Supervisor {
+                    id: supervisor_id,
+                    name,
+                },
+            )?;
         }
         Err(
             err @ serde_json::Error {
@@ -48,18 +59,18 @@ async fn handle_text_message(
             },
         ) if err.is_data() || err.is_syntax() => {
             session
-                .text(serde_json::to_string(&JsonRpcNotification::bad_request(
-                    Some(err),
-                ))?)
+                .text(serde_json::to_string(
+                    &SupervisorJsonRpcNotification::bad_request(Some(err)),
+                )?)
                 .await?;
         }
         Err(err) => {
             error!("Error handling JSON-RPC request: {err:?}");
 
             session
-                .text(serde_json::to_string(&JsonRpcNotification::bad_request(
-                    None,
-                ))?)
+                .text(serde_json::to_string(
+                    &SupervisorJsonRpcNotification::bad_request(None),
+                )?)
                 .await?;
         }
     };
@@ -69,11 +80,11 @@ async fn handle_text_message(
 
 async fn send_version(session: &mut Session, version: String) -> Result<()> {
     Ok(session
-        .text(serde_json::to_string(&JsonRpcNotification::Version(
-            VersionParams {
+        .text(serde_json::to_string(
+            &SupervisorJsonRpcNotification::Version(VersionParams {
                 version: version.to_string(),
-            },
-        ))?)
+            }),
+        )?)
         .await?)
 }
 
@@ -104,9 +115,10 @@ async fn respond(
     req: HttpRequest,
     supervisor_pool: Data<SupervisorPool>,
 ) -> Result<HttpResponse, Error> {
+    let supervisor_id = path_params.supervisor_id.clone();
     let _guard = RemoveSupervisorGuard {
         pool: supervisor_pool.clone(),
-        supervisor_id: path_params.supervisor_id.clone(),
+        supervisor_id: supervisor_id.clone(),
     };
 
     let (res, mut session, msg_stream) = actix_ws::handle(&req, payload)?;
@@ -143,12 +155,10 @@ async fn respond(
                             // ignore pong messages
                         }
                         Some(Ok(AggregatedMessage::Text(text))) => {
-                            let session_clone = session.clone();
-                            let supervisor_pool_clone = supervisor_pool.clone();
-
                             if let Err(err) = handle_text_message(
-                                session_clone,
-                                supervisor_pool_clone,
+                                session.clone(),
+                                supervisor_id.clone(),
+                                supervisor_pool.clone(),
                                 &text
                             ).await {
                                 error!("Error handling message: {err:?}");

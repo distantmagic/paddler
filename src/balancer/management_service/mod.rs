@@ -97,6 +97,7 @@ impl Service for ManagementService {
             {
                 app = app
                     .app_data(supervisor_pool.clone())
+                    .configure(http_route::api::get_supervisors::register)
                     .configure(http_route::api::ws_supervisor::register);
             }
 

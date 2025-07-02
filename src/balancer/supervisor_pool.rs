@@ -1,19 +1,38 @@
 use anyhow::Result;
-use dashmap::DashSet;
+use dashmap::DashMap;
+use serde::Deserialize;
+use serde::Serialize;
+
+use super::supervisor::Supervisor;
+
+#[derive(Serialize, Deserialize)]
+pub struct SupervisorPoolInfo {
+    pub supervisors: Vec<Supervisor>,
+}
 
 pub struct SupervisorPool {
-    supervisors: DashSet<String>,
+    supervisors: DashMap<String, Supervisor>,
 }
 
 impl SupervisorPool {
     pub fn new() -> Self {
         SupervisorPool {
-            supervisors: DashSet::new(),
+            supervisors: DashMap::new(),
         }
     }
 
-    pub fn register_supervisor(&self, supervisor_id: String) -> Result<()> {
-        if self.supervisors.insert(supervisor_id) {
+    pub fn info(&self) -> SupervisorPoolInfo {
+        SupervisorPoolInfo {
+            supervisors: self
+                .supervisors
+                .iter()
+                .map(|supervisor| supervisor.value().clone())
+                .collect(),
+        }
+    }
+
+    pub fn register_supervisor(&self, supervisor_id: String, supervisor: Supervisor) -> Result<()> {
+        if self.supervisors.insert(supervisor_id, supervisor).is_none() {
             Ok(())
         } else {
             Err(anyhow::anyhow!("Supervisor already registered"))
