@@ -19,7 +19,7 @@ pub async fn given_balancer_is_running(world: &mut PaddlerWorld) -> Result<()> {
         .arg("balancer")
         .arg(format!(
             "--buffered-request-timeout={}",
-            world.buffered_request_timeout.unwrap_or(3)
+            world.buffered_request_timeout.unwrap_or(3000)
         ))
         .arg("--management-addr=127.0.0.1:8095")
         .arg(format!(
@@ -28,7 +28,7 @@ pub async fn given_balancer_is_running(world: &mut PaddlerWorld) -> Result<()> {
         ))
         .arg("--reverseproxy-addr=127.0.1:8096")
         .arg("--statsd-addr=localhost:9125")
-        .arg("--statsd-reporting-interval=1");
+        .arg("--statsd-reporting-interval=500");
 
     for allowed_host in world.balancer_allowed_cors_hosts.iter() {
         command.arg(format!("--management-cors-allowed-host={allowed_host}"));

@@ -2,7 +2,7 @@ mod given_agent_is_registered;
 mod given_agent_is_running;
 mod given_balancer_allows_cors_host;
 mod given_balancer_is_running;
-mod given_buffered_requests_timeout_after_seconds;
+mod given_buffered_requests_timeout_after_milliseconds;
 mod given_llamacpp_server_is_running;
 mod given_request_buffering_is_disabled;
 mod given_request_has_header_with_value;
