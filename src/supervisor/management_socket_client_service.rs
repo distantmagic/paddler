@@ -1,7 +1,6 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use anyhow::anyhow;
 use anyhow::Result;
 use async_trait::async_trait;
 use futures_util::SinkExt;
@@ -20,10 +19,11 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use uuid::Uuid;
 
+use crate::jsonrpc::request_params::SetStateParams;
+use crate::jsonrpc::Request as JsonRpcRequest;
 use crate::supervisor::reconciliation_queue::ReconciliationQueue;
 
 pub struct ManagementSocketClientService {
-    management_addr: SocketAddr,
     name: Option<String>,
     reconciliation_queue: Arc<ReconciliationQueue>,
     status_endpoint_url: String,
@@ -38,7 +38,6 @@ impl ManagementSocketClientService {
         let supervisor_id = Uuid::new_v4();
 
         Ok(ManagementSocketClientService {
-            management_addr,
             name,
             reconciliation_queue,
             status_endpoint_url: format!(
@@ -57,22 +56,27 @@ impl ManagementSocketClientService {
 
         let (mut write, mut read) = ws_stream.split();
 
-        // Send a message
-        write
-            .send(Message::Text("Hello from client".into()))
-            .await?;
-
         while let Some(msg) = read.next().await {
             match msg? {
-                Message::Text(text) => {
-                    println!("Received: {text}");
-                }
+                Message::Text(text) => match serde_json::from_str::<JsonRpcRequest>(&text)? {
+                    JsonRpcRequest::SetState(SetStateParams {
+                        desired_state,
+                        request_id: _,
+                    }) => {
+                        self.reconciliation_queue
+                            .register_change_request(desired_state)
+                            .await?;
+                    }
+                },
                 Message::Binary(_) => {
                     error!("Received binary message, which is not expected");
                 }
                 Message::Close(_) => {
-                    println!("Connection closed");
+                    info!("Connection closed by server");
                     break;
+                }
+                Message::Ping(payload) => {
+                    write.send(Message::Pong(payload)).await?;
                 }
                 _ => {}
             }

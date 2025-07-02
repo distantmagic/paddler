@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use actix_web::get;
 use actix_web::rt;
-use actix_web::web::Data;
 use actix_web::web::Path;
 use actix_web::web::Payload;
 use actix_web::web::ServiceConfig;
@@ -23,8 +22,7 @@ use tokio::time::MissedTickBehavior;
 
 use crate::jsonrpc::notification_params::VersionParams;
 use crate::jsonrpc::Notification as JsonRpcNotification;
-use crate::supervisor::jsonrpc::handler_collection::HandlerCollection;
-use crate::supervisor::jsonrpc::Request as JsonRpcRequest;
+use crate::jsonrpc::Request as JsonRpcRequest;
 
 const MAX_CONCURRENT_HANDLERS_PER_CONNECTION: usize = 10;
 const MAX_CONTINUATION_SIZE: usize = 100 * 1024;
@@ -34,13 +32,11 @@ pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
 }
 
-async fn handle(
-    handler_collection: Data<HandlerCollection>,
-    mut session: Session,
-    text: &str,
-) -> Result<()> {
+async fn handle_text_message(mut session: Session, text: &str) -> Result<()> {
     match serde_json::from_str::<JsonRpcRequest>(text) {
-        Ok(request) => handler_collection.dispatch(request, session).await?,
+        Ok(_request) => {
+            debug!("Received JSON-RPC request: {text:?}");
+        }
         Err(
             err @ serde_json::Error {
                 ..
@@ -93,7 +89,6 @@ struct PathParams {
 
 #[get("/api/v1/supervisor_socket/{supervisor_id}")]
 async fn respond(
-    handler_collection: Data<HandlerCollection>,
     path_params: Path<PathParams>,
     payload: Payload,
     req: HttpRequest,
@@ -134,7 +129,6 @@ async fn respond(
                             // ignore pong messages
                         }
                         Some(Ok(AggregatedMessage::Text(text))) => {
-                            let handler_collection_clone = handler_collection.clone();
                             let sem_clone = concurrent_handlers_sem.clone();
                             let session_clone = session.clone();
 
@@ -150,8 +144,7 @@ async fn respond(
                                     },
                                 };
 
-                                if let Err(err) = handle(
-                                    handler_collection_clone,
+                                if let Err(err) = handle_text_message(
                                     session_clone,
                                     &text,
                                 )

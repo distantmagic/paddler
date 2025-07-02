@@ -11,17 +11,12 @@ use pingora::services::Service;
 use crate::supervisor::reconciliation_queue::ReconciliationQueue;
 
 pub struct ReconciliationService {
-    name: Option<String>,
     reconciliation_queue: Arc<ReconciliationQueue>,
 }
 
 impl ReconciliationService {
-    pub fn new(
-        name: Option<String>,
-        reconciliation_queue: Arc<ReconciliationQueue>,
-    ) -> Result<Self> {
+    pub fn new(reconciliation_queue: Arc<ReconciliationQueue>) -> Result<Self> {
         Ok(ReconciliationService {
-            name,
             reconciliation_queue,
         })
     }
