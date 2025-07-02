@@ -42,8 +42,8 @@ cadence = { version = "1.5.0", optional = true }
 
 # supervisor deps
 actix-ws = { version = "0.3.0", optional = true }
-awc = { version = "3.7.0", optional = true }
 heed3 = { version = "0.22.0", optional = true }
+tokio-tungstenite = { version = "0.27.0", optional = true }
 
 # web dashboard deps
 askama = { version = "0.14.0", optional = true }
@@ -55,7 +55,7 @@ rust-embed = { version = "8.7.2", optional = true, features = ["interpolate-fold
 default = ["ratatui_dashboard", "statsd_reporter", "supervisor", "web_dashboard"]
 ratatui_dashboard = ["dep:chrono", "dep:crossterm", "dep:ratatui"]
 statsd_reporter = ["dep:cadence"]
-supervisor = ["dep:actix-ws", "dep:awc", "dep:heed3"]
+supervisor = ["dep:actix-ws", "dep:heed3", "dep:tokio-tungstenite"]
 web_dashboard = ["dep:askama", "dep:esbuild-metafile", "dep:mime_guess", "dep:rust-embed"]
 
 [profile.release]

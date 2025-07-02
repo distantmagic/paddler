@@ -10,6 +10,7 @@ mod paddler_world;
 mod request_builder;
 mod request_headers_to_be_set;
 mod supervisor_collection;
+mod supervisor_response;
 
 use cucumber::World as _;
 

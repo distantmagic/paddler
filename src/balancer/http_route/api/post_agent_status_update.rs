@@ -1,5 +1,8 @@
 use actix_web::post;
-use actix_web::web;
+use actix_web::web::Data;
+use actix_web::web::Path;
+use actix_web::web::Payload;
+use actix_web::web::ServiceConfig;
 use actix_web::Error;
 use actix_web::HttpResponse;
 use futures_util::StreamExt as _;
@@ -10,7 +13,7 @@ use serde::Deserialize;
 use crate::balancer::status_update::StatusUpdate;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 
-pub fn register(cfg: &mut web::ServiceConfig) {
+pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
 }
 
@@ -36,9 +39,9 @@ impl Drop for RemovePeerGuard<'_> {
 
 #[post("/api/v1/agent_status_update/{agent_id}")]
 async fn respond(
-    path_params: web::Path<PathParams>,
-    mut payload: web::Payload,
-    upstream_peer_pool: web::Data<UpstreamPeerPool>,
+    path_params: Path<PathParams>,
+    mut payload: Payload,
+    upstream_peer_pool: Data<UpstreamPeerPool>,
 ) -> Result<HttpResponse, Error> {
     let _guard = RemovePeerGuard {
         pool: &upstream_peer_pool,

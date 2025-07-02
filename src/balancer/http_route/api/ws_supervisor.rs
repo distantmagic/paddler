@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use actix_web::get;
 use actix_web::rt;
-use actix_web::web;
 use actix_web::web::Data;
+use actix_web::web::Path;
 use actix_web::web::Payload;
+use actix_web::web::ServiceConfig;
 use actix_web::Error;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
@@ -14,6 +15,7 @@ use anyhow::Result;
 use futures_util::StreamExt as _;
 use log::debug;
 use log::error;
+use serde::Deserialize;
 use tokio::sync::Semaphore;
 use tokio::time::interval;
 use tokio::time::Duration;
@@ -28,7 +30,7 @@ const MAX_CONCURRENT_HANDLERS_PER_CONNECTION: usize = 10;
 const MAX_CONTINUATION_SIZE: usize = 100 * 1024;
 const PING_INTERVAL: Duration = Duration::from_secs(3);
 
-pub fn register(cfg: &mut web::ServiceConfig) {
+pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
 }
 
@@ -84,9 +86,15 @@ async fn send_version(session: &mut Session, version: String) -> Result<()> {
         .await?)
 }
 
-#[get("/api/v1/supervisor")]
+#[derive(Deserialize)]
+struct PathParams {
+    supervisor_id: String,
+}
+
+#[get("/api/v1/supervisor_socket/{supervisor_id}")]
 async fn respond(
     handler_collection: Data<HandlerCollection>,
+    path_params: Path<PathParams>,
     payload: Payload,
     req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
