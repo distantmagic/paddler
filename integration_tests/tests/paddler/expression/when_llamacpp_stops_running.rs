@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use anyhow::Result;
+use anyhow::anyhow;
 use cucumber::when;
 use tokio::time::sleep;
 
@@ -12,7 +13,7 @@ async fn do_check(llamacpp_port: u16) -> Result<()> {
     let response = reqwest::get(format!("http://127.0.0.1:{llamacpp_port}/health")).await?;
 
     if !response.status().is_success() {
-        return Err(anyhow::anyhow!(
+        return Err(anyhow!(
             "Health check failed: Expected status 200, got {}",
             response.status()
         ));
@@ -21,7 +22,7 @@ async fn do_check(llamacpp_port: u16) -> Result<()> {
     let body = response.text().await?;
 
     if body.trim() != "OK" {
-        return Err(anyhow::anyhow!(
+        return Err(anyhow!(
             "Health check failed: Expected 'OK', got '{}'",
             body
         ));
@@ -36,10 +37,7 @@ pub async fn when_llamacpp_stops_running(
     llamacpp_name: String,
 ) -> Result<()> {
     if !world.llamas.instances.contains_key(&llamacpp_name) {
-        return Err(anyhow::anyhow!(
-            "Llama.cpp server {} is not running",
-            llamacpp_name
-        ));
+        return Err(anyhow!("Llama.cpp server {} is not running", llamacpp_name));
     }
 
     let llamacpp_port = world.llamas.llamacpp_port(&llamacpp_name)?;
@@ -64,7 +62,7 @@ pub async fn when_llamacpp_stops_running(
         attempts += 1;
     }
 
-    Err(anyhow::anyhow!(
+    Err(anyhow!(
         "Llama.cpp server at port {} is still running after {} attempts",
         llamacpp_port,
         MAX_ATTEMPTS

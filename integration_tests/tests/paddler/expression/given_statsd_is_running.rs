@@ -3,6 +3,7 @@ use std::time::Duration;
 use std::time::SystemTime;
 
 use anyhow::Result;
+use anyhow::anyhow;
 use cucumber::given;
 use tempfile::NamedTempFile;
 use tokio::process::Command;
@@ -16,7 +17,7 @@ async fn do_check(statsd_port: u16) -> Result<()> {
     let response = reqwest::get(format!("http://127.0.0.1:{statsd_port}/health")).await?;
 
     if !response.status().is_success() {
-        return Err(anyhow::anyhow!(
+        return Err(anyhow!(
             "Health check failed: Expected status 200, got {}",
             response.status()
         ));
@@ -25,7 +26,7 @@ async fn do_check(statsd_port: u16) -> Result<()> {
     let body = response.text().await?;
 
     if body.trim() != "OK" {
-        return Err(anyhow::anyhow!(
+        return Err(anyhow!(
             "Health check failed: Expected 'OK', got '{}'",
             body
         ));
@@ -64,7 +65,7 @@ pub async fn given_statsd_is_running(world: &mut PaddlerWorld) -> Result<()> {
         attempts += 1;
     }
 
-    Err(anyhow::anyhow!(
+    Err(anyhow!(
         "Statsd server at port {} did not start after {} attempts",
         statsd_port,
         MAX_ATTEMPTS

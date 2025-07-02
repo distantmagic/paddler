@@ -2,6 +2,7 @@ use std::io::stdout;
 use std::io::Stdout;
 use std::net::SocketAddr;
 
+use anyhow::Result;
 use crossterm::event::Event;
 use crossterm::event::EventStream;
 use crossterm::event::KeyCode;
@@ -23,7 +24,6 @@ use tokio::time::MissedTickBehavior;
 
 use crate::balancer::upstream_peer_pool::UpstreamPeerPoolInfo;
 use crate::cmd::dashboard::app::App;
-use crate::errors::result::Result;
 
 pub mod app;
 pub mod ui;

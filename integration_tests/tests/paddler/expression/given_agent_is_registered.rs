@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use anyhow::Result;
+use anyhow::anyhow;
 use cucumber::given;
 use tokio::time::sleep;
 
@@ -10,9 +11,7 @@ const MAX_ATTEMPTS: usize = 30;
 
 async fn do_check(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
     if !world.agents.instances.contains_key(&agent_name) {
-        return Err(anyhow::anyhow!(
-            "Agent {agent_name} does not exist in the world"
-        ));
+        return Err(anyhow!("Agent {agent_name} does not exist in the world"));
     }
 
     let agents_response = world.balancer_management_client.fetch_agents().await?;
@@ -20,10 +19,10 @@ async fn do_check(world: &mut PaddlerWorld, agent_name: String) -> Result<()> {
         .agents
         .iter()
         .find(|agent| agent.status.agent_name == agent_name)
-        .ok_or_else(|| anyhow::anyhow!("not found in response"))?;
+        .ok_or_else(|| anyhow!("not found in response"))?;
 
     if let Some(error_value) = &agent.status.error {
-        return Err(anyhow::anyhow!("agent reported error: {:?}", error_value));
+        return Err(anyhow!("agent reported error: {:?}", error_value));
     }
 
     Ok(())
@@ -43,7 +42,7 @@ pub async fn given_agent_is_registered(world: &mut PaddlerWorld, agent_name: Str
         attempts += 1;
     }
 
-    Err(anyhow::anyhow!(
+    Err(anyhow!(
         "Agent '{}' is not healthy after {} attempts",
         agent_name,
         MAX_ATTEMPTS

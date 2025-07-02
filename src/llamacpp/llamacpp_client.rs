@@ -1,10 +1,10 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
+use anyhow::Result;
 use reqwest::header;
 use url::Url;
 
-use crate::errors::result::Result;
 use crate::llamacpp::slot::Slot;
 use crate::llamacpp::slots_response::SlotsResponse;
 

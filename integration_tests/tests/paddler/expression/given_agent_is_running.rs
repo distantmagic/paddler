@@ -1,6 +1,7 @@
 use std::process::Stdio;
 
 use anyhow::Result;
+use anyhow::anyhow;
 use cucumber::given;
 use tokio::process::Command;
 
@@ -13,7 +14,7 @@ pub async fn given_agent_is_attached(
     llamacpp_name: String,
 ) -> Result<()> {
     if world.agents.instances.contains_key(&agent_name) {
-        return Err(anyhow::anyhow!("Agent {} is already running", agent_name));
+        return Err(anyhow!("Agent {} is already running", agent_name));
     }
 
     let local_llamacpp_port = world.llamas.llamacpp_port(&llamacpp_name)?;
@@ -27,7 +28,7 @@ pub async fn given_agent_is_attached(
                 "--local-llamacpp-addr=127.0.0.1:{local_llamacpp_port}"
             ))
             .arg("--management-addr=127.0.0.1:8095")
-            .arg("--monitoring-interval=1")
+            .arg("--monitoring-interval=500")
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()?,

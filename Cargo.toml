@@ -13,6 +13,9 @@ members = ["integration_tests"]
 actix = "0.13.5"
 actix-cors = "0.7.1"
 actix-web = "4.11.0"
+actix-web-lab = "0.24.1"
+anyhow = { version = "1.0.98", features = ["backtrace"] }
+async-stream = "0.3.6"
 async-trait = "0.1.88"
 bytes = "1.10.1"
 clap = { version = "4.5.39", features = ["derive"] }
@@ -24,13 +27,10 @@ pingora = { version = "0.5.0", features = ["proxy"] }
 reqwest = { version = "0.12.20", features = ["json", "stream"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
-thiserror = "2.0.12"
 tokio = { version = "1.45.1", features = ["full"] }
 tokio-stream = { version = "0.1.17", features = ["sync"] }
 url = { version = "2.5.4", features = ["serde"] }
-uuid = { version = "1.17.0", features = ["serde", "v4"] }
 
-# ratatui dashboard deps
 chrono = { version = "0.4.41", optional = true }
 crossterm = { version = "0.28.1", features = ["event-stream"], optional = true }
 ratatui = { version = "0.29.0", optional = true }
@@ -43,8 +43,7 @@ askama = { version = "0.14.0", optional = true }
 esbuild-metafile = { version = "0.2.0", optional = true }
 mime_guess = { version = "2.0.5", optional = true }
 rust-embed = { version = "8.7.2", optional = true, features = ["interpolate-folder-path"] }
-actix-web-lab = "0.24.1"
-async-stream = "0.3.6"
+uuid = { version = "1.17.0", features = ["v4", "serde", "zerocopy"] }
 
 [features]
 default = ["statsd_reporter", "ratatui_dashboard"]

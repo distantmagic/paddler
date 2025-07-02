@@ -1,4 +1,5 @@
 use anyhow::Result;
+use anyhow::anyhow;
 use cucumber::then;
 
 use crate::paddler_world::PaddlerWorld;
@@ -12,14 +13,12 @@ pub async fn then_response_code_is(
     let response = world
         .responses
         .get(&name)
-        .ok_or_else(|| anyhow::anyhow!("No request found with the name: {}", name))?;
+        .ok_or_else(|| anyhow!("No request found with the name: {name}"))?;
 
     let status = response.status();
     if status.as_u16() != expected_code {
-        return Err(anyhow::anyhow!(
-            "Expected status code {}, but got {}",
-            expected_code,
-            status
+        return Err(anyhow!(
+            "Expected status code {expected_code}, but got {status}"
         ));
     }
 

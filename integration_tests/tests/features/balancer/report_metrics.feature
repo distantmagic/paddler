@@ -1,7 +1,7 @@
 Feature: Report llama.cpp metrics
 
     Background:
-        Given buffered requests timeout after 2 seconds
+        Given buffered requests timeout after 2 milliseconds
         Given balancer is running
         Given statsd is running
  

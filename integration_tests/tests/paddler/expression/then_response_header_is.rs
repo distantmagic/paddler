@@ -1,4 +1,5 @@
 use anyhow::Result;
+use anyhow::anyhow;
 use cucumber::then;
 
 use crate::paddler_world::PaddlerWorld;
@@ -13,10 +14,10 @@ pub async fn then_response_header_is(
     let response = world
         .responses
         .get(&name)
-        .ok_or_else(|| anyhow::anyhow!("No request found with the name: {}", name))?;
+        .ok_or_else(|| anyhow!("No request found with the name: {}", name))?;
 
     let header = response.headers().get(&header_name).ok_or_else(|| {
-        anyhow::anyhow!(
+        anyhow!(
             "Header {} not found in response, got headers: {:?}",
             header_name,
             response.headers()
@@ -25,7 +26,7 @@ pub async fn then_response_header_is(
 
     let header_value_str = header
         .to_str()
-        .map_err(|_| anyhow::anyhow!("Failed to convert header value to string"))?;
+        .map_err(|_| anyhow!("Failed to convert header value to string"))?;
 
     assert_eq!(
         header_value_str, expected_header_value,

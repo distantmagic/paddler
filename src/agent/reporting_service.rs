@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 
 use actix_web::web::Bytes;
+use anyhow::Result;
 use async_trait::async_trait;
 use log::debug;
 use log::error;
@@ -15,8 +16,6 @@ use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 use tokio_stream::wrappers::BroadcastStream;
 use uuid::Uuid;
-
-use crate::errors::result::Result;
 
 pub struct ReportingService {
     stats_endpoint_url: String,
