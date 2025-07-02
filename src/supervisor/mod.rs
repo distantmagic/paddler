@@ -1,3 +1,4 @@
+pub mod jsonrpc;
 pub mod llamacpp_process;
 pub mod llamacpp_state;
 pub mod management_socket_client_service;

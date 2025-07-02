@@ -1,3 +1,5 @@
+mod jsonrpc;
+
 use actix_web::get;
 use actix_web::rt;
 use actix_web::web::Data;
@@ -19,10 +21,10 @@ use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
+use self::jsonrpc::Request as JsonRpcRequest;
 use crate::balancer::supervisor_pool::SupervisorPool;
 use crate::jsonrpc::notification_params::VersionParams;
 use crate::jsonrpc::Notification as JsonRpcNotification;
-use crate::jsonrpc::Request as JsonRpcRequest;
 
 const MAX_CONTINUATION_SIZE: usize = 100 * 1024;
 const PING_INTERVAL: Duration = Duration::from_secs(3);
@@ -31,7 +33,11 @@ pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
 }
 
-async fn handle_text_message(mut session: Session, text: &str) -> Result<()> {
+async fn handle_text_message(
+    mut session: Session,
+    supervisor_pool: Data<SupervisorPool>,
+    text: &str,
+) -> Result<()> {
     match serde_json::from_str::<JsonRpcRequest>(text) {
         Ok(_request) => {
             debug!("Received JSON-RPC request: {text:?}");
@@ -76,12 +82,12 @@ struct PathParams {
     supervisor_id: String,
 }
 
-struct RemoveSupervisorGuard<'a> {
-    pool: &'a SupervisorPool,
+struct RemoveSupervisorGuard {
+    pool: Data<SupervisorPool>,
     supervisor_id: String,
 }
 
-impl Drop for RemoveSupervisorGuard<'_> {
+impl Drop for RemoveSupervisorGuard {
     fn drop(&mut self) {
         info!("Removing supervisor: {}", self.supervisor_id);
 
@@ -98,14 +104,8 @@ async fn respond(
     req: HttpRequest,
     supervisor_pool: Data<SupervisorPool>,
 ) -> Result<HttpResponse, Error> {
-    if let Err(err) = supervisor_pool.register_supervisor(path_params.supervisor_id.clone()) {
-        let msg = format!("Supervisor registration failed: {err}");
-
-        return Ok(HttpResponse::BadRequest().body(msg));
-    }
-
     let _guard = RemoveSupervisorGuard {
-        pool: &supervisor_pool,
+        pool: supervisor_pool.clone(),
         supervisor_id: path_params.supervisor_id.clone(),
     };
 
@@ -144,8 +144,13 @@ async fn respond(
                         }
                         Some(Ok(AggregatedMessage::Text(text))) => {
                             let session_clone = session.clone();
+                            let supervisor_pool_clone = supervisor_pool.clone();
 
-                            if let Err(err) = handle_text_message(session_clone, &text).await {
+                            if let Err(err) = handle_text_message(
+                                session_clone,
+                                supervisor_pool_clone,
+                                &text
+                            ).await {
                                 error!("Error handling message: {err:?}");
                             }
                         }

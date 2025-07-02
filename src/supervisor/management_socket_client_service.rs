@@ -22,10 +22,10 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 use uuid::Uuid;
 
 use crate::jsonrpc::notification_params::VersionParams;
-use crate::jsonrpc::request_params::SetStateParams;
-use crate::jsonrpc::Message as JsonRpcMessage;
 use crate::jsonrpc::Notification as JsonRpcNotification;
-use crate::jsonrpc::Request as JsonRpcRequest;
+use crate::supervisor::jsonrpc::request_params::SetStateParams;
+use crate::supervisor::jsonrpc::Message as JsonRpcMessage;
+use crate::supervisor::jsonrpc::Request as JsonRpcRequest;
 use crate::supervisor::reconciliation_queue::ReconciliationQueue;
 
 pub struct ManagementSocketClientService {
