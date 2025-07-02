@@ -2,7 +2,7 @@ Feature: Balance llama.cpp requests
 
     @serial
     Scenario: There are no agents attached
-        Given buffered requests timeout after 0 seconds
+        Given buffered requests timeout after 0 milliseconds
         Given balancer is running
         When request "foo" is sent to "/chat/completions"
         Then "foo" response code is 504
@@ -36,7 +36,7 @@ Feature: Balance llama.cpp requests
 
     @serial
     Scenario: More requests than slots available, buffering enabled
-        Given buffered requests timeout after 0 seconds
+        Given buffered requests timeout after 0 milliseconds
         Given balancer is running
         Given llama.cpp server "llama-1" is running (has 1 slot)
         Given llama.cpp server "llama-2" is running (has 1 slot)
@@ -56,7 +56,7 @@ Feature: Balance llama.cpp requests
 
     @serial
     Scenario: More requests than slots available, buffering time adequate
-        Given buffered requests timeout after 2 seconds
+        Given buffered requests timeout after 2000 milliseconds
         Given balancer is running
         Given llama.cpp server "llama-1" is running (has 1 slot)
         Given llama.cpp server "llama-2" is running (has 1 slot)
