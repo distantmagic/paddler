@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
+use anyhow::anyhow;
 use log::error;
 use pingora::Error;
 use pingora::Result;
 
 use crate::balancer::upstream_peer::UpstreamPeer;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
-use crate::errors::result::Result as PaddlerResult;
 
 pub struct RequestContext {
     pub slot_taken: bool,
@@ -16,7 +16,7 @@ pub struct RequestContext {
 }
 
 impl RequestContext {
-    pub fn release_slot(&mut self) -> PaddlerResult<()> {
+    pub fn release_slot(&mut self) -> anyhow::Result<()> {
         if let Some(peer) = &self.selected_peer {
             self.upstream_peer_pool
                 .release_slot(&peer.agent_id, peer.last_update)?;
@@ -26,11 +26,11 @@ impl RequestContext {
 
             Ok(())
         } else {
-            Err("There is no peer available to release a slot into".into())
+            Err(anyhow!("There is no peer available to release a slot into"))
         }
     }
 
-    pub fn use_best_peer_and_take_slot(&mut self) -> PaddlerResult<Option<UpstreamPeer>> {
+    pub fn use_best_peer_and_take_slot(&mut self) -> anyhow::Result<Option<UpstreamPeer>> {
         if let Some(peer) = self.upstream_peer_pool.with_agents_write(|agents| {
             for peer in agents.iter_mut() {
                 if peer.is_usable() {
@@ -99,7 +99,7 @@ mod tests {
     }
 
     #[test]
-    fn test_take_slot_failure_and_retry() -> PaddlerResult<()> {
+    fn test_take_slot_failure_and_retry() -> anyhow::Result<()> {
         let pool = Arc::new(UpstreamPeerPool::new());
         let mut ctx = create_test_context(pool.clone());
 
@@ -114,7 +114,7 @@ mod tests {
     }
 
     #[test]
-    fn test_release_slot_success() -> PaddlerResult<()> {
+    fn test_release_slot_success() -> anyhow::Result<()> {
         let pool = Arc::new(UpstreamPeerPool::new());
         let mut ctx = create_test_context(pool.clone());
 
@@ -144,7 +144,7 @@ mod tests {
     }
 
     #[test]
-    fn test_release_slot_failure() -> PaddlerResult<()> {
+    fn test_release_slot_failure() -> anyhow::Result<()> {
         let pool = Arc::new(UpstreamPeerPool::new());
         let mut ctx = create_test_context(pool.clone());
 

@@ -2509,6 +2509,7 @@ dependencies = [
  "actix-cors",
  "actix-web",
  "actix-web-lab",
+ "anyhow",
  "askama",
  "async-stream",
  "async-trait",
@@ -2529,7 +2530,6 @@ dependencies = [
  "rust-embed",
  "serde",
  "serde_json",
- "thiserror 2.0.12",
  "tokio",
  "tokio-stream",
  "url",
@@ -4173,6 +4173,7 @@ dependencies = [
  "js-sys",
  "serde",
  "wasm-bindgen",
+ "zerocopy 0.8.25",
 ]
 
 [[package]]

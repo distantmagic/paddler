@@ -53,9 +53,14 @@ async fn respond(
                 if let Err(err) =
                     upstream_peer_pool.register_status_update(&path_params.agent_id, status_update)
                 {
-                    error!("Failed to register status update: {err}");
+                    let msg = format!(
+                        "Failed to register status update for agent {}: {}",
+                        path_params.agent_id, err
+                    );
 
-                    return Err(Error::from(err));
+                    error!("{msg}");
+
+                    return Ok(HttpResponse::InternalServerError().body(msg));
                 }
             }
             Err(err) => {
