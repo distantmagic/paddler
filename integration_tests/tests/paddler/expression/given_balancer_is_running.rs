@@ -19,7 +19,7 @@ pub async fn given_balancer_is_running(world: &mut PaddlerWorld) -> Result<()> {
         .arg("balancer")
         .arg(format!(
             "--buffered-request-timeout={}",
-            world.buffered_request_timeout.unwrap_or(3)
+            world.buffered_request_timeout.unwrap_or(3000)
         ))
         .arg("--management-addr=127.0.0.1:8095")
         .arg(format!(

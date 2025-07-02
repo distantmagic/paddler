@@ -38,13 +38,7 @@ fn resolve_socket_addr(s: &str) -> Result<SocketAddr> {
     Err(anyhow!("Failed to resolve socket address"))
 }
 
-fn parse_duration_seconds(arg: &str) -> Result<Duration> {
-    let seconds = arg.parse()?;
-
-    Ok(std::time::Duration::from_secs(seconds))
-}
-
-fn parse_duration_milliseconds(arg: &str) -> Result<Duration> {
+fn parse_duration(arg: &str) -> Result<Duration> {
     let milliseconds = arg.parse()?;
 
     Ok(std::time::Duration::from_millis(milliseconds))
@@ -86,8 +80,8 @@ enum Commands {
         /// Address of the management server that the agent will report to
         management_addr: SocketAddr,
 
-        #[arg(long, default_value = "10", value_parser = parse_duration_seconds)]
-        /// Interval (in seconds) at which the agent will report the status of the llama.cpp instance
+        #[arg(long, default_value = "10000", value_parser = parse_duration)]
+        /// Interval (in milliseconds) at which the agent will report the status of the llama.cpp instance
         monitoring_interval: Duration,
 
         #[arg(long)]
@@ -96,8 +90,8 @@ enum Commands {
     },
     /// Balances incoming requests to llama.cpp instances and optionally provides a web dashboard
     Balancer {
-        #[arg(long, default_value = "10", value_parser = parse_duration_seconds)]
-        /// The request timeout (in seconds). For all requests that a timely response from an
+        #[arg(long, default_value = "10000", value_parser = parse_duration)]
+        /// The request timeout (in milliseconds). For all requests that a timely response from an
         /// upstream isn't received for, the 504 (Gateway Timeout) error is issued.
         buffered_request_timeout: Duration,
 
@@ -147,7 +141,7 @@ enum Commands {
         statsd_prefix: String,
 
         #[cfg(feature = "statsd_reporter")]
-        #[arg(long, default_value = "1000", value_parser = parse_duration_milliseconds)]
+        #[arg(long, default_value = "10000", value_parser = parse_duration)]
         /// Interval (in milliseconds) at which the balancer will report metrics to statsd
         statsd_reporting_interval: Duration,
     },
