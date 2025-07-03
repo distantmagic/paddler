@@ -37,9 +37,7 @@ pub async fn given_supervisor_is_registered(
     while attempts < MAX_ATTEMPTS {
         sleep(Duration::from_millis(100)).await;
 
-        if let Err(err) = do_check(world, supervisor_name.clone()).await {
-            eprintln!("Supervisor check failed: {err}");
-        } else {
+        if do_check(world, supervisor_name.clone()).await.is_ok() {
             return Ok(());
         }
 

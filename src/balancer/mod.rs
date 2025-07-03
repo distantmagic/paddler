@@ -10,9 +10,9 @@ pub mod response;
 pub mod statsd_service;
 pub mod status_update;
 #[cfg(feature = "supervisor")]
-pub mod supervisor;
+pub mod supervisor_controller;
 #[cfg(feature = "supervisor")]
-pub mod supervisor_pool;
+pub mod supervisor_controller_pool;
 #[cfg(test)]
 pub mod test;
 pub mod upstream_peer;

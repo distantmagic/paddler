@@ -23,8 +23,8 @@ use tokio::time::MissedTickBehavior;
 
 use self::jsonrpc::notification_params::RegisterSupervisorParams;
 use self::jsonrpc::Notification as BalancerJsonRpcNotification;
-use crate::balancer::supervisor::Supervisor;
-use crate::balancer::supervisor_pool::SupervisorPool;
+use crate::balancer::supervisor_controller::SupervisorController;
+use crate::balancer::supervisor_controller_pool::SupervisorControllerPool;
 use crate::supervisor::jsonrpc::notification_params::VersionParams;
 use crate::supervisor::jsonrpc::Notification as SupervisorJsonRpcNotification;
 
@@ -38,19 +38,16 @@ pub fn register(cfg: &mut ServiceConfig) {
 async fn handle_text_message(
     mut session: Session,
     supervisor_id: String,
-    supervisor_pool: Data<SupervisorPool>,
+    supervisor_controller_pool: Data<SupervisorControllerPool>,
     text: &str,
 ) -> Result<()> {
     match serde_json::from_str::<BalancerJsonRpcNotification>(text) {
         Ok(BalancerJsonRpcNotification::RegisterSupervisor(RegisterSupervisorParams {
             name,
         })) => {
-            supervisor_pool.register_supervisor(
+            supervisor_controller_pool.register_supervisor_controller(
                 supervisor_id.clone(),
-                Supervisor {
-                    id: supervisor_id,
-                    name,
-                },
+                SupervisorController::new(supervisor_id, name),
             )?;
         }
         Err(
@@ -94,7 +91,7 @@ struct PathParams {
 }
 
 struct RemoveSupervisorGuard {
-    pool: Data<SupervisorPool>,
+    pool: Data<SupervisorControllerPool>,
     supervisor_id: String,
 }
 
@@ -102,7 +99,7 @@ impl Drop for RemoveSupervisorGuard {
     fn drop(&mut self) {
         info!("Removing supervisor: {}", self.supervisor_id);
 
-        if let Err(err) = self.pool.remove_supervisor(&self.supervisor_id) {
+        if let Err(err) = self.pool.remove_supervisor_controller(&self.supervisor_id) {
             error!("Failed to remove supervisor: {err}");
         }
     }
@@ -113,11 +110,11 @@ async fn respond(
     path_params: Path<PathParams>,
     payload: Payload,
     req: HttpRequest,
-    supervisor_pool: Data<SupervisorPool>,
+    supervisor_controller_pool: Data<SupervisorControllerPool>,
 ) -> Result<HttpResponse, Error> {
     let supervisor_id = path_params.supervisor_id.clone();
     let _guard = RemoveSupervisorGuard {
-        pool: supervisor_pool.clone(),
+        pool: supervisor_controller_pool.clone(),
         supervisor_id: supervisor_id.clone(),
     };
 
@@ -158,7 +155,7 @@ async fn respond(
                             if let Err(err) = handle_text_message(
                                 session.clone(),
                                 supervisor_id.clone(),
-                                supervisor_pool.clone(),
+                                supervisor_controller_pool.clone(),
                                 &text
                             ).await {
                                 error!("Error handling message: {err:?}");

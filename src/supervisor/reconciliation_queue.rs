@@ -7,6 +7,8 @@ use tokio::sync::Mutex;
 
 use super::llamacpp_state::LlamaCppState;
 
+const RECONCILIATION_QUEUE_BUFFER_SIZE: usize = 100;
+
 pub struct ReconciliationQueue {
     change_requests_receiver: Mutex<Receiver<LlamaCppState>>,
     change_requests_sender: Sender<LlamaCppState>,
@@ -14,7 +16,8 @@ pub struct ReconciliationQueue {
 
 impl ReconciliationQueue {
     pub fn new() -> Result<Self> {
-        let (change_requests_sender, change_requests_receiver) = mpsc::channel(100);
+        let (change_requests_sender, change_requests_receiver) =
+            mpsc::channel(RECONCILIATION_QUEUE_BUFFER_SIZE);
 
         Ok(ReconciliationQueue {
             change_requests_receiver: Mutex::new(change_requests_receiver),

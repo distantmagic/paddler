@@ -9,7 +9,7 @@ use crate::BALANCER_PORT;
 use crate::paddler_world::PaddlerWorld;
 
 #[given(expr = "agent {string} is running \\(observes {string}\\)")]
-pub async fn given_agent_is_attached(
+pub async fn given_agent_is_running(
     world: &mut PaddlerWorld,
     agent_name: String,
     llamacpp_name: String,
