@@ -1,6 +1,5 @@
 use std::process::Stdio;
 use std::time::Duration;
-use std::time::SystemTime;
 
 use anyhow::Result;
 use anyhow::anyhow;
@@ -41,7 +40,6 @@ pub async fn given_statsd_is_running(world: &mut PaddlerWorld) -> Result<()> {
     }
 
     let statsd_port = 9102;
-    world.statsd.last_update = Some(SystemTime::now());
 
     world.statsd.child = Some(
         Command::new("./tests/fixtures/statsd-server-mock.mjs")

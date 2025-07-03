@@ -25,13 +25,6 @@ impl PaddlerWorld {
         self.llamas.cleanup().await;
         self.request_builder.cleanup();
         self.responses.clear();
-
-        if let Some(mut statsd) = self.statsd.child.take() {
-            if let Err(err) = statsd.kill().await {
-                panic!("Failed to kill statsd: {err}");
-            }
-        }
-
-        self.statsd.last_update = None;
+        self.statsd.cleanup().await;
     }
 }

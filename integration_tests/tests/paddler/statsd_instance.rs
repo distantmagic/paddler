@@ -1,5 +1,3 @@
-use std::time::SystemTime;
-
 use tokio::process::Child;
 
 use crate::metrics::Metrics;
@@ -8,5 +6,14 @@ use crate::metrics::Metrics;
 pub struct StatsdInstance {
     pub child: Option<Child>,
     pub metrics: Vec<Metrics>,
-    pub last_update: Option<SystemTime>,
+}
+
+impl StatsdInstance {
+    pub async fn cleanup(&mut self) {
+        if let Some(mut statsd) = self.child.take() {
+            if let Err(err) = statsd.kill().await {
+                panic!("Failed to kill statsd: {err}");
+            }
+        }
+    }
 }

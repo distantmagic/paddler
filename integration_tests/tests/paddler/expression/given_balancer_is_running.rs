@@ -29,7 +29,7 @@ pub async fn given_balancer_is_running(world: &mut PaddlerWorld) -> Result<()> {
         .arg("--statsd-addr=localhost:9125")
         .arg(format!(
             "--statsd-reporting-interval={}",
-            world.balancer.statsd_reporting_interval.unwrap_or(300)
+            world.balancer.statsd_reporting_interval.unwrap_or(500)
         ));
 
     for allowed_host in world.balancer.allowed_cors_hosts.iter() {

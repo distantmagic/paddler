@@ -26,12 +26,7 @@ for (let i = 0; i < slotsInt; i += 1) {
   slotsStatuses.push({
     id: i,
     is_processing: false,
-    current_request: null,
   });
-}
-
-function findAvailableSlot() {
-  return slotsStatuses.findIndex((slot) => !slot.is_processing);
 }
 
 const server = createServer(function (req, res) {
@@ -45,24 +40,12 @@ const server = createServer(function (req, res) {
       return;
     }
 
-    const slotIndex = findAvailableSlot();
-    if (slotIndex === -1) {
-      res.statusCode = 429;
-      res.setHeader("Content-Type", "application/json");
-      res.end('{"error":"No available slots"}');
-      return;
-    }
-
-    slotsStatuses[slotIndex].is_processing = true;
-    slotsStatuses[slotIndex].current_request = requestName;
-    console.log(`Slot ${slotIndex} started processing ${requestName}`);
+    const slot = slotsStatuses[0];
+    slot.is_processing = true;
 
     setTimeout(function () {
       appendFile(logFile, `${name};${requestName}\n`, function (err) {
-        slotsStatuses[slotIndex].is_processing = false;
-        slotsStatuses[slotIndex].current_request = null;
-        console.log(`Slot ${slotIndex} finished processing ${requestName}`);
-
+        slot.is_processing = false;
         if (err) {
           res.statusCode = 500;
           res.setHeader("Content-Type", "text/plain");

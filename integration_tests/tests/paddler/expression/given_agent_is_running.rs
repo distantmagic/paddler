@@ -30,7 +30,7 @@ pub async fn given_agent_is_attached(
             .arg("--management-addr=127.0.0.1:8095")
             .arg(format!(
                 "--monitoring-interval={}",
-                world.agents.monitoring_interval.unwrap_or(300)
+                world.agents.monitoring_interval.unwrap_or(500)
             ))
             .stdout(Stdio::null())
             .stderr(Stdio::null())
