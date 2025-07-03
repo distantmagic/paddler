@@ -28,7 +28,7 @@ pub async fn given_agent_is_attached(
                 "--local-llamacpp-addr=127.0.0.1:{local_llamacpp_port}"
             ))
             .arg("--management-addr=127.0.0.1:8095")
-            .arg("--monitoring-interval=600")
+            .arg("--monitoring-interval=100")
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()?,

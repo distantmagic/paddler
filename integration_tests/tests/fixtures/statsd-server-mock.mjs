@@ -14,10 +14,7 @@ const {
   },
 });
 
-const metrics = {
-  last_update: null,
-  values: {},
-};
+const metrics = {};
 
 const udpServer = dgram.createSocket("udp4");
 
@@ -34,24 +31,11 @@ udpServer.on("message", (msg, rinfo) => {
     const value = parseInt(rawValue);
     const metric = name.replace(/[^a-zA-Z0-9_]/g, "_");
 
-    if (!metrics.values[metric]) {
-      metrics.values[metric] = {
-        type,
-        value: 0,
-      };
-      if (type === "g") {
-        metrics.values[metric].value = value;
-      }
-      metrics.last_update = Date.now();
-      continue;
+    if (!metrics[metric]) {
+      metrics[metric] = { type, value: 0 };
     }
 
-    const stored = metrics.values[metric];
-
-    if (stored.value !== value) {
-      stored.value = value;
-      metrics.last_update = Date.now();
-    }
+    metrics[metric].value = value;
   }
 });
 
@@ -66,22 +50,26 @@ const server = createServer(function (req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
   if (url.pathname === "/health") {
-    res.statusCode = 200;
-    res.setHeader("Content-Type", "text/plain");
-    res.end("OK");
-  } else if (url.pathname === "/metrics") {
-    const output = new Map();
-
-    for (const [name, { value }] of Object.entries(metrics.values)) {
-      output.set(name, value);
+    if (Object.keys(metrics).length === 0) {
+      res.statusCode = 503;
+      res.setHeader("Content-Type", "text/plain");
+      res.end("Service Unavailable");
+      return;
+    } else {
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "text/plain");
+      res.end("OK");
     }
+  } else if (url.pathname === "/metrics") {
+    const output = {};
 
-    const mapObject = Object.fromEntries(output);
-    mapObject.last_update = metrics.last_update;
+    for (const [name, data] of Object.entries(metrics)) {
+      output[name] = data.value;
+    }
 
     res.statusCode = 200;
     res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify(mapObject));
+    res.end(JSON.stringify(output));
   } else {
     res.statusCode = 404;
     res.setHeader("Content-Type", "text/plain");

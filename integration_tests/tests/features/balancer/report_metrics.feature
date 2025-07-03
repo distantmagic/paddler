@@ -72,4 +72,4 @@ Feature: Report llama.cpp metrics
         Then average metrics are:
             | slots_idle        | 1 | 
             | slots_processing  | 1 |
-            | requests_buffered | 1 |
+            | requests_buffered | 0 |
