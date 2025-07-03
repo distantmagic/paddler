@@ -38,6 +38,6 @@ async fn main() {
         })
         .fail_fast()
         .fail_on_skipped()
-        .run_and_exit("tests/features/supervisor")
+        .run_and_exit("tests/features")
         .await;
 }

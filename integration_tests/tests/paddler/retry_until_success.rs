@@ -34,6 +34,6 @@ where
     let errors_combined = errors.iter().cloned().collect::<Vec<_>>().join("\n  - ");
 
     Err(anyhow!(
-        "{error_message} after {max_attempts} max_attempts.\nErrors:\n  - {errors_combined}\n\n"
+        "{error_message} after {max_attempts} attempts.\nErrors:\n  - {errors_combined}\n\n"
     ))
 }

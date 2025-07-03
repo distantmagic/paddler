@@ -10,21 +10,12 @@ use crate::retry_until_success::retry_until_success;
 const MAX_ATTEMPTS: usize = 30;
 
 async fn do_check(llamacpp_port: u16) -> Result<()> {
-    let response = reqwest::get(format!("http://127.0.0.1:{llamacpp_port}/health")).await?;
-
-    if !response.status().is_success() {
-        return Ok(());
+    match reqwest::get(format!("http://127.0.0.1:{llamacpp_port}/health")).await {
+        Ok(_) => Err(anyhow!(
+            "Health check got to the server; expected llama.cpp server to be stopped"
+        )),
+        Err(_) => Ok(()),
     }
-
-    let body = response.text().await?;
-
-    if body.trim() != "OK" {
-        return Ok(());
-    }
-
-    Err(anyhow!(
-        "Health check succeded, expected llama.cpp server to be stopped"
-    ))
 }
 
 #[when(expr = "llama.cpp server {string} stops running")]
