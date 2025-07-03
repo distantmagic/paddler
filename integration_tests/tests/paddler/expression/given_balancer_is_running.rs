@@ -1,7 +1,6 @@
 use std::process::Stdio;
 
 use anyhow::Result;
-use anyhow::anyhow;
 use cucumber::given;
 use tokio::process::Command;
 
@@ -28,7 +27,7 @@ pub async fn given_balancer_is_running(world: &mut PaddlerWorld) -> Result<()> {
         ))
         .arg("--reverseproxy-addr=127.0.1:8096")
         .arg("--statsd-addr=localhost:9125")
-        .arg("--statsd-reporting-interval=100");
+        .arg("--statsd-reporting-interval=600");
 
     for allowed_host in world.balancer.allowed_cors_hosts.iter() {
         command.arg(format!("--management-cors-allowed-host={allowed_host}"));

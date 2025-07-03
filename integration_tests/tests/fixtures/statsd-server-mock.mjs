@@ -37,7 +37,7 @@ udpServer.on("message", (msg, rinfo) => {
     if (!metrics.values[metric]) {
       metrics.values[metric] = {
         type,
-        value: type === "c" ? value : 0,
+        value: 0,
       };
       if (type === "g") {
         metrics.values[metric].value = value;
@@ -48,18 +48,9 @@ udpServer.on("message", (msg, rinfo) => {
 
     const stored = metrics.values[metric];
 
-    switch (type) {
-      case "c":
-        stored.value += value;
-        metrics.last_update = Date.now();
-        break;
-      case "g":
-        if (stored.value !== value) {
-          stored.value = value;
-          console.log("Got last update \n");
-          metrics.last_update = Date.now();
-        }
-        break;
+    if (stored.value !== value) {
+      stored.value = value;
+      metrics.last_update = Date.now();
     }
   }
 });

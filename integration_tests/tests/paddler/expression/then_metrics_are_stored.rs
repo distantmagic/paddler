@@ -6,14 +6,12 @@ use cucumber::then;
 use crate::metrics::Metrics;
 use crate::paddler_world::PaddlerWorld;
 
-const MAX_ATTEMPTS: u64 = 30;
-
 async fn fetch_metrics(statsd_port: u16) -> Result<Metrics> {
     let response = reqwest::get(format!("http://localhost:{statsd_port}/metrics")).await?;
 
     if !response.status().is_success() {
         return Err(anyhow::anyhow!(
-            "Metric dump failed: Expected status 200, got {}",
+            "Failed to fetch metrics: Expected status 200, got {}",
             response.status()
         ));
     }

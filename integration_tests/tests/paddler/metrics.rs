@@ -8,29 +8,21 @@ pub struct Metrics {
 }
 
 pub fn get_average(metrics: Vec<Metrics>) -> Metrics {
-    let count: u16 = metrics.len().try_into().unwrap();
+    let count = metrics.len() as f64;
 
-    let mut paddler_slots_idle = 0;
-    let mut paddler_slots_processing = 0;
-    let mut paddler_requests_buffered = 0;
+    let mut paddler_slots_idle = 0u32;
+    let mut paddler_slots_processing = 0u32;
+    let mut paddler_requests_buffered = 0u32;
 
     for metric in metrics {
-        paddler_requests_buffered += metric.paddler_requests_buffered;
-        paddler_slots_idle += metric.paddler_slots_idle;
-        paddler_slots_processing += metric.paddler_slots_processing;
+        paddler_slots_idle += metric.paddler_slots_idle as u32;
+        paddler_slots_processing += metric.paddler_slots_processing as u32;
+        paddler_requests_buffered += metric.paddler_requests_buffered as u32;
     }
 
-    eprintln!("{:#?} = {:#?} % {:#?}", paddler_slots_idle, paddler_slots_idle, count);
-    eprintln!("{:#?} = {:#?} % {:#?}", paddler_slots_processing, paddler_slots_processing, count);
-    eprintln!("{:#?} = {:#?} % {:#?}", paddler_requests_buffered, paddler_requests_buffered, count);
-
-    paddler_slots_idle = paddler_slots_idle % count;
-    paddler_slots_processing = paddler_slots_processing % count;
-    paddler_requests_buffered = paddler_requests_buffered % count;
-
     Metrics {
-        paddler_slots_idle,
-        paddler_slots_processing,
-        paddler_requests_buffered,
+        paddler_slots_idle: ((paddler_slots_idle as f64) / count).round() as u16,
+        paddler_slots_processing: ((paddler_slots_processing as f64) / count).round() as u16,
+        paddler_requests_buffered: ((paddler_requests_buffered as f64) / count).round() as u16,
     }
 }

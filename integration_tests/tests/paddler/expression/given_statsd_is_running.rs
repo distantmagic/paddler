@@ -5,7 +5,6 @@ use std::time::SystemTime;
 use anyhow::Result;
 use anyhow::anyhow;
 use cucumber::given;
-use tempfile::NamedTempFile;
 use tokio::process::Command;
 use tokio::time::sleep;
 
@@ -48,8 +47,8 @@ pub async fn given_statsd_is_running(world: &mut PaddlerWorld) -> Result<()> {
         Command::new("./tests/fixtures/statsd-server-mock.mjs")
             .arg("--managementPort=9125")
             .arg(format!("--exposePort={statsd_port}"))
-            // .stdout(Stdio::null())
-            // .stderr(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
             .spawn()?,
     );
 
