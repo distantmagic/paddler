@@ -19,10 +19,10 @@ async fn do_check(world: &PaddlerWorld, agent_name: String) -> Result<()> {
         .agents
         .iter()
         .find(|agent| agent.status.agent_name == agent_name)
-        .ok_or_else(|| anyhow!("not found in response"))?;
+        .ok_or_else(|| anyhow!("Agent not registered yet"))?;
 
     if let Some(error_value) = &agent.status.error {
-        return Err(anyhow!("agent reported error: {error_value:?}"));
+        return Err(anyhow!("Agent reported error: {error_value:?}"));
     }
 
     Ok(())

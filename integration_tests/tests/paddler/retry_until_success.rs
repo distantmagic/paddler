@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::future::Future;
 use std::time::Duration;
 
@@ -17,11 +17,11 @@ where
     Fut: Future<Output = Result<()>>,
 {
     let mut attempts = 0;
-    let mut errors: HashSet<String> = HashSet::new();
+    let mut error_counts: HashMap<String, usize> = HashMap::new();
 
     while attempts < max_attempts {
         if let Err(err) = operation().await {
-            errors.insert(err.to_string());
+            *error_counts.entry(err.to_string()).or_insert(0) += 1;
         } else {
             return Ok(());
         }
@@ -31,7 +31,17 @@ where
         sleep(delay).await;
     }
 
-    let errors_combined = errors.iter().cloned().collect::<Vec<_>>().join("\n  - ");
+    let errors_combined = error_counts
+        .iter()
+        .map(|(error, count)| {
+            if *count > 1 {
+                format!("{error} ({count}x)")
+            } else {
+                error.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n  - ");
 
     Err(anyhow!(
         "{error_message} after {max_attempts} attempts.\nErrors:\n  - {errors_combined}\n\n"
