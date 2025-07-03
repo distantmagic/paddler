@@ -22,12 +22,18 @@ pub async fn then_metrics_report(world: &mut PaddlerWorld, step: &Step) -> Resul
     if let Some(table) = step.table.as_ref() {
         for row in &table.rows {
             match row[0].as_str() {
-                "slots_idle" => table_metrics.paddler_slots_idle = row[1].parse().unwrap(),
+                "slots_idle" => table_metrics.paddler_slots_idle = row[1]
+                    .parse()
+                    .expect("Failed to parse 'slots_idle' as a valid number"),
                 "slots_processing" => {
-                    table_metrics.paddler_slots_processing = row[1].parse().unwrap()
+                    table_metrics.paddler_slots_processing = row[1]
+                        .parse()
+                        .expect("Failed to parse 'slots_processing' as a valid number")
                 }
                 "requests_buffered" => {
-                    table_metrics.paddler_requests_buffered = row[1].parse().unwrap()
+                    table_metrics.paddler_requests_buffered = row[1]
+                        .parse()
+                        .expect("Failed to parse 'requests_buffered' as a valid number")
                 }
                 _ => (),
             }
