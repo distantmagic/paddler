@@ -8,6 +8,8 @@ use pingora::proxy::http_proxy_service;
 use pingora::server::configuration::Opt;
 use pingora::server::Server;
 
+#[cfg(feature = "supervisor")]
+use crate::balancer::fleet_management_database::FleetManagementDatabase;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::management_service::ManagementService;
 use crate::balancer::proxy_service::ProxyService;
@@ -24,6 +26,7 @@ use crate::balancer::web_dashboard_service::WebDashboardService;
 #[allow(clippy::too_many_arguments)]
 pub fn handle(
     buffered_request_timeout: Duration,
+    fleet_management_database: Arc<dyn FleetManagementDatabase>,
     management_service_configuration: ManagementServiceConfiguration,
     max_buffered_requests: usize,
     reverseproxy_addr: SocketAddr,

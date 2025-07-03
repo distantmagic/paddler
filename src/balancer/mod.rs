@@ -1,5 +1,7 @@
 #[cfg(feature = "supervisor")]
-pub mod fleet_database_type;
+pub mod fleet_management_database;
+#[cfg(feature = "supervisor")]
+pub mod fleet_management_database_type;
 pub mod http_route;
 #[cfg(feature = "supervisor")]
 pub mod jsonrpc;
