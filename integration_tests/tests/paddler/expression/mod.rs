@@ -1,8 +1,10 @@
 mod given_agent_is_registered;
-mod given_agent_is_running;
+mod given_agent_is_running_observes_llama_server;
+mod given_agent_is_running_observes_supervised_llama_server;
 mod given_balancer_allows_cors_host;
 mod given_balancer_is_running;
 mod given_buffered_requests_timeout_after_milliseconds;
+mod given_fleet_management_is_enabled;
 mod given_llamacpp_server_is_running;
 mod given_request_buffering_is_disabled;
 mod given_request_has_header_with_value;

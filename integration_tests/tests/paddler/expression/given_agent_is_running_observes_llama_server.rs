@@ -1,15 +1,12 @@
-use std::process::Stdio;
-
 use anyhow::Result;
 use anyhow::anyhow;
 use cucumber::given;
-use tokio::process::Command;
 
-use crate::BALANCER_PORT;
 use crate::paddler_world::PaddlerWorld;
+use crate::spawn_agent_instance::spawn_agent_instance;
 
 #[given(expr = "agent {string} is running \\(observes {string}\\)")]
-pub async fn given_agent_is_running(
+pub async fn given_agent_is_running_observes_llama_server(
     world: &mut PaddlerWorld,
     agent_name: String,
     llamacpp_name: String,
@@ -22,17 +19,7 @@ pub async fn given_agent_is_running(
 
     world.agents.instances.insert(
         agent_name.clone(),
-        Command::new("../target/debug/paddler")
-            .arg("agent")
-            .arg(format!("--name={agent_name}"))
-            .arg(format!(
-                "--local-llamacpp-addr=127.0.0.1:{local_llamacpp_port}"
-            ))
-            .arg(format!("--management-addr=127.0.0.1:{BALANCER_PORT}"))
-            .arg("--monitoring-interval=500")
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()?,
+        spawn_agent_instance(agent_name, local_llamacpp_port)?,
     );
 
     Ok(())

@@ -47,7 +47,11 @@ async fn handle_text_message(
         })) => {
             supervisor_controller_pool.register_supervisor_controller(
                 supervisor_id.clone(),
-                SupervisorController::new(supervisor_id, name),
+                SupervisorController {
+                    id: supervisor_id,
+                    name,
+                    session,
+                },
             )?;
         }
         Err(

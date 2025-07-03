@@ -7,6 +7,7 @@ use tokio::process::Command;
 
 use crate::BALANCER_PORT;
 use crate::paddler_world::PaddlerWorld;
+use crate::supervisor_instance::SupervisorInstance;
 
 #[given(expr = "supervisor {string} is running")]
 pub async fn given_supervisor_is_running(
@@ -18,19 +19,24 @@ pub async fn given_supervisor_is_running(
     }
 
     let llamacpp_listen_port = world.llamas.next_llamacpp_port();
+    let child = Command::new("../target/debug/paddler")
+        .arg("supervisor")
+        .arg(format!("--name={supervisor_name}"))
+        .arg(format!(
+            "--llamacpp-listen-addr=127.0.0.1:{llamacpp_listen_port}"
+        ))
+        .arg(format!("--management-addr=127.0.0.1:{BALANCER_PORT}"))
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()?;
 
     world.supervisors.instances.insert(
         supervisor_name.clone(),
-        Command::new("../target/debug/paddler")
-            .arg("supervisor")
-            .arg(format!("--name={supervisor_name}"))
-            .arg(format!(
-                "--llamacpp-listen-addr=127.0.0.1:{llamacpp_listen_port}"
-            ))
-            .arg(format!("--management-addr=127.0.0.1:{BALANCER_PORT}"))
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()?,
+        SupervisorInstance {
+            child,
+            llamacpp_listen_port,
+            name: supervisor_name,
+        },
     );
 
     Ok(())

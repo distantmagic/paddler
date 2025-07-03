@@ -17,7 +17,7 @@ impl LlamaCppInstanceCollection {
         if let Some(llama) = self.instances.get(llamacpp_name) {
             Ok(llama.port)
         } else {
-            Err(anyhow!("LlamaCpp instance {} not found", llamacpp_name))
+            Err(anyhow!("LlamaCpp instance {llamacpp_name} not found"))
         }
     }
 
@@ -33,7 +33,7 @@ impl LlamaCppInstanceCollection {
         if let Some((_, mut llamacpp)) = self.instances.remove(llamacpp_name) {
             Ok(llamacpp.kill().await?)
         } else {
-            Err(anyhow!("LlamaCpp instance {} not found", llamacpp_name))
+            Err(anyhow!("LlamaCpp instance {llamacpp_name} not found"))
         }
     }
 }

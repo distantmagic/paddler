@@ -8,27 +8,29 @@ use dashmap::DashMap;
 use reqwest::Response;
 use tokio::process::Child;
 
-use crate::agent_collection::AgentCollection;
+use crate::agent_instance_collection::AgentInstanceCollection;
 use crate::balancer_management_client::BalancerManagementClient;
 use crate::cleanable::Cleanable;
+use crate::fleet_management_state::FleetManagementState;
 use crate::llamacpp_instance_collection::LlamaCppInstanceCollection;
 use crate::request_builder::RequestBuilder;
-use crate::supervisor_collection::SupervisorCollection;
+use crate::supervisor_instance_collection::SupervisorInstanceCollection;
 
 #[derive(Debug, Default, World)]
 pub struct PaddlerWorld {
-    pub agents: AgentCollection,
+    pub agents: AgentInstanceCollection,
     pub balancer: Option<Child>,
     pub balancer_allowed_cors_hosts: Vec<String>,
     pub balancer_management_client: BalancerManagementClient,
     pub buffered_request_timeout: Option<i64>,
+    pub fleet_management_state: Option<FleetManagementState>,
     pub last_balancer_state_update: Option<SystemTime>,
     pub llamas: LlamaCppInstanceCollection,
     pub max_buffered_requests: Option<i64>,
     pub request_builder: RequestBuilder,
     pub responses: DashMap<String, Response>,
     pub statsd: Option<Child>,
-    pub supervisors: SupervisorCollection,
+    pub supervisors: SupervisorInstanceCollection,
 }
 
 #[async_trait]
@@ -36,6 +38,7 @@ impl Cleanable for PaddlerWorld {
     async fn cleanup(&mut self) -> Result<()> {
         self.agents.cleanup().await?;
         self.balancer_allowed_cors_hosts.clear();
+        self.fleet_management_state = None;
         self.llamas.cleanup().await?;
         self.request_builder.cleanup().await?;
         self.responses.clear();

@@ -83,6 +83,7 @@ impl Service for ManagementService {
         }
 
         let cors_allowed_hosts_arc = Arc::new(cors_allowed_hosts);
+        let fleet_management_enable = self.configuration.fleet_management_enable;
         let upstream_peers: Data<UpstreamPeerPool> = self.upstream_peers.clone().into();
 
         HttpServer::new(move || {
@@ -95,7 +96,7 @@ impl Service for ManagementService {
                 .configure(http_route::api::post_agent_status_update::register);
 
             #[cfg(feature = "supervisor")]
-            {
+            if fleet_management_enable {
                 app = app
                     .app_data(supervisor_pool.clone())
                     .configure(http_route::api::get_supervisors::register)

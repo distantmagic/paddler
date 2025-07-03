@@ -5,9 +5,15 @@ use serde::Serialize;
 
 use super::supervisor_controller::SupervisorController;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize, Serialize)]
+pub struct SupervisorControllerInfo {
+    pub id: String,
+    pub name: Option<String>,
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct SupervisorControllerPoolInfo {
-    pub supervisors: Vec<SupervisorController>,
+    pub supervisors: Vec<SupervisorControllerInfo>,
 }
 
 pub struct SupervisorControllerPool {
@@ -26,7 +32,14 @@ impl SupervisorControllerPool {
             supervisors: self
                 .supervisors
                 .iter()
-                .map(|supervisor| supervisor.value().clone())
+                .map(|entry| {
+                    let supervisor = entry.value();
+
+                    SupervisorControllerInfo {
+                        id: supervisor.id.clone(),
+                        name: supervisor.name.clone(),
+                    }
+                })
                 .collect(),
         }
     }

@@ -108,7 +108,7 @@ enum Commands {
         #[cfg(feature = "supervisor")]
         #[arg(long)]
         // Path to the fleet database file. If not exists, it will be created.
-        fleet_database_path: Option<PathBuf>,
+        fleet_database_directory: Option<PathBuf>,
 
         #[cfg(feature = "supervisor")]
         #[arg(long)]
@@ -217,6 +217,10 @@ fn main() -> Result<()> {
         ),
         Some(Commands::Balancer {
             buffered_request_timeout,
+            #[cfg(feature = "supervisor")]
+            fleet_database_directory,
+            #[cfg(feature = "supervisor")]
+            fleet_management_enable,
             management_addr,
             management_cors_allowed_hosts,
             max_buffered_requests,
@@ -233,7 +237,6 @@ fn main() -> Result<()> {
             web_dashboard_addr,
             #[cfg(feature = "web_dashboard")]
             web_dashboard_enable,
-            ..
         }) => {
             #[cfg(feature = "web_dashboard")]
             initialize_instance(ESBUILD_META_CONTENTS);
@@ -243,6 +246,8 @@ fn main() -> Result<()> {
                 ManagementServiceConfiguration {
                     addr: management_addr,
                     cors_allowed_hosts: management_cors_allowed_hosts,
+                    #[cfg(feature = "supervisor")]
+                    fleet_management_enable,
                 },
                 max_buffered_requests,
                 reverseproxy_addr,

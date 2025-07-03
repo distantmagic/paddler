@@ -32,6 +32,17 @@ pub async fn given_balancer_is_running(world: &mut PaddlerWorld) -> Result<()> {
         .arg("--statsd-addr=localhost:9125")
         .arg("--statsd-reporting-interval=1");
 
+    if let Some(fleet_management_state) = &world.fleet_management_state {
+        command.arg(format!(
+            "--fleet-database-directory={}",
+            fleet_management_state
+                .fleet_database_directory
+                .path()
+                .display()
+        ));
+        command.arg("--fleet-management-enable");
+    }
+
     for allowed_host in world.balancer_allowed_cors_hosts.iter() {
         command.arg(format!("--management-cors-allowed-host={allowed_host}"));
     }

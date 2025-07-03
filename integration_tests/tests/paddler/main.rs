@@ -1,15 +1,18 @@
-mod agent_collection;
+mod agent_instance_collection;
 mod agent_response;
 mod assert_balancer_table;
 mod balancer_management_client;
 mod cleanable;
 mod expression;
+mod fleet_management_state;
 mod llamacpp_instance;
 mod llamacpp_instance_collection;
 mod paddler_world;
 mod request_builder;
 mod request_headers_to_be_set;
-mod supervisor_collection;
+mod spawn_agent_instance;
+mod supervisor_instance;
+mod supervisor_instance_collection;
 mod supervisor_response;
 
 use cucumber::World as _;
