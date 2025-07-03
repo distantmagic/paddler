@@ -8,6 +8,9 @@ pub struct Metrics {
 }
 
 pub fn get_average(metrics: Vec<Metrics>) -> Metrics {
+    if metrics.is_empty() {
+        return Metrics::default();
+    }
     let count = metrics.len() as f64;
 
     let mut paddler_slots_idle = 0u32;
