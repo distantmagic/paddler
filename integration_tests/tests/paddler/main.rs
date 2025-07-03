@@ -26,6 +26,6 @@ async fn main() {
         })
         .fail_fast()
         .fail_on_skipped()
-        .run_and_exit("tests/features/balancer/report_metrics.feature")
+        .run_and_exit("tests/features")
         .await;
 }
