@@ -11,7 +11,6 @@ mod supervisor;
 
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
-use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::anyhow;
@@ -21,6 +20,8 @@ use clap::Subcommand;
 #[cfg(feature = "web_dashboard")]
 use esbuild_metafile::instance::initialize_instance;
 
+#[cfg(feature = "supervisor")]
+use crate::balancer::fleet_database_type::FleetDatabaseType;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 #[cfg(feature = "statsd_reporter")]
 use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
@@ -106,9 +107,9 @@ enum Commands {
         buffered_request_timeout: Duration,
 
         #[cfg(feature = "supervisor")]
-        #[arg(long)]
-        // Path to the fleet database file. If not exists, it will be created.
-        fleet_database_directory: Option<PathBuf>,
+        #[arg(long, default_value = "memory://")]
+        // Fleet management database URL. Supported: memory, memory://, or lmdb://path (optional)
+        fleet_management_database: FleetDatabaseType,
 
         #[cfg(feature = "supervisor")]
         #[arg(long)]
@@ -218,7 +219,7 @@ fn main() -> Result<()> {
         Some(Commands::Balancer {
             buffered_request_timeout,
             #[cfg(feature = "supervisor")]
-            fleet_database_directory,
+            fleet_management_database,
             #[cfg(feature = "supervisor")]
             fleet_management_enable,
             management_addr,
