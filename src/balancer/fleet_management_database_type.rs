@@ -8,7 +8,7 @@ use url::Url;
 
 #[derive(Clone)]
 pub enum FleetManagementDatabaseType {
-    Lmdb(PathBuf),
+    File(PathBuf),
     Memory,
 }
 
@@ -19,20 +19,20 @@ impl FromStr for FleetManagementDatabaseType {
         let url = Url::parse(input)?;
 
         match url.scheme() {
-            "lmdb" => {
+            "file" => {
                 let path = url.path();
 
                 if url.host().is_some() {
-                    return Err(anyhow!("LMDB URL must contain only absolute path"));
+                    return Err(anyhow!("URL must contain only absolute path"));
                 }
 
                 if path.is_empty() {
                     return Err(anyhow!(
-                        "LMDB URL must specify a path: lmdb:///path/to/directory"
+                        "URL must specify a path: file:///path/to/directory"
                     ));
                 }
 
-                Ok(FleetManagementDatabaseType::Lmdb(PathBuf::from(path)))
+                Ok(FleetManagementDatabaseType::File(PathBuf::from(path)))
             }
             "memory" => Ok(FleetManagementDatabaseType::Memory),
             scheme => Err(anyhow!("Unsupported scheme '{scheme}'")),
@@ -54,25 +54,25 @@ mod tests {
 
     #[test]
     fn test_lmdb_relative_path() {
-        let result = FleetManagementDatabaseType::from_str("lmdb://path/to/db");
+        let result = FleetManagementDatabaseType::from_str("file://path/to/db");
 
         assert!(result.is_err());
     }
 
     #[test]
     fn test_lmdb_absolute_path() {
-        let result = FleetManagementDatabaseType::from_str("lmdb:///absolute/path").unwrap();
+        let result = FleetManagementDatabaseType::from_str("file:///absolute/path").unwrap();
         match result {
-            FleetManagementDatabaseType::Lmdb(path) => {
+            FleetManagementDatabaseType::File(path) => {
                 assert_eq!(path, PathBuf::from("/absolute/path"));
             }
-            _ => panic!("Expected Lmdb variant"),
+            _ => panic!("Expected File variant"),
         }
     }
 
     #[test]
     fn test_lmdb_empty_path_fails() {
-        let result = FleetManagementDatabaseType::from_str("lmdb://");
+        let result = FleetManagementDatabaseType::from_str("file://");
 
         assert!(result.is_err());
     }

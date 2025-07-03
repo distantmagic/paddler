@@ -3,9 +3,9 @@ use std::time::Duration;
 use anyhow::Result;
 use anyhow::anyhow;
 use cucumber::when;
-use tokio::time::sleep;
 
 use crate::paddler_world::PaddlerWorld;
+use crate::retry_until_success::retry_until_success;
 
 const MAX_ATTEMPTS: usize = 30;
 
@@ -13,19 +13,18 @@ async fn do_check(llamacpp_port: u16) -> Result<()> {
     let response = reqwest::get(format!("http://127.0.0.1:{llamacpp_port}/health")).await?;
 
     if !response.status().is_success() {
-        return Err(anyhow!(
-            "Health check failed: Expected status 200, got {}",
-            response.status()
-        ));
+        return Ok(());
     }
 
     let body = response.text().await?;
 
     if body.trim() != "OK" {
-        return Err(anyhow!("Health check failed: Expected 'OK', got '{body}'"));
+        return Ok(());
     }
 
-    Ok(())
+    Err(anyhow!(
+        "Health check succeded, expected llama.cpp server to be stopped"
+    ))
 }
 
 #[when(expr = "llama.cpp server {string} stops running")]
@@ -41,24 +40,11 @@ pub async fn when_llamacpp_stops_running(
 
     world.llamas.kill(&llamacpp_name).await?;
 
-    let mut attempts = 0;
-
-    while attempts < MAX_ATTEMPTS {
-        sleep(Duration::from_millis(100)).await;
-
-        if do_check(llamacpp_port).await.is_err() {
-            return Ok(());
-        } else {
-            eprintln!(
-                "Attempt {}: llama.cpp at port {llamacpp_port} is still alive.",
-                attempts + 1
-            );
-        }
-
-        attempts += 1;
-    }
-
-    Err(anyhow!(
-        "Llama.cpp server at port {llamacpp_port} is still running after {MAX_ATTEMPTS} attempts"
-    ))
+    retry_until_success(
+        || do_check(llamacpp_port),
+        MAX_ATTEMPTS,
+        Duration::from_millis(100),
+        format!("Llama.cpp server at port {llamacpp_port} is still running"),
+    )
+    .await
 }

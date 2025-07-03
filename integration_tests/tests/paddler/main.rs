@@ -10,6 +10,7 @@ mod llamacpp_instance_collection;
 mod paddler_world;
 mod request_builder;
 mod request_headers_to_be_set;
+mod retry_until_success;
 mod spawn_agent_instance;
 mod supervisor_instance;
 mod supervisor_instance_collection;

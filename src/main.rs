@@ -23,7 +23,7 @@ use clap::Subcommand;
 use esbuild_metafile::instance::initialize_instance;
 
 #[cfg(feature = "supervisor")]
-use crate::balancer::fleet_management_database::Lmdb;
+use crate::balancer::fleet_management_database::File;
 #[cfg(feature = "supervisor")]
 use crate::balancer::fleet_management_database::Memory;
 #[cfg(feature = "supervisor")]
@@ -114,7 +114,7 @@ enum Commands {
 
         #[cfg(feature = "supervisor")]
         #[arg(long, default_value = "memory://")]
-        // Fleet management database URL. Supported: memory, memory://, or lmdb://path (optional)
+        // Fleet management database URL. Supported: memory, memory://, or file:///path (optional)
         fleet_management_database: FleetManagementDatabaseType,
 
         #[cfg(feature = "supervisor")]
@@ -252,8 +252,8 @@ fn main() -> Result<()> {
                 buffered_request_timeout,
                 #[cfg(feature = "supervisor")]
                 match fleet_management_database {
+                    FleetManagementDatabaseType::File(path) => Arc::new(File::new(path)),
                     FleetManagementDatabaseType::Memory => Arc::new(Memory::new()),
-                    FleetManagementDatabaseType::Lmdb(path) => Arc::new(Lmdb::new(path)),
                 },
                 ManagementServiceConfiguration {
                     addr: management_addr,

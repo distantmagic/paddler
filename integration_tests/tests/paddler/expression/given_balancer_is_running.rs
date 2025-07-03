@@ -34,11 +34,8 @@ pub async fn given_balancer_is_running(world: &mut PaddlerWorld) -> Result<()> {
 
     if let Some(fleet_management_state) = &world.fleet_management_state {
         command.arg(format!(
-            "--fleet-database-directory={}",
-            fleet_management_state
-                .fleet_database_directory
-                .path()
-                .display()
+            "--fleet-management-database=file://{}",
+            fleet_management_state.fleet_database_file.path().display()
         ));
         command.arg("--fleet-management-enable");
     }

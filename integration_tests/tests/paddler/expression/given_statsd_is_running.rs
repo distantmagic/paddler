@@ -5,9 +5,9 @@ use anyhow::Result;
 use anyhow::anyhow;
 use cucumber::given;
 use tokio::process::Command;
-use tokio::time::sleep;
 
 use crate::paddler_world::PaddlerWorld;
+use crate::retry_until_success::retry_until_success;
 
 const MAX_ATTEMPTS: usize = 50;
 
@@ -47,19 +47,11 @@ pub async fn given_statsd_is_running(world: &mut PaddlerWorld) -> Result<()> {
             .spawn()?,
     );
 
-    let mut attempts = 0;
-
-    while attempts < MAX_ATTEMPTS {
-        sleep(Duration::from_millis(100)).await;
-
-        if do_check(statsd_port).await.is_ok() {
-            return Ok(());
-        }
-
-        attempts += 1;
-    }
-
-    Err(anyhow!(
-        "Statsd server at port {statsd_port} did not start after {MAX_ATTEMPTS} attempts"
-    ))
+    retry_until_success(
+        || do_check(statsd_port),
+        MAX_ATTEMPTS,
+        Duration::from_millis(100),
+        format!("Statsd server at port {statsd_port} is stil not responding"),
+    )
+    .await
 }

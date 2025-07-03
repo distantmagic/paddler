@@ -6,10 +6,10 @@ use anyhow::anyhow;
 use cucumber::given;
 use tempfile::NamedTempFile;
 use tokio::process::Command;
-use tokio::time::sleep;
 
 use crate::llamacpp_instance::LlamaCppInstance;
 use crate::paddler_world::PaddlerWorld;
+use crate::retry_until_success::retry_until_success;
 
 const MAX_ATTEMPTS: usize = 30;
 
@@ -60,24 +60,16 @@ pub async fn given_agent_is_attached(
                 .stderr(Stdio::null())
                 .spawn()?,
             log_file,
-            name: llamacpp_name,
+            name: llamacpp_name.clone(),
             port: llamacpp_port,
         },
     );
 
-    let mut attempts = 0;
-
-    while attempts < MAX_ATTEMPTS {
-        sleep(Duration::from_millis(100)).await;
-
-        if do_check(llamacpp_port).await.is_ok() {
-            return Ok(());
-        }
-
-        attempts += 1;
-    }
-
-    Err(anyhow!(
-        "Llama.cpp server at port {llamacpp_port} did not start after {MAX_ATTEMPTS} attempts"
-    ))
+    retry_until_success(
+        || do_check(llamacpp_port),
+        MAX_ATTEMPTS,
+        Duration::from_millis(100),
+        format!("Llama.cpp server {llamacpp_name} is still not running"),
+    )
+    .await
 }
