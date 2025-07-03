@@ -4,7 +4,6 @@ use reqwest::Response;
 
 use crate::agents_collection::AgentsCollection;
 use crate::balancer_instance::BalancerInstance;
-use crate::balancer_management_client::BalancerManagementClient;
 use crate::llamacpp_instance_collection::LlamaCppInstanceCollection;
 use crate::request_builder::RequestBuilder;
 use crate::statsd_instance::StatsdInstance;
@@ -13,10 +12,7 @@ use crate::statsd_instance::StatsdInstance;
 pub struct PaddlerWorld {
     pub agents: AgentsCollection,
     pub balancer: BalancerInstance,
-    pub balancer_management_client: BalancerManagementClient,
-    pub buffered_request_timeout: Option<i64>,
     pub llamas: LlamaCppInstanceCollection,
-    pub max_buffered_requests: Option<i64>,
     pub request_builder: RequestBuilder,
     pub responses: DashMap<String, Response>,
     pub statsd: StatsdInstance,

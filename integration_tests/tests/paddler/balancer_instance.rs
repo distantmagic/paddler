@@ -2,11 +2,17 @@ use std::time::SystemTime;
 
 use tokio::process::Child;
 
+use crate::balancer_management_client::BalancerManagementClient;
+
 #[derive(Debug, Default)]
 pub struct BalancerInstance {
     pub allowed_cors_hosts: Vec<String>,
+    pub buffered_request_timeout: Option<i64>,
     pub child: Option<Child>,
     pub last_update: Option<SystemTime>,
+    pub management_client: BalancerManagementClient,
+    pub max_buffered_requests: Option<i64>,
+    pub statsd_reporting_interval: Option<i64>,
 }
 
 impl BalancerInstance {

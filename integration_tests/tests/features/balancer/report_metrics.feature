@@ -1,6 +1,7 @@
 Feature: Report llama.cpp metrics
 
     Background:
+        Given balancer reports metrics every 100 milliseconds
         Given balancer is running
         Given statsd is running
  
@@ -13,6 +14,7 @@ Feature: Report llama.cpp metrics
             
     @serial
     Scenario: There are multiple agents attached
+        Given agent monitors llama.cpp every 100 milliseconds
         Given llama.cpp server "llama-1" is running (has 1 slots)
         Given llama.cpp server "llama-2" is running (has 1 slots)
         Given agent "agent-1" is running (observes "llama-1")

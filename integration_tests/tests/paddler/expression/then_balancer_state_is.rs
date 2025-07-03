@@ -9,7 +9,7 @@ use crate::paddler_world::PaddlerWorld;
 
 #[then("balancer state is:")]
 pub async fn then_balancer_state_is(world: &mut PaddlerWorld, step: &Step) -> Result<()> {
-    let agents_response = world.balancer_management_client.fetch_agents().await?;
+    let agents_response = world.balancer.management_client.fetch_agents().await?;
 
     world.balancer.last_update = Some(SystemTime::now());
 

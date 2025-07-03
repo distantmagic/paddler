@@ -8,7 +8,7 @@ pub async fn given_buffered_requests_timeout_after_milliseconds(
     world: &mut PaddlerWorld,
     buffered_request_timeout: i64,
 ) -> Result<()> {
-    world.buffered_request_timeout = Some(buffered_request_timeout);
+    world.balancer.buffered_request_timeout = Some(buffered_request_timeout);
 
     Ok(())
 }

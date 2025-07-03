@@ -35,7 +35,7 @@ pub async fn then_balancer_state_is(world: &mut PaddlerWorld, step: &Step) -> Re
     while attempts < MAX_ATTEMPTS {
         sleep(Duration::from_millis(100)).await;
 
-        let agents_response = world.balancer_management_client.fetch_agents().await?;
+        let agents_response = world.balancer.management_client.fetch_agents().await?;
 
         if all_agents_are_updated(&agents_response, last_update) {
             world.balancer.last_update = Some(SystemTime::now());

@@ -18,16 +18,19 @@ pub async fn given_balancer_is_running(world: &mut PaddlerWorld) -> Result<()> {
         .arg("balancer")
         .arg(format!(
             "--buffered-request-timeout={}",
-            world.buffered_request_timeout.unwrap_or(3000)
+            world.balancer.buffered_request_timeout.unwrap_or(3000)
         ))
         .arg("--management-addr=127.0.0.1:8095")
         .arg(format!(
             "--max-buffered-requests={}",
-            world.max_buffered_requests.unwrap_or(32)
+            world.balancer.max_buffered_requests.unwrap_or(32)
         ))
         .arg("--reverseproxy-addr=127.0.1:8096")
         .arg("--statsd-addr=localhost:9125")
-        .arg("--statsd-reporting-interval=100");
+        .arg(format!(
+            "--statsd-reporting-interval={}",
+            world.balancer.statsd_reporting_interval.unwrap_or(500)
+        ));
 
     for allowed_host in world.balancer.allowed_cors_hosts.iter() {
         command.arg(format!("--management-cors-allowed-host={allowed_host}"));
