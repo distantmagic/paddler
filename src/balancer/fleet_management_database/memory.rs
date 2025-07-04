@@ -1,29 +1,11 @@
-use anyhow::Result;
-use async_trait::async_trait;
-use tokio::sync::RwLock;
-
 use super::FleetManagementDatabase;
-use crate::llamacpp::llamacpp_state::LlamaCppState;
 
-pub struct Memory {
-    desired_state: RwLock<Option<LlamaCppState>>,
-}
+pub struct Memory {}
 
 impl Memory {
     pub fn new() -> Self {
-        Memory {
-            desired_state: RwLock::new(None),
-        }
+        Memory {}
     }
 }
 
-#[async_trait]
-impl FleetManagementDatabase for Memory {
-    async fn store_desired_state(&self, state: &LlamaCppState) -> Result<()> {
-        let mut desired_state = self.desired_state.write().await;
-
-        *desired_state = Some(state.clone());
-
-        Ok(())
-    }
-}
+impl FleetManagementDatabase for Memory {}

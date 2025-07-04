@@ -31,24 +31,25 @@ impl RequestContext {
     }
 
     pub fn use_best_peer_and_take_slot(&mut self) -> anyhow::Result<Option<UpstreamPeer>> {
-        let mut agents = self
-            .upstream_peer_pool
-            .agents
-            .write()
-            .expect("Failed to lock agents to use best peer");
+        if let Some(peer) = self.upstream_peer_pool.with_agents_write(|agents| {
+            for peer in agents.iter_mut() {
+                if peer.is_usable() {
+                    peer.take_slot()?;
 
-        for peer in agents.iter_mut() {
-            if peer.is_usable() {
-                peer.take_slot()?;
-
-                self.upstream_peer_pool.restore_integrity()?;
-                self.slot_taken = true;
-
-                return Ok(Some(peer.clone()));
+                    return Ok(Some(peer.clone()));
+                }
             }
-        }
 
-        Ok(None)
+            Ok(None)
+        })? {
+            self.upstream_peer_pool.restore_integrity()?;
+
+            self.slot_taken = true;
+
+            Ok(Some(peer))
+        } else {
+            Ok(None)
+        }
     }
 
     pub fn select_upstream_peer(&mut self) -> Result<()> {
@@ -132,13 +133,12 @@ mod tests {
 
         assert!(!ctx.slot_taken);
 
-        {
-            let agents = pool.agents.read().unwrap();
+        pool.with_agents_read(|agents| {
             let peer = agents.iter().find(|p| p.agent_id == "test_agent").unwrap();
-
             assert_eq!(peer.status.slots_idle, 1);
             assert_eq!(peer.status.slots_processing, 4);
-        }
+            Ok(())
+        })?;
 
         Ok(())
     }
@@ -152,13 +152,12 @@ mod tests {
 
         assert!(ctx.release_slot().is_err());
 
-        {
-            let agents = pool.agents.read().unwrap();
+        pool.with_agents_read(|agents| {
             let peer = agents.iter().find(|p| p.agent_id == "test_agent").unwrap();
-
             assert_eq!(peer.status.slots_idle, 5);
             assert_eq!(peer.status.slots_processing, 0);
-        }
+            Ok(())
+        })?;
 
         Ok(())
     }

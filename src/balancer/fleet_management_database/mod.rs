@@ -1,17 +1,10 @@
 mod file;
 mod memory;
 
-use anyhow::Result;
-use async_trait::async_trait;
-
 pub use self::file::File;
 pub use self::memory::Memory;
-use crate::llamacpp::llamacpp_state::LlamaCppState;
 
-#[async_trait]
-pub trait FleetManagementDatabase {
-    async fn store_desired_state(&self, state: &LlamaCppState) -> Result<()>;
-}
+pub trait FleetManagementDatabase {}
 
 #[cfg(test)]
 mod tests {
@@ -23,12 +16,7 @@ mod tests {
     async fn subtest_store_desired_state<TDatabase: FleetManagementDatabase>(
         db: &TDatabase,
     ) -> Result<()> {
-        let desired_state = LlamaCppState {
-            is_running: true,
-        };
-
-        db.store_desired_state(&desired_state).await?;
-
+        // Placeholder for actual test logic
         Ok(())
     }
 
