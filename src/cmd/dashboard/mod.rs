@@ -28,10 +28,7 @@ pub mod app;
 pub mod ui;
 
 async fn fetch_registered_agents(management_addr: SocketAddr) -> EventSource {
-    reqwest_eventsource::EventSource::get(format!(
-        "http://{}/api/v1/agents/stream",
-        management_addr.to_string().as_str()
-    ))
+    EventSource::get(format!("http://{}/api/v1/agents/stream", management_addr))
 }
 
 pub async fn ratatui_main(management_addr: &SocketAddr) -> Result<()> {
