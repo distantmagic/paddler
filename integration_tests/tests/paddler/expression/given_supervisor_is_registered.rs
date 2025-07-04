@@ -16,7 +16,7 @@ async fn do_check(world: &PaddlerWorld, supervisor_name: String) -> Result<()> {
         ));
     }
 
-    let supervisors_response = world.balancer_management_client.fetch_supervisors().await?;
+    let supervisors_response = world.balancer.management_client.fetch_supervisors().await?;
 
     supervisors_response
         .supervisors

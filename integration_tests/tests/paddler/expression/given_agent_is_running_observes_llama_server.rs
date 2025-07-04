@@ -19,7 +19,11 @@ pub async fn given_agent_is_running_observes_llama_server(
 
     world.agents.instances.insert(
         agent_name.clone(),
-        spawn_agent_instance(agent_name, local_llamacpp_port)?,
+        spawn_agent_instance(
+            agent_name,
+            local_llamacpp_port,
+            world.agents.monitoring_interval,
+        )?,
     );
 
     Ok(())

@@ -4,5 +4,4 @@ use tokio::process::Child;
 pub struct SupervisorInstance {
     pub child: Child,
     pub llamacpp_listen_port: u16,
-    pub name: String,
 }

@@ -35,7 +35,6 @@ pub async fn given_supervisor_is_running(
         SupervisorInstance {
             child,
             llamacpp_listen_port,
-            name: supervisor_name,
         },
     );
 

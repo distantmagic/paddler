@@ -26,7 +26,7 @@ impl FromStr for FleetManagementDatabaseType {
                     return Err(anyhow!("URL must contain only absolute path"));
                 }
 
-                if path.is_empty() {
+                if path.is_empty() || path == "/" {
                     return Err(anyhow!(
                         "URL must specify a path: file:///path/to/directory"
                     ));

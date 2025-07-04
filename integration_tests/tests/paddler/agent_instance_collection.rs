@@ -8,6 +8,7 @@ use crate::cleanable::Cleanable;
 #[derive(Debug, Default)]
 pub struct AgentInstanceCollection {
     pub instances: DashMap<String, Child>,
+    pub monitoring_interval: Option<i64>,
 }
 
 #[async_trait]

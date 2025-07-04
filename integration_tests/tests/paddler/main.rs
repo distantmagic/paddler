@@ -1,17 +1,20 @@
 mod agent_instance_collection;
 mod agent_response;
 mod assert_balancer_table;
+mod balancer_instance;
 mod balancer_management_client;
 mod cleanable;
 mod expression;
 mod fleet_management_state;
 mod llamacpp_instance;
 mod llamacpp_instance_collection;
+mod metrics;
 mod paddler_world;
 mod request_builder;
 mod request_headers_to_be_set;
 mod retry_until_success;
 mod spawn_agent_instance;
+mod statsd_instance;
 mod supervisor_instance;
 mod supervisor_instance_collection;
 mod supervisor_response;
@@ -38,6 +41,6 @@ async fn main() {
         })
         .fail_fast()
         .fail_on_skipped()
-        .run_and_exit("tests/features/supervisor")
+        .run_and_exit("tests/features")
         .await;
 }

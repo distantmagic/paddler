@@ -1,35 +1,25 @@
-use std::time::SystemTime;
-
 use anyhow::Result;
-use anyhow::anyhow;
 use async_trait::async_trait;
 use cucumber::World;
 use dashmap::DashMap;
 use reqwest::Response;
-use tokio::process::Child;
 
 use crate::agent_instance_collection::AgentInstanceCollection;
-use crate::balancer_management_client::BalancerManagementClient;
+use crate::balancer_instance::BalancerInstance;
 use crate::cleanable::Cleanable;
-use crate::fleet_management_state::FleetManagementState;
 use crate::llamacpp_instance_collection::LlamaCppInstanceCollection;
 use crate::request_builder::RequestBuilder;
+use crate::statsd_instance::StatsdInstance;
 use crate::supervisor_instance_collection::SupervisorInstanceCollection;
 
 #[derive(Debug, Default, World)]
 pub struct PaddlerWorld {
     pub agents: AgentInstanceCollection,
-    pub balancer: Option<Child>,
-    pub balancer_allowed_cors_hosts: Vec<String>,
-    pub balancer_management_client: BalancerManagementClient,
-    pub buffered_request_timeout: Option<i64>,
-    pub fleet_management_state: Option<FleetManagementState>,
-    pub last_balancer_state_update: Option<SystemTime>,
+    pub balancer: BalancerInstance,
     pub llamas: LlamaCppInstanceCollection,
-    pub max_buffered_requests: Option<i64>,
     pub request_builder: RequestBuilder,
     pub responses: DashMap<String, Response>,
-    pub statsd: Option<Child>,
+    pub statsd: StatsdInstance,
     pub supervisors: SupervisorInstanceCollection,
 }
 
@@ -37,24 +27,12 @@ pub struct PaddlerWorld {
 impl Cleanable for PaddlerWorld {
     async fn cleanup(&mut self) -> Result<()> {
         self.agents.cleanup().await?;
-        self.balancer_allowed_cors_hosts.clear();
-        self.fleet_management_state = None;
+        self.balancer.cleanup().await?;
         self.llamas.cleanup().await?;
         self.request_builder.cleanup().await?;
         self.responses.clear();
+        self.statsd.cleanup().await?;
         self.supervisors.cleanup().await?;
-
-        if let Some(mut balancer) = self.balancer.take()
-            && let Err(err) = balancer.kill().await
-        {
-            return Err(anyhow!("Failed to kill balancer: {err}"));
-        }
-
-        if let Some(mut statsd) = self.statsd.take()
-            && let Err(err) = statsd.kill().await
-        {
-            return Err(anyhow!("Failed to kill statsd: {err}"));
-        }
 
         Ok(())
     }
