@@ -61,3 +61,6 @@ web_dashboard = ["dep:askama", "dep:esbuild-metafile", "dep:mime_guess", "dep:ru
 [profile.release]
 lto = true
 codegen-units = 1
+
+[dev-dependencies]
+tempfile = "3.20.0"

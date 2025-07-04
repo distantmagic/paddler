@@ -2,7 +2,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::jsonrpc::RequestParams;
-use crate::supervisor::llamacpp_state::LlamaCppState;
+use crate::llamacpp::llamacpp_state::LlamaCppState;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct SetStateParams {
