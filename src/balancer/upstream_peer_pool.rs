@@ -41,15 +41,20 @@ impl UpstreamPeerPool {
     }
 
     pub fn quarantine_peer(&self, agent_id: &str) -> Result<bool> {
-        let notify_waiters = self.with_agents_write(|agents| {
+        let notify_waiters = {
+            let mut agents = self
+                .agents
+                .write()
+                .expect("Cannot acquire write lock to quarantine peer");
+
             if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
                 peer.quarantined_until = Some(SystemTime::now() + Duration::from_secs(10));
 
-                return Ok(true);
+                true
+            } else {
+                false
             }
-
-            Ok(false)
-        })?;
+        };
 
         if notify_waiters {
             self.update_notifier.notify_waiters();
@@ -65,7 +70,12 @@ impl UpstreamPeerPool {
     ) -> Result<()> {
         let has_idle_slots = status_update.slots_idle > 0;
 
-        self.with_agents_write(|agents| {
+        {
+            let mut agents = self
+                .agents
+                .write()
+                .expect("Cannot acquire write lock to register status update");
+
             if let Some(upstream_peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
                 upstream_peer.update_status(status_update);
             } else {
@@ -76,9 +86,7 @@ impl UpstreamPeerPool {
             }
 
             agents.sort();
-
-            Ok(())
-        })?;
+        };
 
         if has_idle_slots {
             self.available_slots_notifier.notify_waiters();
@@ -90,20 +98,25 @@ impl UpstreamPeerPool {
     }
 
     pub fn release_slot(&self, agent_id: &str, last_update: SystemTime) -> Result<()> {
-        let notify_available_slots = self.with_agents_write(|agents| {
+        let notify_available_slots = 'check_release_slot: {
+            let mut agents = self
+                .agents
+                .write()
+                .expect("Cannot acquire write lock to release slot");
+
             if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
                 if peer.last_update < last_update {
                     // edge case, but no need to update anything anyway
-                    return Ok(false);
+                    break 'check_release_slot false;
                 }
 
                 peer.release_slot()?;
 
-                return Ok(true);
+                true
+            } else {
+                return Err(anyhow!("There is no agent with id: {agent_id}"));
             }
-
-            Err(anyhow!("There is no agent with id: {agent_id}"))
-        })?;
+        };
 
         if notify_available_slots {
             self.available_slots_notifier.notify_waiters();
@@ -114,15 +127,20 @@ impl UpstreamPeerPool {
     }
 
     pub fn remove_peer(&self, agent_id: &str) -> Result<()> {
-        let notify_waiters = self.with_agents_write(|agents| {
+        let notify_waiters = {
+            let mut agents = self
+                .agents
+                .write()
+                .expect("Cannot acquire write lock to remove peer");
+
             if let Some(pos) = agents.iter().position(|p| p.agent_id == agent_id) {
                 agents.remove(pos);
 
-                return Ok(true);
+                true
+            } else {
+                false
             }
-
-            Ok(false)
-        })?;
+        };
 
         if notify_waiters {
             self.update_notifier.notify_waiters();
@@ -132,11 +150,14 @@ impl UpstreamPeerPool {
     }
 
     pub fn restore_integrity(&self) -> Result<()> {
-        self.with_agents_write(|agents| {
-            agents.sort();
+        {
+            let mut agents = self
+                .agents
+                .write()
+                .expect("Cannot acquire write lock to restore integrity");
 
-            Ok(())
-        })?;
+            agents.sort();
+        };
 
         self.update_notifier.notify_waiters();
 
@@ -146,52 +167,35 @@ impl UpstreamPeerPool {
     #[cfg(feature = "statsd_reporter")]
     /// Returns (slots_idle, slots_processing) tuple.
     pub fn total_slots(&self) -> Result<(usize, usize)> {
-        self.with_agents_read(|agents| {
-            let mut slots_idle = 0;
-            let mut slots_processing = 0;
+        let agents = self
+            .agents
+            .read()
+            .expect("Cannot acquire read lock to get total slots");
 
-            for peer in agents.iter() {
-                slots_idle += peer.status.slots_idle;
-                slots_processing += peer.status.slots_processing;
-            }
+        let mut slots_idle = 0;
+        let mut slots_processing = 0;
 
-            Ok((slots_idle, slots_processing))
-        })
+        for peer in agents.iter() {
+            slots_idle += peer.status.slots_idle;
+            slots_processing += peer.status.slots_processing;
+        }
+
+        Ok((slots_idle, slots_processing))
     }
 
     pub fn use_best_peer(&self) -> Result<Option<UpstreamPeer>> {
-        self.with_agents_read(|agents| {
-            for peer in agents.iter() {
-                if peer.is_usable() {
-                    return Ok(Some(peer.clone()));
-                }
+        let agents = self
+            .agents
+            .read()
+            .expect("Cannot acquire read lock to use best peer");
+
+        for peer in agents.iter() {
+            if peer.is_usable() {
+                return Ok(Some(peer.clone()));
             }
-
-            Ok(None)
-        })
-    }
-
-    #[cfg(feature = "statsd_reporter")]
-    #[inline]
-    pub fn with_agents_read<TCallback, TResult>(&self, cb: TCallback) -> Result<TResult>
-    where
-        TCallback: FnOnce(&Vec<UpstreamPeer>) -> Result<TResult>,
-    {
-        match self.agents.read() {
-            Ok(agents) => cb(&agents),
-            Err(_) => Err(anyhow!("Failed to acquire read lock")),
         }
-    }
 
-    #[inline]
-    pub fn with_agents_write<TCallback, TResult>(&self, cb: TCallback) -> Result<TResult>
-    where
-        TCallback: FnOnce(&mut Vec<UpstreamPeer>) -> Result<TResult>,
-    {
-        match self.agents.write() {
-            Ok(mut agents) => cb(&mut agents),
-            Err(_) => Err(anyhow!("Failed to acquire write lock")),
-        }
+        Ok(None)
     }
 }
 
@@ -205,52 +209,57 @@ mod tests {
         let pool = UpstreamPeerPool::new();
 
         pool.register_status_update("test1", mock_status_update("test1", 5, 0))?;
-        pool.with_agents_write(|agents| {
+
+        {
+            let mut agents = pool.agents.write().unwrap();
+
             agents
                 .iter_mut()
                 .find(|p| p.agent_id == "test1")
                 .unwrap()
-                .take_slot()
-        })?;
+                .take_slot();
+        }
 
-        let last_update_at_selection_time = pool.with_agents_read(|agents| {
-            Ok(agents
+        let last_update_at_selection_time = {
+            let agents = pool.agents.read().unwrap();
+
+            agents
                 .iter()
                 .find(|p| p.agent_id == "test1")
                 .unwrap()
-                .last_update)
-        })?;
+                .last_update
+        };
 
-        pool.with_agents_read(|agents| {
+        {
+            let agents = pool.agents.read().unwrap();
             let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
+
             assert_eq!(peer.slots_taken, 1);
             assert_eq!(peer.status.slots_idle, 4);
             assert_eq!(peer.status.slots_processing, 1);
-
-            Ok(())
-        })?;
+        }
 
         pool.register_status_update("test1", mock_status_update("test1", 0, 0))?;
 
-        pool.with_agents_read(|agents| {
+        {
+            let agents = pool.agents.read().unwrap();
             let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
+
             assert_eq!(peer.slots_taken, 1);
             assert_eq!(peer.status.slots_idle, 0);
             assert_eq!(peer.status.slots_processing, 0);
-
-            Ok(())
-        })?;
+        }
 
         pool.release_slot("test1", last_update_at_selection_time)?;
 
-        pool.with_agents_read(|agents| {
+        {
+            let agents = pool.agents.read().unwrap();
             let peer = agents.iter().find(|p| p.agent_id == "test1").unwrap();
+
             assert_eq!(peer.slots_taken, 0);
             assert_eq!(peer.status.slots_idle, 0);
             assert_eq!(peer.status.slots_processing, 0);
-
-            Ok(())
-        })?;
+        }
 
         Ok(())
     }
