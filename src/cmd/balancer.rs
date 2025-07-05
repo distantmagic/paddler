@@ -67,6 +67,7 @@ pub fn handle(
     pingora_server.add_service(proxy_service);
     pingora_server.add_service(ManagementService::new(
         management_service_configuration,
+        fleet_management_database,
         upstream_peer_pool.clone(),
         #[cfg(feature = "web_dashboard")]
         web_dashboard_service_configuration.clone(),

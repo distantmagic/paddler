@@ -20,9 +20,7 @@ impl Memory {
 #[async_trait]
 impl FleetManagementDatabase for Memory {
     async fn read_desired_state(&self) -> Result<Option<LlamaCppState>> {
-        let desired_state = { self.desired_state.read().await.clone() };
-
-        Ok(desired_state)
+        Ok(self.desired_state.read().await.clone())
     }
 
     async fn store_desired_state(&self, state: &LlamaCppState) -> Result<()> {

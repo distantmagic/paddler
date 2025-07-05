@@ -23,6 +23,7 @@ use tokio::time::MissedTickBehavior;
 
 use self::jsonrpc::notification_params::RegisterSupervisorParams;
 use self::jsonrpc::Notification as BalancerJsonRpcNotification;
+use crate::balancer::fleet_management_database::FleetManagementDatabase;
 use crate::balancer::supervisor_controller::SupervisorController;
 use crate::balancer::supervisor_controller_pool::SupervisorControllerPool;
 use crate::supervisor::jsonrpc::notification_params::VersionParams;
@@ -36,6 +37,7 @@ pub fn register(cfg: &mut ServiceConfig) {
 }
 
 async fn handle_text_message(
+    fleet_management_database: Data<dyn FleetManagementDatabase>,
     mut session: Session,
     supervisor_id: String,
     supervisor_controller_pool: Data<SupervisorControllerPool>,
@@ -45,14 +47,20 @@ async fn handle_text_message(
         Ok(BalancerJsonRpcNotification::RegisterSupervisor(RegisterSupervisorParams {
             name,
         })) => {
-            supervisor_controller_pool.register_supervisor_controller(
-                supervisor_id.clone(),
-                SupervisorController {
-                    id: supervisor_id,
-                    name,
-                    session,
-                },
-            )?;
+            let mut supervisor_controller = SupervisorController {
+                id: supervisor_id.clone(),
+                name,
+                session,
+            };
+
+            if let Some(desired_state) = fleet_management_database.read_desired_state().await? {
+                supervisor_controller
+                    .set_desired_state(desired_state)
+                    .await?;
+            }
+
+            supervisor_controller_pool
+                .register_supervisor_controller(supervisor_id, supervisor_controller)?;
         }
         Err(
             err @ serde_json::Error {
@@ -111,6 +119,7 @@ impl Drop for RemoveSupervisorGuard {
 
 #[get("/api/v1/supervisor_socket/{supervisor_id}")]
 async fn respond(
+    fleet_management_database: Data<dyn FleetManagementDatabase>,
     path_params: Path<PathParams>,
     payload: Payload,
     req: HttpRequest,
@@ -157,6 +166,7 @@ async fn respond(
                         }
                         Some(Ok(AggregatedMessage::Text(text))) => {
                             if let Err(err) = handle_text_message(
+                                fleet_management_database.clone(),
                                 session.clone(),
                                 supervisor_id.clone(),
                                 supervisor_controller_pool.clone(),

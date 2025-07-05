@@ -2,6 +2,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use super::notification_params::BadRequestParams;
+use super::notification_params::SetStateParams;
 use super::notification_params::VersionParams;
 use crate::jsonrpc::error::Error;
 
@@ -9,6 +10,7 @@ use crate::jsonrpc::error::Error;
 #[serde(tag = "notification", content = "content")]
 pub enum Notification {
     BadRequest(BadRequestParams),
+    SetState(SetStateParams),
     Version(VersionParams),
 }
 

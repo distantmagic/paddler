@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-use super::NotificationParams;
+use crate::jsonrpc::NotificationParams;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct VersionParams {

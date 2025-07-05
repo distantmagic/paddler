@@ -23,11 +23,10 @@ use uuid::Uuid;
 
 use crate::balancer::http_route::api::ws_supervisor::jsonrpc::notification_params::RegisterSupervisorParams;
 use crate::balancer::http_route::api::ws_supervisor::jsonrpc::Notification as ManagementJsonRpcNotification;
+use crate::supervisor::jsonrpc::notification_params::SetStateParams;
 use crate::supervisor::jsonrpc::notification_params::VersionParams;
-use crate::supervisor::jsonrpc::request_params::SetStateParams;
 use crate::supervisor::jsonrpc::Message as JsonRpcMessage;
 use crate::supervisor::jsonrpc::Notification as JsonRpcNotification;
-use crate::supervisor::jsonrpc::Request as JsonRpcRequest;
 use crate::supervisor::reconciliation_queue::ReconciliationQueue;
 
 pub struct ManagementSocketClientService {
@@ -77,10 +76,11 @@ impl ManagementSocketClientService {
                 Message::Text(text) => match serde_json::from_str::<JsonRpcMessage>(&text)
                     .context(format!("Failed to parse JSON-RPC request: {text}"))?
                 {
-                    JsonRpcMessage::Request(JsonRpcRequest::SetState(SetStateParams {
-                        desired_state,
-                        request_id: _,
-                    })) => {
+                    JsonRpcMessage::Notification(JsonRpcNotification::SetState(
+                        SetStateParams {
+                            desired_state,
+                        },
+                    )) => {
                         self.reconciliation_queue
                             .register_change_request(desired_state)
                             .await?;

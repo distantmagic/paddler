@@ -28,7 +28,7 @@ pub mod app;
 pub mod ui;
 
 async fn fetch_registered_agents(management_addr: SocketAddr) -> EventSource {
-    EventSource::get(format!("http://{}/api/v1/agents/stream", management_addr))
+    EventSource::get(format!("http://{management_addr}/api/v1/agents/stream"))
 }
 
 pub async fn ratatui_main(management_addr: SocketAddr) -> Result<()> {
@@ -57,13 +57,13 @@ pub async fn ratatui_main(management_addr: SocketAddr) -> Result<()> {
                                     upstream_peer_pool_tx.send(upstream_peer_pool).await.ok()
                                 },
                                 Err(err) => {
-                                    app_needs_to_render_app_error_tx.send(format!("Error parsing response - {}", err)).await.ok();
+                                    app_needs_to_render_app_error_tx.send(format!("Error parsing response - {err}")).await.ok();
                                     None
                                 },
                             }
                         },
                         Err(err) => {
-                            app_needs_to_render_app_error_tx.send(format!("Error receiving event - {}", err)).await.ok();
+                            app_needs_to_render_app_error_tx.send(format!("Error receiving event - {err}")).await.ok();
                             None
                         }
                     };

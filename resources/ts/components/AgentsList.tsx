@@ -30,26 +30,13 @@ export function AgentsList({ agents }: { agents: Array<Agent> }) {
       </thead>
       <tbody>
         {agents.map(function ({
-          agent_id,
-          last_update,
-          quarantined_until,
-          status,
+          data: { agent_id, last_update, quarantined_until, status },
+          meta: { has_issues },
         }: Agent) {
-          const hasIssues =
-            status.error ||
-            true !== status.is_authorized ||
-            true === status.is_connect_error ||
-            true === status.is_request_error ||
-            true === status.is_decode_error ||
-            true === status.is_deserialize_error ||
-            true === status.is_unexpected_response_status ||
-            true !== status.is_slots_endpoint_enabled ||
-            quarantined_until;
-
           return (
             <tr
               className={clsx(agentRow, {
-                [agentRowError]: hasIssues,
+                [agentRowError]: has_issues,
               })}
               key={agent_id}
             >
@@ -102,7 +89,7 @@ export function AgentsList({ agents }: { agents: Array<Agent> }) {
                     {formatTimestamp(quarantined_until.secs_since_epoch)}
                   </p>
                 )}
-                {!hasIssues && <p>None</p>}
+                {!has_issues && <p>None</p>}
               </td>
               <td>
                 <a href={`http://${status.external_llamacpp_addr}`}>

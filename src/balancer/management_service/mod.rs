@@ -13,6 +13,8 @@ use pingora::server::ListenFds;
 use pingora::server::ShutdownWatch;
 use pingora::services::Service;
 
+#[cfg(feature = "supervisor")]
+use crate::balancer::fleet_management_database::FleetManagementDatabase;
 use crate::balancer::http_route;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 #[cfg(feature = "supervisor")]
@@ -40,6 +42,8 @@ fn create_cors_middleware(allowed_hosts: Arc<Vec<String>>) -> Cors {
 
 pub struct ManagementService {
     configuration: ManagementServiceConfiguration,
+    #[cfg(feature = "supervisor")]
+    fleet_management_database: Arc<dyn FleetManagementDatabase>,
     upstream_peers: Arc<UpstreamPeerPool>,
     #[cfg(feature = "web_dashboard")]
     web_dashboard_service_configuration: Option<WebDashboardServiceConfiguration>,
@@ -48,6 +52,7 @@ pub struct ManagementService {
 impl ManagementService {
     pub fn new(
         configuration: ManagementServiceConfiguration,
+        #[cfg(feature = "supervisor")] fleet_management_database: Arc<dyn FleetManagementDatabase>,
         upstream_peers: Arc<UpstreamPeerPool>,
         #[cfg(feature = "web_dashboard")] web_dashboard_service_configuration: Option<
             WebDashboardServiceConfiguration,
@@ -55,6 +60,7 @@ impl ManagementService {
     ) -> Self {
         ManagementService {
             configuration,
+            fleet_management_database,
             upstream_peers,
             #[cfg(feature = "web_dashboard")]
             web_dashboard_service_configuration,
@@ -83,6 +89,8 @@ impl Service for ManagementService {
         }
 
         let cors_allowed_hosts_arc = Arc::new(cors_allowed_hosts);
+        let fleet_management_database: Data<dyn FleetManagementDatabase> =
+            Data::from(self.fleet_management_database.clone());
         let fleet_management_enable = self.configuration.fleet_management_enable;
         let upstream_peers: Data<UpstreamPeerPool> = self.upstream_peers.clone().into();
 
@@ -98,6 +106,7 @@ impl Service for ManagementService {
             #[cfg(feature = "supervisor")]
             if fleet_management_enable {
                 app = app
+                    .app_data(fleet_management_database.clone())
                     .app_data(supervisor_pool.clone())
                     .configure(http_route::api::get_supervisors::register)
                     .configure(http_route::api::ws_supervisor::register);

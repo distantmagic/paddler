@@ -9,7 +9,7 @@ pub use self::memory::Memory;
 use crate::llamacpp::llamacpp_state::LlamaCppState;
 
 #[async_trait]
-pub trait FleetManagementDatabase {
+pub trait FleetManagementDatabase: Send + Sync {
     async fn read_desired_state(&self) -> Result<Option<LlamaCppState>>;
 
     async fn store_desired_state(&self, state: &LlamaCppState) -> Result<()>;
