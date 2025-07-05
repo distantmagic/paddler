@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use anyhow::Context;
 use anyhow::Result;
 use async_trait::async_trait;
 use tokio::fs;
@@ -28,7 +29,12 @@ impl File {
     async fn read_desired_state_from_file(&self) -> Result<Option<LlamaCppState>> {
         match fs::read_to_string(&self.path).await {
             Ok(content) => {
-                let state: LlamaCppState = serde_json::from_str(&content)?;
+                if content.is_empty() {
+                    return Ok(None);
+                }
+
+                let state: LlamaCppState = serde_json::from_str(&content)
+                    .context(format!("Unable to parse file contents: '{content}'"))?;
 
                 Ok(Some(state))
             }
@@ -44,10 +50,16 @@ impl FleetManagementDatabase for File {
         match self.cached_state.read_desired_state().await? {
             Some(state) => Ok(Some(state)),
             None => {
-                let state = self.read_desired_state_from_file().await?;
+                let state = self
+                    .read_desired_state_from_file()
+                    .await
+                    .context("Unable to read state from file")?;
 
                 if let Some(ref state) = state {
-                    self.cached_state.store_desired_state(state).await?;
+                    self.cached_state
+                        .store_desired_state(state)
+                        .await
+                        .context("Unable to store state to file")?;
                 }
 
                 Ok(state)

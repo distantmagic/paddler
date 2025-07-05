@@ -22,7 +22,7 @@ async fn do_check(world: &PaddlerWorld, supervisor_name: String) -> Result<()> {
         .supervisors
         .iter()
         .find(|supervisor| supervisor.name == Some(supervisor_name.clone()))
-        .ok_or_else(|| anyhow!("not found in response"))?;
+        .ok_or_else(|| anyhow!("Not found in response"))?;
 
     Ok(())
 }

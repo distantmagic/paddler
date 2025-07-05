@@ -11,6 +11,7 @@ use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use actix_ws::AggregatedMessage;
 use actix_ws::Session;
+use anyhow::Context;
 use anyhow::Result;
 use futures_util::StreamExt as _;
 use log::debug;
@@ -56,11 +57,13 @@ async fn handle_text_message(
             if let Some(desired_state) = fleet_management_database.read_desired_state().await? {
                 supervisor_controller
                     .set_desired_state(desired_state)
-                    .await?;
+                    .await
+                    .context("Unable to set desired state")?;
             }
 
             supervisor_controller_pool
-                .register_supervisor_controller(supervisor_id, supervisor_controller)?;
+                .register_supervisor_controller(supervisor_id, supervisor_controller)
+                .context("Unable to register supervisor controller")?;
         }
         Err(
             err @ serde_json::Error {
@@ -71,7 +74,8 @@ async fn handle_text_message(
                 .text(serde_json::to_string(
                     &SupervisorJsonRpcNotification::bad_request(Some(err)),
                 )?)
-                .await?;
+                .await
+                .context("JSON-RPC syntax error")?;
         }
         Err(err) => {
             error!("Error handling JSON-RPC request: {err:?}");
@@ -80,7 +84,8 @@ async fn handle_text_message(
                 .text(serde_json::to_string(
                     &SupervisorJsonRpcNotification::bad_request(None),
                 )?)
-                .await?;
+                .await
+                .context("Unexpected JSON-RPC serialization request")?;
         }
     };
 
@@ -126,10 +131,6 @@ async fn respond(
     supervisor_controller_pool: Data<SupervisorControllerPool>,
 ) -> Result<HttpResponse, Error> {
     let supervisor_id = path_params.supervisor_id.clone();
-    let _guard = RemoveSupervisorGuard {
-        pool: supervisor_controller_pool.clone(),
-        supervisor_id: supervisor_id.clone(),
-    };
 
     let (res, mut session, msg_stream) = actix_ws::handle(&req, payload)?;
 
@@ -138,6 +139,11 @@ async fn respond(
         .max_continuation_size(MAX_CONTINUATION_SIZE);
 
     rt::spawn(async move {
+        let _guard = RemoveSupervisorGuard {
+            pool: supervisor_controller_pool.clone(),
+            supervisor_id: supervisor_id.clone(),
+        };
+
         if let Err(err) = send_version(&mut session, env!("CARGO_PKG_VERSION").to_string()).await {
             error!("Error sending version: {err:?}");
 
@@ -171,7 +177,7 @@ async fn respond(
                                 supervisor_id.clone(),
                                 supervisor_controller_pool.clone(),
                                 &text
-                            ).await {
+                            ).await.context(format!("Text message: {text}")) {
                                 error!("Error handling message: {err:?}");
                             }
                         }
