@@ -60,7 +60,7 @@ Feature: Balance llama.cpp requests
         Given balancer is running
         Given llama.cpp server "llama-1" is running (has 1 slot)
         Given llama.cpp server "llama-2" is running (has 1 slot)
-        Given agent monitors llama.cpp every 100 milliseconds
+        Given agent monitors llama.cpp every 50 milliseconds
         Given agent "agent-1" is running (observes "llama-1")
         Given agent "agent-1" is registered
         Given agent "agent-2" is running (observes "llama-2")
