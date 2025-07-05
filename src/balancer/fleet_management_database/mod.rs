@@ -26,7 +26,7 @@ mod tests {
         db: &TDatabase,
     ) -> Result<()> {
         let desired_state = LlamaCppState {
-            is_running: true,
+            model_path: "test_model_path".to_string(),
         };
 
         db.store_desired_state(&desired_state).await?;
