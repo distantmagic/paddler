@@ -3,8 +3,6 @@ pub mod fleet_management_database;
 #[cfg(feature = "supervisor")]
 pub mod fleet_management_database_type;
 pub mod http_route;
-#[cfg(feature = "supervisor")]
-pub mod jsonrpc;
 pub mod management_service;
 pub mod proxy_service;
 pub mod request_context;

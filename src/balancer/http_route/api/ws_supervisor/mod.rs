@@ -27,6 +27,7 @@ use self::jsonrpc::Notification as BalancerJsonRpcNotification;
 use crate::balancer::fleet_management_database::FleetManagementDatabase;
 use crate::balancer::supervisor_controller::SupervisorController;
 use crate::balancer::supervisor_controller_pool::SupervisorControllerPool;
+use crate::jsonrpc::Error as JsonRpcError;
 use crate::supervisor::jsonrpc::notification_params::VersionParams;
 use crate::supervisor::jsonrpc::Notification as SupervisorJsonRpcNotification;
 
@@ -71,9 +72,9 @@ async fn handle_text_message(
             },
         ) if err.is_data() || err.is_syntax() => {
             session
-                .text(serde_json::to_string(
-                    &SupervisorJsonRpcNotification::bad_request(Some(err)),
-                )?)
+                .text(serde_json::to_string(&JsonRpcError::bad_request(Some(
+                    err,
+                )))?)
                 .await
                 .context("JSON-RPC syntax error")?;
         }
@@ -81,9 +82,9 @@ async fn handle_text_message(
             error!("Error handling JSON-RPC request: {err:?}");
 
             session
-                .text(serde_json::to_string(
-                    &SupervisorJsonRpcNotification::bad_request(None),
-                )?)
+                .text(serde_json::to_string(&JsonRpcError::server_error(
+                    err.into(),
+                ))?)
                 .await
                 .context("Unexpected JSON-RPC serialization request")?;
         }

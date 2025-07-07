@@ -19,27 +19,6 @@ impl Error {
         }
     }
 
-    pub fn forbidden() -> Self {
-        Self {
-            code: 403,
-            description: None,
-        }
-    }
-
-    pub fn not_found() -> Self {
-        Self {
-            code: 404,
-            description: None,
-        }
-    }
-
-    pub fn parse() -> Self {
-        Self {
-            code: 600,
-            description: None,
-        }
-    }
-
     pub fn server_error(_error: anyhow::Error) -> Self {
         Self {
             code: 500,

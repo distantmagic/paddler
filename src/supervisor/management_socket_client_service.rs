@@ -23,6 +23,7 @@ use uuid::Uuid;
 
 use crate::balancer::http_route::api::ws_supervisor::jsonrpc::notification_params::RegisterSupervisorParams;
 use crate::balancer::http_route::api::ws_supervisor::jsonrpc::Notification as ManagementJsonRpcNotification;
+use crate::jsonrpc::Error as JsonRpcError;
 use crate::supervisor::jsonrpc::notification_params::SetStateParams;
 use crate::supervisor::jsonrpc::notification_params::VersionParams;
 use crate::supervisor::jsonrpc::Message as JsonRpcMessage;
@@ -76,6 +77,12 @@ impl ManagementSocketClientService {
                 Message::Text(text) => match serde_json::from_str::<JsonRpcMessage>(&text)
                     .context(format!("Failed to parse JSON-RPC request: {text}"))?
                 {
+                    JsonRpcMessage::Error(JsonRpcError {
+                        code,
+                        description,
+                    }) => {
+                        error!("Received error from server: code: {code}, description: {description:?}");
+                    }
                     JsonRpcMessage::Notification(JsonRpcNotification::SetState(
                         SetStateParams {
                             desired_state,
@@ -84,9 +91,6 @@ impl ManagementSocketClientService {
                         self.reconciliation_queue
                             .register_change_request(desired_state)
                             .await?;
-                    }
-                    JsonRpcMessage::Notification(JsonRpcNotification::BadRequest(params)) => {
-                        error!("Received notification: {params:?}");
                     }
                     JsonRpcMessage::Notification(JsonRpcNotification::Version(VersionParams {
                         version,

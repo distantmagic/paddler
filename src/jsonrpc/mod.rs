@@ -1,8 +1,3 @@
-pub mod error;
-mod notification_params;
-mod request_params;
-mod response;
+mod error;
 
-pub use self::notification_params::NotificationParams;
-pub use self::request_params::RequestParams;
-pub use self::response::Response;
+pub use self::error::Error;
