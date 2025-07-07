@@ -6,13 +6,13 @@ use async_trait::async_trait;
 
 pub use self::file::File;
 pub use self::memory::Memory;
-use crate::llamacpp::llamacpp_state::LlamaCppState;
+use crate::supervisor::llamacpp_desired_state::LlamaCppDesiredState;
 
 #[async_trait]
 pub trait FleetManagementDatabase: Send + Sync {
-    async fn read_desired_state(&self) -> Result<Option<LlamaCppState>>;
+    async fn read_desired_state(&self) -> Result<Option<LlamaCppDesiredState>>;
 
-    async fn store_desired_state(&self, state: &LlamaCppState) -> Result<()>;
+    async fn store_desired_state(&self, state: &LlamaCppDesiredState) -> Result<()>;
 }
 
 #[cfg(test)]
@@ -25,7 +25,7 @@ mod tests {
     async fn subtest_store_desired_state<TDatabase: FleetManagementDatabase>(
         db: &TDatabase,
     ) -> Result<()> {
-        let desired_state = LlamaCppState {
+        let desired_state = LlamaCppDesiredState {
             model_path: "test_model_path".to_string(),
         };
 

@@ -1,24 +1,44 @@
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
 use log::debug;
+use log::error;
 #[cfg(unix)]
 use pingora::server::ListenFds;
 use pingora::server::ShutdownWatch;
 use pingora::services::Service;
 
+use crate::supervisor::llamacpp_desired_state::LlamaCppDesiredState;
 use crate::supervisor::reconciliation_queue::ReconciliationQueue;
 
 pub struct ReconciliationService {
+    llamacpp_listen_addr: SocketAddr,
     reconciliation_queue: Arc<ReconciliationQueue>,
 }
 
 impl ReconciliationService {
-    pub fn new(reconciliation_queue: Arc<ReconciliationQueue>) -> Result<Self> {
+    pub fn new(
+        llamacpp_listen_addr: SocketAddr,
+        reconciliation_queue: Arc<ReconciliationQueue>,
+    ) -> Result<Self> {
         Ok(ReconciliationService {
+            llamacpp_listen_addr,
             reconciliation_queue,
         })
+    }
+
+    pub async fn apply_desired_state(&self, desired_state: LlamaCppDesiredState) -> Result<()> {
+        debug!("Applying change request: {desired_state:?}");
+        Ok(())
+    }
+
+    pub async fn on_change_request(
+        &self,
+        desired_state: Result<LlamaCppDesiredState>,
+    ) -> Result<()> {
+        self.apply_desired_state(desired_state?).await
     }
 }
 
@@ -37,7 +57,9 @@ impl Service for ReconciliationService {
                     return;
                 },
                 change_request = self.reconciliation_queue.next_change_request() => {
-                    println!("Reconciliation tick {change_request:?}");
+                    if let Err(err) = self.on_change_request(change_request).await {
+                        error!("Failed to apply change request: {err}");
+                    }
                 }
             }
         }

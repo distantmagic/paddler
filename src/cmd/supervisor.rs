@@ -17,7 +17,8 @@ pub fn handle(
     let reconciliation_queue = Arc::new(ReconciliationQueue::new()?);
     let management_socket_client_service =
         ManagementSocketClientService::new(management_addr, name, reconciliation_queue.clone())?;
-    let reconciliation_service = ReconciliationService::new(reconciliation_queue)?;
+    let reconciliation_service =
+        ReconciliationService::new(llamacpp_listen_addr, reconciliation_queue)?;
 
     let mut pingora_server = Server::new(Opt {
         upgrade: false,
