@@ -2548,6 +2548,7 @@ dependencies = [
  "esbuild-metafile",
  "futures 0.3.31",
  "futures-util",
+ "indoc",
  "log",
  "mime_guess",
  "pingora",
