@@ -16,7 +16,7 @@ pub async fn given_supervisor_is_running(
     supervisor_name: String,
 ) -> Result<()> {
     if world.supervisors.instances.contains_key(&supervisor_name) {
-        return Err(anyhow!("Agent {supervisor_name} is already running"));
+        return Err(anyhow!("Supervisor {supervisor_name} is already running"));
     }
 
     let llamacpp_listen_port = world.llamas.next_llamacpp_port();

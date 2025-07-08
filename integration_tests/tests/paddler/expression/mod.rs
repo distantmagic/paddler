@@ -13,6 +13,7 @@ mod given_request_has_header_with_value;
 mod given_statsd_is_running;
 mod given_supervisor_is_registered;
 mod given_supervisor_is_running;
+mod given_supervisor_uses_model_from_huggingface;
 mod then_average_metrics_are;
 mod then_balancer_state_is;
 mod then_metrics_are_stored;
