@@ -9,16 +9,23 @@ use pingora::server::ListenFds;
 use pingora::server::ShutdownWatch;
 use pingora::services::Service;
 
+use crate::supervisor::converts_to_applicable_state::ConvertsToApplicableState;
+use crate::supervisor::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
 use crate::supervisor::llamacpp_desired_state::LlamaCppDesiredState;
 use crate::supervisor::reconciliation_queue::ReconciliationQueue;
 
 pub struct ReconciliationService {
+    llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
     reconciliation_queue: Arc<ReconciliationQueue>,
 }
 
 impl ReconciliationService {
-    pub fn new(reconciliation_queue: Arc<ReconciliationQueue>) -> Result<Self> {
+    pub fn new(
+        llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
+        reconciliation_queue: Arc<ReconciliationQueue>,
+    ) -> Result<Self> {
         Ok(ReconciliationService {
+            llamacpp_applicable_state_holder,
             reconciliation_queue,
         })
     }
@@ -27,7 +34,10 @@ impl ReconciliationService {
         &self,
         desired_state: Result<LlamaCppDesiredState>,
     ) -> Result<()> {
-        Ok(())
+        let applicable_state = desired_state?.to_applicable_state().await?;
+
+        self.llamacpp_applicable_state_holder
+            .set_applicable_state(applicable_state)
     }
 }
 

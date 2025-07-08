@@ -1,10 +1,12 @@
+pub mod converts_to_applicable_state;
+pub mod huggingface_model_reference;
 pub mod jsonrpc;
 pub mod llamacpp_applicable_state;
+pub mod llamacpp_applicable_state_holder;
 pub mod llamacpp_desired_model;
 pub mod llamacpp_desired_state;
 pub mod llamacpp_process;
 pub mod llamacpp_process_service;
-pub mod llamacpp_reconciled_state_holder;
 pub mod management_socket_client_service;
 pub mod reconciliation_queue;
 pub mod reconciliation_service;

@@ -6,8 +6,8 @@ use anyhow::Result;
 use pingora::server::configuration::Opt;
 use pingora::server::Server;
 
+use crate::supervisor::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
 use crate::supervisor::llamacpp_process_service::LlamaCppProcessService;
-use crate::supervisor::llamacpp_reconciled_state_holder::LlamaCppReconciledStateHolder;
 use crate::supervisor::management_socket_client_service::ManagementSocketClientService;
 use crate::supervisor::reconciliation_queue::ReconciliationQueue;
 use crate::supervisor::reconciliation_service::ReconciliationService;
@@ -18,7 +18,7 @@ pub fn handle(
     management_addr: SocketAddr,
     name: Option<String>,
 ) -> Result<()> {
-    let llamacpp_reconciled_state_holder = Arc::new(LlamaCppReconciledStateHolder::new());
+    let llamacpp_applicable_state_holder = Arc::new(LlamaCppApplicableStateHolder::new());
     let reconciliation_queue = Arc::new(ReconciliationQueue::new()?);
 
     let mut pingora_server = Server::new(Opt {
@@ -31,8 +31,8 @@ pub fn handle(
 
     pingora_server.bootstrap();
     pingora_server.add_service(LlamaCppProcessService::new(
+        llamacpp_applicable_state_holder.clone(),
         llamacpp_listen_addr,
-        llamacpp_reconciled_state_holder,
         llamacpp_server_bin_path,
     )?);
     pingora_server.add_service(ManagementSocketClientService::new(
@@ -40,6 +40,9 @@ pub fn handle(
         name,
         reconciliation_queue.clone(),
     )?);
-    pingora_server.add_service(ReconciliationService::new(reconciliation_queue)?);
+    pingora_server.add_service(ReconciliationService::new(
+        llamacpp_applicable_state_holder,
+        reconciliation_queue,
+    )?);
     pingora_server.run_forever();
 }

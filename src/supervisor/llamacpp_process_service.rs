@@ -16,26 +16,26 @@ use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
 use crate::supervisor::llamacpp_applicable_state::LlamaCppApplicableState;
+use crate::supervisor::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
 use crate::supervisor::llamacpp_process::LlamaCppProcess;
-use crate::supervisor::llamacpp_reconciled_state_holder::LlamaCppReconciledStateHolder;
 
 pub struct LlamaCppProcessService {
+    llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
     llamacpp_listen_addr: SocketAddr,
-    llamacpp_reconciled_state_holder: Arc<LlamaCppReconciledStateHolder>,
     llamacpp_process: Option<LlamaCppProcess>,
     llamacpp_server_bin_path: PathBuf,
 }
 
 impl LlamaCppProcessService {
     pub fn new(
+        llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
         llamacpp_listen_addr: SocketAddr,
-        llamacpp_reconciled_state_holder: Arc<LlamaCppReconciledStateHolder>,
         llamacpp_server_bin_path: PathBuf,
     ) -> Result<Self> {
         Ok(LlamaCppProcessService {
+            llamacpp_applicable_state_holder,
             llamacpp_listen_addr,
             llamacpp_process: None,
-            llamacpp_reconciled_state_holder,
             llamacpp_server_bin_path,
         })
     }
@@ -75,7 +75,7 @@ impl Service for LlamaCppProcessService {
         mut shutdown: ShutdownWatch,
         _listeners_per_fd: usize,
     ) {
-        let mut reconciled_state = self.llamacpp_reconciled_state_holder.subscribe();
+        let mut reconciled_state = self.llamacpp_applicable_state_holder.subscribe();
         let mut ticker = interval(Duration::from_secs(1));
 
         ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
