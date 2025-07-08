@@ -128,7 +128,7 @@ enum Commands {
 
         #[arg(long)]
         /// Enable the web metrics endpoint
-        metric_endpoint_enable: bool,
+        metrics_endpoint_enable: bool,
 
         #[arg(long)]
         /// Enable the slots endpoint (not recommended)
@@ -189,7 +189,7 @@ fn main() -> Result<()> {
             #[cfg(feature = "web_dashboard")]
             management_dashboard_enable,
             max_buffered_requests,
-            metric_endpoint_enable,
+            metrics_endpoint_enable,
             reverseproxy_addr,
             rewrite_host_header,
             slots_endpoint_enable,
@@ -210,7 +210,7 @@ fn main() -> Result<()> {
                 #[cfg(feature = "web_dashboard")]
                 management_dashboard_enable.to_owned(),
                 *max_buffered_requests,
-                metric_endpoint_enable.to_owned(),
+                metrics_endpoint_enable.to_owned(),
                 reverseproxy_addr,
                 rewrite_host_header.to_owned(),
                 slots_endpoint_enable.to_owned(),

@@ -21,7 +21,7 @@ async fn fetch_metrics(statsd_port: u16) -> Result<Metrics> {
     Ok(metrics)
 }
 
-#[then(expr = "metrics are stored")]
+#[then(expr = "reported metrics are stored")]
 pub async fn then_metrics_are_stored(world: &mut PaddlerWorld) -> Result<()> {
     let metrics = fetch_metrics(9102).await?;
     world.statsd.metrics.push(metrics);
