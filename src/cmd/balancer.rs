@@ -60,7 +60,7 @@ pub fn handle(
         management_cors_allowed_hosts,
         #[cfg(feature = "web_dashboard")]
         management_dashboard_enable,
-        metric_endpoint_enable,
+        metrics_endpoint_enable,
         upstream_peer_pool.clone(),
     ));
 
