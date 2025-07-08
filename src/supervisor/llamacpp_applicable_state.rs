@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LlamaCppApplicableState {
     pub model_path: PathBuf,
     // pub n_ctx: usize,

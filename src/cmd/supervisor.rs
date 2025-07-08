@@ -1,5 +1,4 @@
 use std::net::SocketAddr;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -14,7 +13,6 @@ use crate::supervisor::reconciliation_service::ReconciliationService;
 
 pub fn handle(
     llamacpp_listen_addr: SocketAddr,
-    llamacpp_server_bin_path: PathBuf,
     management_addr: SocketAddr,
     name: Option<String>,
 ) -> Result<()> {
@@ -33,7 +31,6 @@ pub fn handle(
     pingora_server.add_service(LlamaCppProcessService::new(
         llamacpp_applicable_state_holder.clone(),
         llamacpp_listen_addr,
-        llamacpp_server_bin_path,
     )?);
     pingora_server.add_service(ManagementSocketClientService::new(
         management_addr,
