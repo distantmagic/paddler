@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use log::debug;
@@ -9,9 +10,9 @@ use pingora::server::ListenFds;
 use pingora::server::ShutdownWatch;
 use pingora::services::Service;
 
-use crate::supervisor::llamacpp_process::LlamaCppProcess;
 use crate::supervisor::llamacpp_applicable_state::LlamaCppApplicableState;
 use crate::supervisor::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
+use crate::supervisor::llamacpp_process::LlamaCppProcess;
 
 pub struct LlamaCppProcessService {
     llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,

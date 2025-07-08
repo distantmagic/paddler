@@ -92,6 +92,7 @@ impl Service for ManagementService {
         let fleet_management_database: Data<dyn FleetManagementDatabase> =
             Data::from(self.fleet_management_database.clone());
         let fleet_management_enable = self.configuration.fleet_management_enable;
+        let metrics_endpoint_enable = self.configuration.metrics_endpoint_enable;
         let upstream_peers: Data<UpstreamPeerPool> = self.upstream_peers.clone().into();
 
         HttpServer::new(move || {
@@ -110,6 +111,10 @@ impl Service for ManagementService {
                     .app_data(supervisor_pool.clone())
                     .configure(http_route::api::get_supervisors::register)
                     .configure(http_route::api::ws_supervisor::register);
+            }
+
+            if metrics_endpoint_enable {
+                app = app.configure(http_route::api::get_metrics::register)
             }
 
             app

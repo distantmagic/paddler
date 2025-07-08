@@ -1,15 +1,17 @@
-use anyhow::Result;
-use std::net::SocketAddr;
 use std::io::Write as _;
-use llama_cpp_2::llama_backend::LlamaBackend;
-use llama_cpp_2::model::LlamaModel;
+use std::net::SocketAddr;
+
+use anyhow::Result;
 use llama_cpp_2::context::params::LlamaContextParams;
-use llama_cpp_2::model::params::LlamaModelParams;
+use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::llama_batch::LlamaBatch;
+use llama_cpp_2::model::params::LlamaModelParams;
+use llama_cpp_2::model::AddBos;
+use llama_cpp_2::model::LlamaModel;
+use llama_cpp_2::model::Special;
+use llama_cpp_2::sampling::LlamaSampler;
 use tokio::process::Child;
 use tokio::sync::Mutex;
-use llama_cpp_2::sampling::LlamaSampler;
-use llama_cpp_2::model::{AddBos, Special};
 
 use crate::supervisor::llamacpp_applicable_state::LlamaCppApplicableState;
 
@@ -34,7 +36,8 @@ impl LlamaCppProcess {
     pub fn spawn(&self) -> Result<()> {
         let backend = LlamaBackend::init()?;
         let params = LlamaModelParams::default();
-        let prompt = "<|im_start|>user\nHello! how are you?<|im_end|>\n<|im_start|>assistant\n".to_string();
+        let prompt =
+            "<|im_start|>user\nHello! how are you?<|im_end|>\n<|im_start|>assistant\n".to_string();
         let model = LlamaModel::load_from_file(
             &backend,
             self.applicable_state.model_path.clone(),
@@ -74,7 +77,8 @@ impl LlamaCppProcess {
                 let output_bytes = model.token_to_bytes(token, Special::Tokenize).unwrap();
                 // use `Decoder.decode_to_string()` to avoid the intermediate buffer
                 let mut output_string = String::with_capacity(32);
-                let _decode_result = decoder.decode_to_string(&output_bytes, &mut output_string, false);
+                let _decode_result =
+                    decoder.decode_to_string(&output_bytes, &mut output_string, false);
 
                 print!("{output_string}");
 
@@ -95,12 +99,13 @@ impl LlamaCppProcess {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::path::PathBuf;
-    use crate::supervisor::llamacpp_desired_state::LlamaCppDesiredState;
-    use crate::supervisor::llamacpp_desired_model::LlamaCppDesiredModel;
-    use crate::supervisor::huggingface_model_reference::HuggingFaceModelReference;
+
+    use super::*;
     use crate::supervisor::converts_to_applicable_state::ConvertsToApplicableState as _;
+    use crate::supervisor::huggingface_model_reference::HuggingFaceModelReference;
+    use crate::supervisor::llamacpp_desired_model::LlamaCppDesiredModel;
+    use crate::supervisor::llamacpp_desired_state::LlamaCppDesiredState;
 
     #[tokio::test]
     async fn test_llamacpp_process_spawn() -> Result<()> {
@@ -111,12 +116,13 @@ mod tests {
             }),
         };
 
-        let applicable_state = desired_state.to_applicable_state().await?.expect("Failed to convert to applicable state");
+        let applicable_state = desired_state
+            .to_applicable_state()
+            .await?
+            .expect("Failed to convert to applicable state");
 
-        let llamacpp_process = LlamaCppProcess::new(
-            applicable_state,
-            "127.0.0.1:8080".parse::<SocketAddr>()?,
-        )?;
+        let llamacpp_process =
+            LlamaCppProcess::new(applicable_state, "127.0.0.1:8080".parse::<SocketAddr>()?)?;
 
         llamacpp_process.spawn()?;
 

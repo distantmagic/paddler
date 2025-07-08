@@ -23,6 +23,7 @@ dashmap = "6.1.0"
 env_logger = "0.11.8"
 futures = "0.3.31"
 futures-util = { version = "0.3.31", features = ["tokio-io"] }
+indoc = "2.0.6"
 log = "0.4.27"
 pingora = { version = "0.5.0", features = ["proxy"] }
 reqwest = { version = "0.12.20", features = ["json", "stream"] }
@@ -44,7 +45,9 @@ cadence = { version = "1.5.0", optional = true }
 
 # supervisor deps
 actix-ws = { version = "0.3.0", optional = true }
+encoding_rs = { version = "0.8.35", features = ["serde"], optional = true }
 hf-hub = { version = "0.4.3", optional = true, features = ["tokio"] }
+llama-cpp-2 = { version = "0.1.108", optional = true }
 nix = { version = "0.30.1", optional = true, features = ["signal"] }
 tokio-tungstenite = { version = "0.27.0", optional = true }
 
@@ -53,14 +56,12 @@ askama = { version = "0.14.0", optional = true }
 esbuild-metafile = { version = "0.2.0", optional = true }
 mime_guess = { version = "2.0.5", optional = true }
 rust-embed = { version = "8.7.2", optional = true, features = ["interpolate-folder-path"] }
-llama-cpp-2 = "0.1.108"
-encoding_rs = { version = "0.8.35", features = ["serde"] }
 
 [features]
 default = ["ratatui_dashboard", "statsd_reporter", "supervisor", "web_dashboard"]
 ratatui_dashboard = ["dep:chrono", "dep:crossterm", "dep:ratatui", "dep:reqwest-eventsource"]
 statsd_reporter = ["dep:cadence"]
-supervisor = ["dep:actix-ws", "dep:hf-hub", "dep:nix", "dep:tokio-tungstenite"]
+supervisor = ["dep:actix-ws", "dep:encoding_rs", "dep:hf-hub", "dep:llama-cpp-2", "dep:nix", "dep:tokio-tungstenite"]
 web_dashboard = ["dep:askama", "dep:esbuild-metafile", "dep:mime_guess", "dep:rust-embed"]
 
 [profile.release]

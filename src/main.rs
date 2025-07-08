@@ -149,6 +149,10 @@ enum Commands {
         rewrite_host_header: bool,
 
         #[arg(long)]
+        /// Enable the web metrics endpoint
+        metrics_endpoint_enable: bool,
+
+        #[arg(long)]
         /// Enable the slots endpoint (not recommended)
         slots_endpoint_enable: bool,
 
@@ -231,6 +235,7 @@ fn main() -> Result<()> {
             management_addr,
             management_cors_allowed_hosts,
             max_buffered_requests,
+            metrics_endpoint_enable,
             reverseproxy_addr,
             rewrite_host_header,
             slots_endpoint_enable,
@@ -260,6 +265,7 @@ fn main() -> Result<()> {
                     cors_allowed_hosts: management_cors_allowed_hosts,
                     #[cfg(feature = "supervisor")]
                     fleet_management_enable,
+                    metrics_endpoint_enable,
                 },
                 max_buffered_requests,
                 reverseproxy_addr,
@@ -291,11 +297,7 @@ fn main() -> Result<()> {
             llamacpp_listen_addr,
             management_addr,
             name,
-        }) => cmd::supervisor::handle(
-            llamacpp_listen_addr,
-            management_addr,
-            name,
-        ),
+        }) => cmd::supervisor::handle(llamacpp_listen_addr, management_addr, name),
         None => Ok(()),
     }
 }

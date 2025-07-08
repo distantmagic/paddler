@@ -6,4 +6,5 @@ pub struct Configuration {
     pub cors_allowed_hosts: Vec<String>,
     #[cfg(feature = "supervisor")]
     pub fleet_management_enable: bool,
+    pub metrics_endpoint_enable: bool,
 }

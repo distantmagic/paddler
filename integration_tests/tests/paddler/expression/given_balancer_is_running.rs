@@ -28,6 +28,7 @@ pub async fn given_balancer_is_running(world: &mut PaddlerWorld) -> Result<()> {
             "--max-buffered-requests={}",
             world.balancer.max_buffered_requests.unwrap_or(32)
         ))
+        .arg("--metrics-endpoint-enable")
         .arg(format!("--reverseproxy-addr=127.0.1:{REVERSE_PROXY_PORT}"))
         .arg("--statsd-addr=localhost:9125")
         .arg(format!(
