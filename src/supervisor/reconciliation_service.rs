@@ -1,4 +1,3 @@
-use std::net::SocketAddr;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -14,17 +13,12 @@ use crate::supervisor::llamacpp_desired_state::LlamaCppDesiredState;
 use crate::supervisor::reconciliation_queue::ReconciliationQueue;
 
 pub struct ReconciliationService {
-    llamacpp_listen_addr: SocketAddr,
     reconciliation_queue: Arc<ReconciliationQueue>,
 }
 
 impl ReconciliationService {
-    pub fn new(
-        llamacpp_listen_addr: SocketAddr,
-        reconciliation_queue: Arc<ReconciliationQueue>,
-    ) -> Result<Self> {
+    pub fn new(reconciliation_queue: Arc<ReconciliationQueue>) -> Result<Self> {
         Ok(ReconciliationService {
-            llamacpp_listen_addr,
             reconciliation_queue,
         })
     }

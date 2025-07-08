@@ -6,6 +6,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use log::debug;
 use log::error;
+use nix::sys::signal::Signal;
 #[cfg(unix)]
 use pingora::server::ListenFds;
 use pingora::server::ShutdownWatch;
@@ -15,11 +16,13 @@ use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
 use crate::supervisor::llamacpp_applicable_state::LlamaCppApplicableState;
+use crate::supervisor::llamacpp_process::LlamaCppProcess;
 use crate::supervisor::llamacpp_reconciled_state_holder::LlamaCppReconciledStateHolder;
 
 pub struct LlamaCppProcessService {
     llamacpp_listen_addr: SocketAddr,
     llamacpp_reconciled_state_holder: Arc<LlamaCppReconciledStateHolder>,
+    llamacpp_process: Option<LlamaCppProcess>,
     llamacpp_server_bin_path: PathBuf,
 }
 
@@ -31,16 +34,36 @@ impl LlamaCppProcessService {
     ) -> Result<Self> {
         Ok(LlamaCppProcessService {
             llamacpp_listen_addr,
+            llamacpp_process: None,
             llamacpp_reconciled_state_holder,
             llamacpp_server_bin_path,
         })
     }
 
     async fn on_reconciled_state_change(
-        &self,
+        &mut self,
         llamacpp_applicable_state: Option<LlamaCppApplicableState>,
     ) -> Result<()> {
-        Ok(())
+        if let Some(llamacpp_process) = &self.llamacpp_process {
+            llamacpp_process.shutdown(Signal::SIGTERM).await?;
+        }
+
+        match llamacpp_applicable_state {
+            Some(applicable_state) => {
+                let llamacpp_process = LlamaCppProcess::new(
+                    applicable_state,
+                    self.llamacpp_listen_addr,
+                    self.llamacpp_server_bin_path.clone(),
+                )?;
+
+                llamacpp_process.spawn().await?;
+
+                self.llamacpp_process = Some(llamacpp_process);
+
+                Ok(())
+            }
+            None => Ok(()),
+        }
     }
 }
 
@@ -71,6 +94,15 @@ impl Service for LlamaCppProcessService {
                     }
                 }
                 _ = ticker.tick() => {
+                    if let Some(llamacpp_process) = &self.llamacpp_process {
+                        if let Err(err) = llamacpp_process.check_health().await {
+                            error!("Unable to check health of llama-server: {err}");
+                        }
+
+                        if !llamacpp_process.is_healthy() {
+                            error!("llama-server is unhealthy");
+                        }
+                    }
                 }
             }
         }

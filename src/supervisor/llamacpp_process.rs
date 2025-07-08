@@ -38,6 +38,32 @@ impl LlamaCppProcess {
         })
     }
 
+    pub async fn check_health(&self) -> Result<()> {
+        if self.is_dead() {
+            return Ok(());
+        }
+
+        let mut child_process = self.child_process.lock().await;
+
+        if let Some(ref mut child) = *child_process {
+            match child.try_wait()? {
+                Some(_) => {
+                    self.is_dead.store(true, Ordering::Relaxed);
+                    self.is_healthy.store(false, Ordering::Relaxed);
+                }
+                None => {
+                    self.is_dead.store(false, Ordering::Relaxed);
+                    self.is_healthy.store(true, Ordering::Relaxed);
+                }
+            }
+        } else {
+            self.is_dead.store(false, Ordering::Relaxed);
+            self.is_healthy.store(false, Ordering::Relaxed);
+        }
+
+        Ok(())
+    }
+
     pub fn is_dead(&self) -> bool {
         self.is_dead.load(Ordering::Relaxed)
     }
@@ -65,40 +91,18 @@ impl LlamaCppProcess {
     pub async fn spawn(&self) -> Result<()> {
         let child = Command::new(self.llamacpp_server_bin_path.clone())
             .kill_on_drop(true)
-            .arg("website")
-            .arg("--addr")
+            .arg("--host")
+            .arg(self.llamacpp_listen_addr.ip().to_string())
+            .arg("--port")
+            .arg(self.llamacpp_listen_addr.port().to_string())
+            .arg("--model")
+            .arg(self.applicable_state.model_path.clone())
             .spawn()?;
 
         {
             let mut child_process = self.child_process.lock().await;
 
             *child_process = Some(child);
-        }
-
-        Ok(())
-    }
-
-    pub async fn update_health(&self) -> Result<()> {
-        if self.is_dead() {
-            return Ok(());
-        }
-
-        let mut child_process = self.child_process.lock().await;
-
-        if let Some(ref mut child) = *child_process {
-            match child.try_wait()? {
-                Some(_) => {
-                    self.is_dead.store(true, Ordering::Relaxed);
-                    self.is_healthy.store(false, Ordering::Relaxed);
-                }
-                None => {
-                    self.is_dead.store(false, Ordering::Relaxed);
-                    self.is_healthy.store(true, Ordering::Relaxed);
-                }
-            }
-        } else {
-            self.is_dead.store(false, Ordering::Relaxed);
-            self.is_healthy.store(false, Ordering::Relaxed);
         }
 
         Ok(())

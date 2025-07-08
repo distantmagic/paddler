@@ -40,9 +40,6 @@ pub fn handle(
         name,
         reconciliation_queue.clone(),
     )?);
-    pingora_server.add_service(ReconciliationService::new(
-        llamacpp_listen_addr,
-        reconciliation_queue,
-    )?);
+    pingora_server.add_service(ReconciliationService::new(reconciliation_queue)?);
     pingora_server.run_forever();
 }

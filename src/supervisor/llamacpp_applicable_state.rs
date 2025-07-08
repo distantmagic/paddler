@@ -1,6 +1,8 @@
+use std::path::PathBuf;
+
 #[derive(Clone)]
 pub struct LlamaCppApplicableState {
-    pub model: String,
+    pub model_path: PathBuf,
     // pub n_ctx: usize,
     // pub n_batch: usize,
     // pub n_gpu_layers: usize,
