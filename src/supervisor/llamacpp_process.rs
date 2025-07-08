@@ -11,30 +11,30 @@ use tokio::process::Child;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 
-use crate::supervisor::llamacpp_desired_state::LlamaCppDesiredState;
+use crate::supervisor::llamacpp_applicable_state::LlamaCppApplicableState;
 
 pub struct LlamaCppProcess {
+    applicable_state: LlamaCppApplicableState,
     child_process: Mutex<Option<Child>>,
-    desired_state: LlamaCppDesiredState,
     is_dead: AtomicBool,
     is_healthy: AtomicBool,
     llamacpp_listen_addr: SocketAddr,
-    llamacpp_server_path: PathBuf,
+    llamacpp_server_bin_path: PathBuf,
 }
 
 impl LlamaCppProcess {
     pub fn new(
-        desired_state: LlamaCppDesiredState,
+        applicable_state: LlamaCppApplicableState,
         llamacpp_listen_addr: SocketAddr,
-        llamacpp_server_path: PathBuf,
+        llamacpp_server_bin_path: PathBuf,
     ) -> Result<Self> {
         Ok(Self {
+            applicable_state,
             child_process: Mutex::new(None),
-            desired_state,
             is_dead: AtomicBool::new(false),
             is_healthy: AtomicBool::new(false),
             llamacpp_listen_addr,
-            llamacpp_server_path,
+            llamacpp_server_bin_path,
         })
     }
 
@@ -63,7 +63,7 @@ impl LlamaCppProcess {
     }
 
     pub async fn spawn(&self) -> Result<()> {
-        let child = Command::new(self.llamacpp_server_path.clone())
+        let child = Command::new(self.llamacpp_server_bin_path.clone())
             .kill_on_drop(true)
             .arg("website")
             .arg("--addr")

@@ -21,12 +21,13 @@ mod tests {
     use tempfile::NamedTempFile;
 
     use super::*;
+    use crate::supervisor::llamacpp_desired_model::LlamaCppDesiredModel;
 
     async fn subtest_store_desired_state<TDatabase: FleetManagementDatabase>(
         db: &TDatabase,
     ) -> Result<()> {
         let desired_state = LlamaCppDesiredState {
-            model_path: "test_model_path".to_string(),
+            model: LlamaCppDesiredModel::Local("test_model_path".to_string()),
         };
 
         db.store_desired_state(&desired_state).await?;

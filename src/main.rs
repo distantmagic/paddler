@@ -11,6 +11,7 @@ mod supervisor;
 
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
+use std::path::PathBuf;
 #[cfg(feature = "supervisor")]
 use std::sync::Arc;
 use std::time::Duration;
@@ -190,6 +191,10 @@ enum Commands {
         /// Address of the llama.cpp instance that the supervisor will spawn and manage
         llamacpp_listen_addr: SocketAddr,
 
+        #[arg(long)]
+        /// Path to the llama.cpp server binary that the supervisor will spawn
+        llamacpp_server_bin_path: PathBuf,
+
         #[arg(long, value_parser = parse_socket_addr)]
         /// Address of the management server that the supervisor will report to
         management_addr: SocketAddr,
@@ -289,9 +294,15 @@ fn main() -> Result<()> {
         #[cfg(feature = "supervisor")]
         Some(Commands::Supervisor {
             llamacpp_listen_addr,
+            llamacpp_server_bin_path,
             management_addr,
             name,
-        }) => cmd::supervisor::handle(llamacpp_listen_addr, management_addr, name),
+        }) => cmd::supervisor::handle(
+            llamacpp_listen_addr,
+            llamacpp_server_bin_path,
+            management_addr,
+            name,
+        ),
         None => Ok(()),
     }
 }

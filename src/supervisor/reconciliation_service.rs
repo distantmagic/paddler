@@ -29,16 +29,11 @@ impl ReconciliationService {
         })
     }
 
-    pub async fn apply_desired_state(&self, desired_state: LlamaCppDesiredState) -> Result<()> {
-        debug!("Applying change request: {desired_state:?}");
-        Ok(())
-    }
-
     pub async fn on_change_request(
         &self,
         desired_state: Result<LlamaCppDesiredState>,
     ) -> Result<()> {
-        self.apply_desired_state(desired_state?).await
+        Ok(())
     }
 }
 

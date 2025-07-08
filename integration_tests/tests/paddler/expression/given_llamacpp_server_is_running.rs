@@ -7,6 +7,7 @@ use cucumber::given;
 use tempfile::NamedTempFile;
 use tokio::process::Command;
 
+use crate::MOCK_LLAMACPP_SERVER_PATH;
 use crate::llamacpp_instance::LlamaCppInstance;
 use crate::paddler_world::PaddlerWorld;
 use crate::retry_until_success::retry_until_success;
@@ -50,7 +51,7 @@ pub async fn given_agent_is_attached(
     world.llamas.instances.insert(
         llamacpp_name.clone(),
         LlamaCppInstance {
-            child: Command::new("./tests/fixtures/llamacpp-server-mock.mjs")
+            child: Command::new(MOCK_LLAMACPP_SERVER_PATH)
                 .arg("--completionResponseDelay=300")
                 .arg(format!("--logFile={}", log_file.path().to_string_lossy()))
                 .arg(format!("--name={llamacpp_name}"))

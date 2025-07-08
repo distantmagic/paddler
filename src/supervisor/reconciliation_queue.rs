@@ -42,14 +42,15 @@ impl ReconciliationQueue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::llamacpp::llamacpp_state::LlamaCppDesiredState;
+    use crate::supervisor::llamacpp_desired_model::LlamaCppDesiredModel;
+    use crate::supervisor::llamacpp_desired_state::LlamaCppDesiredState;
 
     #[tokio::test]
     async fn test_reconciliation_queue() -> Result<()> {
         let queue = ReconciliationQueue::new()?;
 
         let desired_state = LlamaCppDesiredState {
-            model_path: "test_model_path".to_string(),
+            model: LlamaCppDesiredModel::Local("test_model_path".to_string()),
         };
 
         queue.register_change_request(desired_state.clone()).await?;

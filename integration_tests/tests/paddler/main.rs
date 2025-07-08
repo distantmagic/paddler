@@ -25,6 +25,7 @@ use self::cleanable::Cleanable as _;
 use self::paddler_world::PaddlerWorld;
 
 pub const BALANCER_PORT: u16 = 8095;
+pub const MOCK_LLAMACPP_SERVER_PATH: &str = "./tests/fixtures/llamacpp-server-mock.mjs";
 pub const REVERSE_PROXY_PORT: u16 = 8096;
 
 #[tokio::main]

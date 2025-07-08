@@ -1,4 +1,5 @@
-pub struct LlamaCppActualState {
+#[derive(Clone)]
+pub struct LlamaCppApplicableState {
     pub model: String,
     // pub n_ctx: usize,
     // pub n_batch: usize,
