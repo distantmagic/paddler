@@ -21,7 +21,7 @@ pub fn handle(
     management_cors_allowed_hosts: Vec<String>,
     #[cfg(feature = "web_dashboard")] management_dashboard_enable: bool,
     max_buffered_requests: usize,
-    metric_endpoint_enable: bool,
+    metrics_endpoint_enable: bool,
     reverseproxy_addr: &SocketAddr,
     rewrite_host_header: bool,
     slots_endpoint_enable: bool,
