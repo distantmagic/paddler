@@ -7,6 +7,7 @@ use actix::Handler;
 use actix::SyncContext;
 use anyhow::Result;
 use llama_cpp_2::context::params::LlamaContextParams;
+use llama_cpp_2::context::LlamaContext;
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::llama_batch::LlamaBatch;
 use llama_cpp_2::model::AddBos;
@@ -19,6 +20,7 @@ use crate::supervisor::message::Generate;
 
 pub struct LlamaCppSlot {
     backend: Arc<LlamaBackend>,
+    ctx: LlamaContext<'static>,
     ctx_params: Arc<LlamaContextParams>,
     id: Uuid,
     model: Arc<LlamaModel>,
@@ -30,8 +32,27 @@ impl LlamaCppSlot {
         ctx_params: Arc<LlamaContextParams>,
         model: Arc<LlamaModel>,
     ) -> Self {
+        debug_assert!(
+            Arc::strong_count(&model) >= 1,
+            "Model Arc must have at least one reference"
+        );
+
+        let ctx = unsafe {
+            // SAFETY: Extending the lifetime of the model reference to 'static.
+            // This should be safe because:
+            // 1. The model is stored in an Arc, so it won't be deallocated
+            // 2. We store the Arc in the same struct, ensuring it lives as long as the context
+            // 3. The context cannot outlive the struct that contains both it and the model
+            let model_ref: &'static LlamaModel = std::mem::transmute(model.as_ref());
+
+            model_ref
+                .new_context(&backend, (*ctx_params).clone())
+                .unwrap()
+        };
+
         Self {
             backend,
+            ctx,
             ctx_params,
             id: Uuid::new_v4(),
             model,
@@ -55,9 +76,6 @@ impl Handler<Generate> for LlamaCppSlot {
     ) -> Self::Result {
         let id = self.id.to_string();
 
-        let mut ctx = self
-            .model
-            .new_context(&self.backend, (*self.ctx_params).clone())?;
         let tokens_list = self.model.str_to_token(&prompt, AddBos::Always)?;
         let n_len = 500;
         let mut batch = LlamaBatch::new(512, 1);
@@ -68,22 +86,22 @@ impl Handler<Generate> for LlamaCppSlot {
             batch.add(token, i, &[0], is_last)?;
         }
 
-        ctx.decode(&mut batch)?;
+        self.ctx.decode(&mut batch)?;
 
         let mut n_cur = batch.n_tokens();
         let mut decoder = encoding_rs::UTF_8.new_decoder();
         let mut sampler = LlamaSampler::greedy();
+        let mut response: String = String::with_capacity(2048);
 
         while n_cur <= n_len {
             // sample the next token
             {
-                let token = sampler.sample(&ctx, batch.n_tokens() - 1);
+                let token = sampler.sample(&self.ctx, batch.n_tokens() - 1);
 
                 sampler.accept(token);
 
                 // is it an end of stream?
                 if token == self.model.token_eos() {
-                    eprintln!();
                     break;
                 }
 
@@ -95,6 +113,8 @@ impl Handler<Generate> for LlamaCppSlot {
 
                 println!("slot {id}: {output_string}");
 
+                response.push_str(&output_string);
+
                 stdout().flush().unwrap();
 
                 batch.clear();
@@ -103,9 +123,9 @@ impl Handler<Generate> for LlamaCppSlot {
 
             n_cur += 1;
 
-            ctx.decode(&mut batch).expect("failed to eval");
+            self.ctx.decode(&mut batch).expect("failed to eval");
         }
 
-        Ok(prompt)
+        Ok(response)
     }
 }

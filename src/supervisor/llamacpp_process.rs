@@ -43,18 +43,18 @@ impl LlamaCppProcess {
             LlamaCppSlot::new(backend.clone(), ctx_params.clone(), model.clone())
         });
 
+        let prompt =
+            "<|im_start|>user\nHow can I make a cat happy?<|im_end|>\n<|im_start|>assistant\n";
+
         let futures = vec![
             addr.send(Generate {
-                prompt: "<|im_start|>user\nHello! how are you?<|im_end|>\n<|im_start|>assistant\n"
-                    .to_string(),
+                prompt: prompt.to_string(),
             }),
             addr.send(Generate {
-                prompt: "<|im_start|>user\nHello! how are you?<|im_end|>\n<|im_start|>assistant\n"
-                    .to_string(),
+                prompt: prompt.to_string(),
             }),
             addr.send(Generate {
-                prompt: "<|im_start|>user\nHello! how are you?<|im_end|>\n<|im_start|>assistant\n"
-                    .to_string(),
+                prompt: prompt.to_string(),
             }),
         ];
 
@@ -66,7 +66,7 @@ impl LlamaCppProcess {
                     println!("Response: {}", response?);
                 }
                 Err(err) => {
-                    eprintln!("Error generating response: {}", err);
+                    eprintln!("Error generating response: {err}");
                 }
             }
         }
@@ -89,6 +89,8 @@ mod tests {
             model: LlamaCppDesiredModel::HuggingFace(HuggingFaceModelReference {
                 filename: "Qwen3-0.6B-Q8_0.gguf".to_string(),
                 repo: "Qwen/Qwen3-0.6B-GGUF".to_string(),
+                // filename: "Qwen3-8B-Q4_K_M.gguf".to_string(),
+                // repo: "Qwen/Qwen3-8B-GGUF".to_string(),
             }),
         };
 
