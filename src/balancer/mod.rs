@@ -1,6 +1,4 @@
-#[cfg(feature = "supervisor")]
 pub mod fleet_management_database;
-#[cfg(feature = "supervisor")]
 pub mod fleet_management_database_type;
 pub mod http_route;
 pub mod management_service;
@@ -11,9 +9,7 @@ pub mod response;
 #[cfg(feature = "statsd_reporter")]
 pub mod statsd_service;
 pub mod status_update;
-#[cfg(feature = "supervisor")]
 pub mod supervisor_controller;
-#[cfg(feature = "supervisor")]
 pub mod supervisor_controller_pool;
 #[cfg(test)]
 pub mod test;

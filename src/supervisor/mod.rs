@@ -7,6 +7,8 @@ pub mod llamacpp_desired_model;
 pub mod llamacpp_desired_state;
 pub mod llamacpp_process;
 pub mod llamacpp_process_service;
+pub mod llamacpp_slot;
 pub mod management_socket_client_service;
+pub mod message;
 pub mod reconciliation_queue;
 pub mod reconciliation_service;

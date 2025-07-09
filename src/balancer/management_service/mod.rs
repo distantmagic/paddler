@@ -13,11 +13,9 @@ use pingora::server::ListenFds;
 use pingora::server::ShutdownWatch;
 use pingora::services::Service;
 
-#[cfg(feature = "supervisor")]
 use crate::balancer::fleet_management_database::FleetManagementDatabase;
 use crate::balancer::http_route;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
-#[cfg(feature = "supervisor")]
 use crate::balancer::supervisor_controller_pool::SupervisorControllerPool;
 use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 #[cfg(feature = "web_dashboard")]
@@ -42,7 +40,6 @@ fn create_cors_middleware(allowed_hosts: Arc<Vec<String>>) -> Cors {
 
 pub struct ManagementService {
     configuration: ManagementServiceConfiguration,
-    #[cfg(feature = "supervisor")]
     fleet_management_database: Arc<dyn FleetManagementDatabase>,
     upstream_peers: Arc<UpstreamPeerPool>,
     #[cfg(feature = "web_dashboard")]
@@ -52,7 +49,7 @@ pub struct ManagementService {
 impl ManagementService {
     pub fn new(
         configuration: ManagementServiceConfiguration,
-        #[cfg(feature = "supervisor")] fleet_management_database: Arc<dyn FleetManagementDatabase>,
+        fleet_management_database: Arc<dyn FleetManagementDatabase>,
         upstream_peers: Arc<UpstreamPeerPool>,
         #[cfg(feature = "web_dashboard")] web_dashboard_service_configuration: Option<
             WebDashboardServiceConfiguration,
@@ -79,7 +76,6 @@ impl Service for ManagementService {
         #[allow(unused_mut)]
         let mut cors_allowed_hosts = self.configuration.cors_allowed_hosts.clone();
 
-        #[cfg(feature = "supervisor")]
         let supervisor_pool: Data<SupervisorControllerPool> =
             Data::new(SupervisorControllerPool::new());
 
@@ -104,7 +100,6 @@ impl Service for ManagementService {
                 .configure(http_route::api::get_agents_stream::register)
                 .configure(http_route::api::post_agent_status_update::register);
 
-            #[cfg(feature = "supervisor")]
             if fleet_management_enable {
                 app = app
                     .app_data(fleet_management_database.clone())

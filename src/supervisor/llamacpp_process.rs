@@ -1,23 +1,20 @@
-use std::io::Write as _;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
+use actix::sync::SyncArbiter;
 use anyhow::Result;
+use futures::future::join_all;
 use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::llama_backend::LlamaBackend;
-use llama_cpp_2::llama_batch::LlamaBatch;
 use llama_cpp_2::model::params::LlamaModelParams;
-use llama_cpp_2::model::AddBos;
 use llama_cpp_2::model::LlamaModel;
-use llama_cpp_2::model::Special;
-use llama_cpp_2::sampling::LlamaSampler;
-use tokio::process::Child;
-use tokio::sync::Mutex;
 
 use crate::supervisor::llamacpp_applicable_state::LlamaCppApplicableState;
+use crate::supervisor::llamacpp_slot::LlamaCppSlot;
+use crate::supervisor::message::Generate;
 
 pub struct LlamaCppProcess {
     applicable_state: LlamaCppApplicableState,
-    child_process: Mutex<Option<Child>>,
     llamacpp_listen_addr: SocketAddr,
 }
 
@@ -28,69 +25,50 @@ impl LlamaCppProcess {
     ) -> Result<Self> {
         Ok(Self {
             applicable_state,
-            child_process: Mutex::new(None),
             llamacpp_listen_addr,
         })
     }
 
-    pub fn spawn(&self) -> Result<()> {
-        let backend = LlamaBackend::init()?;
+    pub async fn spawn(&self) -> Result<()> {
+        let backend = Arc::new(LlamaBackend::init()?);
         let params = LlamaModelParams::default();
-        let prompt =
-            "<|im_start|>user\nHello! how are you?<|im_end|>\n<|im_start|>assistant\n".to_string();
-        let model = LlamaModel::load_from_file(
-            &backend,
+        let model = Arc::new(LlamaModel::load_from_file(
+            &backend.clone(),
             self.applicable_state.model_path.clone(),
             &params,
-        )?;
-        let ctx_params = LlamaContextParams::default();
-        let mut ctx = model.new_context(&backend, ctx_params)?;
-        let tokens_list = model.str_to_token(&prompt, AddBos::Always)?;
-        let n_len = 500;
-        let mut batch = LlamaBatch::new(512, 1);
-        let last_index = tokens_list.len() as i32 - 1;
+        )?);
+        let ctx_params = Arc::new(LlamaContextParams::default());
 
-        for (i, token) in (0_i32..).zip(tokens_list.into_iter()) {
-            let is_last = i == last_index;
-            batch.add(token, i, &[0], is_last)?;
-        }
+        let addr = SyncArbiter::start(3, move || {
+            LlamaCppSlot::new(backend.clone(), ctx_params.clone(), model.clone())
+        });
 
-        ctx.decode(&mut batch)?;
+        let futures = vec![
+            addr.send(Generate {
+                prompt: "<|im_start|>user\nHello! how are you?<|im_end|>\n<|im_start|>assistant\n"
+                    .to_string(),
+            }),
+            addr.send(Generate {
+                prompt: "<|im_start|>user\nHello! how are you?<|im_end|>\n<|im_start|>assistant\n"
+                    .to_string(),
+            }),
+            addr.send(Generate {
+                prompt: "<|im_start|>user\nHello! how are you?<|im_end|>\n<|im_start|>assistant\n"
+                    .to_string(),
+            }),
+        ];
 
-        let mut n_cur = batch.n_tokens();
-        let mut decoder = encoding_rs::UTF_8.new_decoder();
-        let mut sampler = LlamaSampler::greedy();
+        let results = join_all(futures).await;
 
-        while n_cur <= n_len {
-            // sample the next token
-            {
-                let token = sampler.sample(&ctx, batch.n_tokens() - 1);
-
-                sampler.accept(token);
-
-                // is it an end of stream?
-                if token == model.token_eos() {
-                    eprintln!();
-                    break;
+        for result in results {
+            match result {
+                Ok(response) => {
+                    println!("Response: {}", response?);
                 }
-
-                let output_bytes = model.token_to_bytes(token, Special::Tokenize).unwrap();
-                // use `Decoder.decode_to_string()` to avoid the intermediate buffer
-                let mut output_string = String::with_capacity(32);
-                let _decode_result =
-                    decoder.decode_to_string(&output_bytes, &mut output_string, false);
-
-                print!("{output_string}");
-
-                std::io::stdout().flush().unwrap();
-
-                batch.clear();
-                batch.add(token, n_cur, &[0], true).unwrap();
+                Err(err) => {
+                    eprintln!("Error generating response: {}", err);
+                }
             }
-
-            n_cur += 1;
-
-            ctx.decode(&mut batch).expect("failed to eval");
         }
 
         Ok(())
@@ -99,15 +77,13 @@ impl LlamaCppProcess {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
     use super::*;
     use crate::supervisor::converts_to_applicable_state::ConvertsToApplicableState as _;
     use crate::supervisor::huggingface_model_reference::HuggingFaceModelReference;
     use crate::supervisor::llamacpp_desired_model::LlamaCppDesiredModel;
     use crate::supervisor::llamacpp_desired_state::LlamaCppDesiredState;
 
-    #[tokio::test]
+    #[actix_web::test]
     async fn test_llamacpp_process_spawn() -> Result<()> {
         let desired_state = LlamaCppDesiredState {
             model: LlamaCppDesiredModel::HuggingFace(HuggingFaceModelReference {
@@ -124,7 +100,7 @@ mod tests {
         let llamacpp_process =
             LlamaCppProcess::new(applicable_state, "127.0.0.1:8080".parse::<SocketAddr>()?)?;
 
-        llamacpp_process.spawn()?;
+        llamacpp_process.spawn().await?;
 
         assert!(false);
 

@@ -8,7 +8,6 @@ use pingora::proxy::http_proxy_service;
 use pingora::server::configuration::Opt;
 use pingora::server::Server;
 
-#[cfg(feature = "supervisor")]
 use crate::balancer::fleet_management_database::FleetManagementDatabase;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::management_service::ManagementService;

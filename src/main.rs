@@ -1,17 +1,14 @@
 mod agent;
 mod balancer;
 mod cmd;
-#[cfg(feature = "supervisor")]
 mod jsonrpc;
 mod llamacpp;
 #[cfg(feature = "web_dashboard")]
 mod static_files;
-#[cfg(feature = "supervisor")]
 mod supervisor;
 
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
-#[cfg(feature = "supervisor")]
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -22,11 +19,8 @@ use clap::Subcommand;
 #[cfg(feature = "web_dashboard")]
 use esbuild_metafile::instance::initialize_instance;
 
-#[cfg(feature = "supervisor")]
 use crate::balancer::fleet_management_database::File;
-#[cfg(feature = "supervisor")]
 use crate::balancer::fleet_management_database::Memory;
-#[cfg(feature = "supervisor")]
 use crate::balancer::fleet_management_database_type::FleetManagementDatabaseType;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 #[cfg(feature = "statsd_reporter")]
@@ -112,12 +106,10 @@ enum Commands {
         /// upstream isn't received for, the 504 (Gateway Timeout) error is issued.
         buffered_request_timeout: Duration,
 
-        #[cfg(feature = "supervisor")]
         #[arg(long, default_value = "memory://")]
         // Fleet management database URL. Supported: memory, memory://, or file:///path (optional)
         fleet_management_database: FleetManagementDatabaseType,
 
-        #[cfg(feature = "supervisor")]
         #[arg(long)]
         /// Enable registering supervisor-managed llama.cpp instances in the balancer
         fleet_management_enable: bool,
@@ -187,7 +179,6 @@ enum Commands {
         /// Address of the management server that the dashboard will connect to
         management_addr: SocketAddr,
     },
-    #[cfg(feature = "supervisor")]
     /// Supervisor for managing llama.cpp instances
     Supervisor {
         #[arg(long, value_parser = parse_socket_addr)]
@@ -228,9 +219,7 @@ fn main() -> Result<()> {
         ),
         Some(Commands::Balancer {
             buffered_request_timeout,
-            #[cfg(feature = "supervisor")]
             fleet_management_database,
-            #[cfg(feature = "supervisor")]
             fleet_management_enable,
             management_addr,
             management_cors_allowed_hosts,
@@ -255,7 +244,6 @@ fn main() -> Result<()> {
 
             cmd::balancer::handle(
                 buffered_request_timeout,
-                #[cfg(feature = "supervisor")]
                 match fleet_management_database {
                     FleetManagementDatabaseType::File(path) => Arc::new(File::new(path)),
                     FleetManagementDatabaseType::Memory => Arc::new(Memory::new()),
@@ -263,7 +251,6 @@ fn main() -> Result<()> {
                 ManagementServiceConfiguration {
                     addr: management_addr,
                     cors_allowed_hosts: management_cors_allowed_hosts,
-                    #[cfg(feature = "supervisor")]
                     fleet_management_enable,
                     metrics_endpoint_enable,
                 },
@@ -292,7 +279,6 @@ fn main() -> Result<()> {
         Some(Commands::Dashboard {
             management_addr,
         }) => cmd::dashboard::handle(management_addr),
-        #[cfg(feature = "supervisor")]
         Some(Commands::Supervisor {
             llamacpp_listen_addr,
             management_addr,
