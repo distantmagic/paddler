@@ -1,4 +1,3 @@
-use std::net::SocketAddr;
 use std::sync::Arc;
 
 use actix::sync::SyncArbiter;
@@ -14,15 +13,14 @@ use crate::supervisor::llamacpp_slot::LlamaCppSlot;
 
 pub struct LlamaCppArbiter {
     applicable_state: LlamaCppApplicableState,
+    slots_total: usize,
 }
 
 impl LlamaCppArbiter {
-    pub fn new(
-        applicable_state: LlamaCppApplicableState,
-        llamacpp_listen_addr: SocketAddr,
-    ) -> Result<Self> {
+    pub fn new(applicable_state: LlamaCppApplicableState, slots_total: usize) -> Result<Self> {
         Ok(Self {
             applicable_state,
+            slots_total,
         })
     }
 
@@ -36,8 +34,9 @@ impl LlamaCppArbiter {
         )?);
         let ctx_params = Arc::new(LlamaContextParams::default());
 
-        Ok(SyncArbiter::start(3, move || {
+        Ok(SyncArbiter::start(self.slots_total, move || {
             LlamaCppSlot::new(backend.clone(), ctx_params.clone(), model.clone())
+                .expect("Failed to create LlamaCppSlot")
         }))
     }
 }
@@ -45,6 +44,7 @@ impl LlamaCppArbiter {
 #[cfg(test)]
 mod tests {
     use futures::future::join_all;
+    use tokio::sync::mpsc;
 
     use super::*;
     use crate::supervisor::converts_to_applicable_state::ConvertsToApplicableState as _;
@@ -69,25 +69,37 @@ mod tests {
             .await?
             .expect("Failed to convert to applicable state");
 
-        let llamacpp_arbiter =
-            LlamaCppArbiter::new(applicable_state, "127.0.0.1:8080".parse::<SocketAddr>()?)?;
+        let llamacpp_arbiter = LlamaCppArbiter::new(applicable_state, 3)?;
 
         let addr = llamacpp_arbiter.spawn().await?;
 
         let prompt =
             "<|im_start|>user\nHow can I make a cat happy?<|im_end|>\n<|im_start|>assistant\n";
+        let (tx, mut rx) = mpsc::channel(100);
 
         let futures = vec![
             addr.send(Generate {
+                chunk_sender: tx.clone(),
+                max_tokens: 100,
                 prompt: prompt.to_string(),
             }),
             addr.send(Generate {
+                chunk_sender: tx.clone(),
+                max_tokens: 100,
                 prompt: prompt.to_string(),
             }),
             addr.send(Generate {
+                chunk_sender: tx,
+                max_tokens: 100,
                 prompt: prompt.to_string(),
             }),
         ];
+
+        tokio::spawn(async move {
+            while let Some(chunk) = rx.recv().await {
+                println!("Received chunk: {chunk}");
+            }
+        });
 
         let results = join_all(futures).await;
 
