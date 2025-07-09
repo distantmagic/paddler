@@ -1,4 +1,5 @@
 use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 use std::sync::RwLock;
 use std::time::Duration;
 use std::time::SystemTime;
@@ -15,6 +16,7 @@ use crate::balancer::upstream_peer::UpstreamPeer;
 #[derive(Serialize, Deserialize)]
 pub struct UpstreamPeerPoolInfo {
     pub agents: Vec<UpstreamPeer>,
+    pub request_buffer_length: AtomicUsize,
 }
 
 pub struct UpstreamPeerPool {
@@ -37,6 +39,7 @@ impl UpstreamPeerPool {
     pub fn info(&self) -> Option<UpstreamPeerPoolInfo> {
         self.agents.read().ok().map(|agents| UpstreamPeerPoolInfo {
             agents: agents.clone(),
+            request_buffer_length: self.request_buffer_length.load(Ordering::Relaxed).into(),
         })
     }
 

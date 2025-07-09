@@ -14,7 +14,7 @@ pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
 }
 
-#[get("/api/v1/agents/stream")]
+#[get("/api/v1/upstream_peer_pool/stream")]
 async fn respond(upstream_peer_pool: web::Data<UpstreamPeerPool>) -> Result<impl Responder, Error> {
     let pool = upstream_peer_pool.clone();
 

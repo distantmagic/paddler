@@ -2,14 +2,14 @@ import React from "react";
 
 import { useEventSourceUpdates } from "../hooks/useEventSourceUpdates";
 import { matchEventSourceUpdateState } from "../matchEventSourceUpdateState";
-import { AgentsResponseSchema } from "../schemas/AgentsResponse";
+import { UpstreamPeerPool } from "../schemas/AgentsResponse";
 import { AgentsList } from "./AgentsList";
 import { DashboardLayout } from "./DashboardLayout";
 
 export function Dashboard() {
   const eventSourceUpdateState = useEventSourceUpdates({
-    schema: AgentsResponseSchema,
-    endpoint: "/api/v1/agents/stream",
+    schema: UpstreamPeerPool,
+    endpoint: "/api/v1/upstream_peer_pool/stream",
   });
 
   return matchEventSourceUpdateState(eventSourceUpdateState, {
