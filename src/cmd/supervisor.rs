@@ -6,7 +6,7 @@ use pingora::server::configuration::Opt;
 use pingora::server::Server;
 
 use crate::supervisor::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
-use crate::supervisor::llamacpp_process_service::LlamaCppProcessService;
+use crate::supervisor::llamacpp_arbiter_service::LlamaCppArbiterService;
 use crate::supervisor::management_socket_client_service::ManagementSocketClientService;
 use crate::supervisor::reconciliation_queue::ReconciliationQueue;
 use crate::supervisor::reconciliation_service::ReconciliationService;
@@ -28,7 +28,7 @@ pub fn handle(
     })?;
 
     pingora_server.bootstrap();
-    pingora_server.add_service(LlamaCppProcessService::new(
+    pingora_server.add_service(LlamaCppArbiterService::new(
         llamacpp_applicable_state_holder.clone(),
         llamacpp_listen_addr,
     )?);

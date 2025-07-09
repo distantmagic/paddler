@@ -12,23 +12,23 @@ use pingora::services::Service;
 
 use crate::supervisor::llamacpp_applicable_state::LlamaCppApplicableState;
 use crate::supervisor::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
-use crate::supervisor::llamacpp_process::LlamaCppProcess;
+use crate::supervisor::llamacpp_arbiter::LlamaCppArbiter;
 
-pub struct LlamaCppProcessService {
+pub struct LlamaCppArbiterService {
     llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
+    llamacpp_arbiter: Option<LlamaCppArbiter>,
     llamacpp_listen_addr: SocketAddr,
-    llamacpp_process: Option<LlamaCppProcess>,
 }
 
-impl LlamaCppProcessService {
+impl LlamaCppArbiterService {
     pub fn new(
         llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
         llamacpp_listen_addr: SocketAddr,
     ) -> Result<Self> {
-        Ok(LlamaCppProcessService {
+        Ok(LlamaCppArbiterService {
             llamacpp_applicable_state_holder,
+            llamacpp_arbiter: None,
             llamacpp_listen_addr,
-            llamacpp_process: None,
         })
     }
 
@@ -41,7 +41,7 @@ impl LlamaCppProcessService {
 }
 
 #[async_trait]
-impl Service for LlamaCppProcessService {
+impl Service for LlamaCppArbiterService {
     async fn start_service(
         &mut self,
         #[cfg(unix)] _fds: Option<ListenFds>,
@@ -68,7 +68,7 @@ impl Service for LlamaCppProcessService {
     }
 
     fn name(&self) -> &str {
-        "supervisor::llamacpp_process_service"
+        "supervisor::llamacpp_arbiter_service"
     }
 
     fn threads(&self) -> Option<usize> {

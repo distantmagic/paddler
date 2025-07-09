@@ -19,9 +19,7 @@ use uuid::Uuid;
 use crate::supervisor::message::Generate;
 
 pub struct LlamaCppSlot {
-    backend: Arc<LlamaBackend>,
     ctx: LlamaContext<'static>,
-    ctx_params: Arc<LlamaContextParams>,
     id: Uuid,
     model: Arc<LlamaModel>,
 }
@@ -51,9 +49,7 @@ impl LlamaCppSlot {
         };
 
         Self {
-            backend,
             ctx,
-            ctx_params,
             id: Uuid::new_v4(),
             model,
         }

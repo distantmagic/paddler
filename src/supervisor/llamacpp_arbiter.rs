@@ -13,12 +13,12 @@ use crate::supervisor::llamacpp_applicable_state::LlamaCppApplicableState;
 use crate::supervisor::llamacpp_slot::LlamaCppSlot;
 use crate::supervisor::message::Generate;
 
-pub struct LlamaCppProcess {
+pub struct LlamaCppArbiter {
     applicable_state: LlamaCppApplicableState,
     llamacpp_listen_addr: SocketAddr,
 }
 
-impl LlamaCppProcess {
+impl LlamaCppArbiter {
     pub fn new(
         applicable_state: LlamaCppApplicableState,
         llamacpp_listen_addr: SocketAddr,
@@ -84,7 +84,7 @@ mod tests {
     use crate::supervisor::llamacpp_desired_state::LlamaCppDesiredState;
 
     #[actix_web::test]
-    async fn test_llamacpp_process_spawn() -> Result<()> {
+    async fn test_llamacpp_arbiter_spawn() -> Result<()> {
         let desired_state = LlamaCppDesiredState {
             model: LlamaCppDesiredModel::HuggingFace(HuggingFaceModelReference {
                 filename: "Qwen3-0.6B-Q8_0.gguf".to_string(),
@@ -99,10 +99,10 @@ mod tests {
             .await?
             .expect("Failed to convert to applicable state");
 
-        let llamacpp_process =
-            LlamaCppProcess::new(applicable_state, "127.0.0.1:8080".parse::<SocketAddr>()?)?;
+        let llamacpp_arbiter =
+            LlamaCppArbiter::new(applicable_state, "127.0.0.1:8080".parse::<SocketAddr>()?)?;
 
-        llamacpp_process.spawn().await?;
+        llamacpp_arbiter.spawn().await?;
 
         assert!(false);
 
