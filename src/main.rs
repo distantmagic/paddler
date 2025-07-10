@@ -1,4 +1,3 @@
-mod agent;
 mod balancer;
 mod cmd;
 mod jsonrpc;
@@ -78,16 +77,6 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Monitors llama.cpp instance and reports their status to the balancer
-    Agent {
-        #[arg(long, value_parser = parse_socket_addr)]
-        /// Address of the management server that the agent will report to
-        management_addr: SocketAddr,
-
-        #[arg(long)]
-        /// Name of the agent (optional)
-        name: Option<String>,
-    },
     /// Balances incoming requests to llama.cpp instances and optionally provides a web dashboard
     Balancer {
         #[arg(long, default_value = "10000", value_parser = parse_duration)]
@@ -191,10 +180,6 @@ async fn main() -> Result<()> {
     });
 
     match Cli::parse().command {
-        Some(Commands::Agent {
-            management_addr,
-            name,
-        }) => cmd::agent::handle(management_addr.to_owned(), name.to_owned(), shutdown_rx).await,
         Some(Commands::Balancer {
             buffered_request_timeout,
             fleet_management_database,
