@@ -42,6 +42,10 @@ integration_tests:
 test: integration_tests
 	cargo test
 
+.PHONY: test.llms
+test.llms:
+	cargo test --features tests_that_use_llms -- --nocapture
+
 .PHONY: watch
 watch: node_modules
 	./jarmuz-watch.mjs

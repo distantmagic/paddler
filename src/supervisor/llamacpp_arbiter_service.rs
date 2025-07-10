@@ -5,11 +5,9 @@ use anyhow::Result;
 use async_trait::async_trait;
 use log::debug;
 use log::error;
-#[cfg(unix)]
-use pingora::server::ListenFds;
-use pingora::server::ShutdownWatch;
-use pingora::services::Service;
+use tokio::sync::broadcast;
 
+use crate::service::Service;
 use crate::supervisor::llamacpp_applicable_state::LlamaCppApplicableState;
 use crate::supervisor::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
 use crate::supervisor::llamacpp_arbiter::LlamaCppArbiter;
@@ -42,19 +40,15 @@ impl LlamaCppArbiterService {
 
 #[async_trait]
 impl Service for LlamaCppArbiterService {
-    async fn start_service(
-        &mut self,
-        #[cfg(unix)] _fds: Option<ListenFds>,
-        mut shutdown: ShutdownWatch,
-        _listeners_per_fd: usize,
-    ) {
+    async fn run(&mut self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
         let mut reconciled_state = self.llamacpp_applicable_state_holder.subscribe();
 
         loop {
             tokio::select! {
-                _ = shutdown.changed() => {
+                _ = shutdown.recv() => {
                     debug!("Shutting down monitoring service");
-                    return;
+
+                    return Ok(());
                 },
                 _ = reconciled_state.changed() => {
                     let llamacpp_applicable_state: Option<LlamaCppApplicableState> = reconciled_state.borrow_and_update().clone();
@@ -65,13 +59,5 @@ impl Service for LlamaCppArbiterService {
                 }
             }
         }
-    }
-
-    fn name(&self) -> &str {
-        "supervisor::llamacpp_arbiter_service"
-    }
-
-    fn threads(&self) -> Option<usize> {
-        Some(1)
     }
 }

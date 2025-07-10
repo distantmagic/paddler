@@ -4,11 +4,9 @@ use anyhow::Result;
 use async_trait::async_trait;
 use log::debug;
 use log::error;
-#[cfg(unix)]
-use pingora::server::ListenFds;
-use pingora::server::ShutdownWatch;
-use pingora::services::Service;
+use tokio::sync::broadcast;
 
+use crate::service::Service;
 use crate::supervisor::converts_to_applicable_state::ConvertsToApplicableState;
 use crate::supervisor::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
 use crate::supervisor::llamacpp_desired_state::LlamaCppDesiredState;
@@ -43,17 +41,13 @@ impl ReconciliationService {
 
 #[async_trait]
 impl Service for ReconciliationService {
-    async fn start_service(
-        &mut self,
-        #[cfg(unix)] _fds: Option<ListenFds>,
-        mut shutdown: ShutdownWatch,
-        _listeners_per_fd: usize,
-    ) {
+    async fn run(&mut self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
         loop {
             tokio::select! {
-                _ = shutdown.changed() => {
+                _ = shutdown.recv() => {
                     debug!("Shutting down monitoring service");
-                    return;
+
+                    return Ok(());
                 },
                 change_request = self.reconciliation_queue.next_change_request() => {
                     if let Err(err) = self.on_change_request(change_request).await {
@@ -62,13 +56,5 @@ impl Service for ReconciliationService {
                 }
             }
         }
-    }
-
-    fn name(&self) -> &str {
-        "supervisor::reconciliation"
-    }
-
-    fn threads(&self) -> Option<usize> {
-        Some(1)
     }
 }

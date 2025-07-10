@@ -4,14 +4,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
-use pingora::proxy::http_proxy_service;
-use pingora::server::configuration::Opt;
-use pingora::server::Server;
+use tokio::sync::oneshot;
 
 use crate::balancer::fleet_management_database::FleetManagementDatabase;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::management_service::ManagementService;
-use crate::balancer::proxy_service::ProxyService;
 #[cfg(feature = "statsd_reporter")]
 use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
 #[cfg(feature = "statsd_reporter")]
@@ -21,9 +18,10 @@ use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
 #[cfg(feature = "web_dashboard")]
 use crate::balancer::web_dashboard_service::WebDashboardService;
+use crate::service_manager::ServiceManager;
 
 #[allow(clippy::too_many_arguments)]
-pub fn handle(
+pub async fn handle(
     buffered_request_timeout: Duration,
     fleet_management_database: Arc<dyn FleetManagementDatabase>,
     management_service_configuration: ManagementServiceConfiguration,
@@ -38,33 +36,11 @@ pub fn handle(
         WebDashboardServiceConfiguration,
     >,
 ) -> Result<()> {
-    let mut pingora_server = Server::new(Opt {
-        upgrade: false,
-        daemon: false,
-        nocapture: false,
-        test: false,
-        conf: None,
-    })?;
-
-    pingora_server.bootstrap();
-
+    let (shutdown_tx, shutdown_rx) = oneshot::channel();
+    let mut service_manager = ServiceManager::new();
     let upstream_peer_pool = Arc::new(UpstreamPeerPool::new());
 
-    let mut proxy_service = http_proxy_service(
-        &pingora_server.configuration,
-        ProxyService::new(
-            rewrite_host_header,
-            slots_endpoint_enable,
-            upstream_peer_pool.clone(),
-            buffered_request_timeout,
-            max_buffered_requests,
-        ),
-    );
-
-    proxy_service.add_tcp(&reverseproxy_addr.clone().to_string());
-
-    pingora_server.add_service(proxy_service);
-    pingora_server.add_service(ManagementService::new(
+    service_manager.add_service(ManagementService::new(
         management_service_configuration,
         fleet_management_database,
         upstream_peer_pool.clone(),
@@ -77,7 +53,7 @@ pub fn handle(
         let statsd_service =
             StatsdService::new(statsd_service_configuration, upstream_peer_pool.clone())?;
 
-        pingora_server.add_service(statsd_service);
+        service_manager.add_service(statsd_service);
     }
 
     #[cfg(feature = "web_dashboard")]
@@ -87,8 +63,8 @@ pub fn handle(
             upstream_peer_pool.clone(),
         );
 
-        pingora_server.add_service(web_dashboard_service);
+        service_manager.add_service(web_dashboard_service);
     }
 
-    pingora_server.run_forever();
+    service_manager.run_forever(shutdown_rx).await
 }

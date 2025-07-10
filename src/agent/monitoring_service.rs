@@ -5,10 +5,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use log::debug;
 use log::error;
-#[cfg(unix)]
-use pingora::server::ListenFds;
-use pingora::server::ShutdownWatch;
-use pingora::services::Service;
+use tokio::sync::broadcast;
 use tokio::sync::broadcast::Sender;
 use tokio::time::interval;
 use tokio::time::Duration;
@@ -16,6 +13,7 @@ use tokio::time::MissedTickBehavior;
 
 use crate::balancer::status_update::StatusUpdate;
 use crate::llamacpp::llamacpp_client::LlamacppClient;
+use crate::service::Service;
 
 pub struct MonitoringService {
     external_llamacpp_addr: SocketAddr,
@@ -75,21 +73,17 @@ impl MonitoringService {
 
 #[async_trait]
 impl Service for MonitoringService {
-    async fn start_service(
-        &mut self,
-        #[cfg(unix)] _fds: Option<ListenFds>,
-        mut shutdown: ShutdownWatch,
-        _listeners_per_fd: usize,
-    ) {
+    async fn run(&mut self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
         let mut ticker = interval(self.monitoring_interval);
 
         ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
         loop {
             tokio::select! {
-                _ = shutdown.changed() => {
+                _ = shutdown.recv() => {
                     debug!("Shutting down monitoring service");
-                    return;
+
+                    return Ok(());
                 },
                 _ = ticker.tick() => {
                     let status = self.fetch_status().await;
@@ -100,13 +94,5 @@ impl Service for MonitoringService {
                 }
             }
         }
-    }
-
-    fn name(&self) -> &str {
-        "agent::monitoring"
-    }
-
-    fn threads(&self) -> Option<usize> {
-        Some(1)
     }
 }

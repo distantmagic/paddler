@@ -6,16 +6,15 @@ use async_trait::async_trait;
 use log::debug;
 use log::error;
 use log::info;
-#[cfg(unix)]
-use pingora::server::ListenFds;
-use pingora::server::ShutdownWatch;
-use pingora::services::Service;
+use tokio::sync::broadcast;
 use tokio::sync::broadcast::Sender;
 use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 use tokio_stream::wrappers::BroadcastStream;
 use uuid::Uuid;
+
+use crate::service::Service;
 
 pub struct ReportingService {
     status_endpoint_url: String,
@@ -59,21 +58,15 @@ impl ReportingService {
 
 #[async_trait]
 impl Service for ReportingService {
-    async fn start_service(
-        &mut self,
-        #[cfg(unix)] _fds: Option<ListenFds>,
-        mut shutdown: ShutdownWatch,
-        _listeners_per_fd: usize,
-    ) {
+    async fn run(&mut self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
         let mut ticker = interval(Duration::from_secs(1));
 
         ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
         loop {
             tokio::select! {
-                _ = shutdown.changed() => {
-                    debug!("Shutting down reporting service");
-                    return;
+                _ = shutdown.recv() => {
+                    return Ok(());
                 },
                 _ = ticker.tick() => {
                     if let Err(err) = self.keep_connection_alive().await {
@@ -82,13 +75,5 @@ impl Service for ReportingService {
                 }
             }
         }
-    }
-
-    fn name(&self) -> &str {
-        "agent::reporting"
-    }
-
-    fn threads(&self) -> Option<usize> {
-        Some(1)
     }
 }

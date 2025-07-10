@@ -3,6 +3,8 @@ mod balancer;
 mod cmd;
 mod jsonrpc;
 mod llamacpp;
+mod service;
+mod service_manager;
 #[cfg(feature = "web_dashboard")]
 mod static_files;
 mod supervisor;
@@ -18,6 +20,7 @@ use clap::Parser;
 use clap::Subcommand;
 #[cfg(feature = "web_dashboard")]
 use esbuild_metafile::instance::initialize_instance;
+use tokio::sync::oneshot;
 
 use crate::balancer::fleet_management_database::File;
 use crate::balancer::fleet_management_database::Memory;
@@ -195,7 +198,8 @@ enum Commands {
     },
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     match Cli::parse().command {
@@ -206,17 +210,20 @@ fn main() -> Result<()> {
             management_addr,
             monitoring_interval,
             name,
-        }) => cmd::agent::handle(
-            match external_llamacpp_addr {
-                Some(addr) => addr.to_owned(),
-                None => local_llamacpp_addr.to_owned(),
-            },
-            local_llamacpp_addr.to_owned(),
-            llamacpp_api_key.to_owned(),
-            management_addr.to_owned(),
-            monitoring_interval.to_owned(),
-            name.to_owned(),
-        ),
+        }) => {
+            cmd::agent::handle(
+                match external_llamacpp_addr {
+                    Some(addr) => addr.to_owned(),
+                    None => local_llamacpp_addr.to_owned(),
+                },
+                local_llamacpp_addr.to_owned(),
+                llamacpp_api_key.to_owned(),
+                management_addr.to_owned(),
+                monitoring_interval.to_owned(),
+                name.to_owned(),
+            )
+            .await
+        }
         Some(Commands::Balancer {
             buffered_request_timeout,
             fleet_management_database,
@@ -274,6 +281,7 @@ fn main() -> Result<()> {
                     None
                 },
             )
+            .await
         }
         #[cfg(feature = "ratatui_dashboard")]
         Some(Commands::Dashboard {
@@ -283,7 +291,7 @@ fn main() -> Result<()> {
             llamacpp_listen_addr,
             management_addr,
             name,
-        }) => cmd::supervisor::handle(llamacpp_listen_addr, management_addr, name),
+        }) => cmd::supervisor::handle(llamacpp_listen_addr, management_addr, name).await,
         None => Ok(()),
     }
 }

@@ -10,10 +10,7 @@ use log::debug;
 use log::error;
 use log::info;
 use log::warn;
-#[cfg(unix)]
-use pingora::server::ListenFds;
-use pingora::server::ShutdownWatch;
-use pingora::services::Service;
+use tokio::sync::broadcast;
 use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
@@ -24,6 +21,7 @@ use uuid::Uuid;
 use crate::balancer::http_route::api::ws_supervisor::jsonrpc::notification_params::RegisterSupervisorParams;
 use crate::balancer::http_route::api::ws_supervisor::jsonrpc::Notification as ManagementJsonRpcNotification;
 use crate::jsonrpc::Error as JsonRpcError;
+use crate::service::Service;
 use crate::supervisor::jsonrpc::notification_params::SetStateParams;
 use crate::supervisor::jsonrpc::notification_params::VersionParams;
 use crate::supervisor::jsonrpc::Message as JsonRpcMessage;
@@ -123,21 +121,16 @@ impl ManagementSocketClientService {
 
 #[async_trait]
 impl Service for ManagementSocketClientService {
-    async fn start_service(
-        &mut self,
-        #[cfg(unix)] _fds: Option<ListenFds>,
-        mut shutdown: ShutdownWatch,
-        _listeners_per_fd: usize,
-    ) {
+    async fn run(&mut self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
         let mut ticker = interval(Duration::from_secs(1));
 
         ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
         loop {
             tokio::select! {
-                _ = shutdown.changed() => {
+                _ = shutdown.recv() => {
                     debug!("Shutting down monitoring service");
-                    return;
+                    return Ok(());
                 },
                 _ = ticker.tick() => {
                     if let Err(err) = self.keep_connection_alive().await {
@@ -146,13 +139,5 @@ impl Service for ManagementSocketClientService {
                 }
             }
         }
-    }
-
-    fn name(&self) -> &str {
-        "supervisor::management_socket_client"
-    }
-
-    fn threads(&self) -> Option<usize> {
-        Some(1)
     }
 }
