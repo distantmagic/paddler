@@ -15,8 +15,8 @@ pub async fn handle(
     llamacpp_listen_addr: SocketAddr,
     management_addr: SocketAddr,
     name: Option<String>,
+    shutdown_rx: oneshot::Receiver<()>,
 ) -> Result<()> {
-    let (shutdown_tx, shutdown_rx) = oneshot::channel();
     let llamacpp_applicable_state_holder = Arc::new(LlamaCppApplicableStateHolder::new());
     let reconciliation_queue = Arc::new(ReconciliationQueue::new()?);
     let mut service_manager = ServiceManager::new();

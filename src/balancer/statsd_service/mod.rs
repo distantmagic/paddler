@@ -9,7 +9,6 @@ use async_trait::async_trait;
 use cadence::BufferedUdpMetricSink;
 use cadence::Gauged;
 use cadence::StatsdClient;
-use log::debug;
 use log::error;
 use tokio::sync::broadcast;
 use tokio::time::interval;

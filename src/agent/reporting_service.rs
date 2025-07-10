@@ -3,11 +3,9 @@ use std::net::SocketAddr;
 use actix_web::web::Bytes;
 use anyhow::Result;
 use async_trait::async_trait;
-use log::debug;
 use log::error;
 use log::info;
 use tokio::sync::broadcast;
-use tokio::sync::broadcast::Sender;
 use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
@@ -18,11 +16,14 @@ use crate::service::Service;
 
 pub struct ReportingService {
     status_endpoint_url: String,
-    status_update_tx: Sender<Bytes>,
+    status_update_tx: broadcast::Sender<Bytes>,
 }
 
 impl ReportingService {
-    pub fn new(management_addr: SocketAddr, status_update_tx: Sender<Bytes>) -> Result<Self> {
+    pub fn new(
+        management_addr: SocketAddr,
+        status_update_tx: broadcast::Sender<Bytes>,
+    ) -> Result<Self> {
         let agent_id = Uuid::new_v4();
 
         Ok(ReportingService {

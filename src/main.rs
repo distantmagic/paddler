@@ -20,6 +20,9 @@ use clap::Parser;
 use clap::Subcommand;
 #[cfg(feature = "web_dashboard")]
 use esbuild_metafile::instance::initialize_instance;
+use log::info;
+use tokio::signal::unix::signal;
+use tokio::signal::unix::SignalKind;
 use tokio::sync::oneshot;
 
 use crate::balancer::fleet_management_database::File;
@@ -78,25 +81,8 @@ enum Commands {
     /// Monitors llama.cpp instance and reports their status to the balancer
     Agent {
         #[arg(long, value_parser = parse_socket_addr)]
-        /// Address of llama.cpp instance that the balancer will forward requests to. If not
-        /// provided, then `--local-llamacpp-addr` will be used
-        external_llamacpp_addr: Option<SocketAddr>,
-
-        #[arg(long, value_parser = parse_socket_addr)]
-        /// Address of the local llama.cpp instance that the agent will monitor
-        local_llamacpp_addr: SocketAddr,
-
-        #[arg(long)]
-        /// API key for the llama.cpp instance (optional)
-        llamacpp_api_key: Option<String>,
-
-        #[arg(long, value_parser = parse_socket_addr)]
         /// Address of the management server that the agent will report to
         management_addr: SocketAddr,
-
-        #[arg(long, default_value = "10000", value_parser = parse_duration)]
-        /// Interval (in milliseconds) at which the agent will report the status of the llama.cpp instance
-        monitoring_interval: Duration,
 
         #[arg(long)]
         /// Name of the agent (optional)
@@ -139,17 +125,8 @@ enum Commands {
         reverseproxy_addr: SocketAddr,
 
         #[arg(long)]
-        /// Rewrite the host header of incoming requests so that it matches the upstream server
-        /// instead of the reverse client server
-        rewrite_host_header: bool,
-
-        #[arg(long)]
         /// Enable the web metrics endpoint
         metrics_endpoint_enable: bool,
-
-        #[arg(long)]
-        /// Enable the slots endpoint (not recommended)
-        slots_endpoint_enable: bool,
 
         #[cfg(feature = "statsd_reporter")]
         #[arg(long, value_parser = parse_socket_addr)]
@@ -202,28 +179,29 @@ enum Commands {
 async fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
+    let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
+
+    tokio::spawn(async move {
+        let mut sigterm = signal(SignalKind::terminate()).expect("Failed to listen for SIGTERM");
+        let mut sigint = signal(SignalKind::interrupt()).expect("Failed to listen for SIGINT");
+        let mut sighup = signal(SignalKind::hangup()).expect("Failed to listen for SIGHUP");
+
+        tokio::select! {
+            _ = sigterm.recv() => info!("Received SIGTERM"),
+            _ = sigint.recv() => info!("Received SIGINT (Ctrl+C)"),
+            _ = sighup.recv() => info!("Received SIGHUP"),
+        }
+
+        shutdown_tx
+            .send(())
+            .expect("Failed to send shutdown signal");
+    });
+
     match Cli::parse().command {
         Some(Commands::Agent {
-            external_llamacpp_addr,
-            local_llamacpp_addr,
-            llamacpp_api_key,
             management_addr,
-            monitoring_interval,
             name,
-        }) => {
-            cmd::agent::handle(
-                match external_llamacpp_addr {
-                    Some(addr) => addr.to_owned(),
-                    None => local_llamacpp_addr.to_owned(),
-                },
-                local_llamacpp_addr.to_owned(),
-                llamacpp_api_key.to_owned(),
-                management_addr.to_owned(),
-                monitoring_interval.to_owned(),
-                name.to_owned(),
-            )
-            .await
-        }
+        }) => cmd::agent::handle(management_addr.to_owned(), name.to_owned(), shutdown_rx).await,
         Some(Commands::Balancer {
             buffered_request_timeout,
             fleet_management_database,
@@ -233,8 +211,6 @@ async fn main() -> Result<()> {
             max_buffered_requests,
             metrics_endpoint_enable,
             reverseproxy_addr,
-            rewrite_host_header,
-            slots_endpoint_enable,
             #[cfg(feature = "statsd_reporter")]
             statsd_addr,
             #[cfg(feature = "statsd_reporter")]
@@ -263,8 +239,7 @@ async fn main() -> Result<()> {
                 },
                 max_buffered_requests,
                 reverseproxy_addr,
-                rewrite_host_header.to_owned(),
-                slots_endpoint_enable.to_owned(),
+                shutdown_rx,
                 #[cfg(feature = "statsd_reporter")]
                 statsd_addr.map(|statsd_addr| StatsdServiceConfiguration {
                     statsd_addr,
@@ -291,7 +266,9 @@ async fn main() -> Result<()> {
             llamacpp_listen_addr,
             management_addr,
             name,
-        }) => cmd::supervisor::handle(llamacpp_listen_addr, management_addr, name).await,
+        }) => {
+            cmd::supervisor::handle(llamacpp_listen_addr, management_addr, name, shutdown_rx).await
+        }
         None => Ok(()),
     }
 }

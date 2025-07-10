@@ -27,8 +27,7 @@ pub async fn handle(
     management_service_configuration: ManagementServiceConfiguration,
     max_buffered_requests: usize,
     reverseproxy_addr: SocketAddr,
-    rewrite_host_header: bool,
-    slots_endpoint_enable: bool,
+    shutdown_rx: oneshot::Receiver<()>,
     #[cfg(feature = "statsd_reporter")] statsd_service_configuration_maybe: Option<
         StatsdServiceConfiguration,
     >,
@@ -36,7 +35,6 @@ pub async fn handle(
         WebDashboardServiceConfiguration,
     >,
 ) -> Result<()> {
-    let (shutdown_tx, shutdown_rx) = oneshot::channel();
     let mut service_manager = ServiceManager::new();
     let upstream_peer_pool = Arc::new(UpstreamPeerPool::new());
 
