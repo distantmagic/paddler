@@ -1,17 +1,17 @@
 use actix_ws::Session;
 use anyhow::Result;
 
-use crate::supervisor::jsonrpc::notification_params::SetStateParams;
-use crate::supervisor::jsonrpc::Notification;
-use crate::supervisor::llamacpp_desired_state::LlamaCppDesiredState;
+use crate::agent::jsonrpc::notification_params::SetStateParams;
+use crate::agent::jsonrpc::Notification;
+use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
 
-pub struct SupervisorController {
+pub struct AgentController {
     pub id: String,
     pub name: Option<String>,
     pub session: Session,
 }
 
-impl SupervisorController {
+impl AgentController {
     pub async fn set_desired_state(&mut self, desired_state: LlamaCppDesiredState) -> Result<()> {
         let state_json = serde_json::to_string(&Notification::SetState(SetStateParams {
             desired_state,

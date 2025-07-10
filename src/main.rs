@@ -1,3 +1,4 @@
+mod agent;
 mod balancer;
 mod cmd;
 mod jsonrpc;
@@ -6,7 +7,6 @@ mod service;
 mod service_manager;
 #[cfg(feature = "web_dashboard")]
 mod static_files;
-mod supervisor;
 
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
@@ -77,6 +77,20 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Agent for managing llama.cpp instances
+    Agent {
+        #[arg(long, value_parser = parse_socket_addr)]
+        /// Address of the llama.cpp instance that the agent will spawn and manage
+        llamacpp_listen_addr: SocketAddr,
+
+        #[arg(long, value_parser = parse_socket_addr)]
+        /// Address of the management server that the agent will report to
+        management_addr: SocketAddr,
+
+        #[arg(long)]
+        /// Name of the agent (optional)
+        name: Option<String>,
+    },
     /// Balances incoming requests to llama.cpp instances and optionally provides a web dashboard
     Balancer {
         #[arg(long, default_value = "10000", value_parser = parse_duration)]
@@ -89,7 +103,7 @@ enum Commands {
         fleet_management_database: FleetManagementDatabaseType,
 
         #[arg(long)]
-        /// Enable registering supervisor-managed llama.cpp instances in the balancer
+        /// Enable registering agent-managed llama.cpp instances in the balancer
         fleet_management_enable: bool,
 
         #[arg(long, default_value = "127.0.0.1:8060", value_parser = parse_socket_addr)]
@@ -141,20 +155,6 @@ enum Commands {
         /// Enable the web management dashboard
         web_dashboard_enable: bool,
     },
-    /// Supervisor for managing llama.cpp instances
-    Supervisor {
-        #[arg(long, value_parser = parse_socket_addr)]
-        /// Address of the llama.cpp instance that the supervisor will spawn and manage
-        llamacpp_listen_addr: SocketAddr,
-
-        #[arg(long, value_parser = parse_socket_addr)]
-        /// Address of the management server that the supervisor will report to
-        management_addr: SocketAddr,
-
-        #[arg(long)]
-        /// Name of the supervisor (optional)
-        name: Option<String>,
-    },
 }
 
 #[tokio::main]
@@ -180,6 +180,11 @@ async fn main() -> Result<()> {
     });
 
     match Cli::parse().command {
+        Some(Commands::Agent {
+            llamacpp_listen_addr,
+            management_addr,
+            name,
+        }) => cmd::agent::handle(llamacpp_listen_addr, management_addr, name, shutdown_rx).await,
         Some(Commands::Balancer {
             buffered_request_timeout,
             fleet_management_database,
@@ -235,13 +240,6 @@ async fn main() -> Result<()> {
                 },
             )
             .await
-        }
-        Some(Commands::Supervisor {
-            llamacpp_listen_addr,
-            management_addr,
-            name,
-        }) => {
-            cmd::supervisor::handle(llamacpp_listen_addr, management_addr, name, shutdown_rx).await
         }
         None => Ok(()),
     }

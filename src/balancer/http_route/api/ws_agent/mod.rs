@@ -22,14 +22,14 @@ use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
-use self::jsonrpc::notification_params::RegisterSupervisorParams;
+use self::jsonrpc::notification_params::RegisterAgentParams;
 use self::jsonrpc::Notification as BalancerJsonRpcNotification;
+use crate::agent::jsonrpc::notification_params::VersionParams;
+use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
+use crate::balancer::agent_controller::AgentController;
+use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::fleet_management_database::FleetManagementDatabase;
-use crate::balancer::supervisor_controller::SupervisorController;
-use crate::balancer::supervisor_controller_pool::SupervisorControllerPool;
 use crate::jsonrpc::Error as JsonRpcError;
-use crate::supervisor::jsonrpc::notification_params::VersionParams;
-use crate::supervisor::jsonrpc::Notification as SupervisorJsonRpcNotification;
 
 const MAX_CONTINUATION_SIZE: usize = 100 * 1024;
 const PING_INTERVAL: Duration = Duration::from_secs(3);
@@ -41,30 +41,30 @@ pub fn register(cfg: &mut ServiceConfig) {
 async fn handle_text_message(
     fleet_management_database: Data<dyn FleetManagementDatabase>,
     mut session: Session,
-    supervisor_id: String,
-    supervisor_controller_pool: Data<SupervisorControllerPool>,
+    agent_id: String,
+    agent_controller_pool: Data<AgentControllerPool>,
     text: &str,
 ) -> Result<()> {
     match serde_json::from_str::<BalancerJsonRpcNotification>(text) {
-        Ok(BalancerJsonRpcNotification::RegisterSupervisor(RegisterSupervisorParams {
+        Ok(BalancerJsonRpcNotification::RegisterAgent(RegisterAgentParams {
             name,
         })) => {
-            let mut supervisor_controller = SupervisorController {
-                id: supervisor_id.clone(),
+            let mut agent_controller = AgentController {
+                id: agent_id.clone(),
                 name,
                 session,
             };
 
             if let Some(desired_state) = fleet_management_database.read_desired_state().await? {
-                supervisor_controller
+                agent_controller
                     .set_desired_state(desired_state)
                     .await
                     .context("Unable to set desired state")?;
             }
 
-            supervisor_controller_pool
-                .register_supervisor_controller(supervisor_id, supervisor_controller)
-                .context("Unable to register supervisor controller")?;
+            agent_controller_pool
+                .register_agent_controller(agent_id, agent_controller)
+                .context("Unable to regiagent controller")?;
         }
         Err(
             err @ serde_json::Error {
@@ -95,43 +95,43 @@ async fn handle_text_message(
 
 async fn send_version(session: &mut Session, version: String) -> Result<()> {
     Ok(session
-        .text(serde_json::to_string(
-            &SupervisorJsonRpcNotification::Version(VersionParams {
+        .text(serde_json::to_string(&AgentJsonRpcNotification::Version(
+            VersionParams {
                 version: version.to_string(),
-            }),
-        )?)
+            },
+        ))?)
         .await?)
 }
 
 #[derive(Deserialize)]
 struct PathParams {
-    supervisor_id: String,
+    agent_id: String,
 }
 
-struct RemoveSupervisorGuard {
-    pool: Data<SupervisorControllerPool>,
-    supervisor_id: String,
+struct RemoveAgentGuard {
+    pool: Data<AgentControllerPool>,
+    agent_id: String,
 }
 
-impl Drop for RemoveSupervisorGuard {
+impl Drop for RemoveAgentGuard {
     fn drop(&mut self) {
-        info!("Removing supervisor: {}", self.supervisor_id);
+        info!("Remoagent: {}", self.agent_id);
 
-        if let Err(err) = self.pool.remove_supervisor_controller(&self.supervisor_id) {
-            error!("Failed to remove supervisor: {err}");
+        if let Err(err) = self.pool.remove_agent_controller(&self.agent_id) {
+            error!("Failed to reagent: {err}");
         }
     }
 }
 
-#[get("/api/v1/supervisor_socket/{supervisor_id}")]
+#[get("/api/v1/agent_socket/{agent_id}")]
 async fn respond(
     fleet_management_database: Data<dyn FleetManagementDatabase>,
     path_params: Path<PathParams>,
     payload: Payload,
     req: HttpRequest,
-    supervisor_controller_pool: Data<SupervisorControllerPool>,
+    agent_controller_pool: Data<AgentControllerPool>,
 ) -> Result<HttpResponse, Error> {
-    let supervisor_id = path_params.supervisor_id.clone();
+    let agent_id = path_params.agent_id.clone();
 
     let (res, mut session, msg_stream) = actix_ws::handle(&req, payload)?;
 
@@ -140,9 +140,9 @@ async fn respond(
         .max_continuation_size(MAX_CONTINUATION_SIZE);
 
     rt::spawn(async move {
-        let _guard = RemoveSupervisorGuard {
-            pool: supervisor_controller_pool.clone(),
-            supervisor_id: supervisor_id.clone(),
+        let _guard = RemoveAgentGuard {
+            pool: agent_controller_pool.clone(),
+            agent_id: agent_id.clone(),
         };
 
         if let Err(err) = send_version(&mut session, env!("CARGO_PKG_VERSION").to_string()).await {
@@ -175,8 +175,8 @@ async fn respond(
                             if let Err(err) = handle_text_message(
                                 fleet_management_database.clone(),
                                 session.clone(),
-                                supervisor_id.clone(),
-                                supervisor_controller_pool.clone(),
+                                agent_id.clone(),
+                                agent_controller_pool.clone(),
                                 &text
                             ).await.context(format!("Text message: {text}")) {
                                 error!("Error handling message: {err:?}");

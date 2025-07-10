@@ -7,10 +7,10 @@ use log::debug;
 use log::error;
 use tokio::sync::broadcast;
 
+use crate::agent::llamacpp_applicable_state::LlamaCppApplicableState;
+use crate::agent::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
+use crate::agent::llamacpp_arbiter::LlamaCppArbiter;
 use crate::service::Service;
-use crate::supervisor::llamacpp_applicable_state::LlamaCppApplicableState;
-use crate::supervisor::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
-use crate::supervisor::llamacpp_arbiter::LlamaCppArbiter;
 
 pub struct LlamaCppArbiterService {
     llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,

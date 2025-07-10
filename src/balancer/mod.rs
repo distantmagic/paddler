@@ -1,3 +1,5 @@
+pub mod agent_controller;
+pub mod agent_controller_pool;
 pub mod fleet_management_database;
 pub mod fleet_management_database_type;
 pub mod http_route;
@@ -7,8 +9,6 @@ pub mod response;
 #[cfg(feature = "statsd_reporter")]
 pub mod statsd_service;
 pub mod status_update;
-pub mod supervisor_controller;
-pub mod supervisor_controller_pool;
 #[cfg(test)]
 pub mod test;
 #[cfg(feature = "web_dashboard")]

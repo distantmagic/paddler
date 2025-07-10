@@ -13,7 +13,7 @@ use llama_cpp_2::model::LlamaModel;
 use llama_cpp_2::model::Special;
 use llama_cpp_2::sampling::LlamaSampler;
 
-use crate::supervisor::message::Generate;
+use crate::agent::message::Generate;
 
 pub struct LlamaCppSlot {
     ctx: LlamaContext<'static>,

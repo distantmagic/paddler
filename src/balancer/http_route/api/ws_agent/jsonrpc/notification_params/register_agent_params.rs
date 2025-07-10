@@ -2,6 +2,6 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct RegisterSupervisorParams {
+pub struct RegisterAgentParams {
     pub name: Option<String>,
 }

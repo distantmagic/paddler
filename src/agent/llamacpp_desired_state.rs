@@ -4,9 +4,9 @@ use async_trait::async_trait;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::supervisor::converts_to_applicable_state::ConvertsToApplicableState;
-use crate::supervisor::llamacpp_applicable_state::LlamaCppApplicableState;
-use crate::supervisor::llamacpp_desired_model::LlamaCppDesiredModel;
+use crate::agent::converts_to_applicable_state::ConvertsToApplicableState;
+use crate::agent::llamacpp_applicable_state::LlamaCppApplicableState;
+use crate::agent::llamacpp_desired_model::LlamaCppDesiredModel;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct LlamaCppDesiredState {

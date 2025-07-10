@@ -6,11 +6,11 @@ use log::debug;
 use log::error;
 use tokio::sync::broadcast;
 
+use crate::agent::converts_to_applicable_state::ConvertsToApplicableState;
+use crate::agent::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
+use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
+use crate::agent::reconciliation_queue::ReconciliationQueue;
 use crate::service::Service;
-use crate::supervisor::converts_to_applicable_state::ConvertsToApplicableState;
-use crate::supervisor::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
-use crate::supervisor::llamacpp_desired_state::LlamaCppDesiredState;
-use crate::supervisor::reconciliation_queue::ReconciliationQueue;
 
 pub struct ReconciliationService {
     llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,

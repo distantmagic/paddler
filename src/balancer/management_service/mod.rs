@@ -10,10 +10,10 @@ use anyhow::Result;
 use async_trait::async_trait;
 use tokio::sync::broadcast;
 
+use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::fleet_management_database::FleetManagementDatabase;
 use crate::balancer::http_route;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
-use crate::balancer::supervisor_controller_pool::SupervisorControllerPool;
 #[cfg(feature = "web_dashboard")]
 use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
 use crate::service::Service;
@@ -67,8 +67,7 @@ impl Service for ManagementService {
         #[allow(unused_mut)]
         let mut cors_allowed_hosts = self.configuration.cors_allowed_hosts.clone();
 
-        let supervisor_pool: Data<SupervisorControllerPool> =
-            Data::new(SupervisorControllerPool::new());
+        let agent_pool: Data<AgentControllerPool> = Data::new(AgentControllerPool::new());
 
         #[cfg(feature = "web_dashboard")]
         if let Some(web_dashboard_config) = &self.web_dashboard_service_configuration {
@@ -88,8 +87,8 @@ impl Service for ManagementService {
             if fleet_management_enable {
                 app = app
                     .app_data(fleet_management_database.clone())
-                    .app_data(supervisor_pool.clone())
-                    .configure(http_route::api::ws_supervisor::register);
+                    .app_data(agent_pool.clone())
+                    .configure(http_route::api::ws_agent::register);
             }
 
             // if metrics_endpoint_enable {

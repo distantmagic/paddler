@@ -18,15 +18,15 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use uuid::Uuid;
 
-use crate::balancer::http_route::api::ws_supervisor::jsonrpc::notification_params::RegisterSupervisorParams;
-use crate::balancer::http_route::api::ws_supervisor::jsonrpc::Notification as ManagementJsonRpcNotification;
+use crate::agent::jsonrpc::notification_params::SetStateParams;
+use crate::agent::jsonrpc::notification_params::VersionParams;
+use crate::agent::jsonrpc::Message as JsonRpcMessage;
+use crate::agent::jsonrpc::Notification as JsonRpcNotification;
+use crate::agent::reconciliation_queue::ReconciliationQueue;
+use crate::balancer::http_route::api::ws_agent::jsonrpc::notification_params::RegisterAgentParams;
+use crate::balancer::http_route::api::ws_agent::jsonrpc::Notification as ManagementJsonRpcNotification;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::service::Service;
-use crate::supervisor::jsonrpc::notification_params::SetStateParams;
-use crate::supervisor::jsonrpc::notification_params::VersionParams;
-use crate::supervisor::jsonrpc::Message as JsonRpcMessage;
-use crate::supervisor::jsonrpc::Notification as JsonRpcNotification;
-use crate::supervisor::reconciliation_queue::ReconciliationQueue;
 
 pub struct ManagementSocketClientService {
     name: Option<String>,
@@ -40,14 +40,12 @@ impl ManagementSocketClientService {
         name: Option<String>,
         reconciliation_queue: Arc<ReconciliationQueue>,
     ) -> Result<Self> {
-        let supervisor_id = Uuid::new_v4();
+        let agent_id = Uuid::new_v4();
 
         Ok(ManagementSocketClientService {
             name,
             reconciliation_queue,
-            status_endpoint_url: format!(
-                "ws://{management_addr}/api/v1/supervisor_socket/{supervisor_id}"
-            ),
+            status_endpoint_url: format!("ws://{management_addr}/api/v1/agent_socket/{agent_id}"),
         })
     }
 
@@ -60,12 +58,12 @@ impl ManagementSocketClientService {
 
         write
             .send(Message::Text(
-                serde_json::to_string(&ManagementJsonRpcNotification::RegisterSupervisor(
-                    RegisterSupervisorParams {
+                serde_json::to_string(&ManagementJsonRpcNotification::RegisterAgent(
+                    RegisterAgentParams {
                         name: self.name.clone(),
                     },
                 ))
-                .context("Failed to serialize RegisterSupervisor notification")?
+                .context("Failed to serialize RegisterAgent notification")?
                 .into(),
             ))
             .await?;

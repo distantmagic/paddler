@@ -8,8 +8,8 @@ use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::model::LlamaModel;
 
-use crate::supervisor::llamacpp_applicable_state::LlamaCppApplicableState;
-use crate::supervisor::llamacpp_slot::LlamaCppSlot;
+use crate::agent::llamacpp_applicable_state::LlamaCppApplicableState;
+use crate::agent::llamacpp_slot::LlamaCppSlot;
 
 pub struct LlamaCppArbiter {
     applicable_state: LlamaCppApplicableState,
@@ -48,11 +48,11 @@ mod tests {
     use tokio::sync::mpsc;
 
     use super::*;
-    use crate::supervisor::converts_to_applicable_state::ConvertsToApplicableState as _;
-    use crate::supervisor::huggingface_model_reference::HuggingFaceModelReference;
-    use crate::supervisor::llamacpp_desired_model::LlamaCppDesiredModel;
-    use crate::supervisor::llamacpp_desired_state::LlamaCppDesiredState;
-    use crate::supervisor::message::Generate;
+    use crate::agent::converts_to_applicable_state::ConvertsToApplicableState as _;
+    use crate::agent::huggingface_model_reference::HuggingFaceModelReference;
+    use crate::agent::llamacpp_desired_model::LlamaCppDesiredModel;
+    use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
+    use crate::agent::message::Generate;
 
     #[actix_web::test]
     async fn test_llamacpp_arbiter_spawn() -> Result<()> {
