@@ -4,22 +4,19 @@ Feature: Report llama.cpp metrics
         Given balancer reports metrics every 100 milliseconds
         Given balancer is running
         Given statsd is running
- 
+
     @serial
     Scenario: There is no agent attached
         Then average metrics are:
             | requests_buffered | 0 |
-            | slots_idle        | 0 | 
+            | slots_idle        | 0 |
             | slots_processing  | 0 |
-            
+
     @serial
     Scenario: There are multiple agents attached
-        Given agent monitors llama.cpp every 100 milliseconds
-        Given llama.cpp server "llama-1" is running (has 1 slots)
-        Given llama.cpp server "llama-2" is running (has 1 slots)
-        Given agent "agent-1" is running (observes "llama-1")
+        Given agent "agent-1" is running (has 1 slot)
         Given agent "agent-1" is registered
-        Given agent "agent-2" is running (observes "llama-2")
+        Given agent "agent-2" is running (has 1 slot)
         Given agent "agent-2" is registered
         Then reported metrics are stored
         When multiple requests are sent to "/chat/completions"
@@ -37,6 +34,6 @@ Feature: Report llama.cpp metrics
             | req-10 |
         Then reported metrics are stored
         Then average metrics are:
-            | slots_idle        | 1 | 
+            | slots_idle        | 1 |
             | slots_processing  | 1 |
             | requests_buffered | 0 |

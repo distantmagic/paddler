@@ -7,20 +7,16 @@ use reqwest::Response;
 use crate::agent_instance_collection::AgentInstanceCollection;
 use crate::balancer_instance::BalancerInstance;
 use crate::cleanable::Cleanable;
-use crate::llamacpp_instance_collection::LlamaCppInstanceCollection;
 use crate::request_builder::RequestBuilder;
 use crate::statsd_instance::StatsdInstance;
-use crate::supervisor_instance_collection::SupervisorInstanceCollection;
 
 #[derive(Debug, Default, World)]
 pub struct PaddlerWorld {
     pub agents: AgentInstanceCollection,
     pub balancer: BalancerInstance,
-    pub llamas: LlamaCppInstanceCollection,
     pub request_builder: RequestBuilder,
     pub responses: DashMap<String, Response>,
     pub statsd: StatsdInstance,
-    pub supervisors: SupervisorInstanceCollection,
 }
 
 #[async_trait]
@@ -28,11 +24,9 @@ impl Cleanable for PaddlerWorld {
     async fn cleanup(&mut self) -> Result<()> {
         self.agents.cleanup().await?;
         self.balancer.cleanup().await?;
-        self.llamas.cleanup().await?;
         self.request_builder.cleanup().await?;
         self.responses.clear();
         self.statsd.cleanup().await?;
-        self.supervisors.cleanup().await?;
 
         Ok(())
     }

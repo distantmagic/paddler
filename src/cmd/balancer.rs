@@ -48,20 +48,18 @@ pub async fn handle(
 
     #[cfg(feature = "statsd_reporter")]
     if let Some(statsd_service_configuration) = statsd_service_configuration_maybe {
-        let statsd_service =
-            StatsdService::new(statsd_service_configuration, upstream_peer_pool.clone())?;
-
-        service_manager.add_service(statsd_service);
+        service_manager.add_service(StatsdService::new(
+            statsd_service_configuration,
+            upstream_peer_pool.clone(),
+        )?);
     }
 
     #[cfg(feature = "web_dashboard")]
     if let Some(web_dashboard_service_configuration) = web_dashboard_service_configuration {
-        let web_dashboard_service = WebDashboardService::new(
+        service_manager.add_service(WebDashboardService::new(
             web_dashboard_service_configuration,
             upstream_peer_pool.clone(),
-        );
-
-        service_manager.add_service(web_dashboard_service);
+        ));
     }
 
     service_manager.run_forever(shutdown_rx).await
