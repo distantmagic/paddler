@@ -14,9 +14,7 @@ use crate::balancer::status_update::StatusUpdate;
 pub struct UpstreamPeer {
     pub agent_id: String,
     pub last_update: SystemTime,
-    pub quarantined_until: Option<SystemTime>,
     pub slots_taken: usize,
-    pub slots_taken_since_last_status_update: usize,
     pub status: StatusUpdate,
 }
 
@@ -25,15 +23,13 @@ impl UpstreamPeer {
         Self {
             agent_id,
             last_update: SystemTime::now(),
-            quarantined_until: None,
             slots_taken: 0,
-            slots_taken_since_last_status_update: 0,
             status,
         }
     }
 
     pub fn is_usable(&self) -> bool {
-        !self.status.has_issues() && self.status.slots_idle > 0 && self.quarantined_until.is_none()
+        !self.status.has_issues() && self.status.slots_idle > 0
     }
 
     pub fn release_slot(&mut self) -> Result<()> {
@@ -46,19 +42,11 @@ impl UpstreamPeer {
         self.last_update = SystemTime::now();
         self.slots_taken -= 1;
 
-        if self.slots_taken_since_last_status_update > 0 {
-            self.slots_taken_since_last_status_update -= 1;
-            self.status.slots_idle += 1;
-            self.status.slots_processing -= 1;
-        }
-
         Ok(())
     }
 
     pub fn update_status(&mut self, status_update: StatusUpdate) {
         self.last_update = SystemTime::now();
-        self.quarantined_until = None;
-        self.slots_taken_since_last_status_update = 0;
         self.status = status_update;
     }
 
@@ -68,7 +56,6 @@ impl UpstreamPeer {
         }
 
         self.last_update = SystemTime::now();
-        self.slots_taken_since_last_status_update += 1;
         self.slots_taken += 1;
         self.status.slots_idle -= 1;
         self.status.slots_processing += 1;
@@ -111,9 +98,7 @@ mod tests {
         UpstreamPeer {
             agent_id: "test_agent".to_string(),
             last_update: SystemTime::now(),
-            quarantined_until: None,
             slots_taken: 0,
-            slots_taken_since_last_status_update: 0,
             status: StatusUpdate {
                 agent_name: Some("test_name".to_string()),
                 error: None,

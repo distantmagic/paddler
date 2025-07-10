@@ -1,6 +1,5 @@
 use std::sync::atomic::AtomicUsize;
 use std::sync::RwLock;
-use std::time::Duration;
 use std::time::SystemTime;
 
 use anyhow::anyhow;
@@ -38,24 +37,6 @@ impl UpstreamPeerPool {
         self.agents.read().ok().map(|agents| UpstreamPeerPoolInfo {
             agents: agents.clone(),
         })
-    }
-
-    pub fn quarantine_peer(&self, agent_id: &str) -> Result<bool> {
-        let notify_waiters = self.with_agents_write(|agents| {
-            if let Some(peer) = agents.iter_mut().find(|p| p.agent_id == agent_id) {
-                peer.quarantined_until = Some(SystemTime::now() + Duration::from_secs(10));
-
-                return Ok(true);
-            }
-
-            Ok(false)
-        })?;
-
-        if notify_waiters {
-            self.update_notifier.notify_waiters();
-        }
-
-        Ok(notify_waiters)
     }
 
     pub fn register_status_update(
