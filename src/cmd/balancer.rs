@@ -13,7 +13,7 @@ use crate::balancer::management_service::ManagementService;
 use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
 #[cfg(feature = "statsd_reporter")]
 use crate::balancer::statsd_service::StatsdService;
-use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
+// use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 #[cfg(feature = "web_dashboard")]
 use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
 #[cfg(feature = "web_dashboard")]
@@ -36,12 +36,12 @@ pub async fn handle(
     >,
 ) -> Result<()> {
     let mut service_manager = ServiceManager::new();
-    let upstream_peer_pool = Arc::new(UpstreamPeerPool::new());
+    // let upstream_peer_pool = Arc::new(UpstreamPeerPool::new());
 
     service_manager.add_service(ManagementService::new(
         management_service_configuration,
         fleet_management_database,
-        upstream_peer_pool.clone(),
+        // upstream_peer_pool.clone(),
         #[cfg(feature = "web_dashboard")]
         web_dashboard_service_configuration.clone(),
     ));
@@ -50,7 +50,7 @@ pub async fn handle(
     if let Some(statsd_service_configuration) = statsd_service_configuration_maybe {
         service_manager.add_service(StatsdService::new(
             statsd_service_configuration,
-            upstream_peer_pool.clone(),
+            // upstream_peer_pool.clone(),
         )?);
     }
 
@@ -58,7 +58,7 @@ pub async fn handle(
     if let Some(web_dashboard_service_configuration) = web_dashboard_service_configuration {
         service_manager.add_service(WebDashboardService::new(
             web_dashboard_service_configuration,
-            upstream_peer_pool.clone(),
+            // upstream_peer_pool.clone(),
         ));
     }
 

@@ -11,7 +11,5 @@ pub mod supervisor_controller;
 pub mod supervisor_controller_pool;
 #[cfg(test)]
 pub mod test;
-pub mod upstream_peer;
-pub mod upstream_peer_pool;
 #[cfg(feature = "web_dashboard")]
 pub mod web_dashboard_service;

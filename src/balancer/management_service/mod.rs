@@ -14,7 +14,6 @@ use crate::balancer::fleet_management_database::FleetManagementDatabase;
 use crate::balancer::http_route;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::supervisor_controller_pool::SupervisorControllerPool;
-use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 #[cfg(feature = "web_dashboard")]
 use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
 use crate::service::Service;
@@ -39,7 +38,7 @@ fn create_cors_middleware(allowed_hosts: Arc<Vec<String>>) -> Cors {
 pub struct ManagementService {
     configuration: ManagementServiceConfiguration,
     fleet_management_database: Arc<dyn FleetManagementDatabase>,
-    upstream_peers: Arc<UpstreamPeerPool>,
+    // upstream_peers: Arc<UpstreamPeerPool>,
     #[cfg(feature = "web_dashboard")]
     web_dashboard_service_configuration: Option<WebDashboardServiceConfiguration>,
 }
@@ -48,7 +47,6 @@ impl ManagementService {
     pub fn new(
         configuration: ManagementServiceConfiguration,
         fleet_management_database: Arc<dyn FleetManagementDatabase>,
-        upstream_peers: Arc<UpstreamPeerPool>,
         #[cfg(feature = "web_dashboard")] web_dashboard_service_configuration: Option<
             WebDashboardServiceConfiguration,
         >,
@@ -56,7 +54,7 @@ impl ManagementService {
         ManagementService {
             configuration,
             fleet_management_database,
-            upstream_peers,
+            // upstream_peers,
             #[cfg(feature = "web_dashboard")]
             web_dashboard_service_configuration,
         }
@@ -82,16 +80,10 @@ impl Service for ManagementService {
             Data::from(self.fleet_management_database.clone());
         let fleet_management_enable = self.configuration.fleet_management_enable;
         let metrics_endpoint_enable = self.configuration.metrics_endpoint_enable;
-        let upstream_peers: Data<UpstreamPeerPool> = self.upstream_peers.clone().into();
 
         Ok(HttpServer::new(move || {
             #[allow(unused_mut)]
-            let mut app = App::new()
-                .wrap(create_cors_middleware(cors_allowed_hosts_arc.clone()))
-                .app_data(upstream_peers.clone())
-                .configure(http_route::api::get_agents::register)
-                .configure(http_route::api::get_agents_stream::register)
-                .configure(http_route::api::post_agent_status_update::register);
+            let mut app = App::new().wrap(create_cors_middleware(cors_allowed_hosts_arc.clone()));
 
             if fleet_management_enable {
                 app = app
@@ -100,9 +92,9 @@ impl Service for ManagementService {
                     .configure(http_route::api::ws_supervisor::register);
             }
 
-            if metrics_endpoint_enable {
-                app = app.configure(http_route::api::get_metrics::register)
-            }
+            // if metrics_endpoint_enable {
+            //     app = app.configure(http_route::api::get_metrics::register)
+            // }
 
             app
         })

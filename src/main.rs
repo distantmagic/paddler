@@ -152,13 +152,6 @@ enum Commands {
         /// Enable the web management dashboard
         web_dashboard_enable: bool,
     },
-    #[cfg(feature = "ratatui_dashboard")]
-    /// Command-line dashboard for monitoring the balancer
-    Dashboard {
-        #[arg(long, value_parser = parse_socket_addr)]
-        /// Address of the management server that the dashboard will connect to
-        management_addr: SocketAddr,
-    },
     /// Supervisor for managing llama.cpp instances
     Supervisor {
         #[arg(long, value_parser = parse_socket_addr)]
@@ -258,10 +251,6 @@ async fn main() -> Result<()> {
             )
             .await
         }
-        #[cfg(feature = "ratatui_dashboard")]
-        Some(Commands::Dashboard {
-            management_addr,
-        }) => cmd::dashboard::handle(management_addr),
         Some(Commands::Supervisor {
             llamacpp_listen_addr,
             management_addr,

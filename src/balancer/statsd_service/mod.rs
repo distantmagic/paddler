@@ -15,35 +15,35 @@ use tokio::time::interval;
 use tokio::time::MissedTickBehavior;
 
 use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
-use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
+// use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 use crate::service::Service;
 
 pub struct StatsdService {
     configuration: StatsdServiceConfiguration,
-    upstream_peer_pool: Arc<UpstreamPeerPool>,
+    // upstream_peer_pool: Arc<UpstreamPeerPool>,
 }
 
 impl StatsdService {
     pub fn new(
         configuration: StatsdServiceConfiguration,
-        upstream_peer_pool: Arc<UpstreamPeerPool>,
+        // upstream_peer_pool: Arc<UpstreamPeerPool>,
     ) -> Result<Self> {
         Ok(StatsdService {
             configuration,
-            upstream_peer_pool,
+            // upstream_peer_pool,
         })
     }
 
     async fn report_metrics(&self, client: &StatsdClient) -> Result<()> {
-        let (slots_idle, slots_processing) = self.upstream_peer_pool.total_slots()?;
-        let requests_buffered = self
-            .upstream_peer_pool
-            .request_buffer_length
-            .load(Ordering::SeqCst);
-
-        client.gauge("slots_idle", slots_idle as u64)?;
-        client.gauge("slots_processing", slots_processing as u64)?;
-        client.gauge("requests_buffered", requests_buffered as u64)?;
+        // let (slots_idle, slots_processing) = self.upstream_peer_pool.total_slots()?;
+        // let requests_buffered = self
+        //     .upstream_peer_pool
+        //     .request_buffer_length
+        //     .load(Ordering::SeqCst);
+        //
+        // client.gauge("slots_idle", slots_idle as u64)?;
+        // client.gauge("slots_processing", slots_processing as u64)?;
+        // client.gauge("requests_buffered", requests_buffered as u64)?;
         client.flush()?;
 
         Ok(())
