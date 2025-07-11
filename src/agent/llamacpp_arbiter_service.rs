@@ -61,15 +61,10 @@ impl Service for LlamaCppArbiterService {
 
         loop {
             tokio::select! {
-                _ = shutdown.recv() => {
-                    println!("LlamaCppArbiterService received shutdown signal");
-                    return Ok(());
-                },
+                _ = shutdown.recv() => return Ok(()),
                 generate_tokens = self.generate_tokens_rx.recv() => {
                     match generate_tokens {
-                        None => {
-                            return Ok(());
-                        },
+                        None => return Ok(()),
                         Some(generate_tokens) => {
                             if let Some(llamacpp_arbiter_controller) = &self.llamacpp_arbiter_controller {
                                 llamacpp_arbiter_controller.llamacpp_slot_addr.send(generate_tokens).await??;

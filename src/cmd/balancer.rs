@@ -23,7 +23,6 @@ use crate::balancer::statsd_service::configuration::Configuration as StatsdServi
 use crate::balancer::statsd_service::StatsdService;
 #[cfg(feature = "web_dashboard")]
 use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
-// use crate::balancer::upstream_peer_pool::UpstreamPeerPool;
 #[cfg(feature = "web_dashboard")]
 use crate::balancer::web_dashboard_service::WebDashboardService;
 use crate::service_manager::ServiceManager;
@@ -130,7 +129,6 @@ impl Handler for Balancer {
                 FleetManagementDatabaseType::File(path) => Arc::new(File::new(path.to_owned())),
                 FleetManagementDatabaseType::Memory => Arc::new(Memory::new()),
             },
-            // upstream_peer_pool.clone(),
             #[cfg(feature = "web_dashboard")]
             self.get_web_dashboard_service_configuration(),
         ));

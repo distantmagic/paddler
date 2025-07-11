@@ -56,7 +56,6 @@ impl ManagementService {
             agent_controller_pool,
             configuration,
             fleet_management_database,
-            // upstream_peers,
             #[cfg(feature = "web_dashboard")]
             web_dashboard_service_configuration,
         }

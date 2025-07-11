@@ -1,7 +1,6 @@
 use std::cmp::Eq;
 use std::cmp::Ordering;
 use std::cmp::PartialEq;
-use std::net::SocketAddr;
 
 use serde::Deserialize;
 use serde::Serialize;

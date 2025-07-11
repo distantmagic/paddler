@@ -2,7 +2,6 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Deserialize, Serialize)]
-pub struct GenerateTokens {
-    pub max_tokens: i32,
-    pub prompt: String,
+pub struct GeneratedToken {
+    pub token: String,
 }

@@ -10,6 +10,7 @@ use log::error;
 use log::info;
 use log::warn;
 use tokio::sync::broadcast;
+use tokio::sync::mpsc;
 use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
@@ -19,19 +20,22 @@ use uuid::Uuid;
 
 use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::jsonrpc::notification_params::VersionParams;
-use crate::agent::jsonrpc::request_params::GenerateTokens;
+use crate::agent::jsonrpc::request_params::GenerateTokens as GenerateTokensParams;
 use crate::agent::jsonrpc::Message as JsonRpcMessage;
 use crate::agent::jsonrpc::Notification as JsonRpcNotification;
 use crate::agent::jsonrpc::Request as JsonRpcRequest;
+use crate::agent::message::GenerateTokens;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
 use crate::agent::websocket_shared_writer::WebSocketSharedWriter;
 use crate::balancer::management_service::http_route::api::ws_agent::jsonrpc::notification_params::RegisterAgentParams;
 use crate::balancer::management_service::http_route::api::ws_agent::jsonrpc::Notification as ManagementJsonRpcNotification;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::RequestEnvelope;
+use crate::jsonrpc::ResponseEnvelope;
 use crate::service::Service;
 
 pub struct ManagementSocketClientService {
+    generate_tokens_tx: mpsc::Sender<GenerateTokens>,
     name: Option<String>,
     reconciliation_queue: Arc<ReconciliationQueue>,
     socket_url: String,
@@ -39,6 +43,7 @@ pub struct ManagementSocketClientService {
 
 impl ManagementSocketClientService {
     pub fn new(
+        generate_tokens_tx: mpsc::Sender<GenerateTokens>,
         management_addr: SocketAddr,
         name: Option<String>,
         reconciliation_queue: Arc<ReconciliationQueue>,
@@ -46,6 +51,7 @@ impl ManagementSocketClientService {
         let agent_id = Uuid::new_v4();
 
         Ok(ManagementSocketClientService {
+            generate_tokens_tx,
             name,
             reconciliation_queue,
             socket_url: format!("ws://{management_addr}/api/v1/agent_socket/{agent_id}"),
@@ -57,7 +63,7 @@ impl ManagementSocketClientService {
 
         info!("Connected to management server");
 
-        let (mut write, mut read) = ws_stream.split();
+        let (write, mut read) = ws_stream.split();
         let writer = Arc::new(WebSocketSharedWriter::new(write));
 
         writer
@@ -105,13 +111,57 @@ impl ManagementSocketClientService {
                     JsonRpcMessage::Request(RequestEnvelope {
                         id,
                         request:
-                            JsonRpcRequest::GenerateTokens(GenerateTokens {
+                            JsonRpcRequest::GenerateTokens(GenerateTokensParams {
+                                max_tokens,
                                 prompt,
                             }),
                     }) => {
+                        let (chunk_sender, mut chunk_receiver) = mpsc::channel::<String>(100);
                         let writer_clone = writer.clone();
 
-                        tokio::spawn(async move {});
+                        tokio::spawn(async move {
+                            while let Some(chunk) = chunk_receiver.recv().await {
+                                writer_clone
+                                    .send(Message::Text(
+                                        serde_json::to_string(&ResponseEnvelope::StreamChunk {
+                                            request_id: id.clone(),
+                                            chunk,
+                                        })
+                                        .context("Failed to serialize response envelope")?
+                                        .into(),
+                                    ))
+                                    .await?;
+                            }
+
+                            writer_clone
+                                .send(Message::Text(
+                                    serde_json::to_string::<ResponseEnvelope<String>>(
+                                        &ResponseEnvelope::StreamDone {
+                                            request_id: id,
+                                        },
+                                    )
+                                    .context("Failed to serialize response envelope")?
+                                    .into(),
+                                ))
+                                .await?;
+
+                            Ok::<(), anyhow::Error>(())
+                        });
+
+                        let generate_tokens_tx = self.generate_tokens_tx.clone();
+
+                        tokio::spawn(async move {
+                            if let Err(err) = generate_tokens_tx
+                                .send(GenerateTokens {
+                                    chunk_sender,
+                                    max_tokens,
+                                    prompt,
+                                })
+                                .await
+                            {
+                                error!("Failed to send GenerateTokens message: {err:?}");
+                            }
+                        });
                     }
                 },
                 Message::Binary(_) => {

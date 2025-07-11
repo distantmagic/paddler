@@ -48,6 +48,7 @@ impl Handler for Agent {
         );
 
         service_manager.add_service(ManagementSocketClientService::new(
+            generate_tokens_tx,
             self.management_addr,
             self.name.clone(),
             reconciliation_queue.clone(),
