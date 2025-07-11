@@ -4,6 +4,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 use clap::Parser;
+use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 
 use super::handler::Handler;
@@ -32,13 +33,18 @@ pub struct Agent {
 #[async_trait]
 impl Handler for Agent {
     async fn handle(&self, shutdown_rx: oneshot::Receiver<()>) -> Result<()> {
+        let (generate_tokens_tx, generate_tokens_rx) = mpsc::channel(100);
         let llamacpp_applicable_state_holder = Arc::new(LlamaCppApplicableStateHolder::new());
         let reconciliation_queue = Arc::new(ReconciliationQueue::new()?);
         let mut service_manager = ServiceManager::new();
 
         service_manager.add_service(
-            LlamaCppArbiterService::new(llamacpp_applicable_state_holder.clone(), self.slots)
-                .await?,
+            LlamaCppArbiterService::new(
+                generate_tokens_rx,
+                llamacpp_applicable_state_holder.clone(),
+                self.slots,
+            )
+            .await?,
         );
 
         service_manager.add_service(ManagementSocketClientService::new(

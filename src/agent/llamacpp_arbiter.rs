@@ -7,7 +7,6 @@ use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::model::LlamaModel;
-use log::info;
 use tokio::sync::oneshot;
 
 use crate::agent::llamacpp_applicable_state::LlamaCppApplicableState;
@@ -28,21 +27,25 @@ impl LlamaCppArbiter {
     }
 
     pub async fn spawn(&self) -> Result<LlamaCppArbiterController> {
-        let backend = Arc::new(LlamaBackend::init()?);
-        let ctx_params = Arc::new(LlamaContextParams::default());
-
-        let backend_clone = backend.clone();
-        let model = Arc::new(LlamaModel::load_from_file(
-            &backend_clone.clone(),
-            self.applicable_state.model_path.clone(),
-            &LlamaModelParams::default(),
-        )?);
-
         let (llamacpp_slot_addr_tx, llamacpp_slot_addr_rx) = oneshot::channel();
         let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
+        let model_path = self.applicable_state.model_path.clone();
         let slots_total = self.slots_total;
 
-        std::thread::spawn(move || {
+        let sync_arbiter_thread_handle = std::thread::spawn(move || {
+            let backend =
+                Arc::new(LlamaBackend::init().expect("Failed to initialize LlamaBackend"));
+            let ctx_params = Arc::new(LlamaContextParams::default());
+            let backend_clone = backend.clone();
+            let model = Arc::new(
+                LlamaModel::load_from_file(
+                    &backend_clone.clone(),
+                    model_path,
+                    &LlamaModelParams::default(),
+                )
+                .expect("Failed to load model"),
+            );
+
             let system = System::new();
 
             system.block_on(async move {
@@ -61,10 +64,11 @@ impl LlamaCppArbiter {
             });
         });
 
-        Ok(LlamaCppArbiterController {
-            llamacpp_slot_addr: llamacpp_slot_addr_rx.await?,
+        Ok(LlamaCppArbiterController::new(
+            llamacpp_slot_addr_rx.await?,
             shutdown_tx,
-        })
+            sync_arbiter_thread_handle,
+        ))
     }
 }
 
@@ -107,17 +111,17 @@ mod tests {
         let futures = vec![
             controller.llamacpp_slot_addr.send(GenerateTokens {
                 chunk_sender: tx.clone(),
-                max_tokens: 20,
+                max_tokens: 100,
                 prompt: prompt.to_string(),
             }),
             controller.llamacpp_slot_addr.send(GenerateTokens {
                 chunk_sender: tx.clone(),
-                max_tokens: 20,
+                max_tokens: 100,
                 prompt: prompt.to_string(),
             }),
             controller.llamacpp_slot_addr.send(GenerateTokens {
                 chunk_sender: tx,
-                max_tokens: 20,
+                max_tokens: 100,
                 prompt: prompt.to_string(),
             }),
         ];
@@ -136,12 +140,8 @@ mod tests {
             }
         }
 
-        controller
-            .shutdown_tx
-            .send(())
-            .expect("Failed to send shutdown signal");
+        controller.shutdown().await?;
 
-        // Ok(())
-        Err(anyhow::anyhow!("I need the test to fail for now"))
+        Ok(())
     }
 }
