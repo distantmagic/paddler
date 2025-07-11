@@ -2,7 +2,6 @@ pub mod agent_controller;
 pub mod agent_controller_pool;
 pub mod fleet_management_database;
 pub mod fleet_management_database_type;
-pub mod http_route;
 pub mod management_service;
 #[cfg(feature = "web_dashboard")]
 pub mod response;

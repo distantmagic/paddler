@@ -1,4 +1,5 @@
 pub mod configuration;
+pub mod http_route;
 use std::sync::Arc;
 
 use actix_cors::Cors;
@@ -12,7 +13,6 @@ use tokio::sync::broadcast;
 
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::fleet_management_database::FleetManagementDatabase;
-use crate::balancer::http_route;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 #[cfg(feature = "web_dashboard")]
 use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
