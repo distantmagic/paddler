@@ -8,7 +8,5 @@ pub mod response;
 #[cfg(feature = "statsd_reporter")]
 pub mod statsd_service;
 pub mod status_update;
-#[cfg(test)]
-pub mod test;
 #[cfg(feature = "web_dashboard")]
 pub mod web_dashboard_service;

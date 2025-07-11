@@ -2,7 +2,6 @@ mod agent;
 mod balancer;
 mod cmd;
 mod jsonrpc;
-mod llamacpp;
 mod service;
 mod service_manager;
 #[cfg(feature = "web_dashboard")]

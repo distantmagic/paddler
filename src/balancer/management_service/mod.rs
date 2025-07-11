@@ -36,15 +36,16 @@ fn create_cors_middleware(allowed_hosts: Arc<Vec<String>>) -> Cors {
 }
 
 pub struct ManagementService {
+    agent_controller_pool: Arc<AgentControllerPool>,
     configuration: ManagementServiceConfiguration,
     fleet_management_database: Arc<dyn FleetManagementDatabase>,
-    // upstream_peers: Arc<UpstreamPeerPool>,
     #[cfg(feature = "web_dashboard")]
     web_dashboard_service_configuration: Option<WebDashboardServiceConfiguration>,
 }
 
 impl ManagementService {
     pub fn new(
+        agent_controller_pool: Arc<AgentControllerPool>,
         configuration: ManagementServiceConfiguration,
         fleet_management_database: Arc<dyn FleetManagementDatabase>,
         #[cfg(feature = "web_dashboard")] web_dashboard_service_configuration: Option<
@@ -52,6 +53,7 @@ impl ManagementService {
         >,
     ) -> Self {
         ManagementService {
+            agent_controller_pool,
             configuration,
             fleet_management_database,
             // upstream_peers,
@@ -67,7 +69,7 @@ impl Service for ManagementService {
         #[allow(unused_mut)]
         let mut cors_allowed_hosts = self.configuration.cors_allowed_hosts.clone();
 
-        let agent_pool: Data<AgentControllerPool> = Data::new(AgentControllerPool::new());
+        let agent_pool: Data<AgentControllerPool> = Data::from(self.agent_controller_pool.clone());
 
         #[cfg(feature = "web_dashboard")]
         if let Some(web_dashboard_config) = &self.web_dashboard_service_configuration {
@@ -91,9 +93,9 @@ impl Service for ManagementService {
                     .configure(http_route::api::ws_agent::register);
             }
 
-            // if metrics_endpoint_enable {
-            //     app = app.configure(http_route::api::get_metrics::register)
-            // }
+            if metrics_endpoint_enable {
+                app = app.configure(http_route::api::get_metrics::register)
+            }
 
             app
         })

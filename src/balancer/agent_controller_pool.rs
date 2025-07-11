@@ -59,4 +59,12 @@ impl AgentControllerPool {
     pub fn remove_agent_controller(&self, agent_id: &str) -> Result<bool> {
         Ok(self.agents.remove(agent_id).is_some())
     }
+
+    pub fn total_slots(&self) -> Result<(usize, usize)> {
+        todo!();
+    }
+
+    pub fn total_buffered_requests(&self) -> usize {
+        todo!();
+    }
 }

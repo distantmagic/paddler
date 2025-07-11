@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use log::debug;
 use log::error;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
@@ -95,9 +94,7 @@ impl Service for LlamaCppArbiterService {
 mod tests {
     use anyhow::anyhow;
     use anyhow::Context as _;
-    use futures::future::join_all;
     use tokio::sync::oneshot;
-    use tokio::task::JoinHandle;
 
     use super::*;
     use crate::agent::converts_to_applicable_state::ConvertsToApplicableState as _;
@@ -116,7 +113,7 @@ mod tests {
 
     #[async_trait]
     impl Service for MockStateReplacerService {
-        async fn run(&mut self, mut shutdown_rx: broadcast::Receiver<()>) -> Result<()> {
+        async fn run(&mut self, mut _shutdown_rx: broadcast::Receiver<()>) -> Result<()> {
             let desired_state = LlamaCppDesiredState {
                 model: LlamaCppDesiredModel::HuggingFace(HuggingFaceModelReference {
                     filename: "Qwen3-0.6B-Q8_0.gguf".to_string(),
@@ -147,7 +144,7 @@ mod tests {
 
     #[async_trait]
     impl Service for MockGenerateTokensRequestService {
-        async fn run(&mut self, mut shutdown_rx: broadcast::Receiver<()>) -> Result<()> {
+        async fn run(&mut self, mut _shutdown_rx: broadcast::Receiver<()>) -> Result<()> {
             self.applicable_state_ready_rx
                 .take()
                 .expect("Workaround for one-shot channel ownership")
@@ -194,7 +191,7 @@ mod tests {
 
     #[async_trait]
     impl Service for MockShutdownService {
-        async fn run(&mut self, mut shutdown_rx: broadcast::Receiver<()>) -> Result<()> {
+        async fn run(&mut self, mut _shutdown_rx: broadcast::Receiver<()>) -> Result<()> {
             self.generate_chunks_ready_rx
                 .take()
                 .expect("Workaround for one-shot channel ownership")

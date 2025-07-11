@@ -11,6 +11,7 @@ use tokio::sync::oneshot;
 use super::handler::Handler;
 use super::parse_duration;
 use super::parse_socket_addr;
+use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::fleet_management_database::File;
 use crate::balancer::fleet_management_database::Memory;
 use crate::balancer::fleet_management_database_type::FleetManagementDatabaseType;
@@ -119,10 +120,11 @@ impl Balancer {
 #[async_trait]
 impl Handler for Balancer {
     async fn handle(&self, shutdown_rx: oneshot::Receiver<()>) -> Result<()> {
+        let agent_controller_pool = Arc::new(AgentControllerPool::new());
         let mut service_manager = ServiceManager::new();
-        // let upstream_peer_pool = Arc::new(UpstreamPeerPool::new());
 
         service_manager.add_service(ManagementService::new(
+            agent_controller_pool.clone(),
             self.get_mangement_service_configuration(),
             match &self.fleet_management_database {
                 FleetManagementDatabaseType::File(path) => Arc::new(File::new(path.to_owned())),
@@ -136,12 +138,12 @@ impl Handler for Balancer {
         #[cfg(feature = "statsd_reporter")]
         if let Some(statsd_addr) = self.statsd_addr {
             service_manager.add_service(StatsdService::new(
+                agent_controller_pool.clone(),
                 StatsdServiceConfiguration {
                     statsd_addr,
                     statsd_prefix: self.statsd_prefix.clone(),
                     statsd_reporting_interval: self.statsd_reporting_interval,
                 },
-                // upstream_peer_pool.clone(),
             )?);
         }
 
@@ -150,8 +152,8 @@ impl Handler for Balancer {
             self.get_web_dashboard_service_configuration()
         {
             service_manager.add_service(WebDashboardService::new(
+                agent_controller_pool,
                 web_dashboard_service_configuration,
-                // upstream_peer_pool.clone(),
             ));
         }
 
