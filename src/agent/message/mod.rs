@@ -1,3 +1,3 @@
 mod generate_tokens;
 
-pub use generate_tokens::GenerateTokens;
+pub use self::generate_tokens::GenerateTokens;

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use anyhow::Result;
 use futures::stream::SplitSink;
 use futures_util::SinkExt as _;
@@ -10,13 +8,13 @@ use tokio_tungstenite::MaybeTlsStream;
 use tokio_tungstenite::WebSocketStream;
 
 pub struct WebSocketSharedWriter {
-    writer_mutex: Arc<Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>>,
+    writer_mutex: Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>,
 }
 
 impl WebSocketSharedWriter {
     pub fn new(writer: SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>) -> Self {
         WebSocketSharedWriter {
-            writer_mutex: Arc::new(Mutex::new(writer)),
+            writer_mutex: Mutex::new(writer),
         }
     }
 

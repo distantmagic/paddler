@@ -36,9 +36,10 @@ impl Handler for Agent {
         let reconciliation_queue = Arc::new(ReconciliationQueue::new()?);
         let mut service_manager = ServiceManager::new();
 
-        service_manager.add_service(LlamaCppArbiterService::new(
-            llamacpp_applicable_state_holder.clone(),
-        )?);
+        service_manager.add_service(
+            LlamaCppArbiterService::new(llamacpp_applicable_state_holder.clone(), self.slots)
+                .await?,
+        );
 
         service_manager.add_service(ManagementSocketClientService::new(
             self.management_addr,

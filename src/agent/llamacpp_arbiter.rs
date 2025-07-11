@@ -1,43 +1,61 @@
 use std::sync::Arc;
 
 use actix::sync::SyncArbiter;
-use actix::Addr;
 use anyhow::Result;
 use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::model::LlamaModel;
+use tokio::sync::broadcast;
+use tokio::sync::mpsc;
 
 use crate::agent::llamacpp_applicable_state::LlamaCppApplicableState;
+use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
 use crate::agent::llamacpp_slot::LlamaCppSlot;
 
 pub struct LlamaCppArbiter {
-    applicable_state: LlamaCppApplicableState,
     slots_total: usize,
 }
 
 impl LlamaCppArbiter {
-    pub fn new(applicable_state: LlamaCppApplicableState, slots_total: usize) -> Result<Self> {
-        Ok(Self {
-            applicable_state,
+    pub fn new(slots_total: usize) -> Self {
+        Self {
             slots_total,
-        })
+        }
     }
 
-    pub async fn spawn(&self) -> Result<Addr<LlamaCppSlot>> {
+    pub async fn spawn(&self) -> Result<LlamaCppArbiterController> {
         let backend = Arc::new(LlamaBackend::init()?);
-        let params = LlamaModelParams::default();
-        let model = Arc::new(LlamaModel::load_from_file(
-            &backend.clone(),
-            self.applicable_state.model_path.clone(),
-            &params,
-        )?);
         let ctx_params = Arc::new(LlamaContextParams::default());
+        let (applicable_state_tx, mut applicable_state_rx) =
+            mpsc::channel::<LlamaCppApplicableState>(100);
+        let (model_tx, _) = broadcast::channel::<Arc<LlamaModel>>(100);
 
-        Ok(SyncArbiter::start(self.slots_total, move || {
-            LlamaCppSlot::new(backend.clone(), ctx_params.clone(), model.clone())
-                .expect("Failed to create LlamaCppSlot")
-        }))
+        let backend_clone = backend.clone();
+        let model_tx_clone = model_tx.clone();
+
+        tokio::spawn(async move {
+            while let Some(applicable_state) = applicable_state_rx.recv().await {
+                model_tx_clone
+                    .send(Arc::new(
+                        LlamaModel::load_from_file(
+                            &backend_clone.clone(),
+                            applicable_state.model_path.clone(),
+                            &LlamaModelParams::default(),
+                        )
+                        .expect("Failed to load model from file"),
+                    ))
+                    .expect("Failed to send model");
+            }
+        });
+
+        Ok(LlamaCppArbiterController {
+            applicable_state_tx,
+            llamacpp_slot_addr: SyncArbiter::start(self.slots_total, move || {
+                LlamaCppSlot::new(backend.clone(), ctx_params.clone(), model_tx.subscribe())
+                    .expect("Failed to create LlamaCppSlot")
+            }),
+        })
     }
 }
 
@@ -52,7 +70,7 @@ mod tests {
     use crate::agent::huggingface_model_reference::HuggingFaceModelReference;
     use crate::agent::llamacpp_desired_model::LlamaCppDesiredModel;
     use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
-    use crate::agent::message::Generate;
+    use crate::agent::message::GenerateTokens;
 
     #[actix_web::test]
     async fn test_llamacpp_arbiter_spawn() -> Result<()> {
@@ -70,26 +88,25 @@ mod tests {
             .await?
             .expect("Failed to convert to applicable state");
 
-        let llamacpp_arbiter = LlamaCppArbiter::new(applicable_state, 3)?;
-
-        let addr = llamacpp_arbiter.spawn().await?;
+        let llamacpp_arbiter = LlamaCppArbiter::new(3);
+        let controller = llamacpp_arbiter.spawn().await?;
 
         let prompt =
             "<|im_start|>user\nHow can I make a cat happy?<|im_end|>\n<|im_start|>assistant\n";
         let (tx, mut rx) = mpsc::channel(100);
 
         let futures = vec![
-            addr.send(Generate {
+            controller.llamacpp_slot_addr.send(GenerateTokens {
                 chunk_sender: tx.clone(),
                 max_tokens: 100,
                 prompt: prompt.to_string(),
             }),
-            addr.send(Generate {
+            controller.llamacpp_slot_addr.send(GenerateTokens {
                 chunk_sender: tx.clone(),
                 max_tokens: 100,
                 prompt: prompt.to_string(),
             }),
-            addr.send(Generate {
+            controller.llamacpp_slot_addr.send(GenerateTokens {
                 chunk_sender: tx,
                 max_tokens: 100,
                 prompt: prompt.to_string(),
@@ -105,13 +122,8 @@ mod tests {
         let results = join_all(futures).await;
 
         for result in results {
-            match result {
-                Ok(response) => {
-                    println!("Response: {}", response?);
-                }
-                Err(err) => {
-                    eprintln!("Error generating response: {err}");
-                }
+            if let Err(err) = result {
+                eprintln!("Error generating response: {err}");
             }
         }
 

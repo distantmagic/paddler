@@ -3,7 +3,7 @@ use anyhow::Result;
 use tokio::sync::mpsc::Sender;
 
 #[derive(Message)]
-#[rtype(result = "Result<String>")]
+#[rtype(result = "Result<()>")]
 pub struct GenerateTokens {
     pub chunk_sender: Sender<String>,
     pub max_tokens: i32,

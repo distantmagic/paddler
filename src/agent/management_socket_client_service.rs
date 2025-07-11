@@ -4,13 +4,13 @@ use std::sync::Arc;
 use anyhow::Context;
 use anyhow::Result;
 use async_trait::async_trait;
-use futures_util::SinkExt;
 use futures_util::StreamExt;
 use log::debug;
 use log::error;
 use log::info;
 use log::warn;
 use tokio::sync::broadcast;
+use tokio::sync::mpsc::channel;
 use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
@@ -59,7 +59,7 @@ impl ManagementSocketClientService {
         info!("Connected to management server");
 
         let (mut write, mut read) = ws_stream.split();
-        let writer = WebSocketSharedWriter::new(write);
+        let writer = Arc::new(WebSocketSharedWriter::new(write));
 
         writer
             .send(Message::Text(
@@ -110,7 +110,9 @@ impl ManagementSocketClientService {
                                 prompt,
                             }),
                     }) => {
-                        println!("Received GenerateTokens request with id, prompt: {id}, {prompt}");
+                        let writer_clone = writer.clone();
+
+                        tokio::spawn(async move {});
                     }
                 },
                 Message::Binary(_) => {
@@ -120,10 +122,15 @@ impl ManagementSocketClientService {
                     info!("Connection closed by server");
                     break;
                 }
+                Message::Frame(_) => {
+                    error!("Received a frame message, which is not expected");
+                }
                 Message::Ping(payload) => {
                     writer.send(Message::Pong(payload)).await?;
                 }
-                _ => {}
+                Message::Pong(_) => {
+                    // Pong received, no action needed
+                }
             }
         }
 
