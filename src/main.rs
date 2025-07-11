@@ -26,6 +26,7 @@ use tokio::sync::oneshot;
 
 use crate::cmd::agent::Agent;
 use crate::cmd::balancer::Balancer;
+use crate::cmd::handler::Handler as _;
 
 #[cfg(feature = "web_dashboard")]
 pub const ESBUILD_META_CONTENTS: &str = include_str!("../esbuild-meta.json");

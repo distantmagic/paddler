@@ -4,9 +4,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use clap::Parser;
 use tokio::sync::oneshot;
 
+use super::handler::Handler;
 use super::parse_duration;
 use super::parse_socket_addr;
 use crate::balancer::fleet_management_database::File;
@@ -91,7 +93,32 @@ pub struct Balancer {
 }
 
 impl Balancer {
-    pub async fn handle(&self, shutdown_rx: oneshot::Receiver<()>) -> Result<()> {
+    fn get_mangement_service_configuration(&self) -> ManagementServiceConfiguration {
+        ManagementServiceConfiguration {
+            addr: self.management_addr,
+            cors_allowed_hosts: self.management_cors_allowed_hosts.clone(),
+            fleet_management_enable: self.fleet_management_enable,
+            metrics_endpoint_enable: self.metrics_endpoint_enable,
+        }
+    }
+
+    #[cfg(feature = "web_dashboard")]
+    fn get_web_dashboard_service_configuration(&self) -> Option<WebDashboardServiceConfiguration> {
+        if self.web_dashboard_enable {
+            self.web_dashboard_addr
+                .map(|web_dashboard_addr| WebDashboardServiceConfiguration {
+                    addr: web_dashboard_addr,
+                    management_addr: self.management_addr,
+                })
+        } else {
+            None
+        }
+    }
+}
+
+#[async_trait]
+impl Handler for Balancer {
+    async fn handle(&self, shutdown_rx: oneshot::Receiver<()>) -> Result<()> {
         let mut service_manager = ServiceManager::new();
         // let upstream_peer_pool = Arc::new(UpstreamPeerPool::new());
 
@@ -129,27 +156,5 @@ impl Balancer {
         }
 
         service_manager.run_forever(shutdown_rx).await
-    }
-
-    fn get_mangement_service_configuration(&self) -> ManagementServiceConfiguration {
-        ManagementServiceConfiguration {
-            addr: self.management_addr,
-            cors_allowed_hosts: self.management_cors_allowed_hosts.clone(),
-            fleet_management_enable: self.fleet_management_enable,
-            metrics_endpoint_enable: self.metrics_endpoint_enable,
-        }
-    }
-
-    #[cfg(feature = "web_dashboard")]
-    fn get_web_dashboard_service_configuration(&self) -> Option<WebDashboardServiceConfiguration> {
-        if self.web_dashboard_enable {
-            self.web_dashboard_addr
-                .map(|web_dashboard_addr| WebDashboardServiceConfiguration {
-                    addr: web_dashboard_addr,
-                    management_addr: self.management_addr,
-                })
-        } else {
-            None
-        }
     }
 }

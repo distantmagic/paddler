@@ -1,5 +1,6 @@
 pub mod agent;
 pub mod balancer;
+pub mod handler;
 
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;

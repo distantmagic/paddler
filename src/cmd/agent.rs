@@ -2,9 +2,11 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use clap::Parser;
 use tokio::sync::oneshot;
 
+use super::handler::Handler;
 use super::parse_socket_addr;
 use crate::agent::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
 use crate::agent::llamacpp_arbiter_service::LlamaCppArbiterService;
@@ -28,8 +30,9 @@ pub struct Agent {
     name: Option<String>,
 }
 
-impl Agent {
-    pub async fn handle(&self, shutdown_rx: oneshot::Receiver<()>) -> Result<()> {
+#[async_trait]
+impl Handler for Agent {
+    async fn handle(&self, shutdown_rx: oneshot::Receiver<()>) -> Result<()> {
         let llamacpp_applicable_state_holder = Arc::new(LlamaCppApplicableStateHolder::new());
         let reconciliation_queue = Arc::new(ReconciliationQueue::new()?);
         let mut service_manager = ServiceManager::new();
