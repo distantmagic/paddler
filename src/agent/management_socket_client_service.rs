@@ -25,6 +25,7 @@ use crate::agent::jsonrpc::Message as JsonRpcMessage;
 use crate::agent::jsonrpc::Notification as JsonRpcNotification;
 use crate::agent::jsonrpc::Request as JsonRpcRequest;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
+use crate::agent::websocket_shared_writer::WebSocketSharedWriter;
 use crate::balancer::http_route::api::ws_agent::jsonrpc::notification_params::RegisterAgentParams;
 use crate::balancer::http_route::api::ws_agent::jsonrpc::Notification as ManagementJsonRpcNotification;
 use crate::jsonrpc::Error as JsonRpcError;
@@ -34,7 +35,7 @@ use crate::service::Service;
 pub struct ManagementSocketClientService {
     name: Option<String>,
     reconciliation_queue: Arc<ReconciliationQueue>,
-    status_endpoint_url: String,
+    socket_url: String,
 }
 
 impl ManagementSocketClientService {
@@ -48,18 +49,19 @@ impl ManagementSocketClientService {
         Ok(ManagementSocketClientService {
             name,
             reconciliation_queue,
-            status_endpoint_url: format!("ws://{management_addr}/api/v1/agent_socket/{agent_id}"),
+            socket_url: format!("ws://{management_addr}/api/v1/agent_socket/{agent_id}"),
         })
     }
 
     async fn keep_connection_alive(&self) -> Result<()> {
-        let (ws_stream, _response) = connect_async(self.status_endpoint_url.clone()).await?;
+        let (ws_stream, _response) = connect_async(self.socket_url.clone()).await?;
 
         info!("Connected to management server");
 
         let (mut write, mut read) = ws_stream.split();
+        let writer = WebSocketSharedWriter::new(write);
 
-        write
+        writer
             .send(Message::Text(
                 serde_json::to_string(&ManagementJsonRpcNotification::RegisterAgent(
                     RegisterAgentParams {
@@ -119,7 +121,7 @@ impl ManagementSocketClientService {
                     break;
                 }
                 Message::Ping(payload) => {
-                    write.send(Message::Pong(payload)).await?;
+                    writer.send(Message::Pong(payload)).await?;
                 }
                 _ => {}
             }

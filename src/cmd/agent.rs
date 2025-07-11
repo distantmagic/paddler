@@ -18,16 +18,15 @@ use crate::service_manager::ServiceManager;
 #[derive(Parser)]
 pub struct Agent {
     #[arg(long, value_parser = parse_socket_addr)]
-    /// Address of the llama.cpp instance that the agent will spawn and manage
-    llamacpp_listen_addr: SocketAddr,
-
-    #[arg(long, value_parser = parse_socket_addr)]
     /// Address of the management server that the agent will report to
     management_addr: SocketAddr,
 
     #[arg(long)]
     /// Name of the agent (optional)
     name: Option<String>,
+
+    #[arg(long)]
+    slots: usize,
 }
 
 #[async_trait]
@@ -39,7 +38,6 @@ impl Handler for Agent {
 
         service_manager.add_service(LlamaCppArbiterService::new(
             llamacpp_applicable_state_holder.clone(),
-            self.llamacpp_listen_addr,
         )?);
 
         service_manager.add_service(ManagementSocketClientService::new(

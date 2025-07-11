@@ -1,3 +1,3 @@
-mod generate;
+mod generate_tokens;
 
-pub use generate::Generate;
+pub use generate_tokens::GenerateTokens;

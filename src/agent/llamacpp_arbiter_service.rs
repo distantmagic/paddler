@@ -1,4 +1,3 @@
-use std::net::SocketAddr;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -15,18 +14,15 @@ use crate::service::Service;
 pub struct LlamaCppArbiterService {
     llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
     llamacpp_arbiter: Option<LlamaCppArbiter>,
-    llamacpp_listen_addr: SocketAddr,
 }
 
 impl LlamaCppArbiterService {
     pub fn new(
         llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
-        llamacpp_listen_addr: SocketAddr,
     ) -> Result<Self> {
         Ok(LlamaCppArbiterService {
             llamacpp_applicable_state_holder,
             llamacpp_arbiter: None,
-            llamacpp_listen_addr,
         })
     }
 

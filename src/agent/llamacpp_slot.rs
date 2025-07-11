@@ -13,7 +13,7 @@ use llama_cpp_2::model::LlamaModel;
 use llama_cpp_2::model::Special;
 use llama_cpp_2::sampling::LlamaSampler;
 
-use crate::agent::message::Generate;
+use crate::agent::message::GenerateTokens;
 
 pub struct LlamaCppSlot {
     ctx: LlamaContext<'static>,
@@ -53,10 +53,10 @@ impl Actor for LlamaCppSlot {
     type Context = SyncContext<Self>;
 }
 
-impl Handler<Generate> for LlamaCppSlot {
+impl Handler<GenerateTokens> for LlamaCppSlot {
     type Result = Result<String>;
 
-    fn handle(&mut self, message: Generate, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, message: GenerateTokens, _ctx: &mut Self::Context) -> Self::Result {
         let tokens_list = self.model.str_to_token(&message.prompt, AddBos::Always)?;
         let mut batch = LlamaBatch::new(512, 1);
         let last_index = tokens_list.len() as i32 - 1;
