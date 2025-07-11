@@ -9,14 +9,11 @@ use tokio::sync::mpsc;
 
 use crate::agent::llamacpp_applicable_state::LlamaCppApplicableState;
 use crate::agent::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
-use crate::agent::llamacpp_arbiter::LlamaCppArbiter;
-use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
 use crate::agent::message::GenerateTokens;
 use crate::service::Service;
 
 pub struct LlamaCppArbiterService {
     llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
-    llamacpp_arbiter_controller: LlamaCppArbiterController,
     generate_tokens_rx: mpsc::Receiver<GenerateTokens>,
     slots: usize,
 }
@@ -29,7 +26,6 @@ impl LlamaCppArbiterService {
         let (_, generate_tokens_rx) = mpsc::channel(100);
 
         Ok(LlamaCppArbiterService {
-            llamacpp_arbiter_controller: LlamaCppArbiter::new(slots).spawn().await?,
             llamacpp_applicable_state_holder,
             generate_tokens_rx,
             slots,
@@ -71,33 +67,33 @@ impl Service for LlamaCppArbiterService {
     }
 }
 
-#[cfg(test)]
-#[cfg(feature = "tests_that_use_llms")]
-mod tests {
-    use super::*;
-    use crate::agent::converts_to_applicable_state::ConvertsToApplicableState as _;
-    use crate::agent::huggingface_model_reference::HuggingFaceModelReference;
-    use crate::agent::llamacpp_desired_model::LlamaCppDesiredModel;
-    use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
-    use crate::agent::message::GenerateTokens;
-
-    #[actix_web::test]
-    async fn test_llamacpp_arbiter_service_run() -> Result<()> {
-        let llamacpp_applicable_state_holder = Arc::new(LlamaCppApplicableStateHolder::new());
-        let mut service = LlamaCppArbiterService::new(llamacpp_applicable_state_holder, 2).await?;
-
-        let desired_state = LlamaCppDesiredState {
-            model: LlamaCppDesiredModel::HuggingFace(HuggingFaceModelReference {
-                filename: "Qwen3-0.6B-Q8_0.gguf".to_string(),
-                repo: "Qwen/Qwen3-0.6B-GGUF".to_string(),
-            }),
-        };
-
-        service
-            .on_reconciled_state_change(desired_state.to_applicable_state().await?)
-            .await?;
-
-        Err(anyhow::anyhow!("This test is not fully implemented yet."))
-        // Ok(())
-    }
-}
+// #[cfg(test)]
+// #[cfg(feature = "tests_that_use_llms")]
+// mod tests {
+//     use super::*;
+//     use crate::agent::converts_to_applicable_state::ConvertsToApplicableState as _;
+//     use crate::agent::huggingface_model_reference::HuggingFaceModelReference;
+//     use crate::agent::llamacpp_desired_model::LlamaCppDesiredModel;
+//     use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
+//     use crate::agent::message::GenerateTokens;
+//
+//     #[actix_web::test]
+//     async fn test_llamacpp_arbiter_service_run() -> Result<()> {
+//         let llamacpp_applicable_state_holder = Arc::new(LlamaCppApplicableStateHolder::new());
+//         let mut service = LlamaCppArbiterService::new(llamacpp_applicable_state_holder, 2).await?;
+//
+//         let desired_state = LlamaCppDesiredState {
+//             model: LlamaCppDesiredModel::HuggingFace(HuggingFaceModelReference {
+//                 filename: "Qwen3-0.6B-Q8_0.gguf".to_string(),
+//                 repo: "Qwen/Qwen3-0.6B-GGUF".to_string(),
+//             }),
+//         };
+//
+//         service
+//             .on_reconciled_state_change(desired_state.to_applicable_state().await?)
+//             .await?;
+//
+//         Err(anyhow::anyhow!("This test is not fully implemented yet."))
+//         // Ok(())
+//     }
+// }
