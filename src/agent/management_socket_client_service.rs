@@ -20,12 +20,15 @@ use uuid::Uuid;
 
 use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::jsonrpc::notification_params::VersionParams;
+use crate::agent::jsonrpc::request_params::GenerateTokens;
 use crate::agent::jsonrpc::Message as JsonRpcMessage;
 use crate::agent::jsonrpc::Notification as JsonRpcNotification;
+use crate::agent::jsonrpc::Request as JsonRpcRequest;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
 use crate::balancer::http_route::api::ws_agent::jsonrpc::notification_params::RegisterAgentParams;
 use crate::balancer::http_route::api::ws_agent::jsonrpc::Notification as ManagementJsonRpcNotification;
 use crate::jsonrpc::Error as JsonRpcError;
+use crate::jsonrpc::RequestEnvelope;
 use crate::service::Service;
 
 pub struct ManagementSocketClientService {
@@ -97,6 +100,15 @@ impl ManagementSocketClientService {
                                 env!("CARGO_PKG_VERSION")
                             );
                         }
+                    }
+                    JsonRpcMessage::Request(RequestEnvelope {
+                        id,
+                        request:
+                            JsonRpcRequest::GenerateTokens(GenerateTokens {
+                                prompt,
+                            }),
+                    }) => {
+                        println!("Received GenerateTokens request with id, prompt: {id}, {prompt}");
                     }
                 },
                 Message::Binary(_) => {

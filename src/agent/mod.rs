@@ -12,4 +12,3 @@ pub mod management_socket_client_service;
 pub mod message;
 pub mod reconciliation_queue;
 pub mod reconciliation_service;
-pub mod reporting_service;
