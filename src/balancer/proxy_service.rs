@@ -206,27 +206,56 @@ impl ProxyHttp for ProxyService {
                             session.read_body_or_idle(false).await.unwrap().unwrap();
                             let request_body = session.get_retry_buffer();
 
-                            // Parse the JSON payload into a serde_json::Value
                             if let Some(body_bytes) = request_body {
-                                if let Ok(json_value) = serde_json::from_slice::<serde_json::Value>(&body_bytes) {
-                                    if let Some(model) = json_value.get("model").and_then(|v| v.as_str()) {
-                                        // Set the requested_model field in the RequestContext
-                                        ctx.requested_model = Some(model.to_string());
-                                        info!("Model in request: {:?}", ctx.requested_model);
-                                    }
-                                } else {
-                                    info!("Failed to parse JSON payload, trying regex extraction");
-
-                                    // Try extracting the model using regex
-                                    let body_str = String::from_utf8(body_bytes.to_vec()).unwrap();
-                                    let re = regex::Regex::new(r#""model"\s*:\s*["']([^"']*)["']"#).unwrap();
-                                    if let Some(caps) = re.captures(&body_str) {
-                                        if let Some(model) = caps.get(1) {
-                                            ctx.requested_model = Some(model.as_str().to_string());
-                                            info!("Model via regex: {:?}", ctx.requested_model);
+                                match std::str::from_utf8(&body_bytes) {
+                                    Ok(_) => {
+                                        // The bytes are valid UTF-8, proceed as normal
+                                        if let Ok(json_value) = serde_json::from_slice::<serde_json::Value>(&body_bytes) {
+                                            if let Some(model) = json_value.get("model").and_then(|v| v.as_str()) {
+                                                ctx.requested_model = Some(model.to_string());
+                                                info!("Model in request: {:?}", ctx.requested_model);
+                                            }
+                                        } else {
+                                            info!("Failed to parse JSON payload, trying regex extraction");
+                                            let body_str = String::from_utf8_lossy(&body_bytes).to_string();
+                                            let re = regex::Regex::new(r#""model"\s*:\s*["']([^"']*)["']"#).unwrap();
+                                            if let Some(caps) = re.captures(&body_str) {
+                                                if let Some(model) = caps.get(1) {
+                                                    ctx.requested_model = Some(model.as_str().to_string());
+                                                    info!("Model via regex: {:?}", ctx.requested_model);
+                                                }
+                                            } else {
+                                                info!("Failed to extract model using regex");
+                                            }
                                         }
-                                    } else {
-                                        info!("Failed to extract model using regex");
+                                    },
+                                    Err(e) => {
+                                        // Invalid UTF-8 detected. Truncate to the last valid UTF-8 boundary.
+                                        let valid_up_to = e.valid_up_to();
+                                        info!("Invalid UTF-8 detected. Truncating from {} bytes to {} bytes.", body_bytes.len(), valid_up_to);
+
+                                        // Create a new `Bytes` slice containing only the valid UTF-8 part.
+                                        let valid_body_bytes = body_bytes.slice(0..valid_up_to);
+
+                                        // Now proceed with the (truncated) valid_body_bytes
+                                        if let Ok(json_value) = serde_json::from_slice::<serde_json::Value>(&valid_body_bytes) {
+                                            if let Some(model) = json_value.get("model").and_then(|v| v.as_str()) {
+                                                ctx.requested_model = Some(model.to_string());
+                                                info!("Model in request (after truncation): {:?}", ctx.requested_model);
+                                            }
+                                        } else {
+                                            info!("Failed to parse JSON payload (after truncation), trying regex extraction");
+                                            let body_str = String::from_utf8_lossy(&valid_body_bytes).to_string();
+                                            let re = regex::Regex::new(r#""model"\s*:\s*["']([^"']*)["']"#).unwrap();
+                                            if let Some(caps) = re.captures(&body_str) {
+                                                if let Some(model) = caps.get(1) {
+                                                    ctx.requested_model = Some(model.as_str().to_string());
+                                                    info!("Model via regex (after truncation): {:?}", ctx.requested_model);
+                                                }
+                                            } else {
+                                                info!("Failed to extract model using regex (after truncation)");
+                                            }
+                                        }
                                     }
                                 }
                             } else {
