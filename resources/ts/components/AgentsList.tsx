@@ -21,6 +21,7 @@ export function AgentsList({ agents }: { agents: Array<Agent> }) {
       <thead>
         <tr>
           <th>Name</th>
+          <th>Model</th>
           <th>Issues</th>
           <th>Llama.cpp address</th>
           <th>Last update</th>
@@ -54,6 +55,7 @@ export function AgentsList({ agents }: { agents: Array<Agent> }) {
               key={agent_id}
             >
               <td>{status.agent_name}</td>
+              <td>{status.model}</td>
               <td>
                 {status.error && (
                   <>

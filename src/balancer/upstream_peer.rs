@@ -13,6 +13,7 @@ use crate::balancer::status_update::StatusUpdate;
 #[derive(Clone, Debug, Eq, Serialize, Deserialize)]
 pub struct UpstreamPeer {
     pub agent_id: String,
+    pub model: Option<String>,
     pub last_update: SystemTime,
     pub quarantined_until: Option<SystemTime>,
     pub slots_taken: usize,
@@ -24,6 +25,7 @@ impl UpstreamPeer {
     pub fn new_from_status_update(agent_id: String, status: StatusUpdate) -> Self {
         Self {
             agent_id,
+            model: status.model.clone(),
             last_update: SystemTime::now(),
             quarantined_until: None,
             slots_taken: 0,
@@ -34,6 +36,14 @@ impl UpstreamPeer {
 
     pub fn is_usable(&self) -> bool {
         !self.status.has_issues() && self.status.slots_idle > 0 && self.quarantined_until.is_none()
+    }
+
+    pub fn supports_model(&self, requested_model: &str) -> bool {
+        requested_model.is_empty() || self.model.as_deref() == Some(requested_model)
+    }
+
+    pub fn is_usable_for_model(&self, requested_model: &str) -> bool {
+        self.is_usable() && (requested_model.is_empty() || self.model.as_deref() == Some(requested_model))
     }
 
     pub fn release_slot(&mut self) -> Result<()> {
@@ -59,6 +69,7 @@ impl UpstreamPeer {
         self.last_update = SystemTime::now();
         self.quarantined_until = None;
         self.slots_taken_since_last_status_update = 0;
+        self.model = status_update.model.clone();
         self.status = status_update;
     }
 
@@ -110,6 +121,7 @@ mod tests {
     fn create_test_peer() -> UpstreamPeer {
         UpstreamPeer {
             agent_id: "test_agent".to_string(),
+            model: "llama3".to_string(),
             last_update: SystemTime::now(),
             quarantined_until: None,
             slots_taken: 0,
@@ -177,7 +189,6 @@ mod tests {
     #[test]
     fn test_update_status() {
         let mut peer = create_test_peer();
-
         let slots: Vec<Slot> = vec![];
         let slots_idle = slots.iter().filter(|slot| !slot.is_processing).count();
 
@@ -194,6 +205,7 @@ mod tests {
             is_unexpected_response_status: None,
             slots_idle,
             slots_processing: slots.len() - slots_idle,
+            model: Some("llama3".to_string())
         };
 
         peer.update_status(status_update);

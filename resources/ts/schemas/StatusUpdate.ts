@@ -14,6 +14,7 @@ export const StatusUpdateSchema = z
     is_unexpected_response_status: z.boolean().nullable(),
     slots_idle: z.number(),
     slots_processing: z.number(),
+    model: z.string().nullable(),
   })
   .strict();
 

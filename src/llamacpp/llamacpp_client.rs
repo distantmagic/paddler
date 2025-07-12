@@ -1,16 +1,19 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
+use anyhow::anyhow;
 use anyhow::Result;
 use reqwest::header;
 use url::Url;
 
 use crate::llamacpp::slot::Slot;
 use crate::llamacpp::slots_response::SlotsResponse;
+use crate::llamacpp::models_response::ModelsResponse;
 
 pub struct LlamacppClient {
     client: reqwest::Client,
     slots_endpoint_url: String,
+    models_endpoint_url: String,
 }
 
 impl LlamacppClient {
@@ -36,6 +39,7 @@ impl LlamacppClient {
         Ok(Self {
             client: builder.build()?,
             slots_endpoint_url: Url::parse(&format!("http://{addr}/slots"))?.to_string(),
+            models_endpoint_url: Url::parse(&format!("http://{addr}/v1/models"))?.to_string(),
         })
     }
 
@@ -113,6 +117,42 @@ impl LlamacppClient {
                 is_slot_endpoint_enabled: None,
                 slots: vec![],
             },
+        }
+    }
+
+    pub async fn get_model(&self) -> Result<Option<String>> {
+        let url = self.models_endpoint_url.to_owned();
+
+        let response = match self.client.get(url.clone()).send().await {
+            Ok(resp) => resp,
+            Err(err) => {
+                return Err(anyhow!(
+                    "Request to '{}' failed: '{}'; connect issue: {}; decode issue: {}; request issue: {}; status issue: {}; status: {:?}",
+                    url,
+                    err,
+                    err.is_connect(),
+                    err.is_decode(),
+                    err.is_request(),
+                    err.is_status(),
+                    err.status()
+                ));
+            }
+        };
+
+        match response.status() {
+            reqwest::StatusCode::OK => {
+                let models_response: ModelsResponse = response.json().await?;
+                if let Some(models) = models_response.models {
+                    if models.is_empty() {
+                        Ok(None)
+                    } else {
+                        Ok(models.first().and_then(|m| Some(m.model.clone())))
+                    }
+                } else {
+                    Ok(None)
+                }
+            },
+            _ => Err(anyhow!("Unexpected response status")),
         }
     }
 }
