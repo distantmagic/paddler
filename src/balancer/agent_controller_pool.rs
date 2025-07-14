@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use dashmap::DashMap;
 use tokio::sync::Notify;
@@ -5,10 +7,10 @@ use tokio::sync::Notify;
 use super::agent_controller::AgentController;
 use crate::balancer::agent_controller_pool_snapshot::AgentControllerPoolSnapshot;
 use crate::balancer::agent_controller_snapshot::AgentControllerSnapshot;
-use crate::balancer::produces_snapshot::ProducesSnapshot;
+use crate::produces_snapshot::ProducesSnapshot;
 
 pub struct AgentControllerPool {
-    agents: DashMap<String, AgentController>,
+    agents: DashMap<String, Arc<AgentController>>,
     pub update_notifier: Notify,
 }
 
@@ -20,10 +22,14 @@ impl AgentControllerPool {
         }
     }
 
+    pub fn get_agent_controller(&self, agent_id: &str) -> Option<Arc<AgentController>> {
+        self.agents.get(agent_id).map(|entry| entry.value().clone())
+    }
+
     pub fn register_agent_controller(
         &self,
         agent_id: String,
-        agent: AgentController,
+        agent: Arc<AgentController>,
     ) -> Result<()> {
         if self.agents.insert(agent_id, agent).is_none() {
             self.update_notifier.notify_waiters();

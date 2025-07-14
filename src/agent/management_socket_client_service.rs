@@ -29,6 +29,7 @@ use crate::agent::websocket_shared_writer::WebSocketSharedWriter;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::RegisterAgentParams;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Notification as ManagementJsonRpcNotification;
 use crate::jsonrpc::Error as JsonRpcError;
+use crate::agent::slot_aggregated_metrics::SlotAggregatedMetrics;
 use crate::jsonrpc::RequestEnvelope;
 use crate::jsonrpc::ResponseEnvelope;
 use crate::service::Service;
@@ -37,7 +38,7 @@ pub struct ManagementSocketClientService {
     generate_tokens_tx: mpsc::Sender<GenerateTokens>,
     name: Option<String>,
     reconciliation_queue: Arc<ReconciliationQueue>,
-    slots_total: usize,
+    slot_aggregated_metrics: Arc<SlotAggregatedMetrics>,
     socket_url: String,
 }
 
@@ -47,7 +48,7 @@ impl ManagementSocketClientService {
         management_addr: SocketAddr,
         name: Option<String>,
         reconciliation_queue: Arc<ReconciliationQueue>,
-        slots_total: usize,
+        slot_aggregated_metrics: Arc<SlotAggregatedMetrics>,
     ) -> Result<Self> {
         let agent_id = Uuid::new_v4();
 
@@ -55,7 +56,7 @@ impl ManagementSocketClientService {
             generate_tokens_tx,
             name,
             reconciliation_queue,
-            slots_total,
+            slot_aggregated_metrics,
             socket_url: format!("ws://{management_addr}/api/v1/agent_socket/{agent_id}"),
         })
     }
@@ -174,7 +175,7 @@ impl ManagementSocketClientService {
             .send_serialized(ManagementJsonRpcNotification::RegisterAgent(
                 RegisterAgentParams {
                     name: self.name.clone(),
-                    slots_total: self.slots_total,
+                    slots_total: self.slot_aggregated_metrics.slots_total,
                 },
             ))
             .await?;
@@ -186,6 +187,11 @@ impl ManagementSocketClientService {
                     writer.send_serialized(ManagementJsonRpcNotification::DeregisterAgent).await?;
 
                     break;
+                }
+                _ = self.slot_aggregated_metrics.update_notifier.notified() => {
+                    // writer.send_serialized(ManagementJsonRpcNotification::UpdateSlots {
+                    //     slots_processing: self.slot_aggregated_metrics.slots_processing.get(),
+                    // }).await?;
                 }
                 msg = read.next() => {
                     match msg {

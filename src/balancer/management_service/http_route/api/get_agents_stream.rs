@@ -9,7 +9,7 @@ use actix_web_lab::sse;
 use log::error;
 
 use crate::balancer::agent_controller_pool::AgentControllerPool;
-use crate::balancer::produces_snapshot::ProducesSnapshot as _;
+use crate::produces_snapshot::ProducesSnapshot as _;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);

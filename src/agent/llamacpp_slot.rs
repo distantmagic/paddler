@@ -14,10 +14,13 @@ use llama_cpp_2::model::Special;
 use llama_cpp_2::sampling::LlamaSampler;
 
 use crate::agent::message::GenerateTokens;
+use crate::agent::slot_metrics::SlotMetrics;
+use crate::agent::slot_take_drop_guard::SlotTakeDropGuard;
 
 pub struct LlamaCppSlot {
-    ctx: LlamaContext<'static>,
+    llama_context: LlamaContext<'static>,
     model: Arc<LlamaModel>,
+    slot_metrics: Arc<SlotMetrics>,
 }
 
 impl LlamaCppSlot {
@@ -25,13 +28,14 @@ impl LlamaCppSlot {
         backend: Arc<LlamaBackend>,
         ctx_params: Arc<LlamaContextParams>,
         model: Arc<LlamaModel>,
+        slot_metrics: Arc<SlotMetrics>,
     ) -> Result<Self> {
         debug_assert!(
             Arc::strong_count(&model) >= 1,
             "Model Arc must have at least one reference"
         );
 
-        let ctx = unsafe {
+        let llama_context = unsafe {
             // SAFETY: Extending the lifetime of the model reference to 'static.
             // This should be safe because:
             // 1. The model is stored in an Arc, so it won't be deallocated
@@ -43,20 +47,13 @@ impl LlamaCppSlot {
         };
 
         Ok(Self {
-            ctx,
+            llama_context,
             model,
+            slot_metrics,
         })
     }
-}
 
-impl Actor for LlamaCppSlot {
-    type Context = SyncContext<Self>;
-}
-
-impl Handler<GenerateTokens> for LlamaCppSlot {
-    type Result = Result<()>;
-
-    fn handle(&mut self, message: GenerateTokens, _ctx: &mut Self::Context) -> Self::Result {
+    fn generate_tokens(&mut self, message: GenerateTokens) -> Result<()> {
         let tokens_list = self.model.str_to_token(&message.prompt, AddBos::Always)?;
         let mut batch = LlamaBatch::new(512, 1);
         let last_index = tokens_list.len() as i32 - 1;
@@ -67,7 +64,7 @@ impl Handler<GenerateTokens> for LlamaCppSlot {
             batch.add(token, i, &[0], is_last)?;
         }
 
-        self.ctx.decode(&mut batch)?;
+        self.llama_context.decode(&mut batch)?;
 
         let mut n_cur = batch.n_tokens();
         let mut decoder = encoding_rs::UTF_8.new_decoder();
@@ -76,7 +73,7 @@ impl Handler<GenerateTokens> for LlamaCppSlot {
         while n_cur <= message.max_tokens {
             // sample the next token
             {
-                let token = sampler.sample(&self.ctx, batch.n_tokens() - 1);
+                let token = sampler.sample(&self.llama_context, batch.n_tokens() - 1);
 
                 sampler.accept(token);
 
@@ -97,9 +94,23 @@ impl Handler<GenerateTokens> for LlamaCppSlot {
 
             n_cur += 1;
 
-            self.ctx.decode(&mut batch)?;
+            self.llama_context.decode(&mut batch)?;
         }
 
         Ok(())
+    }
+}
+
+impl Actor for LlamaCppSlot {
+    type Context = SyncContext<Self>;
+}
+
+impl Handler<GenerateTokens> for LlamaCppSlot {
+    type Result = Result<()>;
+
+    fn handle(&mut self, message: GenerateTokens, _ctx: &mut Self::Context) -> Self::Result {
+        let _guard = SlotTakeDropGuard::new(self.slot_metrics.clone());
+
+        self.generate_tokens(message)
     }
 }

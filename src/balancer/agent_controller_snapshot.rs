@@ -5,5 +5,6 @@ use serde::Serialize;
 pub struct AgentControllerSnapshot {
     pub id: String,
     pub name: Option<String>,
+    pub slots_processing: i32,
     pub slots_total: usize,
 }

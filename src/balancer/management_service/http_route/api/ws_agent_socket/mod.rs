@@ -1,5 +1,7 @@
 pub mod jsonrpc;
 
+use std::sync::Arc;
+
 use actix_web::get;
 use actix_web::rt;
 use actix_web::web::Data;
@@ -24,9 +26,11 @@ use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
 use self::jsonrpc::notification_params::RegisterAgentParams;
+use self::jsonrpc::notification_params::UpdateAgentStatusParams;
 use self::jsonrpc::Notification as BalancerJsonRpcNotification;
 use crate::agent::jsonrpc::notification_params::VersionParams;
 use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
+use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::fleet_management_database::FleetManagementDatabase;
@@ -112,6 +116,7 @@ async fn handle_text_message(
                 id: agent_id.clone(),
                 name,
                 session,
+                slots_processing: AtomicValue::new(0),
                 slots_total,
             };
 
@@ -123,10 +128,20 @@ async fn handle_text_message(
             }
 
             agent_controller_pool
-                .register_agent_controller(agent_id.clone(), agent_controller)
+                .register_agent_controller(agent_id.clone(), Arc::new(agent_controller))
                 .context("Unable to register agent controller")?;
 
             info!("Registered agent: {agent_id}");
+        }
+        Ok(BalancerJsonRpcNotification::UpdateAgentStatus(UpdateAgentStatusParams {
+            slots_processing,
+        })) => {
+            if let Some(agent_controller) = agent_controller_pool.get_agent_controller(&agent_id) {
+                agent_controller.slots_processing.set(slots_processing);
+                agent_controller_pool.update_notifier.notify_waiters();
+            } else {
+                error!("Agent controller not found for agent: {agent_id}");
+            }
         }
         Err(
             err @ serde_json::Error {

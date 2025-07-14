@@ -1,7 +1,9 @@
 mod agent;
+mod atomic_value;
 mod balancer;
 mod cmd;
 mod jsonrpc;
+mod produces_snapshot;
 mod service;
 mod service_manager;
 #[cfg(feature = "web_dashboard")]

@@ -13,16 +13,23 @@ use tokio::sync::oneshot;
 use crate::agent::llamacpp_applicable_state::LlamaCppApplicableState;
 use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
 use crate::agent::llamacpp_slot::LlamaCppSlot;
+use crate::agent::slot_aggregated_metrics_manager::SlotAggregatedMetricsManager;
 
 pub struct LlamaCppArbiter {
     applicable_state: LlamaCppApplicableState,
+    slot_aggregated_metrics_manager: Arc<SlotAggregatedMetricsManager>,
     slots_total: usize,
 }
 
 impl LlamaCppArbiter {
-    pub fn new(applicable_state: LlamaCppApplicableState, slots_total: usize) -> Self {
+    pub fn new(
+        applicable_state: LlamaCppApplicableState,
+        slot_aggregated_metrics_manager: Arc<SlotAggregatedMetricsManager>,
+        slots_total: usize,
+    ) -> Self {
         Self {
             applicable_state,
+            slot_aggregated_metrics_manager,
             slots_total,
         }
     }
@@ -31,6 +38,7 @@ impl LlamaCppArbiter {
         let (llamacpp_slot_addr_tx, llamacpp_slot_addr_rx) = oneshot::channel();
         let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
         let model_path = self.applicable_state.model_path.clone();
+        let slot_aggregated_metrics_manager = self.slot_aggregated_metrics_manager.clone();
         let slots_total = self.slots_total;
 
         let sync_arbiter_thread_handle = thread::spawn(move || -> Result<()> {
@@ -48,8 +56,13 @@ impl LlamaCppArbiter {
             system.block_on(async move {
                 llamacpp_slot_addr_tx
                     .send(SyncArbiter::start(slots_total, move || {
-                        LlamaCppSlot::new(backend.clone(), ctx_params.clone(), model.clone())
-                            .expect("Failed to create LlamaCppSlot")
+                        LlamaCppSlot::new(
+                            backend.clone(),
+                            ctx_params.clone(),
+                            model.clone(),
+                            slot_aggregated_metrics_manager.bind_slot_metrics(),
+                        )
+                        .expect("Failed to create LlamaCppSlot")
                     }))
                     .expect("Failed to send LlamaCppSlot address");
 

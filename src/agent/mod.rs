@@ -1,4 +1,5 @@
 pub mod converts_to_applicable_state;
+pub mod dispenses_slots;
 pub mod huggingface_model_reference;
 pub mod jsonrpc;
 pub mod llamacpp_applicable_state;
@@ -13,5 +14,9 @@ pub mod management_socket_client_service;
 pub mod message;
 pub mod reconciliation_queue;
 pub mod reconciliation_service;
+pub mod slot_aggregated_metrics;
+pub mod slot_aggregated_metrics_manager;
+pub mod slot_metrics;
+pub mod slot_take_drop_guard;
 pub mod websocket_handler;
 pub mod websocket_shared_writer;

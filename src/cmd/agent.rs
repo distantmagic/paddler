@@ -14,6 +14,7 @@ use crate::agent::llamacpp_arbiter_service::LlamaCppArbiterService;
 use crate::agent::management_socket_client_service::ManagementSocketClientService;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
 use crate::agent::reconciliation_service::ReconciliationService;
+use crate::agent::slot_aggregated_metrics_manager::SlotAggregatedMetricsManager;
 use crate::service_manager::ServiceManager;
 
 #[derive(Parser)]
@@ -37,11 +38,14 @@ impl Handler for Agent {
         let llamacpp_applicable_state_holder = Arc::new(LlamaCppApplicableStateHolder::new());
         let reconciliation_queue = Arc::new(ReconciliationQueue::new()?);
         let mut service_manager = ServiceManager::new();
+        let slot_aggregated_metrics_manager =
+            Arc::new(SlotAggregatedMetricsManager::new(self.slots));
 
         service_manager.add_service(
             LlamaCppArbiterService::new(
                 generate_tokens_rx,
                 llamacpp_applicable_state_holder.clone(),
+                slot_aggregated_metrics_manager.clone(),
                 self.slots,
             )
             .await?,
@@ -52,7 +56,9 @@ impl Handler for Agent {
             self.management_addr,
             self.name.clone(),
             reconciliation_queue.clone(),
-            self.slots,
+            slot_aggregated_metrics_manager
+                .slot_aggregated_metrics
+                .clone(),
         )?);
 
         service_manager.add_service(ReconciliationService::new(
