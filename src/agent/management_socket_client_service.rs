@@ -105,27 +105,19 @@ impl ManagementSocketClientService {
                     tokio::spawn(async move {
                         while let Some(chunk) = chunk_receiver.recv().await {
                             writer_clone
-                                .send(Message::Text(
-                                    serde_json::to_string(&ResponseEnvelope::StreamChunk {
-                                        request_id: id.clone(),
-                                        chunk,
-                                    })
-                                    .context("Failed to serialize response envelope")?
-                                    .into(),
-                                ))
+                                .send_serialized(ResponseEnvelope::StreamChunk {
+                                    request_id: id.clone(),
+                                    chunk,
+                                })
                                 .await?;
                         }
 
                         writer_clone
-                            .send(Message::Text(
-                                serde_json::to_string::<ResponseEnvelope<String>>(
-                                    &ResponseEnvelope::StreamDone {
-                                        request_id: id,
-                                    },
-                                )
-                                .context("Failed to serialize response envelope")?
-                                .into(),
-                            ))
+                            .send_serialized::<ResponseEnvelope<String>>(
+                                ResponseEnvelope::StreamDone {
+                                    request_id: id,
+                                },
+                            )
                             .await?;
 
                         Ok::<(), anyhow::Error>(())
@@ -176,14 +168,10 @@ impl ManagementSocketClientService {
         let writer = Arc::new(WebSocketSharedWriter::new(write));
 
         writer
-            .send(Message::Text(
-                serde_json::to_string(&ManagementJsonRpcNotification::RegisterAgent(
-                    RegisterAgentParams {
-                        name: self.name.clone(),
-                    },
-                ))
-                .context("Failed to serialize RegisterAgent notification")?
-                .into(),
+            .send_serialized(ManagementJsonRpcNotification::RegisterAgent(
+                RegisterAgentParams {
+                    name: self.name.clone(),
+                },
             ))
             .await?;
 
@@ -191,6 +179,8 @@ impl ManagementSocketClientService {
             tokio::select! {
                 _ = shutdown.recv() => {
                     info!("Shutdown signal received, closing connection");
+                    writer.send_serialized(ManagementJsonRpcNotification::DeregisterAgent).await?;
+
                     break;
                 }
                 msg = read.next() => {

@@ -18,6 +18,7 @@ use log::debug;
 use log::error;
 use log::info;
 use serde::Deserialize;
+use tokio::sync::broadcast;
 use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
@@ -38,14 +39,71 @@ pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
 }
 
+async fn handle_aggregated_message(
+    agent_controller_pool: Data<AgentControllerPool>,
+    agent_id: String,
+    fleet_management_database: Data<dyn FleetManagementDatabase>,
+    msg: Option<std::result::Result<AggregatedMessage, actix_ws::ProtocolError>>,
+    session: &mut Session,
+    shutdown_tx: broadcast::Sender<()>,
+) -> Result<bool> {
+    match msg {
+        Some(Ok(AggregatedMessage::Binary(_))) => {
+            debug!("Received binary message, but only text messages are supported");
+        }
+        Some(Ok(AggregatedMessage::Close(_))) => return Ok(false),
+        Some(Ok(AggregatedMessage::Ping(msg))) => {
+            if session.pong(&msg).await.is_err() {
+                return Ok(false);
+            }
+        }
+        Some(Ok(AggregatedMessage::Pong(_))) => {
+            // ignore pong messages
+        }
+        Some(Ok(AggregatedMessage::Text(text))) => {
+            match handle_text_message(
+                agent_controller_pool.clone(),
+                agent_id.clone(),
+                fleet_management_database.clone(),
+                session.clone(),
+                shutdown_tx.clone(),
+                &text,
+            )
+            .await
+            .context(format!("Text message: {text}"))
+            {
+                Ok(true) => {
+                    // continue processing messages
+                }
+                Ok(false) => return Ok(false),
+                Err(err) => error!("Error handling message: {err:?}"),
+            }
+        }
+        Some(Err(err)) => {
+            error!("Error receiving message: {err:?}");
+
+            return Ok(false);
+        }
+        None => return Ok(false),
+    }
+
+    Ok(true)
+}
+
 async fn handle_text_message(
+    agent_controller_pool: Data<AgentControllerPool>,
+    agent_id: String,
     fleet_management_database: Data<dyn FleetManagementDatabase>,
     mut session: Session,
-    agent_id: String,
-    agent_controller_pool: Data<AgentControllerPool>,
+    shutdown_tx: broadcast::Sender<()>,
     text: &str,
-) -> Result<()> {
+) -> Result<bool> {
     match serde_json::from_str::<BalancerJsonRpcNotification>(text) {
+        Ok(BalancerJsonRpcNotification::DeregisterAgent) => {
+            shutdown_tx.send(())?;
+
+            return Ok(false);
+        }
         Ok(BalancerJsonRpcNotification::RegisterAgent(RegisterAgentParams {
             name,
         })) => {
@@ -90,7 +148,7 @@ async fn handle_text_message(
         }
     };
 
-    Ok(())
+    Ok(true)
 }
 
 async fn send_version(session: &mut Session, version: String) -> Result<()> {
@@ -125,15 +183,16 @@ impl Drop for RemoveAgentGuard {
 
 #[get("/api/v1/agent_socket/{agent_id}")]
 async fn respond(
+    agent_controller_pool: Data<AgentControllerPool>,
     fleet_management_database: Data<dyn FleetManagementDatabase>,
     path_params: Path<PathParams>,
     payload: Payload,
     req: HttpRequest,
-    agent_controller_pool: Data<AgentControllerPool>,
 ) -> Result<HttpResponse, Error> {
     let agent_id = path_params.agent_id.clone();
 
     let (res, mut session, msg_stream) = actix_ws::handle(&req, payload)?;
+    let (shutdown_tx, mut shutdown_rx) = broadcast::channel::<()>(2);
 
     let mut aggregated_msg_stream = msg_stream
         .aggregate_continuations()
@@ -158,43 +217,28 @@ async fn respond(
         loop {
             tokio::select! {
                 msg = aggregated_msg_stream.next() => {
-                    match msg {
-                        Some(Ok(AggregatedMessage::Binary(_))) => {
-                            debug!("Received binary message, but only text messages are supported");
+                    match handle_aggregated_message(
+                        agent_controller_pool.clone(),
+                        agent_id.clone(),
+                        fleet_management_database.clone(),
+                        msg,
+                        &mut session,
+                        shutdown_tx.clone(),
+                    ).await {
+                        Ok(true) => {
+                            // continue processing messages
                         }
-                        Some(Ok(AggregatedMessage::Close(_))) => break,
-                        Some(Ok(AggregatedMessage::Ping(msg))) => {
-                            if session.pong(&msg).await.is_err() {
-                                break;
-                            }
-                        }
-                        Some(Ok(AggregatedMessage::Pong(_))) => {
-                            // ignore pong messages
-                        }
-                        Some(Ok(AggregatedMessage::Text(text))) => {
-                            if let Err(err) = handle_text_message(
-                                fleet_management_database.clone(),
-                                session.clone(),
-                                agent_id.clone(),
-                                agent_controller_pool.clone(),
-                                &text
-                            ).await.context(format!("Text message: {text}")) {
-                                error!("Error handling message: {err:?}");
-                            }
-                        }
-                        Some(Err(err)) => {
-                            error!("Error receiving message: {err:?}");
-                            break;
-                        },
-                        None => {
-                            break;
-                        }
+                        Ok(false) => break,
+                        Err(err) => error!("Error handling message: {err:?}"),
                     }
                 }
                 _ = ping_ticker.tick() => {
                     if session.ping(b"").await.is_err() {
                         break;
                     }
+                }
+                _ = shutdown_rx.recv() => {
+                    break;
                 }
             }
         }

@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use log::debug;
 use log::error;
 use tokio::sync::broadcast;
 

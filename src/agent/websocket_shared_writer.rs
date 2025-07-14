@@ -23,4 +23,11 @@ impl WebSocketSharedWriter {
 
         Ok(writer.send(message).await?)
     }
+
+    pub async fn send_serialized<T: serde::Serialize>(&self, message: T) -> Result<()> {
+        let serialized_message = serde_json::to_string(&message)?;
+        let message = Message::Text(serialized_message.into());
+
+        self.send(message).await
+    }
 }

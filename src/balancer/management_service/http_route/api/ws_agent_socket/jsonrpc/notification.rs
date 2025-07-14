@@ -6,5 +6,6 @@ use super::notification_params::RegisterAgentParams;
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "notification", content = "content")]
 pub enum Notification {
+    DeregisterAgent,
     RegisterAgent(RegisterAgentParams),
 }
