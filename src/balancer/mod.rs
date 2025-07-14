@@ -1,8 +1,11 @@
 pub mod agent_controller;
 pub mod agent_controller_pool;
+pub mod agent_controller_pool_snapshot;
+pub mod agent_controller_snapshot;
 pub mod fleet_management_database;
 pub mod fleet_management_database_type;
 pub mod management_service;
+pub mod produces_snapshot;
 #[cfg(feature = "web_dashboard")]
 pub mod response;
 #[cfg(feature = "statsd_reporter")]

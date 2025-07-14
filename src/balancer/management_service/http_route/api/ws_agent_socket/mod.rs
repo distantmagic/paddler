@@ -106,11 +106,13 @@ async fn handle_text_message(
         }
         Ok(BalancerJsonRpcNotification::RegisterAgent(RegisterAgentParams {
             name,
+            slots_total,
         })) => {
             let mut agent_controller = AgentController {
                 id: agent_id.clone(),
                 name,
                 session,
+                slots_total,
             };
 
             if let Some(desired_state) = fleet_management_database.read_desired_state().await? {

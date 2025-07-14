@@ -2,7 +2,7 @@ use std::thread::spawn;
 
 use actix_rt::System;
 use anyhow::Result;
-use log::info;
+use log::debug;
 use tokio::sync::broadcast;
 use tokio::sync::oneshot;
 
@@ -33,13 +33,13 @@ impl ServiceManager {
 
             let handle = spawn(move || {
                 System::new().block_on(async move {
-                    info!("Starting service: {service_name}");
+                    debug!("Starting service: {service_name}");
 
                     if let Err(err) = service.run(shutdown_subscriber).await {
                         panic!("Service error: {err}");
                     }
 
-                    info!("Service stopped gracefully: {service_name}");
+                    debug!("Service stopped gracefully: {service_name}");
                 });
             });
 

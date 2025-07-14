@@ -1,46 +1,22 @@
 use anyhow::Result;
 use dashmap::DashMap;
-use serde::Deserialize;
-use serde::Serialize;
+use tokio::sync::Notify;
 
 use super::agent_controller::AgentController;
-
-#[derive(Deserialize, Serialize)]
-pub struct AgentControllerInfo {
-    pub id: String,
-    pub name: Option<String>,
-}
-
-#[derive(Deserialize, Serialize)]
-pub struct AgentControllerPoolInfo {
-    pub agents: Vec<AgentControllerInfo>,
-}
+use crate::balancer::agent_controller_pool_snapshot::AgentControllerPoolSnapshot;
+use crate::balancer::agent_controller_snapshot::AgentControllerSnapshot;
+use crate::balancer::produces_snapshot::ProducesSnapshot;
 
 pub struct AgentControllerPool {
     agents: DashMap<String, AgentController>,
+    pub update_notifier: Notify,
 }
 
 impl AgentControllerPool {
     pub fn new() -> Self {
         AgentControllerPool {
             agents: DashMap::new(),
-        }
-    }
-
-    pub fn info(&self) -> AgentControllerPoolInfo {
-        AgentControllerPoolInfo {
-            agents: self
-                .agents
-                .iter()
-                .map(|entry| {
-                    let agent = entry.value();
-
-                    AgentControllerInfo {
-                        id: agent.id.clone(),
-                        name: agent.name.clone(),
-                    }
-                })
-                .collect(),
+            update_notifier: Notify::new(),
         }
     }
 
@@ -50,6 +26,8 @@ impl AgentControllerPool {
         agent: AgentController,
     ) -> Result<()> {
         if self.agents.insert(agent_id, agent).is_none() {
+            self.update_notifier.notify_waiters();
+
             Ok(())
         } else {
             Err(anyhow::anyhow!("AgentController already registered"))
@@ -57,7 +35,13 @@ impl AgentControllerPool {
     }
 
     pub fn remove_agent_controller(&self, agent_id: &str) -> Result<bool> {
-        Ok(self.agents.remove(agent_id).is_some())
+        if self.agents.remove(agent_id).is_some() {
+            self.update_notifier.notify_waiters();
+
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     pub fn total_slots(&self) -> Result<(usize, usize)> {
@@ -66,5 +50,21 @@ impl AgentControllerPool {
 
     pub fn total_buffered_requests(&self) -> usize {
         todo!();
+    }
+}
+
+impl ProducesSnapshot for AgentControllerPool {
+    type Snapshot = AgentControllerPoolSnapshot;
+
+    fn make_snapshot(&self) -> Self::Snapshot {
+        let agents: Vec<AgentControllerSnapshot> = self
+            .agents
+            .iter()
+            .map(|entry| entry.value().make_snapshot())
+            .collect();
+
+        AgentControllerPoolSnapshot {
+            agents,
+        }
     }
 }

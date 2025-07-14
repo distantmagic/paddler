@@ -74,14 +74,9 @@ pub struct Balancer {
     /// Interval (in milliseconds) at which the balancer will report metrics to statsd
     statsd_reporting_interval: Duration,
 
-    #[arg(long, default_value = "127.0.0.1:8061", value_parser = parse_socket_addr)]
+    #[arg(long, default_value = None, value_parser = parse_socket_addr)]
     /// Address of the web management dashboard (if enabled)
     web_dashboard_addr: Option<SocketAddr>,
-
-    #[cfg(feature = "web_dashboard")]
-    #[arg(long, default_value = "false")]
-    /// Enable the web management dashboard
-    web_dashboard_enable: bool,
 }
 
 impl Balancer {
@@ -94,15 +89,11 @@ impl Balancer {
 
     #[cfg(feature = "web_dashboard")]
     fn get_web_dashboard_service_configuration(&self) -> Option<WebDashboardServiceConfiguration> {
-        if self.web_dashboard_enable {
-            self.web_dashboard_addr
-                .map(|web_dashboard_addr| WebDashboardServiceConfiguration {
-                    addr: web_dashboard_addr,
-                    management_addr: self.management_addr,
-                })
-        } else {
-            None
-        }
+        self.web_dashboard_addr
+            .map(|web_dashboard_addr| WebDashboardServiceConfiguration {
+                addr: web_dashboard_addr,
+                management_addr: self.management_addr,
+            })
     }
 }
 

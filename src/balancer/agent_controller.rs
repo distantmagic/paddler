@@ -4,11 +4,14 @@ use anyhow::Result;
 use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::jsonrpc::Notification;
 use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
+use crate::balancer::agent_controller_snapshot::AgentControllerSnapshot;
+use crate::balancer::produces_snapshot::ProducesSnapshot;
 
 pub struct AgentController {
     pub id: String,
     pub name: Option<String>,
     pub session: Session,
+    pub slots_total: usize,
 }
 
 impl AgentController {
@@ -20,5 +23,17 @@ impl AgentController {
         self.session.text(state_json).await?;
 
         Ok(())
+    }
+}
+
+impl ProducesSnapshot for AgentController {
+    type Snapshot = AgentControllerSnapshot;
+
+    fn make_snapshot(&self) -> Self::Snapshot {
+        AgentControllerSnapshot {
+            id: self.id.clone(),
+            name: self.name.clone(),
+            slots_total: self.slots_total,
+        }
     }
 }

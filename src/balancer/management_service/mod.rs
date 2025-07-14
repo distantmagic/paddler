@@ -89,6 +89,7 @@ impl Service for ManagementService {
                 .app_data(fleet_management_database.clone())
                 .app_data(agent_pool.clone())
                 .configure(http_route::api::get_agents::register)
+                .configure(http_route::api::get_agents_stream::register)
                 .configure(http_route::api::ws_agent_socket::register)
                 .configure(http_route::get_metrics::register)
         })

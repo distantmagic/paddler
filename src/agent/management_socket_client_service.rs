@@ -37,6 +37,7 @@ pub struct ManagementSocketClientService {
     generate_tokens_tx: mpsc::Sender<GenerateTokens>,
     name: Option<String>,
     reconciliation_queue: Arc<ReconciliationQueue>,
+    slots_total: usize,
     socket_url: String,
 }
 
@@ -46,6 +47,7 @@ impl ManagementSocketClientService {
         management_addr: SocketAddr,
         name: Option<String>,
         reconciliation_queue: Arc<ReconciliationQueue>,
+        slots_total: usize,
     ) -> Result<Self> {
         let agent_id = Uuid::new_v4();
 
@@ -53,6 +55,7 @@ impl ManagementSocketClientService {
             generate_tokens_tx,
             name,
             reconciliation_queue,
+            slots_total,
             socket_url: format!("ws://{management_addr}/api/v1/agent_socket/{agent_id}"),
         })
     }
@@ -171,6 +174,7 @@ impl ManagementSocketClientService {
             .send_serialized(ManagementJsonRpcNotification::RegisterAgent(
                 RegisterAgentParams {
                     name: self.name.clone(),
+                    slots_total: self.slots_total,
                 },
             ))
             .await?;

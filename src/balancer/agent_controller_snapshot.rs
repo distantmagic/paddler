@@ -1,8 +1,9 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct RegisterAgentParams {
+#[derive(Deserialize, Serialize)]
+pub struct AgentControllerSnapshot {
+    pub id: String,
     pub name: Option<String>,
     pub slots_total: usize,
 }

@@ -52,6 +52,7 @@ impl Handler for Agent {
             self.management_addr,
             self.name.clone(),
             reconciliation_queue.clone(),
+            self.slots,
         )?);
 
         service_manager.add_service(ReconciliationService::new(
