@@ -121,8 +121,10 @@ async fn handle_text_message(
             }
 
             agent_controller_pool
-                .register_agent_controller(agent_id, agent_controller)
+                .register_agent_controller(agent_id.clone(), agent_controller)
                 .context("Unable to register agent controller")?;
+
+            info!("Registered agent: {}", agent_id);
         }
         Err(
             err @ serde_json::Error {
@@ -173,11 +175,11 @@ struct RemoveAgentGuard {
 
 impl Drop for RemoveAgentGuard {
     fn drop(&mut self) {
-        info!("Remove agent: {}", self.agent_id);
-
         if let Err(err) = self.pool.remove_agent_controller(&self.agent_id) {
-            error!("Failed to reagent: {err}");
+            error!("Failed to remove agent: {err}");
         }
+
+        info!("Removed agent: {}", self.agent_id);
     }
 }
 
