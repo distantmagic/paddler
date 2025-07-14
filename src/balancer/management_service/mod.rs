@@ -88,6 +88,7 @@ impl Service for ManagementService {
                 .wrap(create_cors_middleware(cors_allowed_hosts_arc.clone()))
                 .app_data(fleet_management_database.clone())
                 .app_data(agent_pool.clone())
+                .configure(http_route::api::get_agents::register)
                 .configure(http_route::api::ws_agent_socket::register)
                 .configure(http_route::get_metrics::register)
         })

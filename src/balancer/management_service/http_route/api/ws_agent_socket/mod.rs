@@ -124,7 +124,7 @@ async fn handle_text_message(
                 .register_agent_controller(agent_id.clone(), agent_controller)
                 .context("Unable to register agent controller")?;
 
-            info!("Registered agent: {}", agent_id);
+            info!("Registered agent: {agent_id}");
         }
         Err(
             err @ serde_json::Error {

@@ -112,6 +112,10 @@ mod tests {
 
     #[async_trait]
     impl Service for MockStateReplacerService {
+        fn name(&self) -> &'static str {
+            "mock_state_replacer_service"
+        }
+
         async fn run(&mut self, mut _shutdown_rx: broadcast::Receiver<()>) -> Result<()> {
             let desired_state = LlamaCppDesiredState {
                 model: LlamaCppDesiredModel::HuggingFace(HuggingFaceModelReference {
@@ -143,6 +147,10 @@ mod tests {
 
     #[async_trait]
     impl Service for MockGenerateTokensRequestService {
+        fn name(&self) -> &'static str {
+            "mock_generate_tokens_request_service"
+        }
+
         async fn run(&mut self, mut _shutdown_rx: broadcast::Receiver<()>) -> Result<()> {
             self.applicable_state_ready_rx
                 .take()
@@ -190,6 +198,10 @@ mod tests {
 
     #[async_trait]
     impl Service for MockShutdownService {
+        fn name(&self) -> &'static str {
+            "mock_shutdown_service"
+        }
+
         async fn run(&mut self, mut _shutdown_rx: broadcast::Receiver<()>) -> Result<()> {
             self.generate_chunks_ready_rx
                 .take()
