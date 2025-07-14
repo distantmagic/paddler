@@ -89,7 +89,7 @@ impl Service for LlamaCppArbiterService {
 }
 
 #[cfg(test)]
-// #[cfg(feature = "tests_that_use_llms")]
+#[cfg(feature = "tests_that_use_llms")]
 mod tests {
     use anyhow::anyhow;
     use anyhow::Context as _;

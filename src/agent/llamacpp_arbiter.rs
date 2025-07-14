@@ -72,7 +72,7 @@ impl LlamaCppArbiter {
 }
 
 #[cfg(test)]
-// #[cfg(feature = "tests_that_use_llms")]
+#[cfg(feature = "tests_that_use_llms")]
 mod tests {
     use futures::future::join_all;
     use tokio::sync::mpsc;
