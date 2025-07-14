@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::thread;
 
 use actix::sync::SyncArbiter;
 use actix::System;
@@ -32,19 +33,15 @@ impl LlamaCppArbiter {
         let model_path = self.applicable_state.model_path.clone();
         let slots_total = self.slots_total;
 
-        let sync_arbiter_thread_handle = std::thread::spawn(move || {
-            let backend =
-                Arc::new(LlamaBackend::init().expect("Failed to initialize LlamaBackend"));
+        let sync_arbiter_thread_handle = thread::spawn(move || -> Result<()> {
+            let backend = Arc::new(LlamaBackend::init()?);
             let ctx_params = Arc::new(LlamaContextParams::default());
             let backend_clone = backend.clone();
-            let model = Arc::new(
-                LlamaModel::load_from_file(
-                    &backend_clone.clone(),
-                    model_path,
-                    &LlamaModelParams::default(),
-                )
-                .expect("Failed to load model"),
-            );
+            let model = Arc::new(LlamaModel::load_from_file(
+                &backend_clone.clone(),
+                model_path,
+                &LlamaModelParams::default(),
+            )?);
 
             let system = System::new();
 
@@ -62,6 +59,8 @@ impl LlamaCppArbiter {
 
                 System::current().stop();
             });
+
+            Ok(())
         });
 
         Ok(LlamaCppArbiterController::new(

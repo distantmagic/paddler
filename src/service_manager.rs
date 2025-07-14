@@ -2,6 +2,7 @@ use std::thread::spawn;
 
 use actix_rt::System;
 use anyhow::Result;
+use log::info;
 use tokio::sync::broadcast;
 use tokio::sync::oneshot;
 
@@ -27,13 +28,18 @@ impl ServiceManager {
         let mut thread_handles = Vec::new();
 
         for mut service in self.services {
+            let service_name = service.name().to_string();
             let shutdown_subscriber = broadcast_tx.subscribe();
 
             let handle = spawn(move || {
                 System::new().block_on(async move {
+                    info!("Starting service: {service_name}");
+
                     if let Err(err) = service.run(shutdown_subscriber).await {
                         panic!("Service error: {err}");
                     }
+
+                    info!("Service stopped gracefully: {service_name}");
                 });
             });
 

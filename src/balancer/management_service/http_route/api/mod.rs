@@ -1,2 +1,1 @@
-pub mod get_metrics;
-pub mod ws_agent;
+pub mod ws_agent_socket;

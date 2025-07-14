@@ -38,10 +38,6 @@ pub struct Balancer {
     // Fleet management database URL. Supported: memory, memory://, or file:///path (optional)
     fleet_management_database: FleetManagementDatabaseType,
 
-    #[arg(long)]
-    /// Enable registering agent-managed llama.cpp instances in the balancer
-    fleet_management_enable: bool,
-
     #[arg(long, default_value = "127.0.0.1:8060", value_parser = parse_socket_addr)]
     /// Address of the management server that the balancer will report to
     management_addr: SocketAddr,
@@ -62,10 +58,6 @@ pub struct Balancer {
     #[arg(long, default_value = "127.0.0.1:8061", value_parser = parse_socket_addr)]
     /// Address of the reverse proxy server
     reverseproxy_addr: SocketAddr,
-
-    #[arg(long)]
-    /// Enable the web metrics endpoint
-    metrics_endpoint_enable: bool,
 
     #[cfg(feature = "statsd_reporter")]
     #[arg(long, value_parser = parse_socket_addr)]
@@ -97,8 +89,6 @@ impl Balancer {
         ManagementServiceConfiguration {
             addr: self.management_addr,
             cors_allowed_hosts: self.management_cors_allowed_hosts.clone(),
-            fleet_management_enable: self.fleet_management_enable,
-            metrics_endpoint_enable: self.metrics_endpoint_enable,
         }
     }
 

@@ -41,14 +41,14 @@ impl ReconciliationService {
 
 #[async_trait]
 impl Service for ReconciliationService {
+    fn name(&self) -> &'static str {
+        "agent::reconciliation_service"
+    }
+
     async fn run(&mut self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
         loop {
             tokio::select! {
-                _ = shutdown.recv() => {
-                    debug!("Shutting down monitoring service");
-
-                    return Ok(());
-                },
+                _ = shutdown.recv() => return Ok(()),
                 change_request = self.reconciliation_queue.next_change_request() => {
                     if let Err(err) = self.on_change_request(change_request).await {
                         error!("Failed to apply change request: {err}");

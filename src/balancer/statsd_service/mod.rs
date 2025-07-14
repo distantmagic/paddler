@@ -48,6 +48,10 @@ impl StatsdService {
 
 #[async_trait]
 impl Service for StatsdService {
+    fn name(&self) -> &'static str {
+        "balancer::statsd_service"
+    }
+
     async fn run(&mut self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
         let statsd_sink_socket = UdpSocket::bind("0.0.0.0:0").expect("Failed to bind UDP socket");
         let statsd_sink =

@@ -33,6 +33,10 @@ impl WebDashboardService {
 
 #[async_trait]
 impl Service for WebDashboardService {
+    fn name(&self) -> &'static str {
+        "balancer::web_dashboard_service"
+    }
+
     async fn run(&mut self, mut _shutdown: broadcast::Receiver<()>) -> Result<()> {
         let agent_controller_pool: Data<AgentControllerPool> =
             Data::from(self.agent_controller_pool.clone());

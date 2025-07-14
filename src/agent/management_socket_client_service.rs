@@ -5,7 +5,6 @@ use anyhow::Context;
 use anyhow::Result;
 use async_trait::async_trait;
 use futures_util::StreamExt;
-use log::debug;
 use log::error;
 use log::info;
 use log::warn;
@@ -27,8 +26,8 @@ use crate::agent::jsonrpc::Request as JsonRpcRequest;
 use crate::agent::message::GenerateTokens;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
 use crate::agent::websocket_shared_writer::WebSocketSharedWriter;
-use crate::balancer::management_service::http_route::api::ws_agent::jsonrpc::notification_params::RegisterAgentParams;
-use crate::balancer::management_service::http_route::api::ws_agent::jsonrpc::Notification as ManagementJsonRpcNotification;
+use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::RegisterAgentParams;
+use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Notification as ManagementJsonRpcNotification;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::RequestEnvelope;
 use crate::jsonrpc::ResponseEnvelope;
@@ -58,7 +57,117 @@ impl ManagementSocketClientService {
         })
     }
 
-    async fn keep_connection_alive(&self) -> Result<()> {
+    async fn handle_incoming_message(
+        &self,
+        msg: Message,
+        writer: Arc<WebSocketSharedWriter>,
+    ) -> Result<()> {
+        match msg {
+            Message::Text(text) => match serde_json::from_str::<JsonRpcMessage>(&text)
+                .context(format!("Failed to parse JSON-RPC request: {text}"))?
+            {
+                JsonRpcMessage::Error(JsonRpcError {
+                    code,
+                    description,
+                }) => {
+                    error!(
+                        "Received error from server: code: {code}, description: {description:?}"
+                    );
+                }
+                JsonRpcMessage::Notification(JsonRpcNotification::SetState(SetStateParams {
+                    desired_state,
+                })) => {
+                    self.reconciliation_queue
+                        .register_change_request(desired_state)
+                        .await?;
+                }
+                JsonRpcMessage::Notification(JsonRpcNotification::Version(VersionParams {
+                    version,
+                })) => {
+                    if version != env!("CARGO_PKG_VERSION") {
+                        warn!(
+                            "Version mismatch: server version is {version}, client version is {}",
+                            env!("CARGO_PKG_VERSION")
+                        );
+                    }
+                }
+                JsonRpcMessage::Request(RequestEnvelope {
+                    id,
+                    request:
+                        JsonRpcRequest::GenerateTokens(GenerateTokensParams {
+                            max_tokens,
+                            prompt,
+                        }),
+                }) => {
+                    let (chunk_sender, mut chunk_receiver) = mpsc::channel::<String>(100);
+                    let writer_clone = writer.clone();
+
+                    tokio::spawn(async move {
+                        while let Some(chunk) = chunk_receiver.recv().await {
+                            writer_clone
+                                .send(Message::Text(
+                                    serde_json::to_string(&ResponseEnvelope::StreamChunk {
+                                        request_id: id.clone(),
+                                        chunk,
+                                    })
+                                    .context("Failed to serialize response envelope")?
+                                    .into(),
+                                ))
+                                .await?;
+                        }
+
+                        writer_clone
+                            .send(Message::Text(
+                                serde_json::to_string::<ResponseEnvelope<String>>(
+                                    &ResponseEnvelope::StreamDone {
+                                        request_id: id,
+                                    },
+                                )
+                                .context("Failed to serialize response envelope")?
+                                .into(),
+                            ))
+                            .await?;
+
+                        Ok::<(), anyhow::Error>(())
+                    });
+
+                    let generate_tokens_tx = self.generate_tokens_tx.clone();
+
+                    tokio::spawn(async move {
+                        if let Err(err) = generate_tokens_tx
+                            .send(GenerateTokens {
+                                chunk_sender,
+                                max_tokens,
+                                prompt,
+                            })
+                            .await
+                        {
+                            error!("Failed to send GenerateTokens message: {err:?}");
+                        }
+                    });
+                }
+            },
+            Message::Binary(_) => {
+                error!("Received binary message, which is not expected");
+            }
+            Message::Close(_) => {
+                info!("Connection closed by server");
+            }
+            Message::Frame(_) => {
+                error!("Received a frame message, which is not expected");
+            }
+            Message::Ping(payload) => {
+                writer.send(Message::Pong(payload)).await?;
+            }
+            Message::Pong(_) => {
+                // Pong received, no action needed
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn keep_connection_alive(&self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
         let (ws_stream, _response) = connect_async(self.socket_url.clone()).await?;
 
         info!("Connected to management server");
@@ -78,107 +187,21 @@ impl ManagementSocketClientService {
             ))
             .await?;
 
-        while let Some(msg) = read.next().await {
-            match msg? {
-                Message::Text(text) => match serde_json::from_str::<JsonRpcMessage>(&text)
-                    .context(format!("Failed to parse JSON-RPC request: {text}"))?
-                {
-                    JsonRpcMessage::Error(JsonRpcError {
-                        code,
-                        description,
-                    }) => {
-                        error!("Received error from server: code: {code}, description: {description:?}");
-                    }
-                    JsonRpcMessage::Notification(JsonRpcNotification::SetState(
-                        SetStateParams {
-                            desired_state,
-                        },
-                    )) => {
-                        self.reconciliation_queue
-                            .register_change_request(desired_state)
-                            .await?;
-                    }
-                    JsonRpcMessage::Notification(JsonRpcNotification::Version(VersionParams {
-                        version,
-                    })) => {
-                        if version != env!("CARGO_PKG_VERSION") {
-                            warn!(
-                                "Version mismatch: server version is {version}, client version is {}",
-                                env!("CARGO_PKG_VERSION")
-                            );
-                        }
-                    }
-                    JsonRpcMessage::Request(RequestEnvelope {
-                        id,
-                        request:
-                            JsonRpcRequest::GenerateTokens(GenerateTokensParams {
-                                max_tokens,
-                                prompt,
-                            }),
-                    }) => {
-                        let (chunk_sender, mut chunk_receiver) = mpsc::channel::<String>(100);
-                        let writer_clone = writer.clone();
-
-                        tokio::spawn(async move {
-                            while let Some(chunk) = chunk_receiver.recv().await {
-                                writer_clone
-                                    .send(Message::Text(
-                                        serde_json::to_string(&ResponseEnvelope::StreamChunk {
-                                            request_id: id.clone(),
-                                            chunk,
-                                        })
-                                        .context("Failed to serialize response envelope")?
-                                        .into(),
-                                    ))
-                                    .await?;
-                            }
-
-                            writer_clone
-                                .send(Message::Text(
-                                    serde_json::to_string::<ResponseEnvelope<String>>(
-                                        &ResponseEnvelope::StreamDone {
-                                            request_id: id,
-                                        },
-                                    )
-                                    .context("Failed to serialize response envelope")?
-                                    .into(),
-                                ))
-                                .await?;
-
-                            Ok::<(), anyhow::Error>(())
-                        });
-
-                        let generate_tokens_tx = self.generate_tokens_tx.clone();
-
-                        tokio::spawn(async move {
-                            if let Err(err) = generate_tokens_tx
-                                .send(GenerateTokens {
-                                    chunk_sender,
-                                    max_tokens,
-                                    prompt,
-                                })
-                                .await
-                            {
-                                error!("Failed to send GenerateTokens message: {err:?}");
-                            }
-                        });
-                    }
-                },
-                Message::Binary(_) => {
-                    error!("Received binary message, which is not expected");
-                }
-                Message::Close(_) => {
-                    info!("Connection closed by server");
+        loop {
+            tokio::select! {
+                _ = shutdown.recv() => {
+                    info!("Shutdown signal received, closing connection");
                     break;
                 }
-                Message::Frame(_) => {
-                    error!("Received a frame message, which is not expected");
-                }
-                Message::Ping(payload) => {
-                    writer.send(Message::Pong(payload)).await?;
-                }
-                Message::Pong(_) => {
-                    // Pong received, no action needed
+                msg = read.next() => {
+                    match msg {
+                        Some(msg) => {
+                            self.handle_incoming_message(msg?, writer.clone())
+                                .await
+                                .context("Failed to handle incoming message")?;
+                        }
+                        None => break,
+                    }
                 }
             }
         }
@@ -189,6 +212,10 @@ impl ManagementSocketClientService {
 
 #[async_trait]
 impl Service for ManagementSocketClientService {
+    fn name(&self) -> &'static str {
+        "agent::management_socket_client_service"
+    }
+
     async fn run(&mut self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
         let mut ticker = interval(Duration::from_secs(1));
 
@@ -196,13 +223,14 @@ impl Service for ManagementSocketClientService {
 
         loop {
             tokio::select! {
-                _ = shutdown.recv() => {
-                    debug!("Shutting down monitoring service");
-                    return Ok(());
-                },
+                _ = shutdown.recv() => return Ok(()),
                 _ = ticker.tick() => {
-                    if let Err(err) = self.keep_connection_alive().await {
+                    if let Err(err) = self.keep_connection_alive(shutdown.resubscribe()).await {
                         error!("Failed to keep the connection alive: {err:?}");
+                    } else {
+                        info!("Gracefully closed connection to management server");
+
+                        return Ok(());
                     }
                 }
             }

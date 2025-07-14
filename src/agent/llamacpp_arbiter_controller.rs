@@ -1,4 +1,4 @@
-use std::thread::JoinHandle;
+use std::thread;
 
 use actix::Addr;
 use anyhow::Result;
@@ -9,14 +9,14 @@ use crate::agent::llamacpp_slot::LlamaCppSlot;
 pub struct LlamaCppArbiterController {
     pub llamacpp_slot_addr: Addr<LlamaCppSlot>,
     shutdown_tx: oneshot::Sender<()>,
-    sync_arbiter_thread_handle: JoinHandle<()>,
+    sync_arbiter_thread_handle: thread::JoinHandle<Result<()>>,
 }
 
 impl LlamaCppArbiterController {
     pub fn new(
         llamacpp_slot_addr: Addr<LlamaCppSlot>,
         shutdown_tx: oneshot::Sender<()>,
-        sync_arbiter_thread_handle: JoinHandle<()>,
+        sync_arbiter_thread_handle: thread::JoinHandle<Result<()>>,
     ) -> Self {
         Self {
             llamacpp_slot_addr,
@@ -31,7 +31,7 @@ impl LlamaCppArbiterController {
             .map_err(|_| anyhow::anyhow!("Failed to send shutdown signal"))?;
         self.sync_arbiter_thread_handle
             .join()
-            .map_err(|_| anyhow::anyhow!("Failed to join sync arbiter thread"))?;
+            .map_err(|_| anyhow::anyhow!("Failed to join sync arbiter thread"))??;
 
         Ok(())
     }

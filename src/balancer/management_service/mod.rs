@@ -64,6 +64,10 @@ impl ManagementService {
 
 #[async_trait]
 impl Service for ManagementService {
+    fn name(&self) -> &'static str {
+        "balancer::management_service"
+    }
+
     async fn run(&mut self, mut _shutdown: broadcast::Receiver<()>) -> Result<()> {
         #[allow(unused_mut)]
         let mut cors_allowed_hosts = self.configuration.cors_allowed_hosts.clone();
@@ -78,25 +82,14 @@ impl Service for ManagementService {
         let cors_allowed_hosts_arc = Arc::new(cors_allowed_hosts);
         let fleet_management_database: Data<dyn FleetManagementDatabase> =
             Data::from(self.fleet_management_database.clone());
-        let fleet_management_enable = self.configuration.fleet_management_enable;
-        let metrics_endpoint_enable = self.configuration.metrics_endpoint_enable;
 
         Ok(HttpServer::new(move || {
-            #[allow(unused_mut)]
-            let mut app = App::new().wrap(create_cors_middleware(cors_allowed_hosts_arc.clone()));
-
-            if fleet_management_enable {
-                app = app
-                    .app_data(fleet_management_database.clone())
-                    .app_data(agent_pool.clone())
-                    .configure(http_route::api::ws_agent::register);
-            }
-
-            if metrics_endpoint_enable {
-                app = app.configure(http_route::api::get_metrics::register)
-            }
-
-            app
+            App::new()
+                .wrap(create_cors_middleware(cors_allowed_hosts_arc.clone()))
+                .app_data(fleet_management_database.clone())
+                .app_data(agent_pool.clone())
+                .configure(http_route::api::ws_agent_socket::register)
+                .configure(http_route::get_metrics::register)
         })
         .bind(self.configuration.addr)
         .expect("Unable to bind server to address")

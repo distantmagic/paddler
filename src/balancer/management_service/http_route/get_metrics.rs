@@ -13,7 +13,7 @@ pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
 }
 
-#[get("/api/v1/metrics")]
+#[get("/metrics")]
 async fn respond(
     agent_controller_pool: Data<AgentControllerPool>,
 ) -> Result<impl Responder, Box<dyn Error>> {

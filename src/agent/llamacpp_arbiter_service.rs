@@ -17,20 +17,20 @@ pub struct LlamaCppArbiterService {
     llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
     llamacpp_arbiter_controller: Option<LlamaCppArbiterController>,
     generate_tokens_rx: mpsc::Receiver<GenerateTokens>,
-    slots: usize,
+    slots_total: usize,
 }
 
 impl LlamaCppArbiterService {
     pub async fn new(
         generate_tokens_rx: mpsc::Receiver<GenerateTokens>,
         llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
-        slots: usize,
+        slots_total: usize,
     ) -> Result<Self> {
         Ok(LlamaCppArbiterService {
             llamacpp_applicable_state_holder,
             llamacpp_arbiter_controller: None,
             generate_tokens_rx,
-            slots,
+            slots_total,
         })
     }
 
@@ -44,7 +44,7 @@ impl LlamaCppArbiterService {
 
         if let Some(llamacpp_applicable_state) = llamacpp_applicable_state {
             self.llamacpp_arbiter_controller = Some(
-                LlamaCppArbiter::new(llamacpp_applicable_state, self.slots)
+                LlamaCppArbiter::new(llamacpp_applicable_state, self.slots_total)
                     .spawn()
                     .await?,
             );
@@ -56,6 +56,10 @@ impl LlamaCppArbiterService {
 
 #[async_trait]
 impl Service for LlamaCppArbiterService {
+    fn name(&self) -> &'static str {
+        "agent::llamacpp_arbiter_service"
+    }
+
     async fn run(&mut self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
         let mut reconciled_state = self.llamacpp_applicable_state_holder.subscribe();
 
