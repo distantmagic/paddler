@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn test_take_slot_failure_and_retry() -> anyhow::Result<()> {
-        let pool = Arc::new(UpstreamPeerPool::new());
+        let pool = Arc::new(UpstreamPeerPool::new(0));
         let mut ctx = create_test_context(pool.clone());
 
         pool.register_status_update("test_agent", mock_status_update("test_agent", 0, 0))?;
@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn test_release_slot_success() -> anyhow::Result<()> {
-        let pool = Arc::new(UpstreamPeerPool::new());
+        let pool = Arc::new(UpstreamPeerPool::new(0));
         let mut ctx = create_test_context(pool.clone());
 
         pool.register_status_update("test_agent", mock_status_update("test_agent_name", 1, 4))?;
@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn test_release_slot_failure() -> anyhow::Result<()> {
-        let pool = Arc::new(UpstreamPeerPool::new());
+        let pool = Arc::new(UpstreamPeerPool::new(0));
         let mut ctx = create_test_context(pool.clone());
 
         pool.register_status_update("test_agent", mock_status_update("test_agent", 5, 0))?;

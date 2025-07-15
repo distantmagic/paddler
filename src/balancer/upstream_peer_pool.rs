@@ -16,21 +16,24 @@ use crate::balancer::upstream_peer::UpstreamPeer;
 #[derive(Serialize, Deserialize)]
 pub struct UpstreamPeerPoolInfo {
     pub agents: Vec<UpstreamPeer>,
+    pub max_buffered_requests: usize,
     pub request_buffer_length: AtomicUsize,
 }
 
 pub struct UpstreamPeerPool {
     pub agents: RwLock<Vec<UpstreamPeer>>,
     pub available_slots_notifier: Notify,
+    pub max_buffered_requests: usize,
     pub request_buffer_length: AtomicUsize,
     pub update_notifier: Notify,
 }
 
 impl UpstreamPeerPool {
-    pub fn new() -> Self {
+    pub fn new(max_buffered_requests: usize) -> Self {
         Self {
             agents: RwLock::new(Vec::new()),
             available_slots_notifier: Notify::new(),
+            max_buffered_requests,
             request_buffer_length: AtomicUsize::new(0),
             update_notifier: Notify::new(),
         }
@@ -39,6 +42,7 @@ impl UpstreamPeerPool {
     pub fn info(&self) -> Option<UpstreamPeerPoolInfo> {
         self.agents.read().ok().map(|agents| UpstreamPeerPoolInfo {
             agents: agents.clone(),
+            max_buffered_requests: self.max_buffered_requests,
             request_buffer_length: self.request_buffer_length.load(Ordering::Relaxed).into(),
         })
     }
@@ -205,7 +209,7 @@ mod tests {
 
     #[test]
     fn test_race_condition_handling() -> Result<()> {
-        let pool = UpstreamPeerPool::new();
+        let pool = UpstreamPeerPool::new(0);
 
         pool.register_status_update("test1", mock_status_update("test1", 5, 0))?;
         pool.with_agents_write(|agents| {
@@ -260,7 +264,7 @@ mod tests {
 
     #[test]
     fn test_use_best_peer() -> Result<()> {
-        let pool = UpstreamPeerPool::new();
+        let pool = UpstreamPeerPool::new(0);
 
         pool.register_status_update("test1", mock_status_update("test1", 5, 0))?;
         pool.register_status_update("test2", mock_status_update("test2", 3, 0))?;

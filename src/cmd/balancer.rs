@@ -39,7 +39,7 @@ pub fn handle(
 
     pingora_server.bootstrap();
 
-    let upstream_peer_pool = Arc::new(UpstreamPeerPool::new());
+    let upstream_peer_pool = Arc::new(UpstreamPeerPool::new(0));
 
     let mut proxy_service = http_proxy_service(
         &pingora_server.configuration,
