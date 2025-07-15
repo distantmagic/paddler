@@ -45,6 +45,8 @@ jobs:
             mv ./target/release/paddler ./${{ matrix.artifact_name }}
           fi
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: ./.github/workflows/composite/assert-version
         with:
