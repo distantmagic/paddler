@@ -47,7 +47,7 @@ jobs:
         shell: bash
 
       - name: Archive binary
-        uses: ./.github/worksflows/composite/cargo-deb
+        uses: ./.github/workflows/composite/cargo-deb
         with:
           deb: ${{ matrix.artifact_name }}
           os: ${{ matrix.os }}
