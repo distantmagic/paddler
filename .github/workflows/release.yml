@@ -41,6 +41,8 @@ jobs:
           make
           mv ./target/release/paddler* ./${{ matrix.artifact_name }}
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Archive binary
         uses: ./.github/worksflows/composite/cargo-deb
