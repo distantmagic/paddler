@@ -1,10 +1,12 @@
 [package]
+name = "paddler"
+edition = "2021"
 description = "Stateful load balancer custom-tailored for llama.cpp"
 license = "MIT"
-name = "paddler"
+authors = ["Intentee"]
 repository = "https://github.com/distantmagic/paddler"
+documentation = "https://github.com/distantmagic/paddler/blob/main/README.md"
 version = "2.1.0"
-edition = "2021"
 
 [workspace]
 members = ["integration_tests"]
