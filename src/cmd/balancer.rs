@@ -12,10 +12,13 @@ use super::handler::Handler;
 use super::parse_duration;
 use super::parse_socket_addr;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
+use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
+use crate::balancer::inference_service::InferenceService;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::management_service::ManagementService;
 use crate::balancer::state_database::File;
 use crate::balancer::state_database::Memory;
+use crate::balancer::state_database::StateDatabase;
 #[cfg(feature = "statsd_reporter")]
 use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
 #[cfg(feature = "statsd_reporter")]
@@ -34,15 +37,26 @@ pub struct Balancer {
     /// upstream isn't received for, the 504 (Gateway Timeout) error is issued.
     buffered_request_timeout: Duration,
 
+    #[arg(long, default_value = "127.0.0.1:8061", value_parser = parse_socket_addr)]
+    /// Address of the inference server
+    inference_addr: SocketAddr,
+
+    #[arg(
+        long = "inference-cors-allowed-host",
+        action = clap::ArgAction::Append
+    )]
+    /// Allowed CORS host (can be specified multiple times)
+    inference_cors_allowed_hosts: Vec<String>,
+
     #[arg(long, default_value = "127.0.0.1:8060", value_parser = parse_socket_addr)]
     /// Address of the management server that the balancer will report to
     management_addr: SocketAddr,
 
     #[arg(
         long = "management-cors-allowed-host",
-        help = "Allowed CORS host (can be specified multiple times)",
         action = clap::ArgAction::Append
     )]
+    /// Allowed CORS host (can be specified multiple times)
     management_cors_allowed_hosts: Vec<String>,
 
     #[arg(long, default_value = "30")]
@@ -51,12 +65,8 @@ pub struct Balancer {
     /// rejected with the 429 (Too Many Requests) error.
     max_buffered_requests: usize,
 
-    #[arg(long, default_value = "127.0.0.1:8061", value_parser = parse_socket_addr)]
-    /// Address of the reverse proxy server
-    reverseproxy_addr: SocketAddr,
-
     #[arg(long, default_value = "memory://")]
-    // Balancer state database URL. Supported: memory, memory://, or file:///path (optional)
+    /// Balancer state database URL. Supported: memory, memory://, or file:///path (optional)
     state_database: DatabaseType,
 
     #[cfg(feature = "statsd_reporter")]
@@ -102,14 +112,28 @@ impl Handler for Balancer {
     async fn handle(&self, shutdown_rx: oneshot::Receiver<()>) -> Result<()> {
         let agent_controller_pool = Arc::new(AgentControllerPool::new());
         let mut service_manager = ServiceManager::new();
+        let state_database: Arc<dyn StateDatabase> = match &self.state_database {
+            DatabaseType::File(path) => Arc::new(File::new(path.to_owned())),
+            DatabaseType::Memory => Arc::new(Memory::new()),
+        };
+
+        service_manager.add_service(InferenceService::new(
+            agent_controller_pool.clone(),
+            InferenceServiceConfiguration {
+                addr: self.inference_addr,
+                cors_allowed_hosts: self.inference_cors_allowed_hosts.clone(),
+                // buffered_request_timeout: self.buffered_request_timeout,
+                // max_buffered_requests: self.max_buffered_requests,
+            },
+            state_database.clone(),
+            #[cfg(feature = "web_dashboard")]
+            self.get_web_dashboard_service_configuration(),
+        ));
 
         service_manager.add_service(ManagementService::new(
             agent_controller_pool.clone(),
             self.get_mangement_service_configuration(),
-            match &self.state_database {
-                DatabaseType::File(path) => Arc::new(File::new(path.to_owned())),
-                DatabaseType::Memory => Arc::new(Memory::new()),
-            },
+            state_database,
             #[cfg(feature = "web_dashboard")]
             self.get_web_dashboard_service_configuration(),
         ));

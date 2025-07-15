@@ -1,0 +1,21 @@
+.floatingStatus {
+  background-color: var(--color-body-background-o55);
+  backdrop-filter: blur(10px);
+  bottom: var(--spacing-base);
+  padding: var(--spacing-half) var(--spacing-base);
+  position: absolute;
+  right: var(--spacing-base);
+}
+
+.floatingStatusOverlay {
+  bottom: 0;
+  height: 100%;
+  left: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: fixed;
+  right: 0;
+  top: 0;
+  user-select: none;
+  width: 100%;
+}

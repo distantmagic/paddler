@@ -19,7 +19,7 @@ struct DashboardTemplate {
     web_dashboard_service_configuration: web::Data<WebDashboardServiceConfiguration>,
 }
 
-#[get("/")]
+#[get("/{_:.*}")]
 async fn respond(
     preloads: HttpPreloader,
     web_dashboard_service_configuration: web::Data<WebDashboardServiceConfiguration>,

@@ -9,7 +9,7 @@ import {
   agentUsage,
   agentUsage__progress,
   agentsTable,
-} from "./Dashboard.module.css";
+} from "./AgentList.module.css";
 
 export function AgentsList({ agents }: { agents: Array<Agent> }) {
   return (

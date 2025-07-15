@@ -3,9 +3,9 @@ import { temporaryFile } from "tempy";
 
 import { spawner } from "jarmuz/job-types";
 
-const fleetManagementDatabase = temporaryFile({
+const stateDatabase = temporaryFile({
   extension: "json",
-  prefix: "worker-paddler-fleet-management-database-",
+  prefix: "worker-paddler-state-database-",
 });
 
 spawner(async function ({ buildId, command }) {
@@ -18,9 +18,10 @@ spawner(async function ({ buildId, command }) {
   const results = await Promise.all([
     command(`
       target/debug/paddler balancer
-        --fleet-management-database file://${fleetManagementDatabase}
+        --inference-addr 127.0.0.1:8061
         --management-addr 127.0.0.1:8060
-        --web-dashboard-addr 127.0.1:8061
+        --state-database file://${stateDatabase}
+        --web-dashboard-addr 127.0.1:8062
     `),
     command(`
       target/debug/paddler agent

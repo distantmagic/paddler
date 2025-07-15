@@ -1,7 +1,9 @@
 :root {
-  --color-body-background: black;
-  --color-body-font: #eee;
-  --color-border: #555;
+  --color-body-background: #f5f5f5;
+  --color-body-background-o55: #f5f5f555;
+  --color-body-font: #111;
+  --color-border: black;
+  --color-highlight: #ffff00aa;
   --font-family-body: "Noto Sans", sans-serif;
   --font-family-monospace: "Noto Sans Mono", monospace;
   --font-size-base: 16px;
@@ -9,4 +11,5 @@
   --font-size-l2: calc(1.5 * var(--font-size-l1));
   --spacing-base: 16px;
   --spacing-half: calc(0.5 * var(--spacing-base));
+  --spacing-2x: calc(2 * var(--spacing-base));
 }
