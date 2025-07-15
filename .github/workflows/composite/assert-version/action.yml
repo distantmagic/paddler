@@ -18,13 +18,13 @@ runs:
 
     - name: Verify bin version contains release tag
       run: |
-        expected="${{ inputs.expected-version }}"
-
-        if ! [[ "$expected" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        if ! [[ "${{ inputs.expected-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          expected=${{ inputs.expected-version }}
+          echo "Expected version is not valid. Exiting..."
           exit 1
         fi
 
-        if [[ "${{ env.BINARY_VERSION }}" != *"$expected"* ]]; then
+        if [[ "${{ env.BINARY_VERSION }}" != *"${{ inputs.expected-version }}"* ]]; then
           exit 1
         fi
       shell: bash
