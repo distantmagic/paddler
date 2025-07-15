@@ -112,7 +112,7 @@ mod tests {
     use crate::agent::message::GenerateTokens;
     use crate::service_manager::ServiceManager;
 
-    const SLOTS: usize = 2;
+    const SLOTS_TOTAL: usize = 2;
 
     struct MockStateReplacerService {
         applicable_state_ready_tx: Option<oneshot::Sender<()>>,
@@ -239,6 +239,8 @@ mod tests {
         let (applicable_state_ready_tx, applicable_state_ready_rx) = oneshot::channel::<()>();
         let (generate_chunks_ready_tx, generate_chunks_ready_rx) = oneshot::channel::<()>();
         let llamacpp_applicable_state_holder = Arc::new(LlamaCppApplicableStateHolder::new());
+        let slot_aggregated_metrics_manager =
+            Arc::new(SlotAggregatedMetricsManager::new(SLOTS_TOTAL));
 
         let mut service_manager = ServiceManager::new();
 
@@ -246,7 +248,8 @@ mod tests {
             LlamaCppArbiterService::new(
                 generate_tokens_rx,
                 llamacpp_applicable_state_holder.clone(),
-                SLOTS,
+                slot_aggregated_metrics_manager,
+                SLOTS_TOTAL,
             )
             .await?,
         );

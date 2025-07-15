@@ -97,6 +97,8 @@ mod tests {
     use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
     use crate::agent::message::GenerateTokens;
 
+    const SLOTS_TOTAL: usize = 3;
+
     #[actix_web::test]
     async fn test_llamacpp_arbiter_spawn() -> Result<()> {
         let desired_state = LlamaCppDesiredState {
@@ -107,13 +109,19 @@ mod tests {
                 // repo: "Qwen/Qwen3-8B-GGUF".to_string(),
             }),
         };
+        let slot_aggregated_metrics_manager =
+            Arc::new(SlotAggregatedMetricsManager::new(SLOTS_TOTAL));
 
         let applicable_state = desired_state
             .to_applicable_state()
             .await?
             .expect("Failed to convert to applicable state");
 
-        let llamacpp_arbiter = LlamaCppArbiter::new(applicable_state, 3);
+        let llamacpp_arbiter = LlamaCppArbiter::new(
+            applicable_state,
+            slot_aggregated_metrics_manager,
+            SLOTS_TOTAL,
+        );
         let controller = llamacpp_arbiter.spawn().await?;
 
         let prompt =
