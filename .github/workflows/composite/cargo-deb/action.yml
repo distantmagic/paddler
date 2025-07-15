@@ -13,10 +13,6 @@ inputs:
     description: 'OS to build on'
     required: true
     default: ""
-  path:
-    description: 'Path to binary'
-    required: true
-    default: ""
 
 outputs:
     deb:
@@ -30,6 +26,5 @@ runs:
       shell: bash
       env:
         INPUT_DEB: ${{ inputs.deb }}
-        INPUT_PATH: ${{ inputs.path }}
         INPUT_BEFORE: ${{ inputs.before }}
         INPUT_OS: ${{ inputs.os }}

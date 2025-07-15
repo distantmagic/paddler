@@ -2,7 +2,6 @@
 set -e
 
 echo "📦 deb: $INPUT_DEB"
-echo "📦 path: $INPUT_PATH"
 echo "📦 before hook: $INPUT_BEFORE"
 echo "📦 OS: $INPUT_OS"
 
