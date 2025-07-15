@@ -39,10 +39,12 @@ jobs:
       - name: build the binary
         run: |
           make
-          mv ./target/release/paddler* ./${{ matrix.artifact_name }}
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            mv ./target/release/paddler.exe ./${{ matrix.artifact_name }}
+          else
+            mv ./target/release/paddler ./${{ matrix.artifact_name }}
+          fi
         shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Archive binary
         uses: ./.github/worksflows/composite/cargo-deb
