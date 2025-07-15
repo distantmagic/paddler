@@ -47,6 +47,7 @@ impl Service for WebDashboardService {
             App::new()
                 .app_data(agent_controller_pool.clone())
                 .app_data(configuration.clone())
+                .configure(http_route::favicon::register)
                 .configure(http_route::static_files::register)
                 .configure(http_route::dashboard::register)
         })
