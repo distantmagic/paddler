@@ -22,7 +22,7 @@ if [[ "$INPUT_OS" == "ubuntu-latest" || "$INPUT_OS" == "ubuntu-24.04" || "$INPUT
     fi  
   fi
 else 
-  echo "🛠️ Running on MacOS, skipping .deb archiving."
+  echo "🛠️ Not running on Linux, skipping .deb archiving."
 fi
 
 echo "✅ Done."
