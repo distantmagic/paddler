@@ -3,7 +3,6 @@ mod given_balancer_allows_cors_host;
 mod given_balancer_is_running;
 mod given_balancer_reports_metrics_every_milliseconds;
 mod given_buffered_requests_timeout_after_milliseconds;
-mod given_fleet_management_is_enabled;
 mod given_request_buffering_is_disabled;
 mod given_request_has_header_with_value;
 mod given_statsd_is_running;

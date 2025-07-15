@@ -12,8 +12,8 @@ use async_trait::async_trait;
 use tokio::sync::broadcast;
 
 use crate::balancer::agent_controller_pool::AgentControllerPool;
-use crate::balancer::fleet_management_database::FleetManagementDatabase;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
+use crate::balancer::state_database::StateDatabase;
 #[cfg(feature = "web_dashboard")]
 use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
 use crate::service::Service;
@@ -38,7 +38,7 @@ fn create_cors_middleware(allowed_hosts: Arc<Vec<String>>) -> Cors {
 pub struct ManagementService {
     agent_controller_pool: Arc<AgentControllerPool>,
     configuration: ManagementServiceConfiguration,
-    fleet_management_database: Arc<dyn FleetManagementDatabase>,
+    state_database: Arc<dyn StateDatabase>,
     #[cfg(feature = "web_dashboard")]
     web_dashboard_service_configuration: Option<WebDashboardServiceConfiguration>,
 }
@@ -47,7 +47,7 @@ impl ManagementService {
     pub fn new(
         agent_controller_pool: Arc<AgentControllerPool>,
         configuration: ManagementServiceConfiguration,
-        fleet_management_database: Arc<dyn FleetManagementDatabase>,
+        state_database: Arc<dyn StateDatabase>,
         #[cfg(feature = "web_dashboard")] web_dashboard_service_configuration: Option<
             WebDashboardServiceConfiguration,
         >,
@@ -55,7 +55,7 @@ impl ManagementService {
         ManagementService {
             agent_controller_pool,
             configuration,
-            fleet_management_database,
+            state_database,
             #[cfg(feature = "web_dashboard")]
             web_dashboard_service_configuration,
         }
@@ -80,14 +80,13 @@ impl Service for ManagementService {
         }
 
         let cors_allowed_hosts_arc = Arc::new(cors_allowed_hosts);
-        let fleet_management_database: Data<dyn FleetManagementDatabase> =
-            Data::from(self.fleet_management_database.clone());
+        let state_database: Data<dyn StateDatabase> = Data::from(self.state_database.clone());
 
         Ok(HttpServer::new(move || {
             App::new()
                 .wrap(create_cors_middleware(cors_allowed_hosts_arc.clone()))
-                .app_data(fleet_management_database.clone())
                 .app_data(agent_pool.clone())
+                .app_data(state_database.clone())
                 .configure(http_route::api::get_agents::register)
                 .configure(http_route::api::get_agents_stream::register)
                 .configure(http_route::api::ws_agent_socket::register)

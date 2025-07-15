@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 
-use super::FleetManagementDatabase;
+use super::StateDatabase;
 use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
 
 pub struct Memory {
@@ -18,7 +18,7 @@ impl Memory {
 }
 
 #[async_trait]
-impl FleetManagementDatabase for Memory {
+impl StateDatabase for Memory {
     async fn read_desired_state(&self) -> Result<Option<LlamaCppDesiredState>> {
         Ok(self.desired_state.read().await.clone())
     }

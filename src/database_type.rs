@@ -7,12 +7,12 @@ use anyhow::Result;
 use url::Url;
 
 #[derive(Clone)]
-pub enum FleetManagementDatabaseType {
+pub enum DatabaseType {
     File(PathBuf),
     Memory,
 }
 
-impl FromStr for FleetManagementDatabaseType {
+impl FromStr for DatabaseType {
     type Err = Error;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
@@ -32,9 +32,9 @@ impl FromStr for FleetManagementDatabaseType {
                     ));
                 }
 
-                Ok(FleetManagementDatabaseType::File(PathBuf::from(path)))
+                Ok(DatabaseType::File(PathBuf::from(path)))
             }
-            "memory" => Ok(FleetManagementDatabaseType::Memory),
+            "memory" => Ok(DatabaseType::Memory),
             scheme => Err(anyhow!("Unsupported scheme '{scheme}'")),
         }
     }
@@ -48,22 +48,22 @@ mod tests {
 
     #[test]
     fn test_memory_basic() {
-        let result = FleetManagementDatabaseType::from_str("memory://").unwrap();
-        matches!(result, FleetManagementDatabaseType::Memory);
+        let result = DatabaseType::from_str("memory://").unwrap();
+        matches!(result, DatabaseType::Memory);
     }
 
     #[test]
     fn test_lmdb_relative_path() {
-        let result = FleetManagementDatabaseType::from_str("file://path/to/db");
+        let result = DatabaseType::from_str("file://path/to/db");
 
         assert!(result.is_err());
     }
 
     #[test]
     fn test_lmdb_absolute_path() {
-        let result = FleetManagementDatabaseType::from_str("file:///absolute/path").unwrap();
+        let result = DatabaseType::from_str("file:///absolute/path").unwrap();
         match result {
-            FleetManagementDatabaseType::File(path) => {
+            DatabaseType::File(path) => {
                 assert_eq!(path, PathBuf::from("/absolute/path"));
             }
             _ => panic!("Expected File variant"),
@@ -72,21 +72,21 @@ mod tests {
 
     #[test]
     fn test_lmdb_empty_path_fails() {
-        let result = FleetManagementDatabaseType::from_str("file://");
+        let result = DatabaseType::from_str("file://");
 
         assert!(result.is_err());
     }
 
     #[test]
     fn test_unsupported_scheme() {
-        let result = FleetManagementDatabaseType::from_str("mysql://localhost/db");
+        let result = DatabaseType::from_str("mysql://localhost/db");
 
         assert!(result.is_err());
     }
 
     #[test]
     fn test_invalid_url() {
-        let result = FleetManagementDatabaseType::from_str("not-a-url");
+        let result = DatabaseType::from_str("not-a-url");
 
         assert!(result.is_err());
     }

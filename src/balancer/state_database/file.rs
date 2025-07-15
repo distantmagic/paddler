@@ -7,8 +7,8 @@ use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::RwLock;
 
-use super::FleetManagementDatabase;
 use super::Memory;
+use super::StateDatabase;
 use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
 
 pub struct File {
@@ -45,7 +45,7 @@ impl File {
 }
 
 #[async_trait]
-impl FleetManagementDatabase for File {
+impl StateDatabase for File {
     async fn read_desired_state(&self) -> Result<Option<LlamaCppDesiredState>> {
         match self.cached_state.read_desired_state().await? {
             Some(state) => Ok(Some(state)),

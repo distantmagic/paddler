@@ -33,7 +33,7 @@ use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
-use crate::balancer::fleet_management_database::FleetManagementDatabase;
+use crate::balancer::state_database::StateDatabase;
 use crate::jsonrpc::Error as JsonRpcError;
 
 const MAX_CONTINUATION_SIZE: usize = 100 * 1024;
@@ -46,10 +46,10 @@ pub fn register(cfg: &mut ServiceConfig) {
 async fn handle_aggregated_message(
     agent_controller_pool: Data<AgentControllerPool>,
     agent_id: String,
-    fleet_management_database: Data<dyn FleetManagementDatabase>,
     msg: Option<std::result::Result<AggregatedMessage, actix_ws::ProtocolError>>,
     session: &mut Session,
     shutdown_tx: broadcast::Sender<()>,
+    state_database: Data<dyn StateDatabase>,
 ) -> Result<bool> {
     match msg {
         Some(Ok(AggregatedMessage::Binary(_))) => {
@@ -68,7 +68,7 @@ async fn handle_aggregated_message(
             match handle_text_message(
                 agent_controller_pool.clone(),
                 agent_id.clone(),
-                fleet_management_database.clone(),
+                state_database.clone(),
                 session.clone(),
                 shutdown_tx.clone(),
                 &text,
@@ -97,7 +97,7 @@ async fn handle_aggregated_message(
 async fn handle_text_message(
     agent_controller_pool: Data<AgentControllerPool>,
     agent_id: String,
-    fleet_management_database: Data<dyn FleetManagementDatabase>,
+    state_database: Data<dyn StateDatabase>,
     mut session: Session,
     shutdown_tx: broadcast::Sender<()>,
     text: &str,
@@ -120,7 +120,7 @@ async fn handle_text_message(
                 slots_total,
             };
 
-            if let Some(desired_state) = fleet_management_database.read_desired_state().await? {
+            if let Some(desired_state) = state_database.read_desired_state().await? {
                 agent_controller
                     .set_desired_state(desired_state)
                     .await
@@ -203,7 +203,7 @@ impl Drop for RemoveAgentGuard {
 #[get("/api/v1/agent_socket/{agent_id}")]
 async fn respond(
     agent_controller_pool: Data<AgentControllerPool>,
-    fleet_management_database: Data<dyn FleetManagementDatabase>,
+    state_database: Data<dyn StateDatabase>,
     path_params: Path<PathParams>,
     payload: Payload,
     req: HttpRequest,
@@ -239,10 +239,10 @@ async fn respond(
                     match handle_aggregated_message(
                         agent_controller_pool.clone(),
                         agent_id.clone(),
-                        fleet_management_database.clone(),
                         msg,
                         &mut session,
                         shutdown_tx.clone(),
+                        state_database.clone(),
                     ).await {
                         Ok(true) => {
                             // continue processing messages

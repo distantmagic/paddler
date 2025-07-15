@@ -7,17 +7,17 @@ use tokio::process::Child;
 
 use crate::balancer_management_client::BalancerManagementClient;
 use crate::cleanable::Cleanable;
-use crate::fleet_management_state::FleetManagementState;
+use crate::state_database_configuration::StateDatabaseConfiguration;
 
 #[derive(Debug, Default)]
 pub struct BalancerInstance {
     pub allowed_cors_hosts: Vec<String>,
     pub buffered_request_timeout: Option<i64>,
     pub child: Option<Child>,
-    pub fleet_management_state: Option<FleetManagementState>,
     pub last_update: Option<SystemTime>,
     pub management_client: BalancerManagementClient,
     pub max_buffered_requests: Option<i64>,
+    pub state_database_configuration: Option<StateDatabaseConfiguration>,
     pub statsd_reporting_interval: Option<i64>,
 }
 

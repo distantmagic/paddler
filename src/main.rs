@@ -2,6 +2,7 @@ mod agent;
 mod atomic_value;
 mod balancer;
 mod cmd;
+mod database_type;
 mod jsonrpc;
 mod produces_snapshot;
 mod service;

@@ -12,11 +12,10 @@ use super::handler::Handler;
 use super::parse_duration;
 use super::parse_socket_addr;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
-use crate::balancer::fleet_management_database::File;
-use crate::balancer::fleet_management_database::Memory;
-use crate::balancer::fleet_management_database_type::FleetManagementDatabaseType;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::management_service::ManagementService;
+use crate::balancer::state_database::File;
+use crate::balancer::state_database::Memory;
 #[cfg(feature = "statsd_reporter")]
 use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
 #[cfg(feature = "statsd_reporter")]
@@ -25,6 +24,7 @@ use crate::balancer::statsd_service::StatsdService;
 use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
 #[cfg(feature = "web_dashboard")]
 use crate::balancer::web_dashboard_service::WebDashboardService;
+use crate::database_type::DatabaseType;
 use crate::service_manager::ServiceManager;
 
 #[derive(Parser)]
@@ -33,10 +33,6 @@ pub struct Balancer {
     /// The request timeout (in milliseconds). For all requests that a timely response from an
     /// upstream isn't received for, the 504 (Gateway Timeout) error is issued.
     buffered_request_timeout: Duration,
-
-    #[arg(long, default_value = "memory://")]
-    // Fleet management database URL. Supported: memory, memory://, or file:///path (optional)
-    fleet_management_database: FleetManagementDatabaseType,
 
     #[arg(long, default_value = "127.0.0.1:8060", value_parser = parse_socket_addr)]
     /// Address of the management server that the balancer will report to
@@ -58,6 +54,10 @@ pub struct Balancer {
     #[arg(long, default_value = "127.0.0.1:8061", value_parser = parse_socket_addr)]
     /// Address of the reverse proxy server
     reverseproxy_addr: SocketAddr,
+
+    #[arg(long, default_value = "memory://")]
+    // Balancer state database URL. Supported: memory, memory://, or file:///path (optional)
+    state_database: DatabaseType,
 
     #[cfg(feature = "statsd_reporter")]
     #[arg(long, value_parser = parse_socket_addr)]
@@ -106,9 +106,9 @@ impl Handler for Balancer {
         service_manager.add_service(ManagementService::new(
             agent_controller_pool.clone(),
             self.get_mangement_service_configuration(),
-            match &self.fleet_management_database {
-                FleetManagementDatabaseType::File(path) => Arc::new(File::new(path.to_owned())),
-                FleetManagementDatabaseType::Memory => Arc::new(Memory::new()),
+            match &self.state_database {
+                DatabaseType::File(path) => Arc::new(File::new(path.to_owned())),
+                DatabaseType::Memory => Arc::new(Memory::new()),
             },
             #[cfg(feature = "web_dashboard")]
             self.get_web_dashboard_service_configuration(),

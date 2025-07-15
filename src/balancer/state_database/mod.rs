@@ -9,7 +9,7 @@ pub use self::memory::Memory;
 use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
 
 #[async_trait]
-pub trait FleetManagementDatabase: Send + Sync {
+pub trait StateDatabase: Send + Sync {
     async fn read_desired_state(&self) -> Result<Option<LlamaCppDesiredState>>;
 
     async fn store_desired_state(&self, state: &LlamaCppDesiredState) -> Result<()>;
@@ -23,9 +23,7 @@ mod tests {
     use super::*;
     use crate::agent::llamacpp_desired_model::LlamaCppDesiredModel;
 
-    async fn subtest_store_desired_state<TDatabase: FleetManagementDatabase>(
-        db: &TDatabase,
-    ) -> Result<()> {
+    async fn subtest_store_desired_state<TDatabase: StateDatabase>(db: &TDatabase) -> Result<()> {
         let desired_state = LlamaCppDesiredState {
             model: LlamaCppDesiredModel::Local("test_model_path".to_string()),
         };

@@ -5,12 +5,12 @@ mod balancer_instance;
 mod balancer_management_client;
 mod cleanable;
 mod expression;
-mod fleet_management_state;
 mod metrics;
 mod paddler_world;
 mod request_builder;
 mod request_headers_to_be_set;
 mod retry_until_success;
+mod state_database_configuration;
 mod statsd_instance;
 
 use cucumber::World as _;
