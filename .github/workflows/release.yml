@@ -41,10 +41,8 @@ jobs:
           make
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             cp ./target/release/paddler.exe ./${{ matrix.artifact_name }}
-            ls
           else
             cp ./target/release/paddler ./${{ matrix.artifact_name }}
-            ls
           fi
         shell: bash
         env:
