@@ -83,8 +83,8 @@ impl Service for ManagementService {
                     management_cors_allowed_hosts.clone(),
                 ))
                 .app_data(upstream_peers.clone())
-                .configure(http_route::api::get_agents::register)
-                .configure(http_route::api::get_agents_stream::register)
+                .configure(http_route::api::get_upstream_peer_pool::register)
+                .configure(http_route::api::get_upstream_peer_pool_stream::register)
                 .configure(http_route::api::post_agent_status_update::register);
 
             #[cfg(feature = "web_dashboard")]

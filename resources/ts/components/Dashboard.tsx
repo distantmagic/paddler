@@ -2,7 +2,7 @@ import React from "react";
 
 import { useEventSourceUpdates } from "../hooks/useEventSourceUpdates";
 import { matchEventSourceUpdateState } from "../matchEventSourceUpdateState";
-import { UpstreamPeerPool } from "../schemas/AgentsResponse";
+import { UpstreamPeerPool } from "../schemas/UpstreamPeerPool";
 import { AgentsList } from "./AgentsList";
 import { DashboardLayout } from "./DashboardLayout";
 
