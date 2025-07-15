@@ -19,7 +19,6 @@ runs:
     - name: Verify bin version contains release tag
       run: |
         if ! [[ "${{ inputs.expected-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          expected=${{ inputs.expected-version }}
           echo "Expected version is not valid. Exiting..."
           exit 1
         fi
