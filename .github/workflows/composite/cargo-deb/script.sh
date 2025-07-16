@@ -19,7 +19,7 @@ if [[ "$INPUT_OS" == "ubuntu-latest" || "$INPUT_OS" == "ubuntu-24.04" || "$INPUT
     else
       echo "GITHUB_OUTPUT is not set; skip setting the 'archive' output"
       echo "📦 DEB archive created: $INPUT_DEB.deb"
-    fi  
+    fi
   fi
 else 
   echo "🛠️ Not running on Linux, skipping .deb archiving."
