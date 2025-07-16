@@ -1,9 +1,9 @@
 pub mod jsonrpc;
+mod remove_agent_guard;
 
 use std::sync::Arc;
 
 use actix_web::get;
-use actix_web::rt;
 use actix_web::web::Data;
 use actix_web::web::Path;
 use actix_web::web::Payload;
@@ -11,193 +11,149 @@ use actix_web::web::ServiceConfig;
 use actix_web::Error;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
-use actix_ws::AggregatedMessage;
 use actix_ws::Session;
 use anyhow::Context;
 use anyhow::Result;
-use futures_util::StreamExt as _;
-use log::debug;
+use async_trait::async_trait;
 use log::error;
 use log::info;
 use serde::Deserialize;
 use tokio::sync::broadcast;
-use tokio::time::interval;
-use tokio::time::Duration;
-use tokio::time::MissedTickBehavior;
 
 use self::jsonrpc::notification_params::RegisterAgentParams;
 use self::jsonrpc::notification_params::UpdateAgentStatusParams;
 use self::jsonrpc::Notification as BalancerJsonRpcNotification;
+use self::remove_agent_guard::RemoveAgentGuard;
 use crate::agent::jsonrpc::notification_params::VersionParams;
 use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::state_database::StateDatabase;
-use crate::jsonrpc::Error as JsonRpcError;
-
-const MAX_CONTINUATION_SIZE: usize = 100 * 1024;
-const PING_INTERVAL: Duration = Duration::from_secs(3);
+use crate::controls_websocket_endpoint::ContinuationDecision;
+use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 
 pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
 }
 
-async fn handle_aggregated_message(
+struct AgentSocketControllerContext {
     agent_controller_pool: Data<AgentControllerPool>,
     agent_id: String,
-    msg: Option<std::result::Result<AggregatedMessage, actix_ws::ProtocolError>>,
-    session: &mut Session,
-    shutdown_tx: broadcast::Sender<()>,
     state_database: Data<dyn StateDatabase>,
-) -> Result<bool> {
-    match msg {
-        Some(Ok(AggregatedMessage::Binary(_))) => {
-            debug!("Received binary message, but only text messages are supported");
-        }
-        Some(Ok(AggregatedMessage::Close(_))) => return Ok(false),
-        Some(Ok(AggregatedMessage::Ping(msg))) => {
-            if session.pong(&msg).await.is_err() {
-                return Ok(false);
-            }
-        }
-        Some(Ok(AggregatedMessage::Pong(_))) => {
-            // ignore pong messages
-        }
-        Some(Ok(AggregatedMessage::Text(text))) => {
-            match handle_text_message(
-                agent_controller_pool.clone(),
-                agent_id.clone(),
-                state_database.clone(),
-                session.clone(),
-                shutdown_tx.clone(),
-                &text,
-            )
-            .await
-            .context(format!("Text message: {text}"))
-            {
-                Ok(true) => {
-                    // continue processing messages
-                }
-                Ok(false) => return Ok(false),
-                Err(err) => error!("Error handling message: {err:?}"),
-            }
-        }
-        Some(Err(err)) => {
-            error!("Error receiving message: {err:?}");
 
-            return Ok(false);
+    _remove_agent_guard: RemoveAgentGuard,
+}
+
+struct AgentSocketController {
+    agent_controller_pool: Data<AgentControllerPool>,
+    agent_id: String,
+    state_database: Data<dyn StateDatabase>,
+}
+
+#[async_trait]
+impl ControlsWebSocketEndpoint for AgentSocketController {
+    type Context = AgentSocketControllerContext;
+    type Notification = BalancerJsonRpcNotification;
+
+    fn create_context(&self) -> Self::Context {
+        AgentSocketControllerContext {
+            agent_controller_pool: self.agent_controller_pool.clone(),
+            agent_id: self.agent_id.clone(),
+            state_database: self.state_database.clone(),
+
+            _remove_agent_guard: RemoveAgentGuard {
+                agent_id: self.agent_id.clone(),
+                pool: self.agent_controller_pool.clone(),
+            },
         }
-        None => return Ok(false),
     }
 
-    Ok(true)
-}
+    async fn handle_deserialized_message(
+        context: Arc<Self::Context>,
+        deserialized_message: Self::Notification,
+        session: Session,
+        shutdown_tx: broadcast::Sender<()>,
+    ) -> Result<ContinuationDecision> {
+        match deserialized_message {
+            BalancerJsonRpcNotification::DeregisterAgent => {
+                shutdown_tx.send(())?;
 
-async fn handle_text_message(
-    agent_controller_pool: Data<AgentControllerPool>,
-    agent_id: String,
-    state_database: Data<dyn StateDatabase>,
-    mut session: Session,
-    shutdown_tx: broadcast::Sender<()>,
-    text: &str,
-) -> Result<bool> {
-    match serde_json::from_str::<BalancerJsonRpcNotification>(text) {
-        Ok(BalancerJsonRpcNotification::DeregisterAgent) => {
-            shutdown_tx.send(())?;
-
-            return Ok(false);
-        }
-        Ok(BalancerJsonRpcNotification::RegisterAgent(RegisterAgentParams {
-            name,
-            slots_total,
-        })) => {
-            let mut agent_controller = AgentController {
-                id: agent_id.clone(),
+                return Ok(ContinuationDecision::Stop);
+            }
+            BalancerJsonRpcNotification::RegisterAgent(RegisterAgentParams {
                 name,
-                session,
-                slots_processing: AtomicValue::new(0),
                 slots_total,
-            };
+            }) => {
+                let mut agent_controller = AgentController {
+                    id: context.agent_id.clone(),
+                    name,
+                    session,
+                    slots_processing: AtomicValue::new(0),
+                    slots_total,
+                };
 
-            if let Some(desired_state) = state_database.read_desired_state().await? {
-                agent_controller
-                    .set_desired_state(desired_state)
-                    .await
-                    .context("Unable to set desired state")?;
+                if let Some(desired_state) = context.state_database.read_desired_state().await? {
+                    agent_controller
+                        .set_desired_state(desired_state)
+                        .await
+                        .context("Unable to set desired state")?;
+                }
+
+                context
+                    .agent_controller_pool
+                    .register_agent_controller(context.agent_id.clone(), Arc::new(agent_controller))
+                    .context("Unable to register agent controller")?;
+
+                info!("Registered agent: {}", context.agent_id);
+
+                Ok(ContinuationDecision::Continue)
             }
+            BalancerJsonRpcNotification::UpdateAgentStatus(UpdateAgentStatusParams {
+                slots_processing,
+            }) => {
+                if let Some(agent_controller) = context
+                    .agent_controller_pool
+                    .get_agent_controller(&context.agent_id)
+                {
+                    agent_controller.slots_processing.set(slots_processing);
+                    context
+                        .agent_controller_pool
+                        .update_notifier
+                        .notify_waiters();
+                } else {
+                    error!("Agent controller not found for agent: {}", context.agent_id);
+                }
 
-            agent_controller_pool
-                .register_agent_controller(agent_id.clone(), Arc::new(agent_controller))
-                .context("Unable to register agent controller")?;
-
-            info!("Registered agent: {agent_id}");
-        }
-        Ok(BalancerJsonRpcNotification::UpdateAgentStatus(UpdateAgentStatusParams {
-            slots_processing,
-        })) => {
-            if let Some(agent_controller) = agent_controller_pool.get_agent_controller(&agent_id) {
-                agent_controller.slots_processing.set(slots_processing);
-                agent_controller_pool.update_notifier.notify_waiters();
-            } else {
-                error!("Agent controller not found for agent: {agent_id}");
+                Ok(ContinuationDecision::Continue)
             }
         }
-        Err(
-            err @ serde_json::Error {
-                ..
-            },
-        ) if err.is_data() || err.is_syntax() => {
-            session
-                .text(serde_json::to_string(&JsonRpcError::bad_request(Some(
-                    err,
-                )))?)
-                .await
-                .context("JSON-RPC syntax error")?;
+    }
+
+    async fn on_connection_start(
+        _context: Arc<Self::Context>,
+        session: &mut Session,
+    ) -> Result<ContinuationDecision> {
+        if let Err(err) = session
+            .text(serde_json::to_string(&AgentJsonRpcNotification::Version(
+                VersionParams {
+                    version: env!("CARGO_PKG_VERSION").to_string(),
+                },
+            ))?)
+            .await
+        {
+            error!("Error sending version: {err:?}");
+
+            return Ok(ContinuationDecision::Stop);
         }
-        Err(err) => {
-            error!("Error handling JSON-RPC request: {err:?}");
 
-            session
-                .text(serde_json::to_string(&JsonRpcError::server_error(
-                    err.into(),
-                ))?)
-                .await
-                .context("Unexpected JSON-RPC serialization request")?;
-        }
-    };
-
-    Ok(true)
-}
-
-async fn send_version(session: &mut Session, version: String) -> Result<()> {
-    Ok(session
-        .text(serde_json::to_string(&AgentJsonRpcNotification::Version(
-            VersionParams {
-                version: version.to_string(),
-            },
-        ))?)
-        .await?)
+        Ok(ContinuationDecision::Continue)
+    }
 }
 
 #[derive(Deserialize)]
 struct PathParams {
     agent_id: String,
-}
-
-struct RemoveAgentGuard {
-    pool: Data<AgentControllerPool>,
-    agent_id: String,
-}
-
-impl Drop for RemoveAgentGuard {
-    fn drop(&mut self) {
-        if let Err(err) = self.pool.remove_agent_controller(&self.agent_id) {
-            error!("Failed to remove agent: {err}");
-        }
-
-        info!("Removed agent: {}", self.agent_id);
-    }
 }
 
 #[get("/api/v1/agent_socket/{agent_id}")]
@@ -208,62 +164,11 @@ async fn respond(
     payload: Payload,
     req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
-    let agent_id = path_params.agent_id.clone();
+    let agent_socket_controller = AgentSocketController {
+        agent_controller_pool: agent_controller_pool.clone(),
+        agent_id: path_params.agent_id.clone(),
+        state_database: state_database.clone(),
+    };
 
-    let (res, mut session, msg_stream) = actix_ws::handle(&req, payload)?;
-    let (shutdown_tx, mut shutdown_rx) = broadcast::channel::<()>(2);
-
-    let mut aggregated_msg_stream = msg_stream
-        .aggregate_continuations()
-        .max_continuation_size(MAX_CONTINUATION_SIZE);
-
-    rt::spawn(async move {
-        let _guard = RemoveAgentGuard {
-            pool: agent_controller_pool.clone(),
-            agent_id: agent_id.clone(),
-        };
-
-        if let Err(err) = send_version(&mut session, env!("CARGO_PKG_VERSION").to_string()).await {
-            error!("Error sending version: {err:?}");
-
-            return;
-        }
-
-        let mut ping_ticker = interval(PING_INTERVAL);
-
-        ping_ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
-
-        loop {
-            tokio::select! {
-                msg = aggregated_msg_stream.next() => {
-                    match handle_aggregated_message(
-                        agent_controller_pool.clone(),
-                        agent_id.clone(),
-                        msg,
-                        &mut session,
-                        shutdown_tx.clone(),
-                        state_database.clone(),
-                    ).await {
-                        Ok(true) => {
-                            // continue processing messages
-                        }
-                        Ok(false) => break,
-                        Err(err) => error!("Error handling message: {err:?}"),
-                    }
-                }
-                _ = ping_ticker.tick() => {
-                    if session.ping(b"").await.is_err() {
-                        break;
-                    }
-                }
-                _ = shutdown_rx.recv() => {
-                    break;
-                }
-            }
-        }
-
-        let _ = session.close(None).await;
-    });
-
-    Ok(res)
+    agent_socket_controller.respond(payload, req)
 }

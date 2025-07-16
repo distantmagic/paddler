@@ -3,9 +3,16 @@ import { Route, Router, Switch } from "wouter";
 
 import { AgentListPage } from "./AgentListPage";
 import { DashboardLayout } from "./DashboardLayout";
+import { PromptContextProvider } from "./PromptContextProvider";
 import { PromptPage } from "./PromptPage";
 
-export function Dashboard({ managementAddr }: { managementAddr: string }) {
+export function Dashboard({
+  inferenceAddr,
+  managementAddr,
+}: {
+  inferenceAddr: string;
+  managementAddr: string;
+}) {
   return (
     <Router>
       <DashboardLayout>
@@ -14,7 +21,9 @@ export function Dashboard({ managementAddr }: { managementAddr: string }) {
             <AgentListPage managementAddr={managementAddr} />
           </Route>
           <Route path="/prompt">
-            <PromptPage />
+            <PromptContextProvider>
+              <PromptPage inferenceAddr={inferenceAddr} />
+            </PromptContextProvider>
           </Route>
           <Route>404 :(</Route>
         </Switch>

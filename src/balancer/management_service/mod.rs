@@ -2,8 +2,6 @@ pub mod configuration;
 pub mod http_route;
 use std::sync::Arc;
 
-use actix_cors::Cors;
-use actix_web::http::header;
 use actix_web::web::Data;
 use actix_web::App;
 use actix_web::HttpServer;
@@ -16,24 +14,8 @@ use crate::balancer::management_service::configuration::Configuration as Managem
 use crate::balancer::state_database::StateDatabase;
 #[cfg(feature = "web_dashboard")]
 use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
+use crate::create_cors_middleware::create_cors_middleware;
 use crate::service::Service;
-
-fn create_cors_middleware(allowed_hosts: Arc<Vec<String>>) -> Cors {
-    let mut cors = Cors::default()
-        .allowed_methods(vec!["GET", "POST", "OPTIONS"])
-        .allowed_headers(vec![
-            header::ACCEPT,
-            header::AUTHORIZATION,
-            header::CONTENT_TYPE,
-        ])
-        .max_age(3600);
-
-    for host in allowed_hosts.iter() {
-        cors = cors.allowed_origin(host);
-    }
-
-    cors
-}
 
 pub struct ManagementService {
     agent_controller_pool: Arc<AgentControllerPool>,

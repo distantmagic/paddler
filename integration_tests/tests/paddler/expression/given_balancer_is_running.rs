@@ -42,8 +42,8 @@ pub async fn given_balancer_is_running(world: &mut PaddlerWorld) -> Result<()> {
     world.balancer.allowed_cors_hosts.clear();
 
     let child = command
-        // .stdout(Stdio::null())
-        // .stderr(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()?;
 
     world.balancer.child = Some(child);

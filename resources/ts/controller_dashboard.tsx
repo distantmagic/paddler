@@ -3,18 +3,33 @@ import { createRoot } from "react-dom/client";
 
 import { Dashboard } from "./components/Dashboard";
 
-const rootNode = document.getElementById("paddler-dashboard");
+class RootNode {
+  constructor(private rootNodeElement: HTMLElement) {}
 
-if (!rootNode) {
+  getFromDataset(key: string): string {
+    const value = this.rootNodeElement.dataset[key];
+
+    if (value === undefined) {
+      throw new Error(`Missing dataset key: ${key}`);
+    }
+
+    return value;
+  }
+}
+
+const rootNodeElement = document.getElementById("paddler-dashboard");
+
+if (!rootNodeElement) {
   throw new Error("Root node not found");
 }
 
-const managementAddr = rootNode.dataset["managementAddr"];
+const rootNode = new RootNode(rootNodeElement);
 
-if ("string" !== typeof managementAddr) {
-  throw new Error("Management address not found in root node data attributes");
-}
+const root = createRoot(rootNodeElement);
 
-const root = createRoot(rootNode);
-
-root.render(<Dashboard managementAddr={managementAddr} />);
+root.render(
+  <Dashboard
+    inferenceAddr={rootNode.getFromDataset("inferenceAddr")}
+    managementAddr={rootNode.getFromDataset("managementAddr")}
+  />,
+);

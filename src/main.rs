@@ -2,6 +2,8 @@ mod agent;
 mod atomic_value;
 mod balancer;
 mod cmd;
+mod controls_websocket_endpoint;
+mod create_cors_middleware;
 mod database_type;
 mod jsonrpc;
 mod produces_snapshot;

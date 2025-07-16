@@ -1,6 +1,6 @@
 .promptPage {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: 1fr auto;
 }
 
 .promptPage__promptForm {
