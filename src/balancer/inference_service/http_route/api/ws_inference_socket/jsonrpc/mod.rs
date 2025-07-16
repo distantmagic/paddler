@@ -1,4 +1,6 @@
-mod notification;
-pub mod notification_params;
+mod message;
+mod request;
+pub mod request_params;
 
-pub use self::notification::Notification;
+pub use self::message::Message;
+pub use self::request::Request;
