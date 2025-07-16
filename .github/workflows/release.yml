@@ -14,7 +14,10 @@ jobs:
       matrix:
         include:
           - os: ubuntu-22.04
-            artifact_name: paddler-bin-linux-amd64
+            artifact_name: paddler-bin-linux-libc2.36-amd64
+
+          - os: ubuntu-latest
+            artifact_name: paddler-bin-linux-libc2.39-amd64
 
           - os: windows-latest
             artifact_name: paddler-bin-windows-amd64.exe
