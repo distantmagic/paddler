@@ -23,13 +23,12 @@ pub async fn given_balancer_is_running(world: &mut PaddlerWorld) -> Result<()> {
             "--buffered-request-timeout={}",
             world.balancer.buffered_request_timeout.unwrap_or(3000)
         ))
+        .arg(format!("--inference-addr=127.0.1:{REVERSE_PROXY_PORT}"))
         .arg(format!("--management-addr=127.0.0.1:{BALANCER_PORT}"))
         .arg(format!(
             "--max-buffered-requests={}",
             world.balancer.max_buffered_requests.unwrap_or(32)
         ))
-        .arg("--metrics-endpoint-enable")
-        .arg(format!("--reverseproxy-addr=127.0.1:{REVERSE_PROXY_PORT}"))
         .arg("--statsd-addr=localhost:9125")
         .arg(format!(
             "--statsd-reporting-interval={}",
@@ -43,8 +42,8 @@ pub async fn given_balancer_is_running(world: &mut PaddlerWorld) -> Result<()> {
     world.balancer.allowed_cors_hosts.clear();
 
     let child = command
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        // .stdout(Stdio::null())
+        // .stderr(Stdio::null())
         .spawn()?;
 
     world.balancer.child = Some(child);
