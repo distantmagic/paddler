@@ -1,0 +1,20 @@
+.promptPage {
+  display: flex;
+  flex-direction: column;
+}
+
+.promptPage__promptForm {
+  background-image: linear-gradient(
+    to bottom,
+    transparent 20%,
+    var(--color-body-background) 20%
+  );
+  bottom: 0;
+  left: 0;
+  padding: 0 var(--spacing-base) var(--spacing-base) var(--spacing-base);
+  position: sticky;
+}
+
+.promptPage__messages {
+  padding: var(--spacing-base);
+}

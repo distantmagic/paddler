@@ -2,8 +2,8 @@ import React from "react";
 import { Route, Router, Switch } from "wouter";
 
 import { AgentListPage } from "./AgentListPage";
-import { ChatPage } from "./ChatPage";
 import { DashboardLayout } from "./DashboardLayout";
+import { PromptPage } from "./PromptPage";
 
 export function Dashboard({ managementAddr }: { managementAddr: string }) {
   return (
@@ -13,8 +13,8 @@ export function Dashboard({ managementAddr }: { managementAddr: string }) {
           <Route path="/">
             <AgentListPage managementAddr={managementAddr} />
           </Route>
-          <Route path="/chat" nest>
-            <ChatPage />
+          <Route path="/prompt">
+            <PromptPage />
           </Route>
           <Route>404 :(</Route>
         </Switch>

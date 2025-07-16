@@ -6,6 +6,8 @@ import { AgentsResponseSchema } from "../schemas/AgentsResponse";
 import { AgentsList } from "./AgentsList";
 import { FloatingStatus } from "./FloatingStatus";
 
+import { agentListPage } from "./AgentListPage.module.css";
+
 export function AgentListPage({ managementAddr }: { managementAddr: string }) {
   const eventSourceUpdateState = useEventSourceUpdates({
     schema: AgentsResponseSchema,
@@ -29,10 +31,14 @@ export function AgentListPage({ managementAddr }: { managementAddr: string }) {
     },
     dataSnapshot({ data }) {
       if (data.agents.length < 1) {
-        return <p>No agents registered yet.</p>;
+        return <FloatingStatus>No agents registered yet.</FloatingStatus>;
       }
 
-      return <AgentsList agents={data.agents} />;
+      return (
+        <div className={agentListPage}>
+          <AgentsList agents={data.agents} />
+        </div>
+      );
     },
     deserializationError() {
       return (

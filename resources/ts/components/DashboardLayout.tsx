@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import React, { ReactNode } from "react";
 import { Link } from "wouter";
 
@@ -11,9 +12,9 @@ import {
 } from "./DashboardLayout.module.css";
 
 function activeClassName(isActive: boolean) {
-  return isActive
-    ? `${dashboard__header__link} ${dashboard__header__linkActive}`
-    : dashboard__header__link;
+  return clsx(dashboard__header__link, {
+    [dashboard__header__linkActive]: isActive,
+  });
 }
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
@@ -29,8 +30,8 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           <Link className={activeClassName} href="/">
             Dashboard
           </Link>
-          <Link className={activeClassName} href="/chat">
-            Chat
+          <Link className={activeClassName} href="/prompt">
+            Prompt
           </Link>
         </div>
       </div>

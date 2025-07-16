@@ -1,0 +1,4 @@
+.conversationMessage {
+  background-color: white;
+  padding: var(--spacing-base);
+}

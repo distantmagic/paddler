@@ -102,6 +102,7 @@ impl Balancer {
         self.web_dashboard_addr
             .map(|web_dashboard_addr| WebDashboardServiceConfiguration {
                 addr: web_dashboard_addr,
+                inference_addr: self.inference_addr,
                 management_addr: self.management_addr,
             })
     }
