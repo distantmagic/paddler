@@ -34,22 +34,25 @@ jobs:
         with:
           toolchain: stable        
 
+      - name: build the binary
+        run: make build
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - id: release-version
         uses: ./.github/workflows/composite/release-tag-to-version
         with:
           release-tag: "${{ github.ref_name }}"
 
-      - name: build the binary
+      - name: rename the binary
         run: |
-          make
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             cp ./target/release/paddler.exe ./${{ matrix.artifact_name }}
           else
             cp ./target/release/paddler ./${{ matrix.artifact_name }}
           fi
         shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: ./.github/workflows/composite/assert-version
         with:
