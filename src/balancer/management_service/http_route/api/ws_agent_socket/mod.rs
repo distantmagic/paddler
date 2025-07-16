@@ -54,7 +54,7 @@ struct AgentSocketController {
 #[async_trait]
 impl ControlsWebSocketEndpoint for AgentSocketController {
     type Context = AgentSocketControllerContext;
-    type Notification = BalancerJsonRpcNotification;
+    type Message = BalancerJsonRpcNotification;
 
     fn create_context(&self) -> Self::Context {
         AgentSocketControllerContext {
@@ -71,7 +71,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
 
     async fn handle_deserialized_message(
         context: Arc<Self::Context>,
-        deserialized_message: Self::Notification,
+        deserialized_message: Self::Message,
         session: Session,
         shutdown_tx: broadcast::Sender<()>,
     ) -> Result<ContinuationDecision> {
@@ -165,9 +165,9 @@ async fn respond(
     req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
     let agent_socket_controller = AgentSocketController {
-        agent_controller_pool: agent_controller_pool.clone(),
+        agent_controller_pool,
         agent_id: path_params.agent_id.clone(),
-        state_database: state_database.clone(),
+        state_database,
     };
 
     agent_socket_controller.respond(payload, req)

@@ -32,13 +32,13 @@ pub enum ContinuationDecision {
 #[async_trait]
 pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
     type Context: Send + Sync + 'static;
-    type Notification: DeserializeOwned + Send + Sync + 'static;
+    type Message: DeserializeOwned + Send + Sync + 'static;
 
     fn create_context(&self) -> Self::Context;
 
     async fn handle_deserialized_message(
         context: Arc<Self::Context>,
-        deserialized_message: Self::Notification,
+        deserialized_message: Self::Message,
         mut session: Session,
         shutdown_tx: broadcast::Sender<()>,
     ) -> Result<ContinuationDecision>;
@@ -100,7 +100,7 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
         shutdown_tx: broadcast::Sender<()>,
         text: &str,
     ) -> Result<ContinuationDecision> {
-        match serde_json::from_str::<Self::Notification>(text) {
+        match serde_json::from_str::<Self::Message>(text) {
             Ok(deserialized_message) => {
                 Self::handle_deserialized_message(
                     context,
