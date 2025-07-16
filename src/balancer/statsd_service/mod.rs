@@ -14,6 +14,7 @@ use tokio::time::interval;
 use tokio::time::MissedTickBehavior;
 
 use crate::balancer::agent_controller_pool::AgentControllerPool;
+use crate::balancer::agent_controller_pool_total_slots::AgentControllerPoolTotalSlots;
 use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
 use crate::service::Service;
 
@@ -34,11 +35,14 @@ impl StatsdService {
     }
 
     async fn report_metrics(&self, client: &StatsdClient) -> Result<()> {
-        let (slots_idle, slots_processing) = self.agent_controller_pool.total_slots()?;
+        let AgentControllerPoolTotalSlots {
+            slots_processing,
+            slots_total,
+        } = self.agent_controller_pool.total_slots();
         let requests_buffered = self.agent_controller_pool.total_buffered_requests();
 
-        client.gauge("slots_idle", slots_idle as u64)?;
         client.gauge("slots_processing", slots_processing as u64)?;
+        client.gauge("slots_total", slots_total as u64)?;
         client.gauge("requests_buffered", requests_buffered as u64)?;
         client.flush()?;
 

@@ -1,6 +1,7 @@
 pub mod agent_controller;
 pub mod agent_controller_pool;
 pub mod agent_controller_pool_snapshot;
+pub mod agent_controller_pool_total_slots;
 pub mod agent_controller_snapshot;
 pub mod inference_service;
 pub mod management_service;
