@@ -10,7 +10,7 @@ pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
 }
 
-#[get("/api/v1/agents")]
+#[get("/api/v1/upstream_peer_pool")]
 async fn respond(upstream_peer_pool: web::Data<UpstreamPeerPool>) -> Result<impl Responder, Error> {
     if let Some(info) = upstream_peer_pool.info() {
         Ok(web::Json(info))

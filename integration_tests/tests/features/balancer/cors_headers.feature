@@ -5,7 +5,7 @@ Feature: Balancer supports CORS headers
         Given balancer allows CORS host "http://example.com"
         Given balancer is running
         Given request "foo" has header "Origin" with value "http://example.com"
-        When request "foo" is sent to management endpoint "/api/v1/agents"
+        When request "foo" is sent to management endpoint "/api/v1/upstream_peer_pool"
         Then "foo" response code is 200
         And "foo" response header "Access-Control-Allow-Origin" is "http://example.com"
 
@@ -13,6 +13,6 @@ Feature: Balancer supports CORS headers
     Scenario: CORS headers are missing when not allowed
         Given balancer is running
         Given request "foo" has header "Origin" with value "http://example_2.com"
-        When request "foo" is sent to management endpoint "/api/v1/agents"
+        When request "foo" is sent to management endpoint "/api/v1/upstream_peer_pool"
         Then "foo" response code is 200
         And "foo" response header "Access-Control-Allow-Origin" is not present
