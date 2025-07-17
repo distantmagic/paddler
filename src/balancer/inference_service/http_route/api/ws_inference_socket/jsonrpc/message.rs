@@ -6,7 +6,6 @@ use crate::jsonrpc::Error;
 use crate::jsonrpc::RequestEnvelope;
 
 #[derive(Deserialize, Serialize)]
-#[serde(untagged)]
 pub enum Message {
     Error(Error),
     Request(RequestEnvelope<Request>),
@@ -31,7 +30,7 @@ mod tests {
 
         assert_eq!(
             serialized,
-            r#"{"id":"1","request":{"GenerateTokens":{"max_tokens":500,"prompt":"Hello, world!"}}}"#
+            r#"{"Request":{"id":"1","request":{"GenerateTokens":{"max_tokens":500,"prompt":"Hello, world!"}}}}"#
         );
 
         Ok(())

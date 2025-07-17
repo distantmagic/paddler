@@ -22,16 +22,19 @@ use crate::agent::jsonrpc::notification_params::VersionParams;
 use crate::agent::jsonrpc::Message as JsonRpcMessage;
 use crate::agent::jsonrpc::Notification as JsonRpcNotification;
 use crate::agent::jsonrpc::Request as JsonRpcRequest;
+use crate::agent::jsonrpc::Response as JsonRpcResponse;
 use crate::agent::message::GenerateTokensChannel;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
 use crate::agent::websocket_shared_writer::WebSocketSharedWriter;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::RegisterAgentParams;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Notification as ManagementJsonRpcNotification;
+use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Message as ManagementJsonRpcMessage;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::agent::slot_aggregated_metrics::SlotAggregatedMetrics;
 use crate::jsonrpc::RequestEnvelope;
 use crate::jsonrpc::ResponseEnvelope;
 use crate::service::Service;
+use crate::response_params::GeneratedToken as GeneratedTokenParams;
 
 pub struct ManagementSocketClientService {
     generate_tokens_tx: mpsc::Sender<GenerateTokensChannel>,
@@ -125,19 +128,25 @@ impl ManagementSocketClientService {
                     tokio::spawn(async move {
                         while let Some(chunk) = chunk_receiver.recv().await {
                             writer_clone
-                                .send_serialized(ResponseEnvelope::StreamChunk {
-                                    request_id: id.clone(),
-                                    chunk,
-                                })
+                                .send_serialized(ManagementJsonRpcMessage::Response(
+                                    ResponseEnvelope::StreamChunk {
+                                        request_id: id.clone(),
+                                        chunk: JsonRpcResponse::GeneratedToken(
+                                            GeneratedTokenParams {
+                                                token: chunk,
+                                            },
+                                        ),
+                                    },
+                                ))
                                 .await?;
                         }
 
                         writer_clone
-                            .send_serialized::<ResponseEnvelope<String>>(
+                            .send_serialized(ManagementJsonRpcMessage::Response(
                                 ResponseEnvelope::StreamDone {
                                     request_id: id,
                                 },
-                            )
+                            ))
                             .await?;
 
                         Ok::<(), anyhow::Error>(())
@@ -173,11 +182,11 @@ impl ManagementSocketClientService {
         let writer = Arc::new(WebSocketSharedWriter::new(write));
 
         writer
-            .send_serialized(ManagementJsonRpcNotification::RegisterAgent(
-                RegisterAgentParams {
+            .send_serialized(ManagementJsonRpcMessage::Notification(
+                ManagementJsonRpcNotification::RegisterAgent(RegisterAgentParams {
                     name: self.name.clone(),
                     slots_total: self.slot_aggregated_metrics.slots_total,
-                },
+                }),
             ))
             .await?;
 

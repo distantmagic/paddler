@@ -27,6 +27,7 @@ use self::jsonrpc::Message as ManagementJsonRpcMessage;
 use self::jsonrpc::Notification as ManagementJsonRpcNotification;
 use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::jsonrpc::notification_params::VersionParams;
+use crate::agent::jsonrpc::Message as AgentJsonRpcMessage;
 use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
 use crate::agent::jsonrpc::Response as AgentJsonRpcResponse;
 use crate::atomic_value::AtomicValue;
@@ -117,9 +118,11 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
 
                 if let Some(desired_state) = context.state_database.read_desired_state().await? {
                     agent_controller
-                        .send_serialized(AgentJsonRpcNotification::SetState(SetStateParams {
-                            desired_state,
-                        }))
+                        .send_serialized(AgentJsonRpcMessage::Notification(
+                            AgentJsonRpcNotification::SetState(SetStateParams {
+                                desired_state,
+                            }),
+                        ))
                         .await
                         .context("Unable to set desired state")?;
                 }
@@ -203,10 +206,10 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
         session: &mut Session,
     ) -> Result<ContinuationDecision> {
         if let Err(err) = session
-            .text(serde_json::to_string(&AgentJsonRpcNotification::Version(
-                VersionParams {
+            .text(serde_json::to_string(&AgentJsonRpcMessage::Notification(
+                AgentJsonRpcNotification::Version(VersionParams {
                     version: env!("CARGO_PKG_VERSION").to_string(),
-                },
+                }),
             ))?)
             .await
         {

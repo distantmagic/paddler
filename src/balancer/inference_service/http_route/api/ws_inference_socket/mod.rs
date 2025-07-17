@@ -53,7 +53,7 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
     async fn handle_deserialized_message(
         context: Arc<Self::Context>,
         deserialized_message: Self::Message,
-        mut session: Session,
+        _session: Session,
         _shutdown_tx: broadcast::Sender<()>,
     ) -> Result<ContinuationDecision> {
         match deserialized_message {

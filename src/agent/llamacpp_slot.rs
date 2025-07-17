@@ -65,7 +65,8 @@ impl LlamaCppSlot {
                 },
         }: GenerateTokensChannel,
     ) -> Result<()> {
-        println!("Generating tokens for prompt: {}", prompt);
+        println!("Generating tokens for prompt: {prompt}");
+
         let tokens_list = self.model.str_to_token(&prompt, AddBos::Always)?;
         let mut batch = LlamaBatch::new(512, 1);
         let last_index = tokens_list.len() as i32 - 1;

@@ -22,11 +22,13 @@ export function InferenceSocketClient({
     webSocket.addEventListener("message", onMessage);
     webSocket.send(
       JSON.stringify({
-        id: requestId,
-        request: {
-          GenerateTokens: {
-            max_tokens: 1000,
-            prompt,
+        Request: {
+          id: requestId,
+          request: {
+            GenerateTokens: {
+              max_tokens: 1000,
+              prompt,
+            },
           },
         },
       }),
