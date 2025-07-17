@@ -5,12 +5,12 @@ use crate::atomic_value::AtomicValue;
 
 pub struct SlotAggregatedMetrics {
     pub slots_processing: AtomicValue,
-    pub slots_total: usize,
+    pub slots_total: i32,
     pub update_notifier: Notify,
 }
 
 impl SlotAggregatedMetrics {
-    pub fn new(slots_total: usize) -> Self {
+    pub fn new(slots_total: i32) -> Self {
         Self {
             slots_processing: AtomicValue::new(0),
             slots_total,

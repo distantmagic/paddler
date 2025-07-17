@@ -1,5 +1,4 @@
 pub mod jsonrpc;
-mod remove_agent_guard;
 
 use std::sync::Arc;
 
@@ -23,7 +22,6 @@ use tokio::sync::broadcast;
 use self::jsonrpc::notification_params::RegisterAgentParams;
 use self::jsonrpc::notification_params::UpdateAgentStatusParams;
 use self::jsonrpc::Notification as BalancerJsonRpcNotification;
-use self::remove_agent_guard::RemoveAgentGuard;
 use crate::agent::jsonrpc::notification_params::VersionParams;
 use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
 use crate::atomic_value::AtomicValue;
@@ -41,8 +39,19 @@ struct AgentSocketControllerContext {
     agent_controller_pool: Data<AgentControllerPool>,
     agent_id: String,
     state_database: Data<dyn StateDatabase>,
+}
 
-    _remove_agent_guard: RemoveAgentGuard,
+impl Drop for AgentSocketControllerContext {
+    fn drop(&mut self) {
+        if let Err(err) = self
+            .agent_controller_pool
+            .remove_agent_controller(&self.agent_id)
+        {
+            error!("Failed to remove agent: {err}");
+        }
+
+        info!("Removed agent: {}", self.agent_id);
+    }
 }
 
 struct AgentSocketController {
@@ -61,11 +70,6 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
             agent_controller_pool: self.agent_controller_pool.clone(),
             agent_id: self.agent_id.clone(),
             state_database: self.state_database.clone(),
-
-            _remove_agent_guard: RemoveAgentGuard {
-                agent_id: self.agent_id.clone(),
-                pool: self.agent_controller_pool.clone(),
-            },
         }
     }
 

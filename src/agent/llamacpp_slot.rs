@@ -13,9 +13,10 @@ use llama_cpp_2::model::LlamaModel;
 use llama_cpp_2::model::Special;
 use llama_cpp_2::sampling::LlamaSampler;
 
-use crate::agent::message::GenerateTokens;
+use crate::agent::message::GenerateTokensChannel;
 use crate::agent::slot_metrics::SlotMetrics;
 use crate::agent::slot_take_drop_guard::SlotTakeDropGuard;
+use crate::request_params::GenerateTokensParams;
 
 pub struct LlamaCppSlot {
     llama_context: LlamaContext<'static>,
@@ -53,8 +54,18 @@ impl LlamaCppSlot {
         })
     }
 
-    fn generate_tokens(&mut self, message: GenerateTokens) -> Result<()> {
-        let tokens_list = self.model.str_to_token(&message.prompt, AddBos::Always)?;
+    fn generate_tokens(
+        &mut self,
+        GenerateTokensChannel {
+            chunk_sender,
+            params:
+                GenerateTokensParams {
+                    prompt,
+                    max_tokens,
+                },
+        }: GenerateTokensChannel,
+    ) -> Result<()> {
+        let tokens_list = self.model.str_to_token(&prompt, AddBos::Always)?;
         let mut batch = LlamaBatch::new(512, 1);
         let last_index = tokens_list.len() as i32 - 1;
 
@@ -70,7 +81,7 @@ impl LlamaCppSlot {
         let mut decoder = encoding_rs::UTF_8.new_decoder();
         let mut sampler = LlamaSampler::greedy();
 
-        while n_cur <= message.max_tokens {
+        while n_cur <= max_tokens {
             // sample the next token
             {
                 let token = sampler.sample(&self.llama_context, batch.n_tokens() - 1);
@@ -86,7 +97,7 @@ impl LlamaCppSlot {
                 let _decode_result =
                     decoder.decode_to_string(&output_bytes, &mut output_string, false);
 
-                message.chunk_sender.blocking_send(output_string)?;
+                chunk_sender.blocking_send(output_string)?;
 
                 batch.clear();
                 batch.add(token, n_cur, &[0], true)?;
@@ -105,10 +116,10 @@ impl Actor for LlamaCppSlot {
     type Context = SyncContext<Self>;
 }
 
-impl Handler<GenerateTokens> for LlamaCppSlot {
+impl Handler<GenerateTokensChannel> for LlamaCppSlot {
     type Result = Result<()>;
 
-    fn handle(&mut self, message: GenerateTokens, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, message: GenerateTokensChannel, _ctx: &mut Self::Context) -> Self::Result {
         let _guard = SlotTakeDropGuard::new(self.slot_metrics.clone());
 
         self.generate_tokens(message)

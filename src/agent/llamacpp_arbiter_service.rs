@@ -10,24 +10,24 @@ use crate::agent::llamacpp_applicable_state::LlamaCppApplicableState;
 use crate::agent::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
 use crate::agent::llamacpp_arbiter::LlamaCppArbiter;
 use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
-use crate::agent::message::GenerateTokens;
+use crate::agent::message::GenerateTokensChannel;
 use crate::agent::slot_aggregated_metrics_manager::SlotAggregatedMetricsManager;
 use crate::service::Service;
 
 pub struct LlamaCppArbiterService {
     llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
     llamacpp_arbiter_controller: Option<LlamaCppArbiterController>,
-    generate_tokens_rx: mpsc::Receiver<GenerateTokens>,
+    generate_tokens_rx: mpsc::Receiver<GenerateTokensChannel>,
     slot_aggregated_metrics_manager: Arc<SlotAggregatedMetricsManager>,
-    slots_total: usize,
+    slots_total: i32,
 }
 
 impl LlamaCppArbiterService {
     pub async fn new(
-        generate_tokens_rx: mpsc::Receiver<GenerateTokens>,
+        generate_tokens_rx: mpsc::Receiver<GenerateTokensChannel>,
         llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
         slot_aggregated_metrics_manager: Arc<SlotAggregatedMetricsManager>,
-        slots_total: usize,
+        slots_total: i32,
     ) -> Result<Self> {
         Ok(LlamaCppArbiterService {
             llamacpp_applicable_state_holder,

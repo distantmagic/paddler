@@ -1,4 +1,14 @@
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .promptPage {
+  animation: fadeIn 200ms ease-in-out;
   display: grid;
   grid-template-rows: 1fr auto;
 }

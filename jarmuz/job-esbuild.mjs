@@ -16,6 +16,8 @@ export function jobEsbuild({ development }) {
 
     console.log(`Building with ID: ${buildId}`);
 
+    const inject = await glob(["resources/ts/polyfill_*.{ts,tsx}"]);
+
     const entryPoints = await glob([
       "resources/css/{fragment,global,page}-*.css",
       "resources/css/reset.css",
@@ -56,6 +58,7 @@ export function jobEsbuild({ development }) {
         __DEV__: JSON.stringify(String(development)),
         __PUBLIC_PATH: JSON.stringify(publicPath),
       },
+      inject,
       publicPath,
       preserveSymlinks: true,
       treeShaking: true,

@@ -8,7 +8,7 @@ pub struct SlotAggregatedMetricsManager {
 }
 
 impl SlotAggregatedMetricsManager {
-    pub fn new(slots_total: usize) -> Self {
+    pub fn new(slots_total: i32) -> Self {
         SlotAggregatedMetricsManager {
             slot_aggregated_metrics: Arc::new(SlotAggregatedMetrics::new(slots_total)),
         }

@@ -28,7 +28,7 @@ pub struct Agent {
     name: Option<String>,
 
     #[arg(long)]
-    slots: usize,
+    slots: i32,
 }
 
 #[async_trait]

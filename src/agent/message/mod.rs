@@ -1,3 +1,3 @@
-mod generate_tokens;
+mod generate_tokens_channel;
 
-pub use self::generate_tokens::GenerateTokens;
+pub use self::generate_tokens_channel::GenerateTokensChannel;

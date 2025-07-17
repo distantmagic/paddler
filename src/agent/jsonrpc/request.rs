@@ -1,9 +1,9 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-use super::request_params::GenerateTokens;
+use crate::request_params::GenerateTokensParams;
 
 #[derive(Deserialize, Serialize)]
 pub enum Request {
-    GenerateTokens(GenerateTokens),
+    GenerateTokens(GenerateTokensParams),
 }

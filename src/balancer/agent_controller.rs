@@ -13,7 +13,7 @@ pub struct AgentController {
     pub name: Option<String>,
     pub session: Session,
     pub slots_processing: AtomicValue,
-    pub slots_total: usize,
+    pub slots_total: i32,
 }
 
 impl AgentController {

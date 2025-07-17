@@ -119,7 +119,7 @@ export function useEventSourceUpdates<TSchema extends z.ZodTypeAny>({
         const result = schema.safeParse(parsed);
 
         if (!result.success) {
-          console.log("Deserialization error:", result.error);
+          console.error("Deserialization error:", result.error);
           setStreamState(deserializationErrorState);
         } else {
           setStreamState({

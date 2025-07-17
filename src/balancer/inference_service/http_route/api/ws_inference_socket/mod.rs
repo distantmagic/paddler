@@ -15,7 +15,6 @@ use async_trait::async_trait;
 use log::error;
 use tokio::sync::broadcast;
 
-use self::jsonrpc::request_params::GenerateTokensParams;
 use self::jsonrpc::Message as InferenceJsonRpcMessage;
 use self::jsonrpc::Request as InferenceJsonRpcRequest;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
@@ -23,22 +22,33 @@ use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::RequestEnvelope;
+use crate::request_params::GenerateTokensParams;
 
 pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
 }
 
-struct InferenceSocketController {}
+struct InferenceSocketControllerContext {
+    agent_controller_pool: Data<AgentControllerPool>,
+}
+
+struct InferenceSocketController {
+    agent_controller_pool: Data<AgentControllerPool>,
+}
 
 #[async_trait]
 impl ControlsWebSocketEndpoint for InferenceSocketController {
-    type Context = ();
+    type Context = InferenceSocketControllerContext;
     type Message = InferenceJsonRpcMessage;
 
-    fn create_context(&self) -> Self::Context {}
+    fn create_context(&self) -> Self::Context {
+        InferenceSocketControllerContext {
+            agent_controller_pool: self.agent_controller_pool.clone(),
+        }
+    }
 
     async fn handle_deserialized_message(
-        _context: Arc<Self::Context>,
+        context: Arc<Self::Context>,
         deserialized_message: Self::Message,
         _session: Session,
         _shutdown_tx: broadcast::Sender<()>,
@@ -56,10 +66,15 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                 id,
                 request:
                     InferenceJsonRpcRequest::GenerateTokens(GenerateTokensParams {
+                        max_tokens,
                         prompt,
                     }),
             }) => {
                 println!("Received GenerateTokens request with prompt: {id} {prompt}");
+                println!(
+                    "Total slots: {}",
+                    context.agent_controller_pool.total_slots().slots_processing
+                );
 
                 return Ok(ContinuationDecision::Continue);
             }
@@ -69,11 +84,13 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
 
 #[get("/api/v1/inference_socket")]
 async fn respond(
-    _agent_controller_pool: Data<AgentControllerPool>,
+    agent_controller_pool: Data<AgentControllerPool>,
     payload: Payload,
     req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
-    let inference_socket_controller = InferenceSocketController {};
+    let inference_socket_controller = InferenceSocketController {
+        agent_controller_pool,
+    };
 
     inference_socket_controller.respond(payload, req)
 }

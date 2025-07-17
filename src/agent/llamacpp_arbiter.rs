@@ -18,14 +18,14 @@ use crate::agent::slot_aggregated_metrics_manager::SlotAggregatedMetricsManager;
 pub struct LlamaCppArbiter {
     applicable_state: LlamaCppApplicableState,
     slot_aggregated_metrics_manager: Arc<SlotAggregatedMetricsManager>,
-    slots_total: usize,
+    slots_total: i32,
 }
 
 impl LlamaCppArbiter {
     pub fn new(
         applicable_state: LlamaCppApplicableState,
         slot_aggregated_metrics_manager: Arc<SlotAggregatedMetricsManager>,
-        slots_total: usize,
+        slots_total: i32,
     ) -> Self {
         Self {
             applicable_state,
@@ -55,7 +55,7 @@ impl LlamaCppArbiter {
 
             system.block_on(async move {
                 llamacpp_slot_addr_tx
-                    .send(SyncArbiter::start(slots_total, move || {
+                    .send(SyncArbiter::start(slots_total as usize, move || {
                         LlamaCppSlot::new(
                             backend.clone(),
                             ctx_params.clone(),

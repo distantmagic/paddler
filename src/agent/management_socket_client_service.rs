@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
-
+use crate::request_params::GenerateTokensParams;
 use anyhow::Context;
 use anyhow::Result;
 use async_trait::async_trait;
@@ -16,14 +16,12 @@ use tokio::time::MissedTickBehavior;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use uuid::Uuid;
-
 use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::jsonrpc::notification_params::VersionParams;
-use crate::agent::jsonrpc::request_params::GenerateTokens as GenerateTokensParams;
 use crate::agent::jsonrpc::Message as JsonRpcMessage;
 use crate::agent::jsonrpc::Notification as JsonRpcNotification;
 use crate::agent::jsonrpc::Request as JsonRpcRequest;
-use crate::agent::message::GenerateTokens;
+use crate::agent::message::GenerateTokensChannel;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
 use crate::agent::websocket_shared_writer::WebSocketSharedWriter;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::RegisterAgentParams;
@@ -35,7 +33,7 @@ use crate::jsonrpc::ResponseEnvelope;
 use crate::service::Service;
 
 pub struct ManagementSocketClientService {
-    generate_tokens_tx: mpsc::Sender<GenerateTokens>,
+    generate_tokens_tx: mpsc::Sender<GenerateTokensChannel>,
     name: Option<String>,
     reconciliation_queue: Arc<ReconciliationQueue>,
     slot_aggregated_metrics: Arc<SlotAggregatedMetrics>,
@@ -44,7 +42,7 @@ pub struct ManagementSocketClientService {
 
 impl ManagementSocketClientService {
     pub fn new(
-        generate_tokens_tx: mpsc::Sender<GenerateTokens>,
+        generate_tokens_tx: mpsc::Sender<GenerateTokensChannel>,
         management_addr: SocketAddr,
         name: Option<String>,
         reconciliation_queue: Arc<ReconciliationQueue>,
@@ -131,10 +129,12 @@ impl ManagementSocketClientService {
 
                     tokio::spawn(async move {
                         if let Err(err) = generate_tokens_tx
-                            .send(GenerateTokens {
+                            .send(GenerateTokensChannel {
                                 chunk_sender,
-                                max_tokens,
-                                prompt,
+                                params: GenerateTokensParams {
+                                    max_tokens,
+                                    prompt,
+                                },
                             })
                             .await
                         {

@@ -109,8 +109,7 @@ export function useWebSocket({ endpoint }: { endpoint: string }): SocketState {
         return;
       }
 
-      webSocket.addEventListener("close", function (event) {
-        console.log("WebSocket connection closed:", event);
+      webSocket.addEventListener("close", function () {
         setSocketState(connectionClosedState);
         setVersion(incrementVersion);
       });
@@ -121,8 +120,7 @@ export function useWebSocket({ endpoint }: { endpoint: string }): SocketState {
         setVersion(incrementVersion);
       });
 
-      webSocket.addEventListener("open", function (event) {
-        console.log("WebSocket connection opened:", event);
+      webSocket.addEventListener("open", function () {
         setSocketState({
           isConnected: true,
           isConnectionClosed: false,
