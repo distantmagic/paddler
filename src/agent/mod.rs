@@ -18,5 +18,4 @@ pub mod slot_aggregated_metrics;
 pub mod slot_aggregated_metrics_manager;
 pub mod slot_metrics;
 pub mod slot_take_drop_guard;
-pub mod websocket_handler;
 pub mod websocket_shared_writer;

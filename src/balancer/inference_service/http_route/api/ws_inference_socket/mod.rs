@@ -3,6 +3,7 @@ pub mod jsonrpc;
 use std::sync::Arc;
 
 use actix_web::get;
+use actix_web::rt;
 use actix_web::web::Data;
 use actix_web::web::Payload;
 use actix_web::web::ServiceConfig;
@@ -22,7 +23,6 @@ use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::RequestEnvelope;
-use crate::request_params::GenerateTokensParams;
 
 pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
@@ -50,7 +50,7 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
     async fn handle_deserialized_message(
         context: Arc<Self::Context>,
         deserialized_message: Self::Message,
-        _session: Session,
+        mut session: Session,
         _shutdown_tx: broadcast::Sender<()>,
     ) -> Result<ContinuationDecision> {
         match deserialized_message {
@@ -64,17 +64,19 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
             }
             InferenceJsonRpcMessage::Request(RequestEnvelope {
                 id,
-                request:
-                    InferenceJsonRpcRequest::GenerateTokens(GenerateTokensParams {
-                        max_tokens,
-                        prompt,
-                    }),
+                request: InferenceJsonRpcRequest::GenerateTokens(params),
             }) => {
-                println!("Received GenerateTokens request with prompt: {id} {prompt}");
-                println!(
-                    "Total slots: {}",
-                    context.agent_controller_pool.total_slots().slots_processing
-                );
+                rt::spawn(async move {
+                    println!("Received GenerateTokens request");
+                    if let Some(agent_controller) =
+                        context.agent_controller_pool.find_best_agent_controller()
+                    {
+                        // session.text("xd").await?;
+                        // println!("Found agent controller: {:?}", agent_controller.name);
+                    } else {
+                        println!("No agent controller found");
+                    }
+                });
 
                 return Ok(ContinuationDecision::Continue);
             }

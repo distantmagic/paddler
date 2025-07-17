@@ -115,6 +115,8 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
                     ..
                 },
             ) if err.is_data() || err.is_syntax() => {
+                error!("JSON-RPC syntax error: {err:?}");
+
                 session
                     .text(serde_json::to_string(&JsonRpcError::bad_request(Some(
                         err,

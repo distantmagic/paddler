@@ -14,16 +14,13 @@ export function ConversationMessagePromptGeneratedTokens({
     function () {
       const abortController = new AbortController();
 
-      void (async function () {
-        using generateTokens = inferenceSocketClient.generateTokens({
-          abortSignal: abortController.signal,
-          prompt,
-        });
-
-        for await (const token of generateTokens.tokensStream()) {
-          console.log(token);
-        }
-      })();
+      inferenceSocketClient.generateTokens({
+        abortSignal: abortController.signal,
+        prompt,
+        onChunk(chunk: string) {
+          console.log("Received chunk:", chunk);
+        },
+      });
 
       return function () {
         abortController.abort();

@@ -31,7 +31,7 @@ mod tests {
 
         assert_eq!(
             serialized,
-            r#"{"id":"1","request":{"GenerateTokens":{"prompt":"Hello, world!"}}}"#
+            r#"{"id":"1","request":{"GenerateTokens":{"max_tokens":500,"prompt":"Hello, world!"}}}"#
         );
 
         Ok(())

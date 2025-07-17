@@ -1,7 +1,4 @@
-import {
-  type GenerateTokensResult,
-  type InferenceSocketClient,
-} from "./InferenceSocketClient.interface";
+import { type InferenceSocketClient } from "./InferenceSocketClient.interface";
 
 export function InferenceSocketClient({
   webSocket,
@@ -14,7 +11,7 @@ export function InferenceSocketClient({
   }: {
     abortSignal: AbortSignal;
     prompt: string;
-  }): GenerateTokensResult {
+  }) {
     const requestId = crypto.randomUUID();
     console.log(abortSignal);
 
@@ -28,25 +25,12 @@ export function InferenceSocketClient({
         id: requestId,
         request: {
           GenerateTokens: {
+            max_tokens: 1000,
             prompt,
           },
         },
       }),
     );
-
-    return Object.freeze({
-      async *tokensStream() {
-        await new Promise((resolve) => {
-          resolve("xddd");
-        });
-
-        yield "xd yield";
-      },
-      [Symbol.dispose]() {
-        console.log("Disposing generateTokens");
-        webSocket.removeEventListener("message", onMessage);
-      },
-    });
   }
 
   return Object.freeze({
