@@ -11,7 +11,7 @@ import { agentListPage } from "./AgentListPage.module.css";
 export function AgentListPage({ managementAddr }: { managementAddr: string }) {
   const eventSourceUpdateState = useEventSourceUpdates({
     schema: AgentsResponseSchema,
-    endpoint: `${managementAddr}/api/v1/agents/stream`,
+    endpoint: `//${managementAddr}/api/v1/agents/stream`,
   });
 
   return matchEventSourceUpdateState(eventSourceUpdateState, {

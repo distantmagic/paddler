@@ -16,6 +16,10 @@ export function PromptPage({ inferenceAddr }: { inferenceAddr: string }) {
   return (
     <div className={promptPage}>
       <div className={promptPage__messages}>
+        <ConversationMessagePromptGeneratedTokens
+          inferenceAddr={inferenceAddr}
+          prompt="How to make a cat happy?"
+        />
         {submittedPrompt && (
           <ConversationMessagePromptGeneratedTokens
             inferenceAddr={inferenceAddr}
