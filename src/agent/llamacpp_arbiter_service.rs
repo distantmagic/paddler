@@ -81,6 +81,8 @@ impl Service for LlamaCppArbiterService {
                         Some(generate_tokens) => {
                             if let Some(llamacpp_arbiter_controller) = &self.llamacpp_arbiter_controller {
                                 llamacpp_arbiter_controller.llamacpp_slot_addr.send(generate_tokens).await??;
+                            } else {
+                                error!("No arbiter available to handle generate tokens request");
                             }
                         }
                     }

@@ -1,11 +1,15 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use futures::stream::SplitSink;
 use futures_util::SinkExt as _;
+use serde::Serialize;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::MaybeTlsStream;
 use tokio_tungstenite::WebSocketStream;
+
+use crate::sends_serialized_message::SendsSerializedMessage;
 
 pub struct WebSocketSharedWriter {
     writer_mutex: Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>,
@@ -23,8 +27,11 @@ impl WebSocketSharedWriter {
 
         Ok(writer.send(message).await?)
     }
+}
 
-    pub async fn send_serialized<T: serde::Serialize>(&self, message: T) -> Result<()> {
+#[async_trait]
+impl SendsSerializedMessage for WebSocketSharedWriter {
+    async fn send_serialized<TMessage: Send + Serialize>(&self, message: TMessage) -> Result<()> {
         let serialized_message = serde_json::to_string(&message)?;
         let message = Message::Text(serialized_message.into());
 

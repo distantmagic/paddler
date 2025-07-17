@@ -25,6 +25,7 @@ use self::jsonrpc::notification_params::RegisterAgentParams;
 use self::jsonrpc::notification_params::UpdateAgentStatusParams;
 use self::jsonrpc::Message as ManagementJsonRpcMessage;
 use self::jsonrpc::Notification as ManagementJsonRpcNotification;
+use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::jsonrpc::notification_params::VersionParams;
 use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
 use crate::agent::jsonrpc::Response as AgentJsonRpcResponse;
@@ -36,6 +37,7 @@ use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::jsonrpc::ResponseEnvelope;
 use crate::response_params::GeneratedToken;
+use crate::sends_serialized_message::SendsSerializedMessage as _;
 
 pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
@@ -104,18 +106,20 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     slots_total,
                 }),
             ) => {
-                let (session_tx, mut session_rx) = mpsc::channel(1000);
+                let (agent_tx, mut agent_rx) = mpsc::channel(1000);
                 let agent_controller = AgentController {
+                    agent_tx,
                     id: context.agent_id.clone(),
                     name,
-                    session_tx,
                     slots_processing: AtomicValue::new(0),
                     slots_total,
                 };
 
                 if let Some(desired_state) = context.state_database.read_desired_state().await? {
                     agent_controller
-                        .set_desired_state(desired_state)
+                        .send_serialized(AgentJsonRpcNotification::SetState(SetStateParams {
+                            desired_state,
+                        }))
                         .await
                         .context("Unable to set desired state")?;
                 }
@@ -135,7 +139,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                             _ = shutdown_tx_resubscribed.recv() => {
                                 break;
                             }
-                            result = session_rx.recv() => {
+                            result = agent_rx.recv() => {
                                 match result {
                                     Some(text) => {
                                         if let Err(err) = session.text(text).await {
@@ -181,10 +185,16 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     AgentJsonRpcResponse::GeneratedToken(GeneratedToken {
                         token,
                     }),
-            }) => Ok(ContinuationDecision::Continue),
+            }) => {
+                println!("Received token: {request_id} - {token}");
+                Ok(ContinuationDecision::Continue)
+            }
             ManagementJsonRpcMessage::Response(ResponseEnvelope::StreamDone {
                 request_id,
-            }) => Ok(ContinuationDecision::Continue),
+            }) => {
+                println!("Stream done: {request_id}");
+                Ok(ContinuationDecision::Continue)
+            }
         }
     }
 

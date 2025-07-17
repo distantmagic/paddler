@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
+use crate::sends_serialized_message::SendsSerializedMessage as _;
 use crate::request_params::GenerateTokensParams;
 use anyhow::Context;
 use anyhow::Result;
@@ -104,6 +105,23 @@ impl ManagementSocketClientService {
                     let (chunk_sender, mut chunk_receiver) = mpsc::channel::<String>(100);
                     let writer_clone = writer.clone();
 
+                    let generate_tokens_tx = self.generate_tokens_tx.clone();
+
+                    tokio::spawn(async move {
+                        if let Err(err) = generate_tokens_tx
+                            .send(GenerateTokensChannel {
+                                chunk_sender,
+                                params: GenerateTokensParams {
+                                    max_tokens,
+                                    prompt,
+                                },
+                            })
+                            .await
+                        {
+                            error!("Failed to send GenerateTokens message: {err:?}");
+                        }
+                    });
+
                     tokio::spawn(async move {
                         while let Some(chunk) = chunk_receiver.recv().await {
                             writer_clone
@@ -123,23 +141,6 @@ impl ManagementSocketClientService {
                             .await?;
 
                         Ok::<(), anyhow::Error>(())
-                    });
-
-                    let generate_tokens_tx = self.generate_tokens_tx.clone();
-
-                    tokio::spawn(async move {
-                        if let Err(err) = generate_tokens_tx
-                            .send(GenerateTokensChannel {
-                                chunk_sender,
-                                params: GenerateTokensParams {
-                                    max_tokens,
-                                    prompt,
-                                },
-                            })
-                            .await
-                        {
-                            error!("Failed to send GenerateTokens message: {err:?}");
-                        }
                     });
                 }
             },

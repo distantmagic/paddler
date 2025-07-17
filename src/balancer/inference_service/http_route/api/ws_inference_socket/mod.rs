@@ -18,11 +18,14 @@ use tokio::sync::broadcast;
 
 use self::jsonrpc::Message as InferenceJsonRpcMessage;
 use self::jsonrpc::Request as InferenceJsonRpcRequest;
+use crate::agent::jsonrpc::Message as AgentJsonRpcMessage;
+use crate::agent::jsonrpc::Request as AgentJsonRpcRequest;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::RequestEnvelope;
+use crate::sends_serialized_message::SendsSerializedMessage as _;
 
 pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
@@ -67,14 +70,20 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                 request: InferenceJsonRpcRequest::GenerateTokens(params),
             }) => {
                 rt::spawn(async move {
-                    println!("Received GenerateTokens request");
                     if let Some(agent_controller) =
                         context.agent_controller_pool.find_best_agent_controller()
                     {
-                        // session.text("xd").await?;
-                        // println!("Found agent controller: {:?}", agent_controller.name);
+                        agent_controller
+                            .send_serialized(AgentJsonRpcMessage::Request(RequestEnvelope {
+                                id,
+                                request: AgentJsonRpcRequest::GenerateTokens(params),
+                            }))
+                            .await
+                            .unwrap_or_else(|err| {
+                                error!("Failed to send GenerateTokens request: {err}");
+                            });
                     } else {
-                        println!("No agent controller found");
+                        error!("No agent controller found to handle GenerateTokens request");
                     }
                 });
 

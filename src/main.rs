@@ -9,6 +9,7 @@ mod jsonrpc;
 mod produces_snapshot;
 mod request_params;
 mod response_params;
+mod sends_serialized_message;
 mod service;
 mod service_manager;
 #[cfg(feature = "web_dashboard")]
