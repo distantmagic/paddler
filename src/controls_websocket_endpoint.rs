@@ -19,8 +19,6 @@ use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
-use crate::jsonrpc::Error as JsonRpcError;
-
 const MAX_CONTINUATION_SIZE: usize = 100 * 1024;
 const PING_INTERVAL: Duration = Duration::from_secs(3);
 
@@ -39,6 +37,13 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
     async fn handle_deserialized_message(
         context: Arc<Self::Context>,
         deserialized_message: Self::Message,
+        mut session: Session,
+        shutdown_tx: broadcast::Sender<()>,
+    ) -> Result<ContinuationDecision>;
+
+    async fn handle_serialization_error(
+        context: Arc<Self::Context>,
+        errr: serde_json::Error,
         mut session: Session,
         shutdown_tx: broadcast::Sender<()>,
     ) -> Result<ContinuationDecision>;
@@ -96,7 +101,7 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
 
     async fn handle_text_message(
         context: Arc<Self::Context>,
-        mut session: Session,
+        session: Session,
         shutdown_tx: broadcast::Sender<()>,
         text: &str,
     ) -> Result<ContinuationDecision> {
@@ -117,26 +122,12 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
             ) if err.is_data() || err.is_syntax() => {
                 error!("JSON-RPC syntax error: {err:?}");
 
-                session
-                    .text(serde_json::to_string(&JsonRpcError::bad_request(Some(
-                        err,
-                    )))?)
-                    .await
-                    .context("JSON-RPC syntax error")?;
-
-                Ok(ContinuationDecision::Continue)
+                Self::handle_serialization_error(context, err, session, shutdown_tx).await
             }
             Err(err) => {
                 error!("Error handling JSON-RPC request: {err:?}");
 
-                session
-                    .text(serde_json::to_string(&JsonRpcError::server_error(
-                        err.into(),
-                    ))?)
-                    .await
-                    .context("Unexpected JSON-RPC serialization request")?;
-
-                Ok(ContinuationDecision::Continue)
+                Self::handle_serialization_error(context, err, session, shutdown_tx).await
             }
         }
     }

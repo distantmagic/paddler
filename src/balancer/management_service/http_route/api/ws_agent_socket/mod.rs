@@ -201,6 +201,17 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
         }
     }
 
+    async fn handle_serialization_error(
+        _context: Arc<Self::Context>,
+        error: serde_json::Error,
+        _session: Session,
+        _shutdown_tx: broadcast::Sender<()>,
+    ) -> Result<ContinuationDecision> {
+        error!("Error in AgentSocketController: {error}");
+
+        Ok(ContinuationDecision::Continue)
+    }
+
     async fn on_connection_start(
         _context: Arc<Self::Context>,
         session: &mut Session,
