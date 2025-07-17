@@ -6,7 +6,7 @@ use tokio::sync::mpsc;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller_snapshot::AgentControllerSnapshot;
 use crate::produces_snapshot::ProducesSnapshot;
-use crate::sends_serialized_message::SendsSerializedMessage;
+use crate::sends_rpc_message::SendsRpcMessage;
 
 pub struct AgentController {
     pub agent_tx: mpsc::Sender<String>,
@@ -30,8 +30,8 @@ impl ProducesSnapshot for AgentController {
 }
 
 #[async_trait]
-impl SendsSerializedMessage for AgentController {
-    async fn send_serialized<TMessage: Send + Serialize>(&self, message: TMessage) -> Result<()> {
+impl SendsRpcMessage for AgentController {
+    async fn send_rpc_message<TMessage: Send + Serialize>(&self, message: TMessage) -> Result<()> {
         let serialized_message = serde_json::to_string(&message)?;
 
         self.agent_tx.send(serialized_message).await?;

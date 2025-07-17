@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
-use crate::sends_serialized_message::SendsSerializedMessage as _;
+use crate::sends_rpc_message::SendsRpcMessage as _;
 use crate::request_params::GenerateTokensParams;
 use anyhow::Context;
 use anyhow::Result;
@@ -128,7 +128,7 @@ impl ManagementSocketClientService {
                     tokio::spawn(async move {
                         while let Some(chunk) = chunk_receiver.recv().await {
                             writer_clone
-                                .send_serialized(ManagementJsonRpcMessage::Response(
+                                .send_rpc_message(ManagementJsonRpcMessage::Response(
                                     ResponseEnvelope::StreamChunk {
                                         request_id: id.clone(),
                                         chunk: JsonRpcResponse::GeneratedToken(
@@ -142,7 +142,7 @@ impl ManagementSocketClientService {
                         }
 
                         writer_clone
-                            .send_serialized(ManagementJsonRpcMessage::Response(
+                            .send_rpc_message(ManagementJsonRpcMessage::Response(
                                 ResponseEnvelope::StreamDone {
                                     request_id: id,
                                 },
@@ -182,7 +182,7 @@ impl ManagementSocketClientService {
         let writer = Arc::new(WebSocketSharedWriter::new(write));
 
         writer
-            .send_serialized(ManagementJsonRpcMessage::Notification(
+            .send_rpc_message(ManagementJsonRpcMessage::Notification(
                 ManagementJsonRpcNotification::RegisterAgent(RegisterAgentParams {
                     name: self.name.clone(),
                     slots_total: self.slot_aggregated_metrics.slots_total,
@@ -194,12 +194,16 @@ impl ManagementSocketClientService {
             tokio::select! {
                 _ = shutdown.recv() => {
                     info!("Shutdown signal received, closing connection");
-                    writer.send_serialized(ManagementJsonRpcNotification::DeregisterAgent).await?;
+                    writer.send_rpc_message(
+                        ManagementJsonRpcMessage::Notification(
+                            ManagementJsonRpcNotification::DeregisterAgent,
+                        )
+                    ).await?;
 
                     break;
                 }
                 _ = self.slot_aggregated_metrics.update_notifier.notified() => {
-                    // writer.send_serialized(ManagementJsonRpcNotification::UpdateSlots {
+                    // writer.send_rpc_message(ManagementJsonRpcNotification::UpdateSlots {
                     //     slots_processing: self.slot_aggregated_metrics.slots_processing.get(),
                     // }).await?;
                 }

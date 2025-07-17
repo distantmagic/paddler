@@ -5,6 +5,7 @@ use super::Notification;
 use super::Request;
 use crate::jsonrpc::Error;
 use crate::jsonrpc::RequestEnvelope;
+use crate::rpc_message::RpcMessage;
 
 #[derive(Deserialize, Serialize)]
 pub enum Message {
@@ -12,6 +13,8 @@ pub enum Message {
     Notification(Notification),
     Request(RequestEnvelope<Request>),
 }
+
+impl RpcMessage for Message {}
 
 #[cfg(test)]
 mod tests {

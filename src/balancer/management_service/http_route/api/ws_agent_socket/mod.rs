@@ -38,7 +38,7 @@ use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::jsonrpc::ResponseEnvelope;
 use crate::response_params::GeneratedToken;
-use crate::sends_serialized_message::SendsSerializedMessage as _;
+use crate::sends_rpc_message::SendsRpcMessage as _;
 
 pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
@@ -118,7 +118,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
 
                 if let Some(desired_state) = context.state_database.read_desired_state().await? {
                     agent_controller
-                        .send_serialized(AgentJsonRpcMessage::Notification(
+                        .send_rpc_message(AgentJsonRpcMessage::Notification(
                             AgentJsonRpcNotification::SetState(SetStateParams {
                                 desired_state,
                             }),

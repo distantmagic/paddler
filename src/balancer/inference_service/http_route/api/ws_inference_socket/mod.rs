@@ -25,7 +25,7 @@ use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::RequestEnvelope;
-use crate::sends_serialized_message::SendsSerializedMessage as _;
+use crate::sends_rpc_message::SendsRpcMessage as _;
 
 pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
@@ -74,7 +74,7 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                         context.agent_controller_pool.find_best_agent_controller()
                     {
                         agent_controller
-                            .send_serialized(AgentJsonRpcMessage::Request(RequestEnvelope {
+                            .send_rpc_message(AgentJsonRpcMessage::Request(RequestEnvelope {
                                 id,
                                 request: AgentJsonRpcRequest::GenerateTokens(params),
                             }))

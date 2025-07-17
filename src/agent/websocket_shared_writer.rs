@@ -9,7 +9,7 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::MaybeTlsStream;
 use tokio_tungstenite::WebSocketStream;
 
-use crate::sends_serialized_message::SendsSerializedMessage;
+use crate::sends_rpc_message::SendsRpcMessage;
 
 pub struct WebSocketSharedWriter {
     writer_mutex: Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>,
@@ -30,8 +30,8 @@ impl WebSocketSharedWriter {
 }
 
 #[async_trait]
-impl SendsSerializedMessage for WebSocketSharedWriter {
-    async fn send_serialized<TMessage: Send + Serialize>(&self, message: TMessage) -> Result<()> {
+impl SendsRpcMessage for WebSocketSharedWriter {
+    async fn send_rpc_message<TMessage: Send + Serialize>(&self, message: TMessage) -> Result<()> {
         let serialized_message = serde_json::to_string(&message)?;
         let message = Message::Text(serialized_message.into());
 

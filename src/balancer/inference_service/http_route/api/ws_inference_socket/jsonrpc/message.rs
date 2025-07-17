@@ -4,12 +4,15 @@ use serde::Serialize;
 use super::Request;
 use crate::jsonrpc::Error;
 use crate::jsonrpc::RequestEnvelope;
+use crate::rpc_message::RpcMessage;
 
 #[derive(Deserialize, Serialize)]
 pub enum Message {
     Error(Error),
     Request(RequestEnvelope<Request>),
 }
+
+impl RpcMessage for Message {}
 
 #[cfg(test)]
 mod tests {
