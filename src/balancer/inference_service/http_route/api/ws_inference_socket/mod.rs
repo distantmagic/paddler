@@ -10,7 +10,6 @@ use actix_web::web::ServiceConfig;
 use actix_web::Error;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
-use actix_ws::Session;
 use anyhow::Result;
 use async_trait::async_trait;
 use log::error;
@@ -30,6 +29,7 @@ use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::RequestEnvelope;
 use crate::response::ChunkResponse;
 use crate::sends_rpc_message::SendsRpcMessage as _;
+use crate::websocket_session_controller::WebSocketSessionController;
 
 pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
@@ -48,7 +48,8 @@ struct InferenceSocketController {
 #[async_trait]
 impl ControlsWebSocketEndpoint for InferenceSocketController {
     type Context = InferenceSocketControllerContext;
-    type Message = InferenceJsonRpcMessage;
+    type IncomingMessage = InferenceJsonRpcMessage;
+    type OutgoingMessage = InferenceJsonRpcMessage;
 
     fn create_context(&self) -> Self::Context {
         InferenceSocketControllerContext {
@@ -59,9 +60,9 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
 
     async fn handle_deserialized_message(
         context: Arc<Self::Context>,
-        deserialized_message: Self::Message,
-        mut session: Session,
+        deserialized_message: Self::IncomingMessage,
         _shutdown_tx: broadcast::Sender<()>,
+        mut websocket_session_controller: WebSocketSessionController<Self::OutgoingMessage>,
     ) -> Result<ContinuationDecision> {
         match deserialized_message {
             InferenceJsonRpcMessage::Error(JsonRpcError {
@@ -110,22 +111,11 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                                 println!("Received chunk: {chunk:?}");
                             }
                             ChunkResponse::Error(error) => {
-                                session
-                                    .text(
-                                        match serde_json::to_string(
-                                            &InferenceJsonRpcMessage::Error(JsonRpcError {
-                                                code: 500,
-                                                description: Some(error),
-                                            }),
-                                        ) {
-                                            Ok(json) => json,
-                                            Err(err) => {
-                                                error!("Failed to serialize error response: {err}");
-
-                                                return;
-                                            }
-                                        },
-                                    )
+                                websocket_session_controller
+                                    .send_response(InferenceJsonRpcMessage::Error(JsonRpcError {
+                                        code: 500,
+                                        description: Some(error),
+                                    }))
                                     .await
                                     .unwrap_or_else(|err| {
                                         error!("Failed to send error response: {err}");

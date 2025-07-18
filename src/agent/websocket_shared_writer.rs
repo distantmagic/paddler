@@ -2,13 +2,13 @@ use anyhow::Result;
 use async_trait::async_trait;
 use futures::stream::SplitSink;
 use futures_util::SinkExt as _;
-use serde::Serialize;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::MaybeTlsStream;
 use tokio_tungstenite::WebSocketStream;
 
+use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Message as ManagementJsonRpcMessage;
 use crate::sends_rpc_message::SendsRpcMessage;
 
 pub struct WebSocketSharedWriter {
@@ -31,7 +31,9 @@ impl WebSocketSharedWriter {
 
 #[async_trait]
 impl SendsRpcMessage for WebSocketSharedWriter {
-    async fn send_rpc_message<TMessage: Send + Serialize>(&self, message: TMessage) -> Result<()> {
+    type Message = ManagementJsonRpcMessage;
+
+    async fn send_rpc_message(&self, message: Self::Message) -> Result<()> {
         let serialized_message = serde_json::to_string(&message)?;
         let message = Message::Text(serialized_message.into());
 

@@ -41,6 +41,7 @@ use crate::jsonrpc::ResponseEnvelope;
 use crate::response::ChunkResponse;
 use crate::response_params::GeneratedToken;
 use crate::sends_rpc_message::SendsRpcMessage as _;
+use crate::websocket_session_controller::WebSocketSessionController;
 
 pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
@@ -76,7 +77,8 @@ struct AgentSocketController {
 #[async_trait]
 impl ControlsWebSocketEndpoint for AgentSocketController {
     type Context = AgentSocketControllerContext;
-    type Message = ManagementJsonRpcMessage;
+    type IncomingMessage = ManagementJsonRpcMessage;
+    type OutgoingMessage = AgentJsonRpcMessage;
 
     fn create_context(&self) -> Self::Context {
         AgentSocketControllerContext {
@@ -89,9 +91,9 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
 
     async fn handle_deserialized_message(
         context: Arc<Self::Context>,
-        deserialized_message: Self::Message,
-        mut session: Session,
+        deserialized_message: Self::IncomingMessage,
         shutdown_tx: broadcast::Sender<()>,
+        mut websocket_session_controller: WebSocketSessionController<Self::OutgoingMessage>,
     ) -> Result<ContinuationDecision> {
         match deserialized_message {
             ManagementJsonRpcMessage::Error(err) => {
@@ -112,7 +114,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     slots_total,
                 }),
             ) => {
-                let (agent_tx, mut agent_rx) = mpsc::channel(1000);
+                let (agent_tx, mut agent_rx) = mpsc::channel::<AgentJsonRpcMessage>(1000);
                 let agent_controller = AgentController {
                     agent_tx,
                     id: context.agent_id.clone(),
@@ -149,11 +151,13 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                             }
                             result = agent_rx.recv() => {
                                 match result {
-                                    Some(text) => {
-                                        if let Err(err) = session.text(text).await {
-                                            error!("Error sending message to agent: {err:?}");
-                                            break;
-                                        }
+                                    Some(message) => {
+                                        websocket_session_controller
+                                            .send_response(message)
+                                            .await
+                                            .unwrap_or_else(|err| {
+                                                error!("Error sending response: {err}");
+                                            });
                                     }
                                     None => {
                                         info!("Session channel closed for agent: {}", context.agent_id);
@@ -229,8 +233,8 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
     async fn handle_serialization_error(
         _context: Arc<Self::Context>,
         error: serde_json::Error,
-        _session: Session,
         _shutdown_tx: broadcast::Sender<()>,
+        _websocket_session_controller: WebSocketSessionController<Self::OutgoingMessage>,
     ) -> Result<ContinuationDecision> {
         error!("Error in AgentSocketController: {error}");
 

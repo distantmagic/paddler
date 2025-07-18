@@ -14,10 +14,14 @@ use futures_util::StreamExt as _;
 use log::debug;
 use log::error;
 use serde::de::DeserializeOwned;
+use serde::Serialize;
 use tokio::sync::broadcast;
 use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
+
+use crate::rpc_message::RpcMessage;
+use crate::websocket_session_controller::WebSocketSessionController;
 
 const MAX_CONTINUATION_SIZE: usize = 100 * 1024;
 const PING_INTERVAL: Duration = Duration::from_secs(3);
@@ -30,15 +34,16 @@ pub enum ContinuationDecision {
 #[async_trait]
 pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
     type Context: Send + Sync + 'static;
-    type Message: DeserializeOwned + Send + Sync + 'static;
+    type IncomingMessage: DeserializeOwned + RpcMessage + Send + Sync + 'static;
+    type OutgoingMessage: RpcMessage + Serialize + Send + Sync + 'static;
 
     fn create_context(&self) -> Self::Context;
 
     async fn handle_deserialized_message(
         context: Arc<Self::Context>,
-        deserialized_message: Self::Message,
-        mut session: Session,
+        deserialized_message: Self::IncomingMessage,
         shutdown_tx: broadcast::Sender<()>,
+        websocket_session_controller: WebSocketSessionController<Self::OutgoingMessage>,
     ) -> Result<ContinuationDecision>;
 
     async fn handle_aggregated_message(
@@ -68,9 +73,9 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
             Some(Ok(AggregatedMessage::Text(text))) => {
                 match Self::handle_text_message(
                     context.clone(),
-                    session.clone(),
                     shutdown_tx.clone(),
                     &text,
+                    WebSocketSessionController::<Self::OutgoingMessage>::new(session.clone()),
                 )
                 .await
                 .context(format!("Text message: {text}"))
@@ -95,8 +100,8 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
     async fn handle_serialization_error(
         _context: Arc<Self::Context>,
         error: serde_json::Error,
-        _session: Session,
         _shutdown_tx: broadcast::Sender<()>,
+        _websocket_session_controller: WebSocketSessionController<Self::OutgoingMessage>,
     ) -> Result<ContinuationDecision> {
         error!("Paddler-RPC serializatikon error: {error}");
 
@@ -105,17 +110,17 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
 
     async fn handle_text_message(
         context: Arc<Self::Context>,
-        session: Session,
         shutdown_tx: broadcast::Sender<()>,
         text: &str,
+        websocket_session_controller: WebSocketSessionController<Self::OutgoingMessage>,
     ) -> Result<ContinuationDecision> {
-        match serde_json::from_str::<Self::Message>(text) {
+        match serde_json::from_str::<Self::IncomingMessage>(text) {
             Ok(deserialized_message) => {
                 Self::handle_deserialized_message(
                     context,
                     deserialized_message,
-                    session,
                     shutdown_tx,
+                    websocket_session_controller,
                 )
                 .await
             }
@@ -126,12 +131,24 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
             ) if err.is_data() || err.is_syntax() => {
                 error!("JSON-RPC syntax error: {err:?}");
 
-                Self::handle_serialization_error(context, err, session, shutdown_tx).await
+                Self::handle_serialization_error(
+                    context,
+                    err,
+                    shutdown_tx,
+                    websocket_session_controller,
+                )
+                .await
             }
             Err(err) => {
                 error!("Error handling JSON-RPC request: {err:?}");
 
-                Self::handle_serialization_error(context, err, session, shutdown_tx).await
+                Self::handle_serialization_error(
+                    context,
+                    err,
+                    shutdown_tx,
+                    websocket_session_controller,
+                )
+                .await
             }
         }
     }

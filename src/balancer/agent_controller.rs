@@ -1,15 +1,15 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use serde::Serialize;
 use tokio::sync::mpsc;
 
+use crate::agent::jsonrpc::Message as AgentJsonRpcMessage;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller_snapshot::AgentControllerSnapshot;
 use crate::produces_snapshot::ProducesSnapshot;
 use crate::sends_rpc_message::SendsRpcMessage;
 
 pub struct AgentController {
-    pub agent_tx: mpsc::Sender<String>,
+    pub agent_tx: mpsc::Sender<AgentJsonRpcMessage>,
     pub id: String,
     pub name: Option<String>,
     pub slots_processing: AtomicValue,
@@ -31,9 +31,10 @@ impl ProducesSnapshot for AgentController {
 
 #[async_trait]
 impl SendsRpcMessage for AgentController {
-    async fn send_rpc_message<TMessage: Send + Serialize>(&self, message: TMessage) -> Result<()> {
-        let serialized_message = serde_json::to_string(&message)?;
-        self.agent_tx.send(serialized_message).await?;
+    type Message = AgentJsonRpcMessage;
+
+    async fn send_rpc_message(&self, message: Self::Message) -> Result<()> {
+        self.agent_tx.send(message).await?;
 
         Ok(())
     }

@@ -16,6 +16,7 @@ mod service;
 mod service_manager;
 #[cfg(feature = "web_admin_panel")]
 mod static_files;
+mod websocket_session_controller;
 
 use anyhow::Result;
 use clap::Parser;
