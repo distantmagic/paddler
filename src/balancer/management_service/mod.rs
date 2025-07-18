@@ -12,8 +12,8 @@ use tokio::sync::broadcast;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::state_database::StateDatabase;
-#[cfg(feature = "web_dashboard")]
-use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
+#[cfg(feature = "web_admin_panel")]
+use crate::balancer::web_admin_panel_service::configuration::Configuration as WebAdminPanelServiceConfiguration;
 use crate::create_cors_middleware::create_cors_middleware;
 use crate::service::Service;
 
@@ -21,8 +21,8 @@ pub struct ManagementService {
     agent_controller_pool: Arc<AgentControllerPool>,
     configuration: ManagementServiceConfiguration,
     state_database: Arc<dyn StateDatabase>,
-    #[cfg(feature = "web_dashboard")]
-    web_dashboard_service_configuration: Option<WebDashboardServiceConfiguration>,
+    #[cfg(feature = "web_admin_panel")]
+    web_admin_panel_service_configuration: Option<WebAdminPanelServiceConfiguration>,
 }
 
 impl ManagementService {
@@ -30,16 +30,16 @@ impl ManagementService {
         agent_controller_pool: Arc<AgentControllerPool>,
         configuration: ManagementServiceConfiguration,
         state_database: Arc<dyn StateDatabase>,
-        #[cfg(feature = "web_dashboard")] web_dashboard_service_configuration: Option<
-            WebDashboardServiceConfiguration,
+        #[cfg(feature = "web_admin_panel")] web_admin_panel_service_configuration: Option<
+            WebAdminPanelServiceConfiguration,
         >,
     ) -> Self {
         ManagementService {
             agent_controller_pool,
             configuration,
             state_database,
-            #[cfg(feature = "web_dashboard")]
-            web_dashboard_service_configuration,
+            #[cfg(feature = "web_admin_panel")]
+            web_admin_panel_service_configuration,
         }
     }
 }
@@ -56,9 +56,9 @@ impl Service for ManagementService {
 
         let agent_pool: Data<AgentControllerPool> = Data::from(self.agent_controller_pool.clone());
 
-        #[cfg(feature = "web_dashboard")]
-        if let Some(web_dashboard_config) = &self.web_dashboard_service_configuration {
-            cors_allowed_hosts.push(format!("http://{}", web_dashboard_config.addr));
+        #[cfg(feature = "web_admin_panel")]
+        if let Some(web_admin_panel_config) = &self.web_admin_panel_service_configuration {
+            cors_allowed_hosts.push(format!("http://{}", web_admin_panel_config.addr));
         }
 
         let cors_allowed_hosts_arc = Arc::new(cors_allowed_hosts);

@@ -1,6 +1,5 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
-#[cfg(feature = "statsd_reporter")]
 use std::time::Duration;
 
 use anyhow::Result;
@@ -19,14 +18,12 @@ use crate::balancer::management_service::ManagementService;
 use crate::balancer::state_database::File;
 use crate::balancer::state_database::Memory;
 use crate::balancer::state_database::StateDatabase;
-#[cfg(feature = "statsd_reporter")]
 use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
-#[cfg(feature = "statsd_reporter")]
 use crate::balancer::statsd_service::StatsdService;
-#[cfg(feature = "web_dashboard")]
-use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
-#[cfg(feature = "web_dashboard")]
-use crate::balancer::web_dashboard_service::WebDashboardService;
+#[cfg(feature = "web_admin_panel")]
+use crate::balancer::web_admin_panel_service::configuration::Configuration as WebAdminPanelServiceConfiguration;
+#[cfg(feature = "web_admin_panel")]
+use crate::balancer::web_admin_panel_service::WebAdminPanelService;
 use crate::database_type::DatabaseType;
 use crate::service_manager::ServiceManager;
 
@@ -69,24 +66,21 @@ pub struct Balancer {
     /// Balancer state database URL. Supported: memory, memory://, or file:///path (optional)
     state_database: DatabaseType,
 
-    #[cfg(feature = "statsd_reporter")]
     #[arg(long, value_parser = parse_socket_addr)]
     /// Address of the statsd server to report metrics to
     statsd_addr: Option<SocketAddr>,
 
-    #[cfg(feature = "statsd_reporter")]
     #[arg(long, default_value = "paddler")]
     /// Prefix for statsd metrics
     statsd_prefix: String,
 
-    #[cfg(feature = "statsd_reporter")]
     #[arg(long, default_value = "10000", value_parser = parse_duration)]
     /// Interval (in milliseconds) at which the balancer will report metrics to statsd
     statsd_reporting_interval: Duration,
 
     #[arg(long, default_value = None, value_parser = parse_socket_addr)]
     /// Address of the web management dashboard (if enabled)
-    web_dashboard_addr: Option<SocketAddr>,
+    web_admin_panel_addr: Option<SocketAddr>,
 }
 
 impl Balancer {
@@ -97,11 +91,13 @@ impl Balancer {
         }
     }
 
-    #[cfg(feature = "web_dashboard")]
-    fn get_web_dashboard_service_configuration(&self) -> Option<WebDashboardServiceConfiguration> {
-        self.web_dashboard_addr
-            .map(|web_dashboard_addr| WebDashboardServiceConfiguration {
-                addr: web_dashboard_addr,
+    #[cfg(feature = "web_admin_panel")]
+    fn get_web_admin_panel_service_configuration(
+        &self,
+    ) -> Option<WebAdminPanelServiceConfiguration> {
+        self.web_admin_panel_addr
+            .map(|web_admin_panel_addr| WebAdminPanelServiceConfiguration {
+                addr: web_admin_panel_addr,
                 inference_addr: self.inference_addr,
                 management_addr: self.management_addr,
             })
@@ -127,19 +123,18 @@ impl Handler for Balancer {
                 // max_buffered_requests: self.max_buffered_requests,
             },
             state_database.clone(),
-            #[cfg(feature = "web_dashboard")]
-            self.get_web_dashboard_service_configuration(),
+            #[cfg(feature = "web_admin_panel")]
+            self.get_web_admin_panel_service_configuration(),
         ));
 
         service_manager.add_service(ManagementService::new(
             agent_controller_pool.clone(),
             self.get_mangement_service_configuration(),
             state_database,
-            #[cfg(feature = "web_dashboard")]
-            self.get_web_dashboard_service_configuration(),
+            #[cfg(feature = "web_admin_panel")]
+            self.get_web_admin_panel_service_configuration(),
         ));
 
-        #[cfg(feature = "statsd_reporter")]
         if let Some(statsd_addr) = self.statsd_addr {
             service_manager.add_service(StatsdService::new(
                 agent_controller_pool.clone(),
@@ -151,13 +146,13 @@ impl Handler for Balancer {
             )?);
         }
 
-        #[cfg(feature = "web_dashboard")]
-        if let Some(web_dashboard_service_configuration) =
-            self.get_web_dashboard_service_configuration()
+        #[cfg(feature = "web_admin_panel")]
+        if let Some(web_admin_panel_service_configuration) =
+            self.get_web_admin_panel_service_configuration()
         {
-            service_manager.add_service(WebDashboardService::new(
+            service_manager.add_service(WebAdminPanelService::new(
                 agent_controller_pool,
-                web_dashboard_service_configuration,
+                web_admin_panel_service_configuration,
             ));
         }
 

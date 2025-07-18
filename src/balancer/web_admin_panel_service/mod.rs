@@ -11,20 +11,20 @@ use async_trait::async_trait;
 use tokio::sync::broadcast;
 
 use crate::balancer::agent_controller_pool::AgentControllerPool;
-use crate::balancer::web_dashboard_service::configuration::Configuration as WebDashboardServiceConfiguration;
+use crate::balancer::web_admin_panel_service::configuration::Configuration as WebAdminPanelServiceConfiguration;
 use crate::service::Service;
 
-pub struct WebDashboardService {
+pub struct WebAdminPanelService {
     agent_controller_pool: Arc<AgentControllerPool>,
-    configuration: WebDashboardServiceConfiguration,
+    configuration: WebAdminPanelServiceConfiguration,
 }
 
-impl WebDashboardService {
+impl WebAdminPanelService {
     pub fn new(
         agent_controller_pool: Arc<AgentControllerPool>,
-        configuration: WebDashboardServiceConfiguration,
+        configuration: WebAdminPanelServiceConfiguration,
     ) -> Self {
-        WebDashboardService {
+        WebAdminPanelService {
             agent_controller_pool,
             configuration,
         }
@@ -32,15 +32,15 @@ impl WebDashboardService {
 }
 
 #[async_trait]
-impl Service for WebDashboardService {
+impl Service for WebAdminPanelService {
     fn name(&self) -> &'static str {
-        "balancer::web_dashboard_service"
+        "balancer::web_admin_panel_service"
     }
 
     async fn run(&mut self, mut _shutdown: broadcast::Receiver<()>) -> Result<()> {
         let agent_controller_pool: Data<AgentControllerPool> =
             Data::from(self.agent_controller_pool.clone());
-        let configuration: Data<WebDashboardServiceConfiguration> =
+        let configuration: Data<WebAdminPanelServiceConfiguration> =
             Data::new(self.configuration.clone());
 
         Ok(HttpServer::new(move || {
@@ -49,7 +49,7 @@ impl Service for WebDashboardService {
                 .app_data(configuration.clone())
                 .configure(http_route::favicon::register)
                 .configure(http_route::static_files::register)
-                .configure(http_route::dashboard::register)
+                .configure(http_route::home::register)
         })
         .bind(self.configuration.addr)
         .expect("Unable to bind server to address")

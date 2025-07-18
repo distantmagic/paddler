@@ -91,17 +91,6 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
             }
         }
     }
-
-    async fn handle_serialization_error(
-        _context: Arc<Self::Context>,
-        error: serde_json::Error,
-        _session: Session,
-        _shutdown_tx: broadcast::Sender<()>,
-    ) -> Result<ContinuationDecision> {
-        error!("Error in InferenceSocketController: {error}");
-
-        Ok(ContinuationDecision::Continue)
-    }
 }
 
 #[get("/api/v1/inference_socket")]

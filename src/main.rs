@@ -13,13 +13,13 @@ mod rpc_message;
 mod sends_rpc_message;
 mod service;
 mod service_manager;
-#[cfg(feature = "web_dashboard")]
+#[cfg(feature = "web_admin_panel")]
 mod static_files;
 
 use anyhow::Result;
 use clap::Parser;
 use clap::Subcommand;
-#[cfg(feature = "web_dashboard")]
+#[cfg(feature = "web_admin_panel")]
 use esbuild_metafile::instance::initialize_instance;
 use log::info;
 use tokio::signal::unix::signal;
@@ -30,7 +30,7 @@ use crate::cmd::agent::Agent;
 use crate::cmd::balancer::Balancer;
 use crate::cmd::handler::Handler as _;
 
-#[cfg(feature = "web_dashboard")]
+#[cfg(feature = "web_admin_panel")]
 pub const ESBUILD_META_CONTENTS: &str = include_str!("../esbuild-meta.json");
 
 #[derive(Parser)]
@@ -74,7 +74,7 @@ async fn main() -> Result<()> {
     match Cli::parse().command {
         Some(Commands::Agent(handler)) => handler.handle(shutdown_rx).await,
         Some(Commands::Balancer(handler)) => {
-            #[cfg(feature = "web_dashboard")]
+            #[cfg(feature = "web_admin_panel")]
             initialize_instance(ESBUILD_META_CONTENTS);
 
             handler.handle(shutdown_rx).await

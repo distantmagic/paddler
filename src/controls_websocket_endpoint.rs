@@ -41,13 +41,6 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
         shutdown_tx: broadcast::Sender<()>,
     ) -> Result<ContinuationDecision>;
 
-    async fn handle_serialization_error(
-        context: Arc<Self::Context>,
-        errr: serde_json::Error,
-        mut session: Session,
-        shutdown_tx: broadcast::Sender<()>,
-    ) -> Result<ContinuationDecision>;
-
     async fn handle_aggregated_message(
         context: Arc<Self::Context>,
         msg: Option<Result<AggregatedMessage, actix_ws::ProtocolError>>,
@@ -97,6 +90,17 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
             }
             None => return Ok(ContinuationDecision::Stop),
         }
+    }
+
+    async fn handle_serialization_error(
+        _context: Arc<Self::Context>,
+        error: serde_json::Error,
+        _session: Session,
+        _shutdown_tx: broadcast::Sender<()>,
+    ) -> Result<ContinuationDecision> {
+        error!("Paddler-RPC serializatikon error: {error}");
+
+        Ok(ContinuationDecision::Continue)
     }
 
     async fn handle_text_message(

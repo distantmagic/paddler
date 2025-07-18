@@ -5,11 +5,10 @@ pub mod agent_controller_pool_total_slots;
 pub mod agent_controller_snapshot;
 pub mod inference_service;
 pub mod management_service;
-#[cfg(feature = "web_dashboard")]
+#[cfg(feature = "web_admin_panel")]
 pub mod response;
 pub mod state_database;
-#[cfg(feature = "statsd_reporter")]
 pub mod statsd_service;
 pub mod status_update;
-#[cfg(feature = "web_dashboard")]
-pub mod web_dashboard_service;
+#[cfg(feature = "web_admin_panel")]
+pub mod web_admin_panel_service;
