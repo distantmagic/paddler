@@ -25,7 +25,6 @@ use self::jsonrpc::notification_params::RegisterAgentParams;
 use self::jsonrpc::notification_params::UpdateAgentStatusParams;
 use self::jsonrpc::Message as ManagementJsonRpcMessage;
 use self::jsonrpc::Notification as ManagementJsonRpcNotification;
-use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::jsonrpc::notification_params::VersionParams;
 use crate::agent::jsonrpc::Message as AgentJsonRpcMessage;
 use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
@@ -40,7 +39,6 @@ use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::jsonrpc::ResponseEnvelope;
 use crate::response::ChunkResponse;
 use crate::response_params::GeneratedToken;
-use crate::sends_rpc_message::SendsRpcMessage as _;
 use crate::websocket_session_controller::WebSocketSessionController;
 
 pub fn register(cfg: &mut ServiceConfig) {
@@ -125,11 +123,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
 
                 if let Some(desired_state) = context.state_database.read_desired_state().await? {
                     agent_controller
-                        .send_rpc_message(AgentJsonRpcMessage::Notification(
-                            AgentJsonRpcNotification::SetState(SetStateParams {
-                                desired_state,
-                            }),
-                        ))
+                        .set_desired_state(desired_state)
                         .await
                         .context("Unable to set desired state")?;
                 }

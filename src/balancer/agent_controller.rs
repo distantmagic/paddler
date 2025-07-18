@@ -2,7 +2,10 @@ use anyhow::Result;
 use async_trait::async_trait;
 use tokio::sync::mpsc;
 
+use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::jsonrpc::Message as AgentJsonRpcMessage;
+use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
+use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller_snapshot::AgentControllerSnapshot;
 use crate::produces_snapshot::ProducesSnapshot;
@@ -14,6 +17,17 @@ pub struct AgentController {
     pub name: Option<String>,
     pub slots_processing: AtomicValue,
     pub slots_total: i32,
+}
+
+impl AgentController {
+    pub async fn set_desired_state(&self, desired_state: LlamaCppDesiredState) -> Result<()> {
+        self.send_rpc_message(AgentJsonRpcMessage::Notification(
+            AgentJsonRpcNotification::SetState(SetStateParams {
+                desired_state,
+            }),
+        ))
+        .await
+    }
 }
 
 impl ProducesSnapshot for AgentController {

@@ -1,6 +1,3 @@
-use std::thread::spawn;
-
-use actix_rt::System;
 use anyhow::Result;
 use log::debug;
 use tokio::sync::broadcast;
@@ -25,33 +22,24 @@ impl ServiceManager {
 
     pub async fn run_forever(self, shutdown_rx: oneshot::Receiver<()>) -> Result<()> {
         let (broadcast_tx, _) = broadcast::channel::<()>(1);
-        let mut thread_handles = Vec::new();
 
         for mut service in self.services {
             let service_name = service.name().to_string();
             let shutdown_subscriber = broadcast_tx.subscribe();
 
-            let handle = spawn(move || {
-                System::new().block_on(async move {
-                    debug!("Starting service: {service_name}");
+            actix_rt::spawn(async move {
+                debug!("Starting service: {service_name}");
 
-                    if let Err(err) = service.run(shutdown_subscriber).await {
-                        panic!("Service error: {err}");
-                    }
+                if let Err(err) = service.run(shutdown_subscriber).await {
+                    panic!("Service error: {err}");
+                }
 
-                    debug!("Service stopped gracefully: {service_name}");
-                });
+                debug!("Service stopped gracefully: {service_name}");
             });
-
-            thread_handles.push(handle);
         }
 
         let _ = shutdown_rx.await;
         let _ = broadcast_tx.send(());
-
-        for handle in thread_handles {
-            let _ = handle.join();
-        }
 
         Ok(())
     }
