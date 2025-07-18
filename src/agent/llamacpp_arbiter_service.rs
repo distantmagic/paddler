@@ -12,19 +12,20 @@ use crate::agent::llamacpp_arbiter::LlamaCppArbiter;
 use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
 use crate::agent::message::GenerateTokensChannel;
 use crate::agent::slot_aggregated_metrics_manager::SlotAggregatedMetricsManager;
+use crate::response::ChunkResponse;
 use crate::service::Service;
 
 pub struct LlamaCppArbiterService {
     llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
     llamacpp_arbiter_controller: Option<LlamaCppArbiterController>,
-    generate_tokens_rx: mpsc::Receiver<GenerateTokensChannel>,
+    generate_tokens_channel_rx: mpsc::Receiver<GenerateTokensChannel>,
     slot_aggregated_metrics_manager: Arc<SlotAggregatedMetricsManager>,
     slots_total: i32,
 }
 
 impl LlamaCppArbiterService {
     pub async fn new(
-        generate_tokens_rx: mpsc::Receiver<GenerateTokensChannel>,
+        generate_tokens_channel_rx: mpsc::Receiver<GenerateTokensChannel>,
         llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
         slot_aggregated_metrics_manager: Arc<SlotAggregatedMetricsManager>,
         slots_total: i32,
@@ -32,7 +33,7 @@ impl LlamaCppArbiterService {
         Ok(LlamaCppArbiterService {
             llamacpp_applicable_state_holder,
             llamacpp_arbiter_controller: None,
-            generate_tokens_rx,
+            generate_tokens_channel_rx,
             slot_aggregated_metrics_manager,
             slots_total,
         })
@@ -75,14 +76,24 @@ impl Service for LlamaCppArbiterService {
         loop {
             tokio::select! {
                 _ = shutdown.recv() => return Ok(()),
-                generate_tokens = self.generate_tokens_rx.recv() => {
-                    match generate_tokens {
+                generate_tokens_channel = self.generate_tokens_channel_rx.recv() => {
+                    match generate_tokens_channel {
                         None => return Ok(()),
-                        Some(generate_tokens) => {
+                        Some(generate_tokens_channel) => {
                             if let Some(llamacpp_arbiter_controller) = &self.llamacpp_arbiter_controller {
-                                llamacpp_arbiter_controller.llamacpp_slot_addr.send(generate_tokens).await??;
+                                llamacpp_arbiter_controller.llamacpp_slot_addr.send(generate_tokens_channel).await??;
                             } else {
-                                error!("No arbiter available to handle generate tokens request");
+                                let msg = format!(
+                                    "No arbiter available to handle generate tokens request: {:?}",
+                                    generate_tokens_channel.params
+                                );
+
+                                generate_tokens_channel
+                                    .chunk_sender
+                                    .send(ChunkResponse::Error(msg.clone()))
+                                    .await?;
+
+                                error!("{msg}");
                             }
                         }
                     }
@@ -111,10 +122,11 @@ mod tests {
     use crate::agent::huggingface_model_reference::HuggingFaceModelReference;
     use crate::agent::llamacpp_desired_model::LlamaCppDesiredModel;
     use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
-    use crate::agent::message::GenerateTokens;
+    use crate::agent::message::GenerateTokensChannel;
+    use crate::request_params::GenerateTokensParams;
     use crate::service_manager::ServiceManager;
 
-    const SLOTS_TOTAL: usize = 2;
+    const SLOTS_TOTAL: i32 = 2;
 
     struct MockStateReplacerService {
         applicable_state_ready_tx: Option<oneshot::Sender<()>>,
@@ -153,7 +165,7 @@ mod tests {
     struct MockGenerateTokensRequestService {
         applicable_state_ready_rx: Option<oneshot::Receiver<()>>,
         generate_chunks_ready_tx: Option<oneshot::Sender<()>>,
-        generate_tokens_tx: mpsc::Sender<GenerateTokens>,
+        generate_tokens_channel_tx: mpsc::Sender<GenerateTokensChannel>,
     }
 
     #[async_trait]
@@ -170,13 +182,15 @@ mod tests {
 
             let (chunk_sender, mut chunk_receiver) = mpsc::channel::<String>(100);
 
-            let generate_tokens = GenerateTokens {
+            let generate_tokens = GenerateTokensChannel {
                 chunk_sender,
-                max_tokens: 100,
-                prompt: "<|im_start|>user\nHow can I make a cat happy?<|im_end|>\n<|im_start|>assistant\n".to_string(),
+                params: GenerateTokensParams {
+                    max_tokens: 100,
+                    prompt: "<|im_start|>user\nHow can I make a cat happy?<|im_end|>\n<|im_start|>assistant\n".to_string(),
+                },
             };
 
-            self.generate_tokens_tx
+            self.generate_tokens_channel_tx
                 .send(generate_tokens)
                 .await
                 .map_err(|_| anyhow!("Failed to send generate tokens request"))?;
@@ -236,7 +250,8 @@ mod tests {
 
     #[actix_web::test]
     async fn test_llamacpp_arbiter_service_run() -> Result<()> {
-        let (generate_tokens_tx, generate_tokens_rx) = mpsc::channel::<GenerateTokens>(100);
+        let (generate_tokens_channel_tx, generate_tokens_channel_rx) =
+            mpsc::channel::<GenerateTokensChannel>(100);
         let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
         let (applicable_state_ready_tx, applicable_state_ready_rx) = oneshot::channel::<()>();
         let (generate_chunks_ready_tx, generate_chunks_ready_rx) = oneshot::channel::<()>();
@@ -248,7 +263,7 @@ mod tests {
 
         service_manager.add_service(
             LlamaCppArbiterService::new(
-                generate_tokens_rx,
+                generate_tokens_channel_rx,
                 llamacpp_applicable_state_holder.clone(),
                 slot_aggregated_metrics_manager,
                 SLOTS_TOTAL,
@@ -264,7 +279,7 @@ mod tests {
         service_manager.add_service(MockGenerateTokensRequestService {
             applicable_state_ready_rx: Some(applicable_state_ready_rx),
             generate_chunks_ready_tx: Some(generate_chunks_ready_tx),
-            generate_tokens_tx,
+            generate_tokens_channel_tx,
         });
 
         service_manager.add_service(MockShutdownService {

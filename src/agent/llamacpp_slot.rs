@@ -17,6 +17,8 @@ use crate::agent::message::GenerateTokensChannel;
 use crate::agent::slot_metrics::SlotMetrics;
 use crate::agent::slot_take_drop_guard::SlotTakeDropGuard;
 use crate::request_params::GenerateTokensParams;
+use crate::response::ChunkResponse;
+use crate::response_params::GeneratedToken;
 
 pub struct LlamaCppSlot {
     llama_context: LlamaContext<'static>,
@@ -65,8 +67,6 @@ impl LlamaCppSlot {
                 },
         }: GenerateTokensChannel,
     ) -> Result<()> {
-        println!("Generating tokens for prompt: {prompt}");
-
         let tokens_list = self.model.str_to_token(&prompt, AddBos::Always)?;
         let mut batch = LlamaBatch::new(512, 1);
         let last_index = tokens_list.len() as i32 - 1;
@@ -99,7 +99,9 @@ impl LlamaCppSlot {
                 let _decode_result =
                     decoder.decode_to_string(&output_bytes, &mut output_string, false);
 
-                chunk_sender.blocking_send(output_string)?;
+                chunk_sender.blocking_send(ChunkResponse::Data(GeneratedToken {
+                    token: output_string,
+                }))?;
 
                 batch.clear();
                 batch.add(token, n_cur, &[0], true)?;

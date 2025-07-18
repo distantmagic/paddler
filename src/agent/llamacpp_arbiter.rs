@@ -95,9 +95,10 @@ mod tests {
     use crate::agent::huggingface_model_reference::HuggingFaceModelReference;
     use crate::agent::llamacpp_desired_model::LlamaCppDesiredModel;
     use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
-    use crate::agent::message::GenerateTokens;
+    use crate::agent::message::GenerateTokensChannel;
+    use crate::request_params::GenerateTokensParams;
 
-    const SLOTS_TOTAL: usize = 3;
+    const SLOTS_TOTAL: i32 = 3;
 
     #[actix_web::test]
     async fn test_llamacpp_arbiter_spawn() -> Result<()> {
@@ -129,20 +130,26 @@ mod tests {
         let (tx, mut rx) = mpsc::channel(100);
 
         let futures = vec![
-            controller.llamacpp_slot_addr.send(GenerateTokens {
+            controller.llamacpp_slot_addr.send(GenerateTokensChannel {
                 chunk_sender: tx.clone(),
-                max_tokens: 100,
-                prompt: prompt.to_string(),
+                params: GenerateTokensParams {
+                    max_tokens: 100,
+                    prompt: prompt.to_string(),
+                },
             }),
-            controller.llamacpp_slot_addr.send(GenerateTokens {
+            controller.llamacpp_slot_addr.send(GenerateTokensChannel {
                 chunk_sender: tx.clone(),
-                max_tokens: 100,
-                prompt: prompt.to_string(),
+                params: GenerateTokensParams {
+                    max_tokens: 100,
+                    prompt: prompt.to_string(),
+                },
             }),
-            controller.llamacpp_slot_addr.send(GenerateTokens {
+            controller.llamacpp_slot_addr.send(GenerateTokensChannel {
                 chunk_sender: tx,
-                max_tokens: 100,
-                prompt: prompt.to_string(),
+                params: GenerateTokensParams {
+                    max_tokens: 100,
+                    prompt: prompt.to_string(),
+                },
             }),
         ];
 

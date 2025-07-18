@@ -1,7 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 
-import { Dashboard } from "./components/Dashboard";
+import { Home } from "./components/Home";
 
 class RootNode {
   constructor(private rootNodeElement: HTMLElement) {}
@@ -28,7 +28,7 @@ const rootNode = new RootNode(rootNodeElement);
 const root = createRoot(rootNodeElement);
 
 root.render(
-  <Dashboard
+  <Home
     inferenceAddr={rootNode.getFromDataset("inferenceAddr")}
     managementAddr={rootNode.getFromDataset("managementAddr")}
   />,

@@ -33,7 +33,6 @@ impl ProducesSnapshot for AgentController {
 impl SendsRpcMessage for AgentController {
     async fn send_rpc_message<TMessage: Send + Serialize>(&self, message: TMessage) -> Result<()> {
         let serialized_message = serde_json::to_string(&message)?;
-
         self.agent_tx.send(serialized_message).await?;
 
         Ok(())

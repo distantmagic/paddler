@@ -11,6 +11,9 @@
   animation: fadeIn 200ms ease-in-out;
   display: grid;
   grid-template-rows: 1fr auto;
+  height: 100%;
+  max-width: var(--max-width-workbench-content);
+  width: 100%;
 }
 
 .promptPage__promptForm {

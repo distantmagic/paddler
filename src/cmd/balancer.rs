@@ -11,6 +11,7 @@ use super::handler::Handler;
 use super::parse_duration;
 use super::parse_socket_addr;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
+use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::balancer::inference_service::InferenceService;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
@@ -108,6 +109,7 @@ impl Balancer {
 impl Handler for Balancer {
     async fn handle(&self, shutdown_rx: oneshot::Receiver<()>) -> Result<()> {
         let agent_controller_pool = Arc::new(AgentControllerPool::new());
+        let generate_tokens_sender_collection = Arc::new(GenerateTokensSenderCollection::new());
         let mut service_manager = ServiceManager::new();
         let state_database: Arc<dyn StateDatabase> = match &self.state_database {
             DatabaseType::File(path) => Arc::new(File::new(path.to_owned())),
@@ -122,6 +124,7 @@ impl Handler for Balancer {
                 // buffered_request_timeout: self.buffered_request_timeout,
                 // max_buffered_requests: self.max_buffered_requests,
             },
+            generate_tokens_sender_collection.clone(),
             state_database.clone(),
             #[cfg(feature = "web_admin_panel")]
             self.get_web_admin_panel_service_configuration(),
@@ -130,6 +133,7 @@ impl Handler for Balancer {
         service_manager.add_service(ManagementService::new(
             agent_controller_pool.clone(),
             self.get_mangement_service_configuration(),
+            generate_tokens_sender_collection,
             state_database,
             #[cfg(feature = "web_admin_panel")]
             self.get_web_admin_panel_service_configuration(),

@@ -2,11 +2,12 @@ import React from "react";
 import { Route, Router, Switch } from "wouter";
 
 import { AgentListPage } from "./AgentListPage";
-import { DashboardLayout } from "./DashboardLayout";
+import { ModelPage } from "./ModelPage";
 import { PromptContextProvider } from "./PromptContextProvider";
 import { PromptPage } from "./PromptPage";
+import { WorkbenchLayout } from "./WorkbenchLayout";
 
-export function Dashboard({
+export function Home({
   inferenceAddr,
   managementAddr,
 }: {
@@ -15,10 +16,13 @@ export function Dashboard({
 }) {
   return (
     <Router>
-      <DashboardLayout>
+      <WorkbenchLayout>
         <Switch>
           <Route path="/">
             <AgentListPage managementAddr={managementAddr} />
+          </Route>
+          <Route path="/model">
+            <ModelPage />
           </Route>
           <Route path="/prompt">
             <PromptContextProvider>
@@ -27,7 +31,7 @@ export function Dashboard({
           </Route>
           <Route>404 :(</Route>
         </Switch>
-      </DashboardLayout>
+      </WorkbenchLayout>
     </Router>
   );
 }

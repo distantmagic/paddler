@@ -28,6 +28,11 @@ a {
   text-underline-offset: 2px;
 }
 
+dd,
+dl {
+  margin: 0;
+}
+
 h1 {
   font-size: var(--font-size-l2);
 }
@@ -83,6 +88,7 @@ body {
   font-size: var(--font-size-base);
   line-height: 1.5;
   margin: 0;
+  overflow-y: scroll;
   padding: 0;
   row-gap: var(--spacing-base);
 }

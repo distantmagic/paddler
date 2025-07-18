@@ -3,6 +3,8 @@ pub mod agent_controller_pool;
 pub mod agent_controller_pool_snapshot;
 pub mod agent_controller_pool_total_slots;
 pub mod agent_controller_snapshot;
+pub mod generate_tokens_sender_collection;
+pub mod generate_tokens_sender_guard;
 pub mod inference_service;
 pub mod management_service;
 #[cfg(feature = "web_admin_panel")]

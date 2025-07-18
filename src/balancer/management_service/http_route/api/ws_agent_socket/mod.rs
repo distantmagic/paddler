@@ -33,10 +33,12 @@ use crate::agent::jsonrpc::Response as AgentJsonRpcResponse;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
+use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::state_database::StateDatabase;
 use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::jsonrpc::ResponseEnvelope;
+use crate::response::ChunkResponse;
 use crate::response_params::GeneratedToken;
 use crate::sends_rpc_message::SendsRpcMessage as _;
 
@@ -47,6 +49,7 @@ pub fn register(cfg: &mut ServiceConfig) {
 struct AgentSocketControllerContext {
     agent_controller_pool: Data<AgentControllerPool>,
     agent_id: String,
+    generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
     state_database: Data<dyn StateDatabase>,
 }
 
@@ -66,6 +69,7 @@ impl Drop for AgentSocketControllerContext {
 struct AgentSocketController {
     agent_controller_pool: Data<AgentControllerPool>,
     agent_id: String,
+    generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
     state_database: Data<dyn StateDatabase>,
 }
 
@@ -78,6 +82,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
         AgentSocketControllerContext {
             agent_controller_pool: self.agent_controller_pool.clone(),
             agent_id: self.agent_id.clone(),
+            generate_tokens_sender_collection: self.generate_tokens_sender_collection.clone(),
             state_database: self.state_database.clone(),
         }
     }
@@ -182,6 +187,17 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
 
                 Ok(ContinuationDecision::Continue)
             }
+            ManagementJsonRpcMessage::Response(ResponseEnvelope::Error {
+                request_id,
+                error,
+            }) => {
+                context
+                    .generate_tokens_sender_collection
+                    .forward_response(request_id, ChunkResponse::Error(error))
+                    .await?;
+
+                Ok(ContinuationDecision::Continue)
+            }
             ManagementJsonRpcMessage::Response(ResponseEnvelope::StreamChunk {
                 request_id,
                 chunk:
@@ -189,7 +205,16 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                         token,
                     }),
             }) => {
-                println!("Received token: {request_id} - {token}");
+                context
+                    .generate_tokens_sender_collection
+                    .forward_response(
+                        request_id,
+                        ChunkResponse::Data(GeneratedToken {
+                            token,
+                        }),
+                    )
+                    .await?;
+
                 Ok(ContinuationDecision::Continue)
             }
             ManagementJsonRpcMessage::Response(ResponseEnvelope::StreamDone {
@@ -241,6 +266,7 @@ struct PathParams {
 #[get("/api/v1/agent_socket/{agent_id}")]
 async fn respond(
     agent_controller_pool: Data<AgentControllerPool>,
+    generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
     state_database: Data<dyn StateDatabase>,
     path_params: Path<PathParams>,
     payload: Payload,
@@ -249,6 +275,7 @@ async fn respond(
     let agent_socket_controller = AgentSocketController {
         agent_controller_pool,
         agent_id: path_params.agent_id.clone(),
+        generate_tokens_sender_collection,
         state_database,
     };
 

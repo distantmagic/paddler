@@ -24,6 +24,7 @@ use crate::agent::jsonrpc::Notification as JsonRpcNotification;
 use crate::agent::jsonrpc::Request as JsonRpcRequest;
 use crate::agent::jsonrpc::Response as JsonRpcResponse;
 use crate::agent::message::GenerateTokensChannel;
+use crate::response::ChunkResponse;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
 use crate::agent::websocket_shared_writer::WebSocketSharedWriter;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::RegisterAgentParams;
@@ -34,10 +35,9 @@ use crate::agent::slot_aggregated_metrics::SlotAggregatedMetrics;
 use crate::jsonrpc::RequestEnvelope;
 use crate::jsonrpc::ResponseEnvelope;
 use crate::service::Service;
-use crate::response_params::GeneratedToken as GeneratedTokenParams;
 
 pub struct ManagementSocketClientService {
-    generate_tokens_tx: mpsc::Sender<GenerateTokensChannel>,
+    generate_tokens_channel_tx: mpsc::Sender<GenerateTokensChannel>,
     name: Option<String>,
     reconciliation_queue: Arc<ReconciliationQueue>,
     slot_aggregated_metrics: Arc<SlotAggregatedMetrics>,
@@ -46,7 +46,7 @@ pub struct ManagementSocketClientService {
 
 impl ManagementSocketClientService {
     pub fn new(
-        generate_tokens_tx: mpsc::Sender<GenerateTokensChannel>,
+        generate_tokens_channel_tx: mpsc::Sender<GenerateTokensChannel>,
         management_addr: SocketAddr,
         name: Option<String>,
         reconciliation_queue: Arc<ReconciliationQueue>,
@@ -55,7 +55,7 @@ impl ManagementSocketClientService {
         let agent_id = Uuid::new_v4();
 
         Ok(ManagementSocketClientService {
-            generate_tokens_tx,
+            generate_tokens_channel_tx,
             name,
             reconciliation_queue,
             slot_aggregated_metrics,
@@ -105,13 +105,13 @@ impl ManagementSocketClientService {
                             prompt,
                         }),
                 }) => {
-                    let (chunk_sender, mut chunk_receiver) = mpsc::channel::<String>(100);
+                    let (chunk_sender, mut chunk_receiver) = mpsc::channel::<ChunkResponse>(100);
                     let writer_clone = writer.clone();
 
-                    let generate_tokens_tx = self.generate_tokens_tx.clone();
+                    let generate_tokens_channel_tx = self.generate_tokens_channel_tx.clone();
 
                     tokio::spawn(async move {
-                        if let Err(err) = generate_tokens_tx
+                        if let Err(err) = generate_tokens_channel_tx
                             .send(GenerateTokensChannel {
                                 chunk_sender,
                                 params: GenerateTokensParams {
@@ -127,18 +127,34 @@ impl ManagementSocketClientService {
 
                     tokio::spawn(async move {
                         while let Some(chunk) = chunk_receiver.recv().await {
-                            writer_clone
-                                .send_rpc_message(ManagementJsonRpcMessage::Response(
-                                    ResponseEnvelope::StreamChunk {
-                                        request_id: id.clone(),
-                                        chunk: JsonRpcResponse::GeneratedToken(
-                                            GeneratedTokenParams {
-                                                token: chunk,
+                            match chunk {
+                                ChunkResponse::Data(generated_token) => {
+                                    writer_clone
+                                        .send_rpc_message(ManagementJsonRpcMessage::Response(
+                                            ResponseEnvelope::StreamChunk {
+                                                request_id: id.clone(),
+                                                chunk: JsonRpcResponse::GeneratedToken(
+                                                    generated_token,
+                                                ),
                                             },
-                                        ),
-                                    },
-                                ))
-                                .await?;
+                                        ))
+                                        .await?;
+                                }
+                                ChunkResponse::Error(err) => {
+                                    let msg = format!("Error generating token: {err}");
+
+                                    writer_clone
+                                        .send_rpc_message(ManagementJsonRpcMessage::Response(
+                                            ResponseEnvelope::Error {
+                                                request_id: id.clone(),
+                                                error: msg.clone(),
+                                            },
+                                        ))
+                                        .await?;
+
+                                    error!("{msg}");
+                                }
+                            }
                         }
 
                         writer_clone

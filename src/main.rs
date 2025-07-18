@@ -8,6 +8,7 @@ mod database_type;
 mod jsonrpc;
 mod produces_snapshot;
 mod request_params;
+mod response;
 mod response_params;
 mod rpc_message;
 mod sends_rpc_message;
