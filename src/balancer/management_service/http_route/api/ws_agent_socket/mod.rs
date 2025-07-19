@@ -21,7 +21,7 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
 use self::jsonrpc::notification_params::RegisterAgentParams;
-use self::jsonrpc::notification_params::UpdateAgentStatusParams;
+use self::jsonrpc::notification_params::UpdateAgentSlotsParams;
 use self::jsonrpc::Message as ManagementJsonRpcMessage;
 use self::jsonrpc::Notification as ManagementJsonRpcNotification;
 use crate::agent::jsonrpc::notification_params::VersionParams;
@@ -167,7 +167,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                 Ok(ContinuationDecision::Continue)
             }
             ManagementJsonRpcMessage::Notification(
-                ManagementJsonRpcNotification::UpdateAgentStatus(UpdateAgentStatusParams {
+                ManagementJsonRpcNotification::UpdateAgentSlots(UpdateAgentSlotsParams {
                     slots_processing,
                 }),
             ) => {

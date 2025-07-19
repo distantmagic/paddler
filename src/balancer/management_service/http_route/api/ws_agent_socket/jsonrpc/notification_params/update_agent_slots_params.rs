@@ -2,6 +2,6 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct UpdateAgentStatusParams {
+pub struct UpdateAgentSlotsParams {
     pub slots_processing: i32,
 }

@@ -29,6 +29,7 @@ use crate::agent::jsonrpc::Notification as JsonRpcNotification;
 use crate::agent::jsonrpc::Request as JsonRpcRequest;
 use crate::agent::jsonrpc::Response as JsonRpcResponse;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::RegisterAgentParams;
+use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::UpdateAgentSlotsParams;
 use crate::agent::message::GenerateTokensChannel;
 use crate::response::ChunkResponse;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
@@ -352,9 +353,15 @@ impl ManagementSocketClientService {
                         break;
                     }
                     _ = slot_aggregated_metrics_clone.update_notifier.notified() => {
-                        // writer.send_rpc_message(ManagementJsonRpcNotification::UpdateSlots {
-                        //     slots_processing: self.slot_aggregated_metrics.slots_processing.get(),
-                        // }).await?;
+                        message_tx.send(
+                            ManagementJsonRpcMessage::Notification(
+                                ManagementJsonRpcNotification::UpdateAgentSlots(UpdateAgentSlotsParams {
+                                    slots_processing: slot_aggregated_metrics_clone.slots_processing.get(),
+                                })
+                            )
+                        ).await.unwrap_or_else(|err| {
+                            error!("Failed to send update slots notification: {err}");
+                        });
                     }
                     msg = read.next() => {
                         match msg {

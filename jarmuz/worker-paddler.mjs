@@ -35,6 +35,12 @@ spawner(async function ({ buildId, command }) {
         --name agent-2
         --slots 4
     `),
+    command(`
+      target/debug/paddler agent
+        --management-addr 127.0.0.1:8060
+        --name agent-3
+        --slots 2
+    `),
   ]);
 
   for (const result of results) {
