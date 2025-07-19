@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use tokio::sync::RwLock;
 
 use super::StateDatabase;
-use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
+use crate::llamacpp_desired_state::LlamaCppDesiredState;
 
 pub struct Memory {
     desired_state: RwLock<Option<LlamaCppDesiredState>>,

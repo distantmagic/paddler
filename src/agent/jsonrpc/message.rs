@@ -22,9 +22,9 @@ mod tests {
 
     use super::super::notification_params::SetStateParams;
     use super::*;
-    use crate::agent::huggingface_model_reference::HuggingFaceModelReference;
-    use crate::agent::llamacpp_desired_model::LlamaCppDesiredModel;
-    use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
+    use crate::huggingface_model_reference::HuggingFaceModelReference;
+    use crate::llamacpp_desired_model::LlamaCppDesiredModel;
+    use crate::llamacpp_desired_state::LlamaCppDesiredState;
 
     #[test]
     fn test_message_serialization() -> Result<()> {

@@ -9,7 +9,6 @@ pub mod inference_service;
 pub mod management_service;
 #[cfg(feature = "web_admin_panel")]
 pub mod response;
-pub mod sets_desired_state;
 pub mod state_database;
 pub mod statsd_service;
 pub mod status_update;

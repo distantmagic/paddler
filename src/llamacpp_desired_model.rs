@@ -6,8 +6,8 @@ use hf_hub::api::tokio::Api;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::agent::converts_to_applicable_state::ConvertsToApplicableState;
-use crate::agent::huggingface_model_reference::HuggingFaceModelReference;
+use crate::converts_to_applicable_state::ConvertsToApplicableState;
+use crate::huggingface_model_reference::HuggingFaceModelReference;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum LlamaCppDesiredModel {

@@ -3,7 +3,7 @@ use tokio::sync::watch::channel;
 use tokio::sync::watch::Receiver;
 use tokio::sync::watch::Sender;
 
-use crate::agent::llamacpp_applicable_state::LlamaCppApplicableState;
+use crate::llamacpp_applicable_state::LlamaCppApplicableState;
 
 pub struct LlamaCppApplicableStateHolder {
     change_notifier: Sender<Option<LlamaCppApplicableState>>,

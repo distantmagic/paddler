@@ -5,7 +5,7 @@ use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 
-use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
+use crate::llamacpp_desired_state::LlamaCppDesiredState;
 
 const RECONCILIATION_QUEUE_BUFFER_SIZE: usize = 100;
 
@@ -42,8 +42,8 @@ impl ReconciliationQueue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agent::llamacpp_desired_model::LlamaCppDesiredModel;
-    use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
+    use crate::llamacpp_desired_model::LlamaCppDesiredModel;
+    use crate::llamacpp_desired_state::LlamaCppDesiredState;
 
     #[tokio::test]
     async fn test_reconciliation_queue() -> Result<()> {

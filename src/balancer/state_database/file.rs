@@ -9,7 +9,7 @@ use tokio::sync::RwLock;
 
 use super::Memory;
 use super::StateDatabase;
-use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
+use crate::llamacpp_desired_state::LlamaCppDesiredState;
 
 pub struct File {
     cached_state: Memory,

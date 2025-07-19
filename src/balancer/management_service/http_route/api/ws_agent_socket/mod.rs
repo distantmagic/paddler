@@ -1,5 +1,4 @@
 pub mod jsonrpc;
-
 use std::sync::Arc;
 
 use actix_web::get;
@@ -39,6 +38,7 @@ use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::jsonrpc::ResponseEnvelope;
 use crate::response::ChunkResponse;
 use crate::response_params::GeneratedToken;
+use crate::sets_desired_state::SetsDesiredState as _;
 use crate::websocket_session_controller::WebSocketSessionController;
 
 pub fn register(cfg: &mut ServiceConfig) {

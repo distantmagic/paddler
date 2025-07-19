@@ -6,7 +6,7 @@ use async_trait::async_trait;
 
 pub use self::file::File;
 pub use self::memory::Memory;
-use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
+use crate::llamacpp_desired_state::LlamaCppDesiredState;
 
 #[async_trait]
 pub trait StateDatabase: Send + Sync {
@@ -21,7 +21,7 @@ mod tests {
     use tempfile::NamedTempFile;
 
     use super::*;
-    use crate::agent::llamacpp_desired_model::LlamaCppDesiredModel;
+    use crate::llamacpp_desired_model::LlamaCppDesiredModel;
 
     async fn subtest_store_desired_state<TDatabase: StateDatabase>(db: &TDatabase) -> Result<()> {
         let desired_state = LlamaCppDesiredState {

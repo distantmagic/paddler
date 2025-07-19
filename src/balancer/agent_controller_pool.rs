@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::Notify;
 
@@ -9,7 +10,9 @@ use super::agent_controller_pool_total_slots::AgentControllerPoolTotalSlots;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller_pool_snapshot::AgentControllerPoolSnapshot;
 use crate::balancer::agent_controller_snapshot::AgentControllerSnapshot;
+use crate::llamacpp_desired_state::LlamaCppDesiredState;
 use crate::produces_snapshot::ProducesSnapshot;
+use crate::sets_desired_state::SetsDesiredState;
 
 pub struct AgentControllerPool {
     agents: DashMap<String, Arc<AgentController>>,
@@ -97,5 +100,20 @@ impl ProducesSnapshot for AgentControllerPool {
         AgentControllerPoolSnapshot {
             agents,
         }
+    }
+}
+
+#[async_trait]
+impl SetsDesiredState for AgentControllerPool {
+    async fn set_desired_state(&self, desired_state: LlamaCppDesiredState) -> Result<()> {
+        for agent in self.agents.iter() {
+            let agent_controller = agent.value();
+
+            agent_controller
+                .set_desired_state(desired_state.clone())
+                .await?;
+        }
+
+        Ok(())
     }
 }

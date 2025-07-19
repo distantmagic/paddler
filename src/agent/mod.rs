@@ -1,14 +1,8 @@
-pub mod converts_to_applicable_state;
 pub mod dispenses_slots;
-pub mod huggingface_model_reference;
 pub mod jsonrpc;
-pub mod llamacpp_applicable_state;
-pub mod llamacpp_applicable_state_holder;
 pub mod llamacpp_arbiter;
 pub mod llamacpp_arbiter_controller;
 pub mod llamacpp_arbiter_service;
-pub mod llamacpp_desired_model;
-pub mod llamacpp_desired_state;
 pub mod llamacpp_slot;
 pub mod management_socket_client_service;
 pub mod message;

@@ -5,10 +5,10 @@ use async_trait::async_trait;
 use log::error;
 use tokio::sync::broadcast;
 
-use crate::agent::converts_to_applicable_state::ConvertsToApplicableState;
-use crate::agent::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
-use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
+use crate::converts_to_applicable_state::ConvertsToApplicableState;
+use crate::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
+use crate::llamacpp_desired_state::LlamaCppDesiredState;
 use crate::service::Service;
 
 pub struct ReconciliationService {

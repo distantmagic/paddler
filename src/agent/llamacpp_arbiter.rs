@@ -10,10 +10,10 @@ use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::model::LlamaModel;
 use tokio::sync::oneshot;
 
-use crate::agent::llamacpp_applicable_state::LlamaCppApplicableState;
 use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
 use crate::agent::llamacpp_slot::LlamaCppSlot;
 use crate::agent::slot_aggregated_metrics_manager::SlotAggregatedMetricsManager;
+use crate::llamacpp_applicable_state::LlamaCppApplicableState;
 
 pub struct LlamaCppArbiter {
     applicable_state: LlamaCppApplicableState,
