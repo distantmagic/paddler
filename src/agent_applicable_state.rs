@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 #[derive(Clone, Debug)]
-pub struct LlamaCppApplicableState {
+pub struct AgentApplicableState {
     pub model_path: PathBuf,
     // pub n_ctx: usize,
     // pub n_batch: usize,

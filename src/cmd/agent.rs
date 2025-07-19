@@ -14,7 +14,7 @@ use crate::agent::management_socket_client_service::ManagementSocketClientServic
 use crate::agent::reconciliation_queue::ReconciliationQueue;
 use crate::agent::reconciliation_service::ReconciliationService;
 use crate::agent::slot_aggregated_metrics_manager::SlotAggregatedMetricsManager;
-use crate::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
+use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
 use crate::service_manager::ServiceManager;
 
 #[derive(Parser)]
@@ -35,7 +35,7 @@ pub struct Agent {
 impl Handler for Agent {
     async fn handle(&self, shutdown_rx: oneshot::Receiver<()>) -> Result<()> {
         let (generate_tokens_tx, generate_tokens_rx) = mpsc::channel(100);
-        let llamacpp_applicable_state_holder = Arc::new(LlamaCppApplicableStateHolder::new());
+        let agent_applicable_state_holder = Arc::new(AgentApplicableStateHolder::new());
         let reconciliation_queue = Arc::new(ReconciliationQueue::new()?);
         let mut service_manager = ServiceManager::new();
         let slot_aggregated_metrics_manager =
@@ -43,8 +43,8 @@ impl Handler for Agent {
 
         service_manager.add_service(
             LlamaCppArbiterService::new(
+                agent_applicable_state_holder.clone(),
                 generate_tokens_rx,
-                llamacpp_applicable_state_holder.clone(),
                 slot_aggregated_metrics_manager.clone(),
                 self.slots,
             )
@@ -62,7 +62,7 @@ impl Handler for Agent {
         )?);
 
         service_manager.add_service(ReconciliationService::new(
-            llamacpp_applicable_state_holder,
+            agent_applicable_state_holder,
             reconciliation_queue,
         )?);
 

@@ -6,34 +6,31 @@ use log::error;
 use tokio::sync::broadcast;
 
 use crate::agent::reconciliation_queue::ReconciliationQueue;
+use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
+use crate::agent_desired_state::AgentDesiredState;
 use crate::converts_to_applicable_state::ConvertsToApplicableState;
-use crate::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
-use crate::llamacpp_desired_state::LlamaCppDesiredState;
 use crate::service::Service;
 
 pub struct ReconciliationService {
-    llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
+    agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
     reconciliation_queue: Arc<ReconciliationQueue>,
 }
 
 impl ReconciliationService {
     pub fn new(
-        llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
+        agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
         reconciliation_queue: Arc<ReconciliationQueue>,
     ) -> Result<Self> {
         Ok(ReconciliationService {
-            llamacpp_applicable_state_holder,
+            agent_applicable_state_holder,
             reconciliation_queue,
         })
     }
 
-    pub async fn on_change_request(
-        &self,
-        desired_state: Result<LlamaCppDesiredState>,
-    ) -> Result<()> {
+    pub async fn on_change_request(&self, desired_state: Result<AgentDesiredState>) -> Result<()> {
         let applicable_state = desired_state?.to_applicable_state().await?;
 
-        self.llamacpp_applicable_state_holder
+        self.agent_applicable_state_holder
             .set_applicable_state(applicable_state)
     }
 }

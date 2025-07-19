@@ -6,13 +6,13 @@ use async_trait::async_trait;
 
 pub use self::file::File;
 pub use self::memory::Memory;
-use crate::llamacpp_desired_state::LlamaCppDesiredState;
+use crate::agent_desired_state::AgentDesiredState;
 
 #[async_trait]
 pub trait StateDatabase: Send + Sync {
-    async fn read_desired_state(&self) -> Result<Option<LlamaCppDesiredState>>;
+    async fn read_desired_state(&self) -> Result<Option<AgentDesiredState>>;
 
-    async fn store_desired_state(&self, state: &LlamaCppDesiredState) -> Result<()>;
+    async fn store_desired_state(&self, state: &AgentDesiredState) -> Result<()>;
 }
 
 #[cfg(test)]
@@ -21,11 +21,11 @@ mod tests {
     use tempfile::NamedTempFile;
 
     use super::*;
-    use crate::llamacpp_desired_model::LlamaCppDesiredModel;
+    use crate::agent_desired_model::AgentDesiredModel;
 
     async fn subtest_store_desired_state<TDatabase: StateDatabase>(db: &TDatabase) -> Result<()> {
-        let desired_state = LlamaCppDesiredState {
-            model: LlamaCppDesiredModel::Local("test_model_path".to_string()),
+        let desired_state = AgentDesiredState {
+            model: AgentDesiredModel::Local("test_model_path".to_string()),
         };
 
         db.store_desired_state(&desired_state).await?;

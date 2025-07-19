@@ -13,17 +13,17 @@ use tokio::sync::oneshot;
 use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
 use crate::agent::llamacpp_slot::LlamaCppSlot;
 use crate::agent::slot_aggregated_metrics_manager::SlotAggregatedMetricsManager;
-use crate::llamacpp_applicable_state::LlamaCppApplicableState;
+use crate::agent_applicable_state::AgentApplicableState;
 
 pub struct LlamaCppArbiter {
-    applicable_state: LlamaCppApplicableState,
+    applicable_state: AgentApplicableState,
     slot_aggregated_metrics_manager: Arc<SlotAggregatedMetricsManager>,
     slots_total: i32,
 }
 
 impl LlamaCppArbiter {
     pub fn new(
-        applicable_state: LlamaCppApplicableState,
+        applicable_state: AgentApplicableState,
         slot_aggregated_metrics_manager: Arc<SlotAggregatedMetricsManager>,
         slots_total: i32,
     ) -> Self {
@@ -85,25 +85,25 @@ impl LlamaCppArbiter {
 }
 
 #[cfg(test)]
-#[cfg(feature = "tests_that_use_llms")]
+// #[cfg(feature = "tests_that_use_llms")]
 mod tests {
     use futures::future::join_all;
     use tokio::sync::mpsc;
 
     use super::*;
-    use crate::agent::converts_to_applicable_state::ConvertsToApplicableState as _;
-    use crate::agent::huggingface_model_reference::HuggingFaceModelReference;
-    use crate::agent::llamacpp_desired_model::LlamaCppDesiredModel;
-    use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
     use crate::agent::message::GenerateTokensChannel;
+    use crate::agent_desired_model::AgentDesiredModel;
+    use crate::agent_desired_state::AgentDesiredState;
+    use crate::converts_to_applicable_state::ConvertsToApplicableState as _;
+    use crate::huggingface_model_reference::HuggingFaceModelReference;
     use crate::request_params::GenerateTokensParams;
 
     const SLOTS_TOTAL: i32 = 3;
 
     #[actix_web::test]
     async fn test_llamacpp_arbiter_spawn() -> Result<()> {
-        let desired_state = LlamaCppDesiredState {
-            model: LlamaCppDesiredModel::HuggingFace(HuggingFaceModelReference {
+        let desired_state = AgentDesiredState {
+            model: AgentDesiredModel::HuggingFace(HuggingFaceModelReference {
                 filename: "Qwen3-0.6B-Q8_0.gguf".to_string(),
                 repo: "Qwen/Qwen3-0.6B-GGUF".to_string(),
                 // filename: "Qwen3-8B-Q4_K_M.gguf".to_string(),
@@ -155,7 +155,7 @@ mod tests {
 
         tokio::spawn(async move {
             while let Some(chunk) = rx.recv().await {
-                println!("Received chunk: {chunk}");
+                println!("Received chunk: {chunk:?}");
             }
         });
 

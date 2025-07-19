@@ -5,13 +5,13 @@ use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 
-use crate::llamacpp_desired_state::LlamaCppDesiredState;
+use crate::agent_desired_state::AgentDesiredState;
 
 const RECONCILIATION_QUEUE_BUFFER_SIZE: usize = 100;
 
 pub struct ReconciliationQueue {
-    change_requests_receiver: Mutex<Receiver<LlamaCppDesiredState>>,
-    change_requests_sender: Sender<LlamaCppDesiredState>,
+    change_requests_receiver: Mutex<Receiver<AgentDesiredState>>,
+    change_requests_sender: Sender<AgentDesiredState>,
 }
 
 impl ReconciliationQueue {
@@ -25,7 +25,7 @@ impl ReconciliationQueue {
         })
     }
 
-    pub async fn next_change_request(&self) -> Result<LlamaCppDesiredState> {
+    pub async fn next_change_request(&self) -> Result<AgentDesiredState> {
         let mut receiver = self.change_requests_receiver.lock().await;
 
         match receiver.recv().await {
@@ -34,7 +34,7 @@ impl ReconciliationQueue {
         }
     }
 
-    pub async fn register_change_request(&self, desired_state: LlamaCppDesiredState) -> Result<()> {
+    pub async fn register_change_request(&self, desired_state: AgentDesiredState) -> Result<()> {
         Ok(self.change_requests_sender.send(desired_state).await?)
     }
 }
@@ -42,15 +42,15 @@ impl ReconciliationQueue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::llamacpp_desired_model::LlamaCppDesiredModel;
-    use crate::llamacpp_desired_state::LlamaCppDesiredState;
+    use crate::agent_desired_model::AgentDesiredModel;
+    use crate::agent_desired_state::AgentDesiredState;
 
     #[tokio::test]
     async fn test_reconciliation_queue() -> Result<()> {
         let queue = ReconciliationQueue::new()?;
 
-        let desired_state = LlamaCppDesiredState {
-            model: LlamaCppDesiredModel::Local("test_model_path".to_string()),
+        let desired_state = AgentDesiredState {
+            model: AgentDesiredModel::Local("test_model_path".to_string()),
         };
 
         queue.register_change_request(desired_state.clone()).await?;

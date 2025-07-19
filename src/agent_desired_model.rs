@@ -10,20 +10,20 @@ use crate::converts_to_applicable_state::ConvertsToApplicableState;
 use crate::huggingface_model_reference::HuggingFaceModelReference;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub enum LlamaCppDesiredModel {
+pub enum AgentDesiredModel {
     HuggingFace(HuggingFaceModelReference),
     Local(String),
 }
 
-impl LlamaCppDesiredModel {}
+impl AgentDesiredModel {}
 
 #[async_trait]
-impl ConvertsToApplicableState for LlamaCppDesiredModel {
+impl ConvertsToApplicableState for AgentDesiredModel {
     type ApplicableState = PathBuf;
 
     async fn to_applicable_state(&self) -> Result<Option<Self::ApplicableState>> {
         Ok(match self {
-            LlamaCppDesiredModel::HuggingFace(HuggingFaceModelReference {
+            AgentDesiredModel::HuggingFace(HuggingFaceModelReference {
                 filename,
                 repo,
             }) => {
@@ -33,7 +33,7 @@ impl ConvertsToApplicableState for LlamaCppDesiredModel {
 
                 Some(weights_filename)
             }
-            LlamaCppDesiredModel::Local(path) => Some(PathBuf::from(path)),
+            AgentDesiredModel::Local(path) => Some(PathBuf::from(path)),
         })
     }
 }

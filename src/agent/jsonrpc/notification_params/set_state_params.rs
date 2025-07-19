@@ -1,9 +1,9 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::llamacpp_desired_state::LlamaCppDesiredState;
+use crate::agent_desired_state::AgentDesiredState;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct SetStateParams {
-    pub desired_state: LlamaCppDesiredState,
+    pub desired_state: AgentDesiredState,
 }

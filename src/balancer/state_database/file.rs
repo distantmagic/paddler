@@ -9,7 +9,7 @@ use tokio::sync::RwLock;
 
 use super::Memory;
 use super::StateDatabase;
-use crate::llamacpp_desired_state::LlamaCppDesiredState;
+use crate::agent_desired_state::AgentDesiredState;
 
 pub struct File {
     cached_state: Memory,
@@ -26,14 +26,14 @@ impl File {
         }
     }
 
-    async fn read_desired_state_from_file(&self) -> Result<Option<LlamaCppDesiredState>> {
+    async fn read_desired_state_from_file(&self) -> Result<Option<AgentDesiredState>> {
         match fs::read_to_string(&self.path).await {
             Ok(content) => {
                 if content.is_empty() {
                     return Ok(None);
                 }
 
-                let state: LlamaCppDesiredState = serde_json::from_str(&content)
+                let state: AgentDesiredState = serde_json::from_str(&content)
                     .context(format!("Unable to parse file contents: '{content}'"))?;
 
                 Ok(Some(state))
@@ -46,7 +46,7 @@ impl File {
 
 #[async_trait]
 impl StateDatabase for File {
-    async fn read_desired_state(&self) -> Result<Option<LlamaCppDesiredState>> {
+    async fn read_desired_state(&self) -> Result<Option<AgentDesiredState>> {
         match self.cached_state.read_desired_state().await? {
             Some(state) => Ok(Some(state)),
             None => {
@@ -67,7 +67,7 @@ impl StateDatabase for File {
         }
     }
 
-    async fn store_desired_state(&self, state: &LlamaCppDesiredState) -> Result<()> {
+    async fn store_desired_state(&self, state: &AgentDesiredState) -> Result<()> {
         let _lock = self.write_lock.write().await;
 
         let serialized_state = serde_json::to_string_pretty(state)?;

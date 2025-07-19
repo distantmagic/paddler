@@ -22,16 +22,16 @@ mod tests {
 
     use super::super::notification_params::SetStateParams;
     use super::*;
+    use crate::agent_desired_model::AgentDesiredModel;
+    use crate::agent_desired_state::AgentDesiredState;
     use crate::huggingface_model_reference::HuggingFaceModelReference;
-    use crate::llamacpp_desired_model::LlamaCppDesiredModel;
-    use crate::llamacpp_desired_state::LlamaCppDesiredState;
 
     #[test]
     fn test_message_serialization() -> Result<()> {
         let serialized = serde_json::to_string(&Message::Notification(Notification::SetState(
             SetStateParams {
-                desired_state: LlamaCppDesiredState {
-                    model: LlamaCppDesiredModel::HuggingFace(HuggingFaceModelReference {
+                desired_state: AgentDesiredState {
+                    model: AgentDesiredModel::HuggingFace(HuggingFaceModelReference {
                         filename: "Qwen3-0.6B-Q8_0.gguf".to_string(),
                         repo: "Qwen/Qwen3-0.6B-GGUF".to_string(),
                     }),

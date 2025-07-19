@@ -1,9 +1,9 @@
 use anyhow::Result;
 use async_trait::async_trait;
 
-use crate::llamacpp_desired_state::LlamaCppDesiredState;
+use crate::agent_desired_state::AgentDesiredState;
 
 #[async_trait]
 pub trait SetsDesiredState {
-    async fn set_desired_state(&self, desired_state: LlamaCppDesiredState) -> Result<()>;
+    async fn set_desired_state(&self, desired_state: AgentDesiredState) -> Result<()>;
 }

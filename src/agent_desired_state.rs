@@ -4,18 +4,18 @@ use async_trait::async_trait;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::agent_applicable_state::AgentApplicableState;
+use crate::agent_desired_model::AgentDesiredModel;
 use crate::converts_to_applicable_state::ConvertsToApplicableState;
-use crate::llamacpp_applicable_state::LlamaCppApplicableState;
-use crate::llamacpp_desired_model::LlamaCppDesiredModel;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct LlamaCppDesiredState {
-    pub model: LlamaCppDesiredModel,
+pub struct AgentDesiredState {
+    pub model: AgentDesiredModel,
 }
 
 #[async_trait]
-impl ConvertsToApplicableState for LlamaCppDesiredState {
-    type ApplicableState = LlamaCppApplicableState;
+impl ConvertsToApplicableState for AgentDesiredState {
+    type ApplicableState = AgentApplicableState;
 
     async fn to_applicable_state(&self) -> Result<Option<Self::ApplicableState>> {
         let model_path = match self.model.to_applicable_state().await? {
@@ -27,7 +27,7 @@ impl ConvertsToApplicableState for LlamaCppDesiredState {
             }
         };
 
-        Ok(Some(LlamaCppApplicableState {
+        Ok(Some(AgentApplicableState {
             model_path,
         }))
     }

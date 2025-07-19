@@ -7,10 +7,10 @@ use tokio::sync::Notify;
 
 use super::agent_controller::AgentController;
 use super::agent_controller_pool_total_slots::AgentControllerPoolTotalSlots;
+use crate::agent_desired_state::AgentDesiredState;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller_pool_snapshot::AgentControllerPoolSnapshot;
 use crate::balancer::agent_controller_snapshot::AgentControllerSnapshot;
-use crate::llamacpp_desired_state::LlamaCppDesiredState;
 use crate::produces_snapshot::ProducesSnapshot;
 use crate::sets_desired_state::SetsDesiredState;
 
@@ -105,7 +105,7 @@ impl ProducesSnapshot for AgentControllerPool {
 
 #[async_trait]
 impl SetsDesiredState for AgentControllerPool {
-    async fn set_desired_state(&self, desired_state: LlamaCppDesiredState) -> Result<()> {
+    async fn set_desired_state(&self, desired_state: AgentDesiredState) -> Result<()> {
         for agent in self.agents.iter() {
             let agent_controller = agent.value();
 

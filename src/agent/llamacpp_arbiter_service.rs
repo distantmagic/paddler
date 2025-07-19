@@ -10,30 +10,30 @@ use crate::agent::llamacpp_arbiter::LlamaCppArbiter;
 use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
 use crate::agent::message::GenerateTokensChannel;
 use crate::agent::slot_aggregated_metrics_manager::SlotAggregatedMetricsManager;
-use crate::llamacpp_applicable_state::LlamaCppApplicableState;
-use crate::llamacpp_applicable_state_holder::LlamaCppApplicableStateHolder;
+use crate::agent_applicable_state::AgentApplicableState;
+use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
 use crate::response::ChunkResponse;
 use crate::service::Service;
 
 pub struct LlamaCppArbiterService {
-    llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
-    llamacpp_arbiter_controller: Option<LlamaCppArbiterController>,
+    agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
     generate_tokens_channel_rx: mpsc::Receiver<GenerateTokensChannel>,
+    llamacpp_arbiter_controller: Option<LlamaCppArbiterController>,
     slot_aggregated_metrics_manager: Arc<SlotAggregatedMetricsManager>,
     slots_total: i32,
 }
 
 impl LlamaCppArbiterService {
     pub async fn new(
+        agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
         generate_tokens_channel_rx: mpsc::Receiver<GenerateTokensChannel>,
-        llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
         slot_aggregated_metrics_manager: Arc<SlotAggregatedMetricsManager>,
         slots_total: i32,
     ) -> Result<Self> {
         Ok(LlamaCppArbiterService {
-            llamacpp_applicable_state_holder,
-            llamacpp_arbiter_controller: None,
+            agent_applicable_state_holder,
             generate_tokens_channel_rx,
+            llamacpp_arbiter_controller: None,
             slot_aggregated_metrics_manager,
             slots_total,
         })
@@ -41,17 +41,17 @@ impl LlamaCppArbiterService {
 
     async fn on_reconciled_state_change(
         &mut self,
-        llamacpp_applicable_state: Option<LlamaCppApplicableState>,
+        agent_applicable_state: Option<AgentApplicableState>,
     ) -> Result<()> {
         if let Some(llamacpp_arbiter_controller) = self.llamacpp_arbiter_controller.take() {
             llamacpp_arbiter_controller.shutdown().await?;
         }
 
-        if let Some(llamacpp_applicable_state) = llamacpp_applicable_state {
+        if let Some(agent_applicable_state) = agent_applicable_state {
             self.slot_aggregated_metrics_manager.reset();
             self.llamacpp_arbiter_controller = Some(
                 LlamaCppArbiter::new(
-                    llamacpp_applicable_state,
+                    agent_applicable_state,
                     self.slot_aggregated_metrics_manager.clone(),
                     self.slots_total,
                 )
@@ -71,7 +71,7 @@ impl Service for LlamaCppArbiterService {
     }
 
     async fn run(&mut self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
-        let mut reconciled_state = self.llamacpp_applicable_state_holder.subscribe();
+        let mut reconciled_state = self.agent_applicable_state_holder.subscribe();
 
         loop {
             tokio::select! {
@@ -99,9 +99,9 @@ impl Service for LlamaCppArbiterService {
                     }
                 },
                 _ = reconciled_state.changed() => {
-                    let llamacpp_applicable_state: Option<LlamaCppApplicableState> = reconciled_state.borrow_and_update().clone();
+                    let agent_applicable_state: Option<AgentApplicableState> = reconciled_state.borrow_and_update().clone();
 
-                    if let Err(err) = self.on_reconciled_state_change(llamacpp_applicable_state).await {
+                    if let Err(err) = self.on_reconciled_state_change(agent_applicable_state).await {
                         error!("Failed to apply reconciled state change: {err}");
                     }
                 }
@@ -111,18 +111,18 @@ impl Service for LlamaCppArbiterService {
 }
 
 #[cfg(test)]
-#[cfg(feature = "tests_that_use_llms")]
+// #[cfg(feature = "tests_that_use_llms")]
 mod tests {
     use anyhow::anyhow;
     use anyhow::Context as _;
     use tokio::sync::oneshot;
 
     use super::*;
-    use crate::agent::converts_to_applicable_state::ConvertsToApplicableState as _;
-    use crate::agent::huggingface_model_reference::HuggingFaceModelReference;
-    use crate::agent::llamacpp_desired_model::LlamaCppDesiredModel;
-    use crate::agent::llamacpp_desired_state::LlamaCppDesiredState;
     use crate::agent::message::GenerateTokensChannel;
+    use crate::agent_desired_model::AgentDesiredModel;
+    use crate::agent_desired_state::AgentDesiredState;
+    use crate::converts_to_applicable_state::ConvertsToApplicableState as _;
+    use crate::huggingface_model_reference::HuggingFaceModelReference;
     use crate::request_params::GenerateTokensParams;
     use crate::service_manager::ServiceManager;
 
@@ -130,7 +130,7 @@ mod tests {
 
     struct MockStateReplacerService {
         applicable_state_ready_tx: Option<oneshot::Sender<()>>,
-        llamacpp_applicable_state_holder: Arc<LlamaCppApplicableStateHolder>,
+        agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
     }
 
     #[async_trait]
@@ -140,8 +140,8 @@ mod tests {
         }
 
         async fn run(&mut self, mut _shutdown_rx: broadcast::Receiver<()>) -> Result<()> {
-            let desired_state = LlamaCppDesiredState {
-                model: LlamaCppDesiredModel::HuggingFace(HuggingFaceModelReference {
+            let desired_state = AgentDesiredState {
+                model: AgentDesiredModel::HuggingFace(HuggingFaceModelReference {
                     filename: "Qwen3-0.6B-Q8_0.gguf".to_string(),
                     repo: "Qwen/Qwen3-0.6B-GGUF".to_string(),
                 }),
@@ -149,7 +149,7 @@ mod tests {
 
             let applicable_state = desired_state.to_applicable_state().await?;
 
-            self.llamacpp_applicable_state_holder
+            self.agent_applicable_state_holder
                 .set_applicable_state(applicable_state)
                 .context("Set new applicable state")?;
             self.applicable_state_ready_tx
@@ -180,7 +180,7 @@ mod tests {
                 .expect("Workaround for one-shot channel ownership")
                 .await?;
 
-            let (chunk_sender, mut chunk_receiver) = mpsc::channel::<String>(100);
+            let (chunk_sender, mut chunk_receiver) = mpsc::channel::<ChunkResponse>(100);
 
             let generate_tokens = GenerateTokensChannel {
                 chunk_sender,
@@ -199,7 +199,7 @@ mod tests {
                 println!("Awaiting for chunks...");
 
                 while let Some(chunk) = chunk_receiver.recv().await {
-                    println!("Received chunk: {chunk}");
+                    println!("Received chunk: {chunk:?}");
                 }
 
                 println!("No more chunks to receive, exiting...");
@@ -255,7 +255,7 @@ mod tests {
         let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
         let (applicable_state_ready_tx, applicable_state_ready_rx) = oneshot::channel::<()>();
         let (generate_chunks_ready_tx, generate_chunks_ready_rx) = oneshot::channel::<()>();
-        let llamacpp_applicable_state_holder = Arc::new(LlamaCppApplicableStateHolder::new());
+        let agent_applicable_state_holder = Arc::new(AgentApplicableStateHolder::new());
         let slot_aggregated_metrics_manager =
             Arc::new(SlotAggregatedMetricsManager::new(SLOTS_TOTAL));
 
@@ -263,8 +263,8 @@ mod tests {
 
         service_manager.add_service(
             LlamaCppArbiterService::new(
+                agent_applicable_state_holder.clone(),
                 generate_tokens_channel_rx,
-                llamacpp_applicable_state_holder.clone(),
                 slot_aggregated_metrics_manager,
                 SLOTS_TOTAL,
             )
@@ -273,7 +273,7 @@ mod tests {
 
         service_manager.add_service(MockStateReplacerService {
             applicable_state_ready_tx: Some(applicable_state_ready_tx),
-            llamacpp_applicable_state_holder,
+            agent_applicable_state_holder,
         });
 
         service_manager.add_service(MockGenerateTokensRequestService {
