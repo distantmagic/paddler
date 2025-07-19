@@ -1,3 +1,4 @@
+pub mod client;
 pub mod jsonrpc;
 
 use std::sync::Arc;
@@ -16,6 +17,8 @@ use log::error;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
+use self::client::Message as OutgoingMessage;
+use self::client::Response as OutgoingResponse;
 use self::jsonrpc::Message as InferenceJsonRpcMessage;
 use self::jsonrpc::Request as InferenceJsonRpcRequest;
 use crate::agent::jsonrpc::Message as AgentJsonRpcMessage;
@@ -27,6 +30,7 @@ use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::RequestEnvelope;
+use crate::jsonrpc::ResponseEnvelope;
 use crate::response::ChunkResponse;
 use crate::sends_rpc_message::SendsRpcMessage as _;
 use crate::websocket_session_controller::WebSocketSessionController;
@@ -49,7 +53,7 @@ struct InferenceSocketController {
 impl ControlsWebSocketEndpoint for InferenceSocketController {
     type Context = InferenceSocketControllerContext;
     type IncomingMessage = InferenceJsonRpcMessage;
-    type OutgoingMessage = InferenceJsonRpcMessage;
+    type OutgoingMessage = OutgoingMessage;
 
     fn create_context(&self) -> Self::Context {
         InferenceSocketControllerContext {
@@ -61,7 +65,7 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
     async fn handle_deserialized_message(
         context: Arc<Self::Context>,
         deserialized_message: Self::IncomingMessage,
-        _shutdown_tx: broadcast::Sender<()>,
+        shutdown_tx: broadcast::Sender<()>,
         mut websocket_session_controller: WebSocketSessionController<Self::OutgoingMessage>,
     ) -> Result<ContinuationDecision> {
         match deserialized_message {
@@ -94,7 +98,7 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                     {
                         agent_controller
                             .send_rpc_message(AgentJsonRpcMessage::Request(RequestEnvelope {
-                                id,
+                                id: id.clone(),
                                 request: AgentJsonRpcRequest::GenerateTokens(params),
                             }))
                             .await
@@ -105,21 +109,40 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                         error!("No agent controller found to handle GenerateTokens request");
                     }
 
-                    while let Some(response) = generate_tokens_rx.recv().await {
-                        match response {
-                            ChunkResponse::Data(chunk) => {
-                                println!("Received chunk: {chunk:?}");
+                    let mut shutdown_tx_resubscribed = shutdown_tx.subscribe();
+
+                    loop {
+                        tokio::select! {
+                            _ = shutdown_tx_resubscribed.recv() => {
+                                break;
                             }
-                            ChunkResponse::Error(error) => {
-                                websocket_session_controller
-                                    .send_response(InferenceJsonRpcMessage::Error(JsonRpcError {
-                                        code: 500,
-                                        description: Some(error),
-                                    }))
-                                    .await
-                                    .unwrap_or_else(|err| {
-                                        error!("Failed to send error response: {err}");
-                                    });
+                            response = generate_tokens_rx.recv() => {
+                                match response {
+                                    Some(ChunkResponse::Data(chunk)) => {
+                                        println!("Received chunk: {chunk:?}");
+                                        websocket_session_controller
+                                            .send_response(OutgoingMessage::Response(ResponseEnvelope::StreamChunk {
+                                                request_id: id.clone(),
+                                                chunk: OutgoingResponse::GeneratedToken(chunk),
+                                            }))
+                                            .await
+                                            .unwrap_or_else(|err| {
+                                                error!("Failed to send data response: {err}");
+                                            });
+                                    }
+                                    Some(ChunkResponse::Error(error)) => {
+                                        websocket_session_controller
+                                            .send_response(OutgoingMessage::Error(JsonRpcError {
+                                                code: 500,
+                                                description: Some(error),
+                                            }))
+                                            .await
+                                            .unwrap_or_else(|err| {
+                                                error!("Failed to send error response: {err}");
+                                            });
+                                    }
+                                    None => break,
+                                }
                             }
                         }
                     }

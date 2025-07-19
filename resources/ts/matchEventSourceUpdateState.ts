@@ -9,7 +9,7 @@ import {
   type StreamState,
 } from "./hooks/useEventSourceUpdates";
 
-interface Handlers<TSchema extends z.ZodTypeAny> {
+interface Handlers<TSchema extends z.ZodType> {
   connected(state: ConnectedState): ReactNode;
   connectionError(state: ConnectionErrorState): ReactNode;
   dataSnapshot(state: DataSnapshotState<TSchema>): ReactNode;
@@ -17,7 +17,7 @@ interface Handlers<TSchema extends z.ZodTypeAny> {
   initial(state: InitialStreamState): ReactNode;
 }
 
-export function matchEventSourceUpdateState<TSchema extends z.ZodTypeAny>(
+export function matchEventSourceUpdateState<TSchema extends z.ZodType>(
   streamState: StreamState<TSchema>,
   handlers: Handlers<NoInfer<TSchema>>,
 ): ReactNode {

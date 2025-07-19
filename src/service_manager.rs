@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
 use anyhow::Result;
-use log::debug;
+use log::error;
+use log::info;
 use tokio::sync::broadcast;
 use tokio::sync::oneshot;
 
@@ -21,25 +24,31 @@ impl ServiceManager {
     }
 
     pub async fn run_forever(self, shutdown_rx: oneshot::Receiver<()>) -> Result<()> {
-        let (broadcast_tx, _) = broadcast::channel::<()>(1);
+        let (shutdown_broadcast_tx, _) = broadcast::channel::<()>(1);
+        let shutdown_broadcast_tx_arc = Arc::new(shutdown_broadcast_tx.clone());
 
         for mut service in self.services {
             let service_name = service.name().to_string();
-            let shutdown_subscriber = broadcast_tx.subscribe();
+            let shutdown_broadcast_tx_arc_clone = shutdown_broadcast_tx_arc.clone();
 
             actix_rt::spawn(async move {
-                debug!("Starting service: {service_name}");
+                loop {
+                    info!("{service_name}: Starting");
 
-                if let Err(err) = service.run(shutdown_subscriber).await {
-                    panic!("Service error: {err}");
+                    if let Err(err) = service
+                        .run(shutdown_broadcast_tx_arc_clone.subscribe())
+                        .await
+                    {
+                        error!("{service_name}: {err}");
+                    }
+
+                    info!("{service_name}: Stopped");
                 }
-
-                debug!("Service stopped gracefully: {service_name}");
             });
         }
 
         let _ = shutdown_rx.await;
-        let _ = broadcast_tx.send(());
+        let _ = shutdown_broadcast_tx.send(());
 
         Ok(())
     }

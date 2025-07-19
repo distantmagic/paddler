@@ -78,6 +78,7 @@ impl Service for ManagementService {
                 .app_data(state_database.clone())
                 .configure(http_route::api::get_agents::register)
                 .configure(http_route::api::get_agents_stream::register)
+                .configure(http_route::api::put_agent_desired_state::register)
                 .configure(http_route::api::ws_agent_socket::register)
                 .configure(http_route::get_metrics::register)
         })

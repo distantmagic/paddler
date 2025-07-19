@@ -1,3 +1,4 @@
+use std::sync::atomic::Ordering::Relaxed;
 use std::sync::Arc;
 
 use actix::Actor;
@@ -65,6 +66,7 @@ impl LlamaCppSlot {
                     prompt,
                     max_tokens,
                 },
+            should_stop,
         }: GenerateTokensChannel,
     ) -> Result<()> {
         let tokens_list = self.model.str_to_token(&prompt, AddBos::Always)?;
@@ -84,6 +86,10 @@ impl LlamaCppSlot {
         let mut sampler = LlamaSampler::greedy();
 
         while n_cur <= max_tokens {
+            if should_stop.load(Relaxed) {
+                break;
+            }
+
             // sample the next token
             {
                 let token = sampler.sample(&self.llama_context, batch.n_tokens() - 1);

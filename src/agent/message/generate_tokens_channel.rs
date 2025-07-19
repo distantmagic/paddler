@@ -1,3 +1,6 @@
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
+
 use actix::Message;
 use anyhow::Result;
 use tokio::sync::mpsc;
@@ -10,4 +13,5 @@ use crate::response::ChunkResponse;
 pub struct GenerateTokensChannel {
     pub chunk_sender: mpsc::Sender<ChunkResponse>,
     pub params: GenerateTokensParams,
+    pub should_stop: Arc<AtomicBool>,
 }

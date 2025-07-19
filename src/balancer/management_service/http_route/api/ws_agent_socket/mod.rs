@@ -31,6 +31,7 @@ use crate::agent::jsonrpc::Response as AgentJsonRpcResponse;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
+use crate::balancer::generate_tokens_forward_result::GenerateTokensForwardResult;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::state_database::StateDatabase;
 use crate::controls_websocket_endpoint::ContinuationDecision;
@@ -189,12 +190,24 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                 request_id,
                 error,
             }) => {
-                context
+                match context
                     .generate_tokens_sender_collection
-                    .forward_response(request_id, ChunkResponse::Error(error))
-                    .await?;
+                    .forward_response(request_id.clone(), ChunkResponse::Error(error))
+                    .await
+                    .context("Unable to forward response error")?
+                {
+                    GenerateTokensForwardResult::Forwarded => Ok(ContinuationDecision::Continue),
+                    GenerateTokensForwardResult::NoSenderFound(agent_id) => {
+                        error!("No sender found for agent: {agent_id}");
+                        websocket_session_controller
+                            .send_response(AgentJsonRpcMessage::Notification(
+                                AgentJsonRpcNotification::StopRequest(request_id),
+                            ))
+                            .await?;
 
-                Ok(ContinuationDecision::Continue)
+                        Ok(ContinuationDecision::Continue)
+                    }
+                }
             }
             ManagementJsonRpcMessage::Response(ResponseEnvelope::StreamChunk {
                 request_id,
@@ -203,17 +216,29 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                         token,
                     }),
             }) => {
-                context
+                match context
                     .generate_tokens_sender_collection
                     .forward_response(
-                        request_id,
+                        request_id.clone(),
                         ChunkResponse::Data(GeneratedToken {
                             token,
                         }),
                     )
-                    .await?;
+                    .await
+                    .context("Unable to forward generated token")?
+                {
+                    GenerateTokensForwardResult::Forwarded => Ok(ContinuationDecision::Continue),
+                    GenerateTokensForwardResult::NoSenderFound(agent_id) => {
+                        error!("No sender found for agent: {agent_id}");
+                        websocket_session_controller
+                            .send_response(AgentJsonRpcMessage::Notification(
+                                AgentJsonRpcNotification::StopRequest(request_id),
+                            ))
+                            .await?;
 
-                Ok(ContinuationDecision::Continue)
+                        Ok(ContinuationDecision::Continue)
+                    }
+                }
             }
             ManagementJsonRpcMessage::Response(ResponseEnvelope::StreamDone {
                 request_id,

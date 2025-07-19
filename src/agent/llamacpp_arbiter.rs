@@ -3,6 +3,7 @@ use std::thread;
 
 use actix::sync::SyncArbiter;
 use actix::System;
+use anyhow::Context as _;
 use anyhow::Result;
 use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::llama_backend::LlamaBackend;
@@ -77,7 +78,9 @@ impl LlamaCppArbiter {
         });
 
         Ok(LlamaCppArbiterController::new(
-            llamacpp_slot_addr_rx.await?,
+            llamacpp_slot_addr_rx
+                .await
+                .context("Unable to await for llamacpp slot addr")?,
             shutdown_tx,
             sync_arbiter_thread_handle,
         ))
@@ -85,7 +88,7 @@ impl LlamaCppArbiter {
 }
 
 #[cfg(test)]
-// #[cfg(feature = "tests_that_use_llms")]
+#[cfg(feature = "tests_that_use_llms")]
 mod tests {
     use futures::future::join_all;
     use tokio::sync::mpsc;

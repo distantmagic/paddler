@@ -32,3 +32,29 @@ impl ConvertsToApplicableState for AgentDesiredState {
         }))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::agent_desired_model::AgentDesiredModel;
+    use crate::huggingface_model_reference::HuggingFaceModelReference;
+
+    #[test]
+    fn test_serialization() -> Result<()> {
+        let desired_state = AgentDesiredState {
+            model: AgentDesiredModel::HuggingFace(HuggingFaceModelReference {
+                filename: "model.gguf".to_string(),
+                repo: "org/repo".to_string(),
+            }),
+        };
+
+        let serialized = serde_json::to_string(&desired_state)?;
+
+        assert_eq!(
+            serialized,
+            r#"{"model":{"HuggingFace":{"filename":"model.gguf","repo":"org/repo"}}}"#
+        );
+
+        Ok(())
+    }
+}

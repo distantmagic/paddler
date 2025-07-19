@@ -16,11 +16,11 @@
   flex-direction: column;
   grid-area: aside;
   margin-right: var(--spacing-base);
-  padding: var(--spacing-base);
+  padding: var(--spacing-2x);
   row-gap: var(--spacing-base);
 
   code {
-    --size-outline: calc(-1 * var(--spacing-half));
+    --size-outline: -12px;
 
     display: inline-flex;
     margin: var(--spacing-half) 0;
@@ -66,6 +66,13 @@
   row-gap: var(--spacing-base);
 }
 
+.modelPage__formControls {
+  justify-content: flex-end;
+  display: flex;
+  flex-direction: row;
+  padding: 0 var(--spacing-base);
+}
+
 .modelPage__formLabel {
   display: flex;
   flex-direction: column;
@@ -91,5 +98,33 @@
 
 .modelPage__main {
   grid-area: main;
+  padding: var(--spacing-2x) var(--spacing-base) var(--spacing-base)
+    var(--spacing-base);
+}
+
+.modelPage__payloadPreview {
+  border: 2px solid var(--color-border);
   padding: var(--spacing-base);
+}
+
+.modelPage__payloadPreviewCorrect {
+  background-color: #00ff0022;
+}
+
+.modelPage__payloadPreviewError {
+  background-color: #ff000022;
+}
+
+.modelPage__submitButton {
+  appearance: none;
+  background-color: black;
+  border-radius: 20px 30%;
+  border: none;
+  color: white;
+  padding: var(--spacing-half) var(--spacing-base);
+  transition: border-radius var(--duration-transition-hover) ease-in-out;
+
+  &:hover {
+    border-radius: 30% 20px;
+  }
 }

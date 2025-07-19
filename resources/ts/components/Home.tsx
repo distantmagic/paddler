@@ -22,7 +22,7 @@ export function Home({
             <AgentListPage managementAddr={managementAddr} />
           </Route>
           <Route path="/model">
-            <ModelPage />
+            <ModelPage managementAddr={managementAddr} />
           </Route>
           <Route path="/prompt">
             <PromptContextProvider>

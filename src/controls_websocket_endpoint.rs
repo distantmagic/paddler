@@ -82,7 +82,7 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
                 {
                     Ok(continuation_decision) => return Ok(continuation_decision),
                     Err(err) => {
-                        error!("Error handling message: {err:?}");
+                        error!("Error handling text message: {err:?}");
 
                         Ok(ContinuationDecision::Continue)
                     }
@@ -197,7 +197,11 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
                                 // continue processing messages
                             }
                             Ok(ContinuationDecision::Stop) => break,
-                            Err(err) => error!("Error handling message: {err:?}"),
+                            Err(err) => {
+                                error!("Error handling aggregated message: {err:?}");
+
+                                break;
+                            },
                         }
                     }
                     _ = ping_ticker.tick() => {
@@ -209,6 +213,10 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
                         break;
                     }
                 }
+            }
+
+            if let Err(err) = shutdown_tx.send(()) {
+                error!("Failed to send shutdown signal: {err}");
             }
 
             let _ = session.close(None).await;

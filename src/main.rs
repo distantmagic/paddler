@@ -64,7 +64,7 @@ async fn main() -> Result<()> {
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
 
-    tokio::spawn(async move {
+    let tokio_join_handle = tokio::spawn(async move {
         let mut sigterm = signal(SignalKind::terminate()).expect("Failed to listen for SIGTERM");
         let mut sigint = signal(SignalKind::interrupt()).expect("Failed to listen for SIGINT");
         let mut sighup = signal(SignalKind::hangup()).expect("Failed to listen for SIGHUP");
@@ -80,7 +80,7 @@ async fn main() -> Result<()> {
             .expect("Failed to send shutdown signal");
     });
 
-    match Cli::parse().command {
+    let ret = match Cli::parse().command {
         Some(Commands::Agent(handler)) => handler.handle(shutdown_rx).await,
         Some(Commands::Balancer(handler)) => {
             #[cfg(feature = "web_admin_panel")]
@@ -89,5 +89,9 @@ async fn main() -> Result<()> {
             handler.handle(shutdown_rx).await
         }
         None => Ok(()),
-    }
+    };
+
+    tokio_join_handle.await?;
+
+    ret
 }

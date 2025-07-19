@@ -1,4 +1,6 @@
 pub mod dispenses_slots;
+pub mod generate_tokens_stop_result;
+pub mod generate_tokens_stoppers_collection;
 pub mod jsonrpc;
 pub mod llamacpp_arbiter;
 pub mod llamacpp_arbiter_controller;
@@ -12,4 +14,3 @@ pub mod slot_aggregated_metrics;
 pub mod slot_aggregated_metrics_manager;
 pub mod slot_metrics;
 pub mod slot_take_drop_guard;
-pub mod websocket_shared_writer;

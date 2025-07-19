@@ -1,8 +1,8 @@
-use anyhow::anyhow;
 use anyhow::Result;
 use dashmap::DashMap;
 use tokio::sync::mpsc;
 
+use crate::balancer::generate_tokens_forward_result::GenerateTokensForwardResult;
 use crate::response::ChunkResponse;
 
 pub struct GenerateTokensSenderCollection {
@@ -24,14 +24,14 @@ impl GenerateTokensSenderCollection {
         &self,
         request_id: String,
         response: ChunkResponse,
-    ) -> Result<()> {
+    ) -> Result<GenerateTokensForwardResult> {
         if let Some(sender) = self.senders.get(&request_id) {
             sender.send(response).await?;
-        } else {
-            return Err(anyhow!("No sender found for request ID: {}", request_id));
-        }
 
-        Ok(())
+            Ok(GenerateTokensForwardResult::Forwarded)
+        } else {
+            Ok(GenerateTokensForwardResult::NoSenderFound(request_id))
+        }
     }
 
     pub fn register_sender(&self, request_id: String, sender: mpsc::Sender<ChunkResponse>) {

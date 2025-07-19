@@ -1,7 +1,7 @@
 export interface InferenceSocketClient {
   generateTokens(params: {
     abortSignal: AbortSignal;
-    onChunk(chunk: string): void;
+    onToken(this: void, token: string): void;
     prompt: string;
   }): void;
 }

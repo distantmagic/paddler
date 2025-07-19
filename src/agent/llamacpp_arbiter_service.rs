@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use anyhow::Context as _;
 use anyhow::Result;
 use async_trait::async_trait;
 use log::error;
@@ -44,7 +45,10 @@ impl LlamaCppArbiterService {
         agent_applicable_state: Option<AgentApplicableState>,
     ) -> Result<()> {
         if let Some(llamacpp_arbiter_controller) = self.llamacpp_arbiter_controller.take() {
-            llamacpp_arbiter_controller.shutdown().await?;
+            llamacpp_arbiter_controller
+                .shutdown()
+                .await
+                .context("Unable to stop arbiter controller")?;
         }
 
         if let Some(agent_applicable_state) = agent_applicable_state {
@@ -56,7 +60,8 @@ impl LlamaCppArbiterService {
                     self.slots_total,
                 )
                 .spawn()
-                .await?,
+                .await
+                .context("Unable to spawn arbiter controller")?,
             );
         }
 
@@ -111,7 +116,7 @@ impl Service for LlamaCppArbiterService {
 }
 
 #[cfg(test)]
-// #[cfg(feature = "tests_that_use_llms")]
+#[cfg(feature = "tests_that_use_llms")]
 mod tests {
     use anyhow::anyhow;
     use anyhow::Context as _;
