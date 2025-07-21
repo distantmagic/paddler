@@ -18,6 +18,7 @@ pub fn handle(
     management_addr: SocketAddr,
     monitoring_interval: Duration,
     name: Option<String>,
+    check_model: bool, // Include the check_model flag
 ) -> Result<()> {
     let (status_update_tx, _status_update_rx) = channel::<Bytes>(1);
 
@@ -29,6 +30,7 @@ pub fn handle(
         monitoring_interval,
         name,
         status_update_tx.clone(),
+        check_model, // Pass the check_model flag
     )?;
 
     let reporting_service = ReportingService::new(management_addr, status_update_tx)?;

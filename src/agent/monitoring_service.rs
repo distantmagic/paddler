@@ -23,6 +23,7 @@ pub struct MonitoringService {
     monitoring_interval: Duration,
     name: Option<String>,
     status_update_tx: Sender<Bytes>,
+    check_model: bool, // Store the check_model flag
 }
 
 impl MonitoringService {
@@ -32,6 +33,7 @@ impl MonitoringService {
         monitoring_interval: Duration,
         name: Option<String>,
         status_update_tx: Sender<Bytes>,
+        check_model: bool, // Include the check_model flag
     ) -> Result<Self> {
         Ok(MonitoringService {
             external_llamacpp_addr,
@@ -39,6 +41,7 @@ impl MonitoringService {
             monitoring_interval,
             name,
             status_update_tx,
+            check_model,
         })
     }
 
@@ -49,6 +52,15 @@ impl MonitoringService {
             .iter()
             .filter(|slot| slot.is_processing)
             .count();
+
+        let model: Option<String> = if self.check_model {
+            match self.llamacpp_client.get_model().await {
+                Ok(model) => model,
+                Err(_) => None,
+            }
+        } else {
+            Some("".to_string())
+        };
 
         StatusUpdate {
             agent_name: self.name.to_owned(),
@@ -63,6 +75,7 @@ impl MonitoringService {
             is_unexpected_response_status: slots_response.is_unexpected_response_status,
             slots_idle: slots_response.slots.len() - slots_processing,
             slots_processing,
+            model,
         }
     }
 

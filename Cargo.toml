@@ -32,6 +32,7 @@ serde_json = "1.0.140"
 tokio = { version = "1.45.1", features = ["full"] }
 tokio-stream = { version = "0.1.17", features = ["sync"] }
 url = { version = "2.5.4", features = ["serde"] }
+regex = "1.11.1"
 
 chrono = { version = "0.4.41", optional = true }
 crossterm = { version = "0.28.1", features = ["event-stream"], optional = true }

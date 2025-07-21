@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 #[cfg(feature = "statsd_reporter")]
 use std::time::Duration;
+use log::info;
 
 use anyhow::Result;
 use pingora::proxy::http_proxy_service;
@@ -24,6 +25,7 @@ pub fn handle(
     metrics_endpoint_enable: bool,
     reverseproxy_addr: &SocketAddr,
     rewrite_host_header: bool,
+    check_model: bool,
     slots_endpoint_enable: bool,
     #[cfg(feature = "statsd_reporter")] statsd_addr: Option<SocketAddr>,
     #[cfg(feature = "statsd_reporter")] statsd_prefix: String,
@@ -45,6 +47,7 @@ pub fn handle(
         &pingora_server.configuration,
         ProxyService::new(
             rewrite_host_header,
+            check_model,
             slots_endpoint_enable,
             upstream_peer_pool.clone(),
             buffered_request_timeout,
@@ -75,6 +78,8 @@ pub fn handle(
 
         pingora_server.add_service(statsd_service);
     }
+
+    info!("rewrite_host_header? {} check_model? {} slots_endpoint_enable? {}", rewrite_host_header, check_model, slots_endpoint_enable);
 
     pingora_server.run_forever();
 }

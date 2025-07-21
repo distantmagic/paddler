@@ -22,5 +22,6 @@ pub fn mock_status_update(
         is_unexpected_response_status: Some(false),
         slots_idle,
         slots_processing,
+        model: Some("llama3".to_string()),
     }
 }

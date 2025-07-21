@@ -6,6 +6,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use bytes::Bytes;
 use log::error;
+use log::info;
 use pingora::http::RequestHeader;
 use pingora::proxy::ProxyHttp;
 use pingora::proxy::Session;
@@ -41,6 +42,7 @@ pub struct ProxyService {
     buffered_request_timeout: Duration,
     max_buffered_requests: usize,
     rewrite_host_header: bool,
+    check_model: bool,
     slots_endpoint_enable: bool,
     upstream_peer_pool: Arc<UpstreamPeerPool>,
 }
@@ -48,6 +50,7 @@ pub struct ProxyService {
 impl ProxyService {
     pub fn new(
         rewrite_host_header: bool,
+        check_model: bool,
         slots_endpoint_enable: bool,
         upstream_peer_pool: Arc<UpstreamPeerPool>,
         buffered_request_timeout: Duration,
@@ -55,6 +58,7 @@ impl ProxyService {
     ) -> Self {
         Self {
             rewrite_host_header,
+            check_model,
             slots_endpoint_enable,
             upstream_peer_pool,
             buffered_request_timeout,
@@ -73,6 +77,7 @@ impl ProxyHttp for ProxyService {
             slot_taken: false,
             upstream_peer_pool: self.upstream_peer_pool.clone(),
             uses_slots: false,
+            requested_model: Some("".to_string()),
         }
     }
 
@@ -180,9 +185,107 @@ impl ProxyHttp for ProxyService {
             }
             "/chat/completions" => true,
             "/completion" => true,
+            "/v1/completions" => true,
             "/v1/chat/completions" => true,
             _ => false,
         };
+
+        info!("upstream_peer - {:?} request | rewrite_host_header? {} check_model? {}", session.req_header().method, self.rewrite_host_header, self.check_model);
+
+        // Check if the request method is POST and the content type is JSON
+        if self.check_model && ctx.uses_slots {
+            info!("Checking model...");
+            ctx.requested_model = None;
+            if session.req_header().method == "POST" {
+                // Check if the content type is application/json
+                if let Some(content_type) = session.get_header("Content-Type") {
+                    if let Ok(content_type_str) = content_type.to_str() {
+                        if content_type_str.contains("application/json") {
+                            // Enable retry buffering to preserve the request body, reference: https://github.com/cloudflare/pingora/issues/349#issuecomment-2377277028
+                            session.enable_retry_buffering();
+                            session.read_body_or_idle(false).await.unwrap().unwrap();
+                            let request_body = session.get_retry_buffer();
+
+                            if let Some(body_bytes) = request_body {
+                                match std::str::from_utf8(&body_bytes) {
+                                    Ok(_) => {
+                                        // The bytes are valid UTF-8, proceed as normal
+                                        if let Ok(json_value) = serde_json::from_slice::<serde_json::Value>(&body_bytes) {
+                                            if let Some(model) = json_value.get("model").and_then(|v| v.as_str()) {
+                                                ctx.requested_model = Some(model.to_string());
+                                                info!("Model in request: {:?}", ctx.requested_model);
+                                            }
+                                        } else {
+                                            info!("Failed to parse JSON payload, trying regex extraction");
+                                            let body_str = String::from_utf8_lossy(&body_bytes).to_string();
+                                            let re = regex::Regex::new(r#""model"\s*:\s*["']([^"']*)["']"#).unwrap();
+                                            if let Some(caps) = re.captures(&body_str) {
+                                                if let Some(model) = caps.get(1) {
+                                                    ctx.requested_model = Some(model.as_str().to_string());
+                                                    info!("Model via regex: {:?}", ctx.requested_model);
+                                                }
+                                            } else {
+                                                info!("Failed to extract model using regex");
+                                            }
+                                        }
+                                    },
+                                    Err(e) => {
+                                        // Invalid UTF-8 detected. Truncate to the last valid UTF-8 boundary.
+                                        let valid_up_to = e.valid_up_to();
+                                        info!("Invalid UTF-8 detected. Truncating from {} bytes to {} bytes.", body_bytes.len(), valid_up_to);
+
+                                        // Create a new `Bytes` slice containing only the valid UTF-8 part.
+                                        let valid_body_bytes = body_bytes.slice(0..valid_up_to);
+
+                                        // Now proceed with the (truncated) valid_body_bytes
+                                        if let Ok(json_value) = serde_json::from_slice::<serde_json::Value>(&valid_body_bytes) {
+                                            if let Some(model) = json_value.get("model").and_then(|v| v.as_str()) {
+                                                ctx.requested_model = Some(model.to_string());
+                                                info!("Model in request (after truncation): {:?}", ctx.requested_model);
+                                            }
+                                        } else {
+                                            info!("Failed to parse JSON payload (after truncation), trying regex extraction");
+                                            let body_str = String::from_utf8_lossy(&valid_body_bytes).to_string();
+                                            let re = regex::Regex::new(r#""model"\s*:\s*["']([^"']*)["']"#).unwrap();
+                                            if let Some(caps) = re.captures(&body_str) {
+                                                if let Some(model) = caps.get(1) {
+                                                    ctx.requested_model = Some(model.as_str().to_string());
+                                                    info!("Model via regex (after truncation): {:?}", ctx.requested_model);
+                                                }
+                                            } else {
+                                                info!("Failed to extract model using regex (after truncation)");
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                info!("Request body is None");
+                            }
+                        }
+                    }
+                }
+            }
+            // abort if model has not been set
+            if ctx.requested_model == None {
+                info!("Model missing in request");
+                session
+                    .respond_error(pingora::http::StatusCode::BAD_REQUEST.as_u16())
+                    .await?;
+
+                return Err(Error::new_down(pingora::ErrorType::ConnectRefused));
+            }
+            else if ctx.has_peer_supporting_model() == false {
+                info!("Model {:?} not supported by upstream", ctx.requested_model);
+                session
+                    .respond_error(pingora::http::StatusCode::NOT_FOUND.as_u16())
+                    .await?;
+
+                return Err(Error::new_down(pingora::ErrorType::ConnectRefused));
+            }
+            else {
+                info!("Model {:?}", ctx.requested_model);
+            }
+        }
 
         let peer = tokio::select! {
             result = async {

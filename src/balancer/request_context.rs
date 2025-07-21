@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 use log::error;
+use log::info;
 use pingora::Error;
 use pingora::Result;
 
@@ -13,6 +14,7 @@ pub struct RequestContext {
     pub selected_peer: Option<UpstreamPeer>,
     pub upstream_peer_pool: Arc<UpstreamPeerPool>,
     pub uses_slots: bool,
+    pub requested_model: Option<String>,
 }
 
 impl RequestContext {
@@ -30,16 +32,19 @@ impl RequestContext {
         }
     }
 
-    pub fn use_best_peer_and_take_slot(&mut self) -> anyhow::Result<Option<UpstreamPeer>> {
+    pub fn use_best_peer_and_take_slot(&mut self, model: Option<String>) -> anyhow::Result<Option<UpstreamPeer>> {
         if let Some(peer) = self.upstream_peer_pool.with_agents_write(|agents| {
+            let model_str = model.as_deref().unwrap_or("");
             for peer in agents.iter_mut() {
-                if peer.is_usable() {
-                    peer.take_slot()?;
+                let is_usable = peer.is_usable();
+                let is_usable_for_model = peer.is_usable_for_model(model_str);
 
+                if is_usable && (model.is_none() || is_usable_for_model) {
+                    info!("Peer {} is usable: {}, usable for model '{}': {}", peer.agent_id, is_usable, model_str, is_usable_for_model);
+                    peer.take_slot()?;
                     return Ok(Some(peer.clone()));
                 }
             }
-
             Ok(None)
         })? {
             self.upstream_peer_pool.restore_integrity()?;
@@ -52,11 +57,26 @@ impl RequestContext {
         }
     }
 
+    pub fn has_peer_supporting_model(&self) -> bool {
+        let model_str = self.requested_model.as_deref().unwrap_or("");
+        match self.upstream_peer_pool.with_agents_read(|agents| {
+            for peer in agents.iter() {
+                if peer.supports_model(model_str) {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        }) {
+            Ok(result) => result,
+            Err(_) => false, // or handle the error as needed
+        }
+    }
+
     pub fn select_upstream_peer(&mut self) -> Result<()> {
         let result_option_peer = if self.uses_slots && !self.slot_taken {
-            self.use_best_peer_and_take_slot()
+            self.use_best_peer_and_take_slot(self.requested_model.clone())
         } else {
-            self.upstream_peer_pool.use_best_peer()
+            self.upstream_peer_pool.use_best_peer(self.requested_model.clone())
         };
 
         self.selected_peer = match result_option_peer {
@@ -95,6 +115,7 @@ mod tests {
             selected_peer: None,
             upstream_peer_pool,
             uses_slots: true,
+            requested_model: Some("llama3".to_string()),
         }
     }
 
@@ -105,7 +126,7 @@ mod tests {
 
         pool.register_status_update("test_agent", mock_status_update("test_agent", 0, 0))?;
 
-        assert!(ctx.use_best_peer_and_take_slot().unwrap().is_none());
+        assert!(ctx.use_best_peer_and_take_slot(ctx.requested_model.clone()).unwrap().is_none());
 
         assert!(!ctx.slot_taken);
         assert_eq!(ctx.selected_peer, None);
