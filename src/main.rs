@@ -14,13 +14,12 @@ mod huggingface_model_reference;
 mod jsonrpc;
 mod produces_snapshot;
 mod request_params;
-mod response;
-mod response_params;
 mod rpc_message;
 mod sends_rpc_message;
 mod service;
 mod service_manager;
 mod sets_desired_state;
+mod slot_aggregated_status_snapshot;
 #[cfg(feature = "web_admin_panel")]
 mod static_files;
 mod websocket_session_controller;

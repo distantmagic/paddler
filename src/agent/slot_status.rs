@@ -1,0 +1,32 @@
+use std::sync::Arc;
+
+use crate::agent::dispenses_slots::DispensesSlots;
+use crate::agent::slot_aggregated_status::SlotAggregatedStatus;
+use crate::atomic_value::AtomicValue;
+
+pub struct SlotStatus {
+    // pub model_path: Option<String>,
+    pub slot_aggregated_status: Arc<SlotAggregatedStatus>,
+    pub slots_processing: Arc<AtomicValue>,
+}
+
+impl SlotStatus {
+    pub fn new(slot_aggregated_status: Arc<SlotAggregatedStatus>) -> Self {
+        Self {
+            slot_aggregated_status,
+            slots_processing: Arc::new(AtomicValue::new(0)),
+        }
+    }
+}
+
+impl DispensesSlots for SlotStatus {
+    fn release_slot(&self) {
+        self.slots_processing.decrement();
+        self.slot_aggregated_status.release_slot();
+    }
+
+    fn take_slot(&self) {
+        self.slots_processing.increment();
+        self.slot_aggregated_status.take_slot();
+    }
+}

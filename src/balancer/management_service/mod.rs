@@ -10,7 +10,6 @@ use async_trait::async_trait;
 use tokio::sync::broadcast;
 
 use crate::balancer::agent_controller_pool::AgentControllerPool;
-use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::state_database::StateDatabase;
 #[cfg(feature = "web_admin_panel")]
@@ -21,7 +20,6 @@ use crate::service::Service;
 pub struct ManagementService {
     agent_controller_pool: Arc<AgentControllerPool>,
     configuration: ManagementServiceConfiguration,
-    generate_tokens_sender_collection: Arc<GenerateTokensSenderCollection>,
     state_database: Arc<dyn StateDatabase>,
     #[cfg(feature = "web_admin_panel")]
     web_admin_panel_service_configuration: Option<WebAdminPanelServiceConfiguration>,
@@ -31,7 +29,6 @@ impl ManagementService {
     pub fn new(
         agent_controller_pool: Arc<AgentControllerPool>,
         configuration: ManagementServiceConfiguration,
-        generate_tokens_sender_collection: Arc<GenerateTokensSenderCollection>,
         state_database: Arc<dyn StateDatabase>,
         #[cfg(feature = "web_admin_panel")] web_admin_panel_service_configuration: Option<
             WebAdminPanelServiceConfiguration,
@@ -40,7 +37,6 @@ impl ManagementService {
         ManagementService {
             agent_controller_pool,
             configuration,
-            generate_tokens_sender_collection,
             state_database,
             #[cfg(feature = "web_admin_panel")]
             web_admin_panel_service_configuration,
@@ -66,15 +62,12 @@ impl Service for ManagementService {
         }
 
         let cors_allowed_hosts_arc = Arc::new(cors_allowed_hosts);
-        let generate_tokens_sender_collection: Data<GenerateTokensSenderCollection> =
-            Data::from(self.generate_tokens_sender_collection.clone());
         let state_database: Data<dyn StateDatabase> = Data::from(self.state_database.clone());
 
         Ok(HttpServer::new(move || {
             App::new()
                 .wrap(create_cors_middleware(cors_allowed_hosts_arc.clone()))
                 .app_data(agent_pool.clone())
-                .app_data(generate_tokens_sender_collection.clone())
                 .app_data(state_database.clone())
                 .configure(http_route::api::get_agents::register)
                 .configure(http_route::api::get_agents_stream::register)

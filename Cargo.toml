@@ -51,7 +51,7 @@ rust-embed = { version = "8.7.2", optional = true, features = ["interpolate-fold
 
 [features]
 web_admin_panel = ["dep:askama", "dep:esbuild-metafile", "dep:mime_guess", "dep:rust-embed"]
-default = ["web_admin_panel"]
+default = ["tests_that_use_llms", "web_admin_panel"]
 tests_that_use_llms = []
 
 [profile.release]

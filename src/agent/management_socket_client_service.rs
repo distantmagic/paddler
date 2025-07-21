@@ -9,11 +9,8 @@ use async_trait::async_trait;
 use futures_util::StreamExt;
 use log::error;
 use actix_web::web::Bytes;
-use crate::agent::generate_tokens_stoppers_collection::GenerateTokensStoppersCollection;
 use log::info;
-use std::sync::atomic::Ordering::Relaxed;
 use log::warn;
-use crate::agent::generate_tokens_stop_result::GenerateTokensStopResult;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::time::interval;
@@ -27,55 +24,45 @@ use crate::agent::jsonrpc::notification_params::VersionParams;
 use crate::agent::jsonrpc::Message as JsonRpcMessage;
 use crate::agent::jsonrpc::Notification as JsonRpcNotification;
 use crate::agent::jsonrpc::Request as JsonRpcRequest;
-use crate::agent::jsonrpc::Response as JsonRpcResponse;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::RegisterAgentParams;
-use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::UpdateAgentSlotsParams;
-use crate::agent::message::GenerateTokensChannel;
-use crate::response::ChunkResponse;
+use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::UpdateAgentStatusParams;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Notification as ManagementJsonRpcNotification;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Message as ManagementJsonRpcMessage;
 use crate::jsonrpc::Error as JsonRpcError;
-use crate::agent::slot_aggregated_metrics::SlotAggregatedMetrics;
+use crate::produces_snapshot::ProducesSnapshot;
+use crate::agent::slot_aggregated_status::SlotAggregatedStatus;
 use crate::jsonrpc::RequestEnvelope;
-use crate::jsonrpc::ResponseEnvelope;
 use crate::service::Service;
 
 pub struct ManagementSocketClientService {
-    generate_tokens_channel_tx: mpsc::Sender<GenerateTokensChannel>,
-    generate_tokens_stoppers_collection: Arc<GenerateTokensStoppersCollection>,
     name: Option<String>,
     reconciliation_queue: Arc<ReconciliationQueue>,
-    slot_aggregated_metrics: Arc<SlotAggregatedMetrics>,
+    slot_aggregated_status: Arc<SlotAggregatedStatus>,
     socket_url: String,
 }
 
 impl ManagementSocketClientService {
     pub fn new(
-        generate_tokens_channel_tx: mpsc::Sender<GenerateTokensChannel>,
         management_addr: SocketAddr,
         name: Option<String>,
         reconciliation_queue: Arc<ReconciliationQueue>,
-        slot_aggregated_metrics: Arc<SlotAggregatedMetrics>,
+        slot_aggregated_status: Arc<SlotAggregatedStatus>,
     ) -> Result<Self> {
         let agent_id = Uuid::new_v4();
 
         Ok(ManagementSocketClientService {
-            generate_tokens_channel_tx,
-            generate_tokens_stoppers_collection: Arc::new(GenerateTokensStoppersCollection::new()),
             name,
             reconciliation_queue,
-            slot_aggregated_metrics,
+            slot_aggregated_status,
             socket_url: format!("ws://{management_addr}/api/v1/agent_socket/{agent_id}"),
         })
     }
 
     async fn handle_incoming_message(
-        generate_tokens_channel_tx: mpsc::Sender<GenerateTokensChannel>,
-        generate_tokens_stoppers_collection: Arc<GenerateTokensStoppersCollection>,
-        message_tx: mpsc::Sender<ManagementJsonRpcMessage>,
+        _message_tx: mpsc::UnboundedSender<ManagementJsonRpcMessage>,
         msg: Message,
-        pong_tx: mpsc::Sender<Bytes>,
+        pong_tx: mpsc::UnboundedSender<Bytes>,
         reconciliation_queue: Arc<ReconciliationQueue>,
     ) -> Result<()> {
         match msg {
@@ -99,16 +86,7 @@ impl ManagementSocketClientService {
                         .register_change_request(desired_state)
                         .await
                 }
-                JsonRpcMessage::Notification(JsonRpcNotification::StopRequest(request_id)) => {
-                    match generate_tokens_stoppers_collection.stop(request_id) {
-                        GenerateTokensStopResult::Stopped => Ok(()),
-                        GenerateTokensStopResult::RequestNotFound(request_id) => {
-                            warn!("Request with ID {request_id} not found for stopping");
-
-                            Ok(())
-                        }
-                    }
-                }
+                JsonRpcMessage::Notification(JsonRpcNotification::StopRequest(_)) => Ok(()),
                 JsonRpcMessage::Notification(JsonRpcNotification::Version(VersionParams {
                     version,
                 })) => {
@@ -122,125 +100,13 @@ impl ManagementSocketClientService {
                     Ok(())
                 }
                 JsonRpcMessage::Request(RequestEnvelope {
-                    id,
+                    id: _,
                     request:
                         JsonRpcRequest::GenerateTokens(GenerateTokensParams {
-                            max_tokens,
-                            prompt,
+                            max_tokens: _,
+                            prompt: _,
                         }),
-                }) => {
-                    for _ in 1..10 {
-                        println!("1");
-                    }
-
-                    let (chunk_sender, mut chunk_receiver) = mpsc::channel::<ChunkResponse>(100);
-
-                    let generate_tokens_channel_tx = generate_tokens_channel_tx.clone();
-                    let id_clone = id.clone();
-                    let should_stop = generate_tokens_stoppers_collection.register_for(id_clone);
-
-                    generate_tokens_channel_tx
-                        .send(GenerateTokensChannel {
-                            chunk_sender,
-                            params: GenerateTokensParams {
-                                max_tokens,
-                                prompt,
-                            },
-                            should_stop: should_stop.clone(),
-                        })
-                        .await?;
-
-                    for _ in 1..10 {
-                        println!("2");
-                    }
-
-                    let generate_tokens_stoppers_collection_clone =
-                        generate_tokens_stoppers_collection.clone();
-                    let should_stop_clone = should_stop.clone();
-
-                    rt::spawn(async move {
-                        for _ in 1..10 {
-                            println!("3");
-                        }
-
-                        while let Some(chunk) = chunk_receiver.recv().await {
-                            if should_stop_clone.load(Relaxed) {
-                                break;
-                            }
-
-                            for _ in 1..10 {
-                                println!("4");
-                            }
-
-                            match chunk {
-                                ChunkResponse::Data(generated_token) => {
-                                    for _ in 1..10 {
-                                        println!("5");
-                                    }
-                                    message_tx
-                                        .send(ManagementJsonRpcMessage::Response(
-                                            ResponseEnvelope::StreamChunk {
-                                                request_id: id.clone(),
-                                                chunk: JsonRpcResponse::GeneratedToken(
-                                                    generated_token,
-                                                ),
-                                            },
-                                        ))
-                                        .await
-                                        .unwrap_or_else(|err| {
-                                            error!("Failed to send chunk response: {err}");
-                                        })
-                                }
-                                ChunkResponse::Error(err) => {
-                                    for _ in 1..10 {
-                                        println!("6");
-                                    }
-                                    let msg = format!("Error generating token: {err}");
-
-                                    message_tx
-                                        .send(ManagementJsonRpcMessage::Response(
-                                            ResponseEnvelope::Error {
-                                                request_id: id.clone(),
-                                                error: msg.clone(),
-                                            },
-                                        ))
-                                        .await
-                                        .unwrap_or_else(|send_err| {
-                                            error!("Failed to send error response: {send_err}");
-                                        });
-
-                                    error!("{msg}");
-                                }
-                            }
-                        }
-
-                        for _ in 1..10 {
-                            println!("7");
-                        }
-
-                        generate_tokens_stoppers_collection_clone.clear(id.clone());
-                        message_tx
-                            .send(ManagementJsonRpcMessage::Response(
-                                ResponseEnvelope::StreamDone {
-                                    request_id: id,
-                                },
-                            ))
-                            .await
-                            .unwrap_or_else(|err| {
-                                error!("Failed to send stream done response: {err}");
-                            });
-
-                        for _ in 1..10 {
-                            println!("8");
-                        }
-                    });
-
-                    for _ in 1..10 {
-                        println!("9");
-                    }
-
-                    Ok(())
-                }
+                }) => Ok(()),
             },
             Message::Binary(_) => {
                 error!("Received binary message, which is not expected");
@@ -257,7 +123,7 @@ impl ManagementSocketClientService {
 
                 Ok(())
             }
-            Message::Ping(payload) => Ok(pong_tx.send(payload).await?),
+            Message::Ping(payload) => Ok(pong_tx.send(payload)?),
             Message::Pong(_) => {
                 // Pong received, no action needed
                 Ok(())
@@ -270,15 +136,20 @@ impl ManagementSocketClientService {
 
         info!("Connected to management server");
 
-        let (message_tx, mut message_rx) = mpsc::channel::<ManagementJsonRpcMessage>(100);
-        let (pong_tx, mut pong_rx) = mpsc::channel::<Bytes>(100);
+        let (connection_close_tx, mut connection_close_rx) = broadcast::channel::<()>(1);
+        let (message_tx, mut message_rx) = mpsc::unbounded_channel::<ManagementJsonRpcMessage>();
+        let (pong_tx, mut pong_rx) = mpsc::unbounded_channel::<Bytes>();
         let (mut write, mut read) = ws_stream.split();
 
+        let mut connection_close_rx_resubscribed = connection_close_rx.resubscribe();
         let mut shutdown_resubscribed = shutdown.resubscribe();
 
         rt::spawn(async move {
             loop {
                 tokio::select! {
+                    _ = connection_close_rx_resubscribed.recv() => {
+                        break;
+                    }
                     _ = shutdown_resubscribed.recv() => {
                         break;
                     }
@@ -316,59 +187,55 @@ impl ManagementSocketClientService {
             }
         });
 
-        let generate_tokens_channel_tx_clone = self.generate_tokens_channel_tx.clone();
-        let generate_tokens_stoppers_collection_clone =
-            self.generate_tokens_stoppers_collection.clone();
         let name_clone = self.name.clone();
         let reconciliation_queue_clone = self.reconciliation_queue.clone();
-        let slot_aggregated_metrics_clone = self.slot_aggregated_metrics.clone();
-        let slot_aggregated_metrics_slots_total = self.slot_aggregated_metrics.slots_total;
+        let slot_aggregated_status_clone = self.slot_aggregated_status.clone();
 
         rt::spawn(async move {
             message_tx
                 .send(ManagementJsonRpcMessage::Notification(
                     ManagementJsonRpcNotification::RegisterAgent(RegisterAgentParams {
                         name: name_clone,
-                        slots_total: slot_aggregated_metrics_slots_total,
+                        slot_aggregated_status_snapshot: slot_aggregated_status_clone.make_snapshot(),
                     }),
                 ))
-                .await
                 .unwrap_or_else(|err| {
                     error!("Failed to send register agent notification: {err}");
                 });
 
             loop {
                 tokio::select! {
+                    _ = connection_close_rx.recv() => {
+                        info!("Connection close signal received, shutting down");
+
+                        break;
+                    }
                     _ = shutdown.recv() => {
-                        info!("Shutdown signal received, closing connection");
-                        generate_tokens_stoppers_collection_clone.stop_all();
                         message_tx.send(
                             ManagementJsonRpcMessage::Notification(
                                 ManagementJsonRpcNotification::DeregisterAgent,
                             )
-                        ).await.unwrap_or_else(|err| {
+                        ).unwrap_or_else(|err| {
                             error!("Failed to send deregister agent notification: {err}");
                         });
 
                         break;
                     }
-                    _ = slot_aggregated_metrics_clone.update_notifier.notified() => {
+                    _ = slot_aggregated_status_clone.update_notifier.notified() => {
                         message_tx.send(
                             ManagementJsonRpcMessage::Notification(
-                                ManagementJsonRpcNotification::UpdateAgentSlots(UpdateAgentSlotsParams {
-                                    slots_processing: slot_aggregated_metrics_clone.slots_processing.get(),
+                                ManagementJsonRpcNotification::UpdateAgentStatus(UpdateAgentStatusParams {
+                                    slot_aggregated_status_snapshot: slot_aggregated_status_clone.make_snapshot(),
                                 })
                             )
-                        ).await.unwrap_or_else(|err| {
+                        ).unwrap_or_else(|err| {
                             error!("Failed to send update slots notification: {err}");
                         });
                     }
                     msg = read.next() => {
-                        match msg {
+                        let should_close = match msg {
                             Some(Ok(msg)) => {
                                 if let Err(err) = Self::handle_incoming_message(
-                                        generate_tokens_channel_tx_clone.clone(),
-                                        generate_tokens_stoppers_collection_clone.clone(),
                                         message_tx.clone(),
                                         msg,
                                         pong_tx.clone(),
@@ -378,14 +245,24 @@ impl ManagementSocketClientService {
                                     .context("Failed to handle incoming message")
                                 {
                                     error!("Error handling incoming message: {err}");
-                                    break;
                                 }
+
+                                false
                             }
                             Some(Err(err)) => {
                                 error!("Error reading message: {err}");
-                                break;
+
+                                true
                             }
-                            None => break,
+                            None => true,
+                        };
+
+                        if should_close {
+                            if let Err(err) = connection_close_tx.send(()) {
+                                error!("Failed to send connection close signal: {err}");
+                            }
+
+                            break;
                         }
                     }
                 }

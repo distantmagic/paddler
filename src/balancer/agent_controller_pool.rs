@@ -29,13 +29,13 @@ impl AgentControllerPool {
         }
     }
 
-    pub fn find_best_agent_controller(&self) -> Option<Arc<AgentController>> {
-        self.agents
-            .iter()
-            .map(|entry| entry.value().clone())
-            .filter(|agent| agent.slots_processing.get() < agent.slots_total)
-            .min_by_key(|agent| agent.slots_processing.get())
-    }
+    // pub fn find_best_agent_controller(&self) -> Option<Arc<AgentController>> {
+    //     self.agents
+    //         .iter()
+    //         .map(|entry| entry.value().clone())
+    //         .filter(|agent| agent.slots_processing.get() < agent.slots_total)
+    //         .min_by_key(|agent| agent.slots_processing.get())
+    // }
 
     pub fn get_agent_controller(&self, agent_id: &str) -> Option<Arc<AgentController>> {
         self.agents.get(agent_id).map(|entry| entry.value().clone())
@@ -73,7 +73,7 @@ impl AgentControllerPool {
             let agent = entry.value();
 
             slots_processing += agent.slots_processing.get();
-            slots_total += agent.slots_total;
+            slots_total += agent.slots_total.get();
         }
 
         AgentControllerPoolTotalSlots {

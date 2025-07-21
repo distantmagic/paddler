@@ -21,25 +21,21 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
 use self::jsonrpc::notification_params::RegisterAgentParams;
-use self::jsonrpc::notification_params::UpdateAgentSlotsParams;
+use self::jsonrpc::notification_params::UpdateAgentStatusParams;
 use self::jsonrpc::Message as ManagementJsonRpcMessage;
 use self::jsonrpc::Notification as ManagementJsonRpcNotification;
 use crate::agent::jsonrpc::notification_params::VersionParams;
 use crate::agent::jsonrpc::Message as AgentJsonRpcMessage;
 use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
-use crate::agent::jsonrpc::Response as AgentJsonRpcResponse;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
-use crate::balancer::generate_tokens_forward_result::GenerateTokensForwardResult;
-use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::state_database::StateDatabase;
 use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::jsonrpc::ResponseEnvelope;
-use crate::response::ChunkResponse;
-use crate::response_params::GeneratedToken;
 use crate::sets_desired_state::SetsDesiredState as _;
+use crate::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 use crate::websocket_session_controller::WebSocketSessionController;
 
 pub fn register(cfg: &mut ServiceConfig) {
@@ -49,7 +45,6 @@ pub fn register(cfg: &mut ServiceConfig) {
 struct AgentSocketControllerContext {
     agent_controller_pool: Data<AgentControllerPool>,
     agent_id: String,
-    generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
     state_database: Data<dyn StateDatabase>,
 }
 
@@ -69,7 +64,6 @@ impl Drop for AgentSocketControllerContext {
 struct AgentSocketController {
     agent_controller_pool: Data<AgentControllerPool>,
     agent_id: String,
-    generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
     state_database: Data<dyn StateDatabase>,
 }
 
@@ -83,15 +77,14 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
         AgentSocketControllerContext {
             agent_controller_pool: self.agent_controller_pool.clone(),
             agent_id: self.agent_id.clone(),
-            generate_tokens_sender_collection: self.generate_tokens_sender_collection.clone(),
             state_database: self.state_database.clone(),
         }
     }
 
     async fn handle_deserialized_message(
+        connection_close_tx: broadcast::Sender<()>,
         context: Arc<Self::Context>,
         deserialized_message: Self::IncomingMessage,
-        shutdown_tx: broadcast::Sender<()>,
         mut websocket_session_controller: WebSocketSessionController<Self::OutgoingMessage>,
     ) -> Result<ContinuationDecision> {
         match deserialized_message {
@@ -103,14 +96,18 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
             ManagementJsonRpcMessage::Notification(
                 ManagementJsonRpcNotification::DeregisterAgent,
             ) => {
-                shutdown_tx.send(())?;
+                connection_close_tx.send(())?;
 
                 return Ok(ContinuationDecision::Stop);
             }
             ManagementJsonRpcMessage::Notification(
                 ManagementJsonRpcNotification::RegisterAgent(RegisterAgentParams {
                     name,
-                    slots_total,
+                    slot_aggregated_status_snapshot:
+                        SlotAggregatedStatusSnapshot {
+                            slots_processing,
+                            slots_total,
+                        },
                 }),
             ) => {
                 let (agent_tx, mut agent_rx) = mpsc::channel::<AgentJsonRpcMessage>(1000);
@@ -118,8 +115,8 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     agent_tx,
                     id: context.agent_id.clone(),
                     name,
-                    slots_processing: AtomicValue::new(0),
-                    slots_total,
+                    slots_processing: AtomicValue::new(slots_processing),
+                    slots_total: AtomicValue::new(slots_total),
                 };
 
                 if let Some(desired_state) = context.state_database.read_desired_state().await? {
@@ -136,7 +133,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
 
                 info!("Registered agent: {}", context.agent_id);
 
-                let mut shutdown_tx_resubscribed = shutdown_tx.subscribe();
+                let mut shutdown_tx_resubscribed = connection_close_tx.subscribe();
 
                 rt::spawn(async move {
                     loop {
@@ -167,8 +164,12 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                 Ok(ContinuationDecision::Continue)
             }
             ManagementJsonRpcMessage::Notification(
-                ManagementJsonRpcNotification::UpdateAgentSlots(UpdateAgentSlotsParams {
-                    slots_processing,
+                ManagementJsonRpcNotification::UpdateAgentStatus(UpdateAgentStatusParams {
+                    slot_aggregated_status_snapshot:
+                        SlotAggregatedStatusSnapshot {
+                            slots_processing,
+                            slots_total,
+                        },
                 }),
             ) => {
                 if let Some(agent_controller) = context
@@ -176,6 +177,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     .get_agent_controller(&context.agent_id)
                 {
                     agent_controller.slots_processing.set(slots_processing);
+                    agent_controller.slots_total.set(slots_total);
                     context
                         .agent_controller_pool
                         .update_notifier
@@ -187,59 +189,9 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                 Ok(ContinuationDecision::Continue)
             }
             ManagementJsonRpcMessage::Response(ResponseEnvelope::Error {
-                request_id,
-                error,
-            }) => {
-                match context
-                    .generate_tokens_sender_collection
-                    .forward_response(request_id.clone(), ChunkResponse::Error(error))
-                    .await
-                    .context("Unable to forward response error")?
-                {
-                    GenerateTokensForwardResult::Forwarded => Ok(ContinuationDecision::Continue),
-                    GenerateTokensForwardResult::NoSenderFound(agent_id) => {
-                        error!("No sender found for agent: {agent_id}");
-                        websocket_session_controller
-                            .send_response(AgentJsonRpcMessage::Notification(
-                                AgentJsonRpcNotification::StopRequest(request_id),
-                            ))
-                            .await?;
-
-                        Ok(ContinuationDecision::Continue)
-                    }
-                }
-            }
-            ManagementJsonRpcMessage::Response(ResponseEnvelope::StreamChunk {
-                request_id,
-                chunk:
-                    AgentJsonRpcResponse::GeneratedToken(GeneratedToken {
-                        token,
-                    }),
-            }) => {
-                match context
-                    .generate_tokens_sender_collection
-                    .forward_response(
-                        request_id.clone(),
-                        ChunkResponse::Data(GeneratedToken {
-                            token,
-                        }),
-                    )
-                    .await
-                    .context("Unable to forward generated token")?
-                {
-                    GenerateTokensForwardResult::Forwarded => Ok(ContinuationDecision::Continue),
-                    GenerateTokensForwardResult::NoSenderFound(agent_id) => {
-                        error!("No sender found for agent: {agent_id}");
-                        websocket_session_controller
-                            .send_response(AgentJsonRpcMessage::Notification(
-                                AgentJsonRpcNotification::StopRequest(request_id),
-                            ))
-                            .await?;
-
-                        Ok(ContinuationDecision::Continue)
-                    }
-                }
-            }
+                request_id: _,
+                error: _,
+            }) => Ok(ContinuationDecision::Continue),
             ManagementJsonRpcMessage::Response(ResponseEnvelope::StreamDone {
                 request_id,
             }) => {
@@ -250,9 +202,9 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
     }
 
     async fn handle_serialization_error(
+        _connection_close_tx: broadcast::Sender<()>,
         _context: Arc<Self::Context>,
         error: serde_json::Error,
-        _shutdown_tx: broadcast::Sender<()>,
         _websocket_session_controller: WebSocketSessionController<Self::OutgoingMessage>,
     ) -> Result<ContinuationDecision> {
         error!("Error in AgentSocketController: {error}");
@@ -289,7 +241,6 @@ struct PathParams {
 #[get("/api/v1/agent_socket/{agent_id}")]
 async fn respond(
     agent_controller_pool: Data<AgentControllerPool>,
-    generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
     state_database: Data<dyn StateDatabase>,
     path_params: Path<PathParams>,
     payload: Payload,
@@ -298,7 +249,6 @@ async fn respond(
     let agent_socket_controller = AgentSocketController {
         agent_controller_pool,
         agent_id: path_params.agent_id.clone(),
-        generate_tokens_sender_collection,
         state_database,
     };
 

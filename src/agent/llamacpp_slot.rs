@@ -1,4 +1,4 @@
-use std::sync::atomic::Ordering::Relaxed;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use actix::Actor;
@@ -13,18 +13,19 @@ use llama_cpp_2::model::AddBos;
 use llama_cpp_2::model::LlamaModel;
 use llama_cpp_2::model::Special;
 use llama_cpp_2::sampling::LlamaSampler;
+use log::info;
 
-use crate::agent::message::GenerateTokensChannel;
-use crate::agent::slot_metrics::SlotMetrics;
-use crate::agent::slot_take_drop_guard::SlotTakeDropGuard;
+use crate::agent::generate_tokens_drop_guard::GenerateTokensDropGuard;
+use crate::agent::generate_tokens_request::GenerateTokensRequest;
+use crate::agent::generated_token::GeneratedToken;
+use crate::agent::slot_status::SlotStatus;
 use crate::request_params::GenerateTokensParams;
-use crate::response::ChunkResponse;
-use crate::response_params::GeneratedToken;
 
 pub struct LlamaCppSlot {
     llama_context: LlamaContext<'static>,
     model: Arc<LlamaModel>,
-    slot_metrics: Arc<SlotMetrics>,
+    slot_index: u32,
+    slot_status: Arc<SlotStatus>,
 }
 
 impl LlamaCppSlot {
@@ -32,7 +33,9 @@ impl LlamaCppSlot {
         backend: Arc<LlamaBackend>,
         ctx_params: Arc<LlamaContextParams>,
         model: Arc<LlamaModel>,
-        slot_metrics: Arc<SlotMetrics>,
+        model_path: PathBuf,
+        slot_index: u32,
+        slot_status: Arc<SlotStatus>,
     ) -> Result<Self> {
         debug_assert!(
             Arc::strong_count(&model) >= 1,
@@ -50,24 +53,27 @@ impl LlamaCppSlot {
             model_ref.new_context(&backend, (*ctx_params).clone())?
         };
 
+        info!("llama_slot {slot_index} ready with model {model_path:?}");
+
         Ok(Self {
             llama_context,
             model,
-            slot_metrics,
+            slot_index,
+            slot_status,
         })
     }
 
     fn generate_tokens(
         &mut self,
-        GenerateTokensChannel {
-            chunk_sender,
-            params:
+        GenerateTokensRequest {
+            generated_tokens_tx,
+            generate_tokens_params:
                 GenerateTokensParams {
                     prompt,
                     max_tokens,
                 },
-            should_stop,
-        }: GenerateTokensChannel,
+            request_id,
+        }: GenerateTokensRequest,
     ) -> Result<()> {
         let tokens_list = self.model.str_to_token(&prompt, AddBos::Always)?;
         let mut batch = LlamaBatch::new(512, 1);
@@ -86,10 +92,6 @@ impl LlamaCppSlot {
         let mut sampler = LlamaSampler::greedy();
 
         while n_cur <= max_tokens {
-            if should_stop.load(Relaxed) {
-                break;
-            }
-
             // sample the next token
             {
                 let token = sampler.sample(&self.llama_context, batch.n_tokens() - 1);
@@ -105,9 +107,11 @@ impl LlamaCppSlot {
                 let _decode_result =
                     decoder.decode_to_string(&output_bytes, &mut output_string, false);
 
-                chunk_sender.blocking_send(ChunkResponse::Data(GeneratedToken {
+                generated_tokens_tx.send(GeneratedToken {
+                    request_id: request_id.clone(),
+                    slot: self.slot_index,
                     token: output_string,
-                }))?;
+                })?;
 
                 batch.clear();
                 batch.add(token, n_cur, &[0], true)?;
@@ -126,11 +130,11 @@ impl Actor for LlamaCppSlot {
     type Context = SyncContext<Self>;
 }
 
-impl Handler<GenerateTokensChannel> for LlamaCppSlot {
+impl Handler<GenerateTokensRequest> for LlamaCppSlot {
     type Result = Result<()>;
 
-    fn handle(&mut self, message: GenerateTokensChannel, _ctx: &mut Self::Context) -> Self::Result {
-        let _guard = SlotTakeDropGuard::new(self.slot_metrics.clone());
+    fn handle(&mut self, message: GenerateTokensRequest, _ctx: &mut Self::Context) -> Self::Result {
+        let _guard = GenerateTokensDropGuard::new(self.slot_status.clone());
 
         self.generate_tokens(message)
     }

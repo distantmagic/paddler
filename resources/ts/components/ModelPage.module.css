@@ -1,6 +1,6 @@
 .modelPage {
   align-items: flex-start;
-  column-gap: var(--spacing-2x);
+  column-gap: var(--spacing-base);
   display: grid;
   grid-template-areas: "main aside";
   grid-template-columns: 3fr minmax(300px, 2fr);

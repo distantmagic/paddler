@@ -17,7 +17,7 @@ pub struct AgentController {
     pub id: String,
     pub name: Option<String>,
     pub slots_processing: AtomicValue,
-    pub slots_total: i32,
+    pub slots_total: AtomicValue,
 }
 
 impl ProducesSnapshot for AgentController {
@@ -28,7 +28,7 @@ impl ProducesSnapshot for AgentController {
             id: self.id.clone(),
             name: self.name.clone(),
             slots_processing: self.slots_processing.get(),
-            slots_total: self.slots_total,
+            slots_total: self.slots_total.get(),
         }
     }
 }

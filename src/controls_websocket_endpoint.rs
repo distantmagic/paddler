@@ -40,17 +40,17 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
     fn create_context(&self) -> Self::Context;
 
     async fn handle_deserialized_message(
+        connection_close_tx: broadcast::Sender<()>,
         context: Arc<Self::Context>,
         deserialized_message: Self::IncomingMessage,
-        shutdown_tx: broadcast::Sender<()>,
         websocket_session_controller: WebSocketSessionController<Self::OutgoingMessage>,
     ) -> Result<ContinuationDecision>;
 
     async fn handle_aggregated_message(
+        connection_close_tx: broadcast::Sender<()>,
         context: Arc<Self::Context>,
         msg: Option<Result<AggregatedMessage, actix_ws::ProtocolError>>,
         session: &mut Session,
-        shutdown_tx: broadcast::Sender<()>,
     ) -> Result<ContinuationDecision> {
         match msg {
             Some(Ok(AggregatedMessage::Binary(_))) => {
@@ -72,8 +72,8 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
             }
             Some(Ok(AggregatedMessage::Text(text))) => {
                 match Self::handle_text_message(
+                    connection_close_tx.clone(),
                     context.clone(),
-                    shutdown_tx.clone(),
                     &text,
                     WebSocketSessionController::<Self::OutgoingMessage>::new(session.clone()),
                 )
@@ -98,9 +98,9 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
     }
 
     async fn handle_serialization_error(
+        _connection_close_tx: broadcast::Sender<()>,
         _context: Arc<Self::Context>,
         error: serde_json::Error,
-        _shutdown_tx: broadcast::Sender<()>,
         _websocket_session_controller: WebSocketSessionController<Self::OutgoingMessage>,
     ) -> Result<ContinuationDecision> {
         error!("Paddler-RPC serializatikon error: {error}");
@@ -109,17 +109,17 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
     }
 
     async fn handle_text_message(
+        connection_close_tx: broadcast::Sender<()>,
         context: Arc<Self::Context>,
-        shutdown_tx: broadcast::Sender<()>,
         text: &str,
         websocket_session_controller: WebSocketSessionController<Self::OutgoingMessage>,
     ) -> Result<ContinuationDecision> {
         match serde_json::from_str::<Self::IncomingMessage>(text) {
             Ok(deserialized_message) => {
                 Self::handle_deserialized_message(
+                    connection_close_tx,
                     context,
                     deserialized_message,
-                    shutdown_tx,
                     websocket_session_controller,
                 )
                 .await
@@ -132,9 +132,9 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
                 error!("JSON-RPC syntax error: {err:?}");
 
                 Self::handle_serialization_error(
+                    connection_close_tx,
                     context,
                     err,
-                    shutdown_tx,
                     websocket_session_controller,
                 )
                 .await
@@ -143,9 +143,9 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
                 error!("Error handling JSON-RPC request: {err:?}");
 
                 Self::handle_serialization_error(
+                    connection_close_tx,
                     context,
                     err,
-                    shutdown_tx,
                     websocket_session_controller,
                 )
                 .await
@@ -161,9 +161,9 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
     }
 
     fn respond(&self, payload: Payload, req: HttpRequest) -> Result<HttpResponse, Error> {
+        let (connection_close_tx, mut connection_close_rx) = broadcast::channel::<()>(2);
         let context = Arc::new(self.create_context());
         let (res, mut session, msg_stream) = actix_ws::handle(&req, payload)?;
-        let (shutdown_tx, mut shutdown_rx) = broadcast::channel::<()>(2);
 
         let mut aggregated_msg_stream = msg_stream
             .aggregate_continuations()
@@ -188,10 +188,10 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
                 tokio::select! {
                     msg = aggregated_msg_stream.next() => {
                         match Self::handle_aggregated_message(
+                            connection_close_tx.clone(),
                             context.clone(),
                             msg,
                             &mut session,
-                            shutdown_tx.clone(),
                         ).await {
                             Ok(ContinuationDecision::Continue) => {
                                 // continue processing messages
@@ -209,13 +209,13 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
                             break;
                         }
                     }
-                    _ = shutdown_rx.recv() => {
+                    _ = connection_close_rx.recv() => {
                         break;
                     }
                 }
             }
 
-            if let Err(err) = shutdown_tx.send(()) {
+            if let Err(err) = connection_close_tx.send(()) {
                 error!("Failed to send shutdown signal: {err}");
             }
 

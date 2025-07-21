@@ -1,3 +1,5 @@
+use std::sync::atomic::AtomicU32;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::thread;
 
@@ -13,24 +15,24 @@ use tokio::sync::oneshot;
 
 use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
 use crate::agent::llamacpp_slot::LlamaCppSlot;
-use crate::agent::slot_aggregated_metrics_manager::SlotAggregatedMetricsManager;
+use crate::agent::slot_aggregated_status_manager::SlotAggregatedStatusManager;
 use crate::agent_applicable_state::AgentApplicableState;
 
 pub struct LlamaCppArbiter {
     applicable_state: AgentApplicableState,
-    slot_aggregated_metrics_manager: Arc<SlotAggregatedMetricsManager>,
+    slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
     slots_total: i32,
 }
 
 impl LlamaCppArbiter {
     pub fn new(
         applicable_state: AgentApplicableState,
-        slot_aggregated_metrics_manager: Arc<SlotAggregatedMetricsManager>,
+        slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
         slots_total: i32,
     ) -> Self {
         Self {
             applicable_state,
-            slot_aggregated_metrics_manager,
+            slot_aggregated_status_manager,
             slots_total,
         }
     }
@@ -39,19 +41,24 @@ impl LlamaCppArbiter {
         let (llamacpp_slot_addr_tx, llamacpp_slot_addr_rx) = oneshot::channel();
         let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
         let model_path = self.applicable_state.model_path.clone();
-        let slot_aggregated_metrics_manager = self.slot_aggregated_metrics_manager.clone();
+        let slot_aggregated_status_manager = self.slot_aggregated_status_manager.clone();
         let slots_total = self.slots_total;
 
         let sync_arbiter_thread_handle = thread::spawn(move || -> Result<()> {
-            let backend = Arc::new(LlamaBackend::init()?);
+            let backend =
+                Arc::new(LlamaBackend::init().context("Unable to initialize llama.cpp backend")?);
             let ctx_params = Arc::new(LlamaContextParams::default());
             let backend_clone = backend.clone();
-            let model = Arc::new(LlamaModel::load_from_file(
-                &backend_clone.clone(),
-                model_path,
-                &LlamaModelParams::default(),
-            )?);
+            let model = Arc::new(
+                LlamaModel::load_from_file(
+                    &backend_clone.clone(),
+                    model_path.clone(),
+                    &LlamaModelParams::default(),
+                )
+                .context("Unable to load model from file")?,
+            );
 
+            let slot_index = Arc::new(AtomicU32::new(0));
             let system = System::new();
 
             system.block_on(async move {
@@ -61,7 +68,9 @@ impl LlamaCppArbiter {
                             backend.clone(),
                             ctx_params.clone(),
                             model.clone(),
-                            slot_aggregated_metrics_manager.bind_slot_metrics(),
+                            model_path.clone(),
+                            slot_index.fetch_add(1, Ordering::SeqCst),
+                            slot_aggregated_status_manager.bind_slot_status(),
                         )
                         .expect("Failed to create LlamaCppSlot")
                     }))
@@ -94,14 +103,14 @@ mod tests {
     use tokio::sync::mpsc;
 
     use super::*;
-    use crate::agent::message::GenerateTokensChannel;
+    use crate::agent::generate_tokens_request::GenerateTokensRequest;
     use crate::agent_desired_model::AgentDesiredModel;
     use crate::agent_desired_state::AgentDesiredState;
     use crate::converts_to_applicable_state::ConvertsToApplicableState as _;
     use crate::huggingface_model_reference::HuggingFaceModelReference;
     use crate::request_params::GenerateTokensParams;
 
-    const SLOTS_TOTAL: i32 = 3;
+    const SLOTS_TOTAL: i32 = 2;
 
     #[actix_web::test]
     async fn test_llamacpp_arbiter_spawn() -> Result<()> {
@@ -113,8 +122,8 @@ mod tests {
                 // repo: "Qwen/Qwen3-8B-GGUF".to_string(),
             }),
         };
-        let slot_aggregated_metrics_manager =
-            Arc::new(SlotAggregatedMetricsManager::new(SLOTS_TOTAL));
+        let slot_aggregated_status_manager =
+            Arc::new(SlotAggregatedStatusManager::new(SLOTS_TOTAL));
 
         let applicable_state = desired_state
             .to_applicable_state()
@@ -123,42 +132,45 @@ mod tests {
 
         let llamacpp_arbiter = LlamaCppArbiter::new(
             applicable_state,
-            slot_aggregated_metrics_manager,
+            slot_aggregated_status_manager,
             SLOTS_TOTAL,
         );
         let controller = llamacpp_arbiter.spawn().await?;
 
         let prompt =
             "<|im_start|>user\nHow can I make a cat happy?<|im_end|>\n<|im_start|>assistant\n";
-        let (tx, mut rx) = mpsc::channel(100);
+        let (generated_tokens_tx, mut generated_tokens_rx) = mpsc::unbounded_channel();
 
         let futures = vec![
-            controller.llamacpp_slot_addr.send(GenerateTokensChannel {
-                chunk_sender: tx.clone(),
-                params: GenerateTokensParams {
-                    max_tokens: 100,
+            controller.llamacpp_slot_addr.send(GenerateTokensRequest {
+                generated_tokens_tx: generated_tokens_tx.clone(),
+                generate_tokens_params: GenerateTokensParams {
+                    max_tokens: 30,
                     prompt: prompt.to_string(),
                 },
+                request_id: "request_1".to_string(),
             }),
-            controller.llamacpp_slot_addr.send(GenerateTokensChannel {
-                chunk_sender: tx.clone(),
-                params: GenerateTokensParams {
-                    max_tokens: 100,
+            controller.llamacpp_slot_addr.send(GenerateTokensRequest {
+                generated_tokens_tx: generated_tokens_tx.clone(),
+                generate_tokens_params: GenerateTokensParams {
+                    max_tokens: 30,
                     prompt: prompt.to_string(),
                 },
+                request_id: "request_2".to_string(),
             }),
-            controller.llamacpp_slot_addr.send(GenerateTokensChannel {
-                chunk_sender: tx,
-                params: GenerateTokensParams {
-                    max_tokens: 100,
+            controller.llamacpp_slot_addr.send(GenerateTokensRequest {
+                generated_tokens_tx,
+                generate_tokens_params: GenerateTokensParams {
+                    max_tokens: 30,
                     prompt: prompt.to_string(),
                 },
+                request_id: "request_3".to_string(),
             }),
         ];
 
         tokio::spawn(async move {
-            while let Some(chunk) = rx.recv().await {
-                println!("Received chunk: {chunk:?}");
+            while let Some(generated_token) = generated_tokens_rx.recv().await {
+                println!("Received generated token: {generated_token:?}");
             }
         });
 
