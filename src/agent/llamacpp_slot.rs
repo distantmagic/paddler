@@ -22,13 +22,16 @@ use crate::agent::slot_status::SlotStatus;
 use crate::request_params::GenerateTokensParams;
 
 pub struct LlamaCppSlot {
+    agent_name: Option<String>,
     llama_context: LlamaContext<'static>,
     model: Arc<LlamaModel>,
+    model_path: PathBuf,
     slot_index: u32,
     slot_status: Arc<SlotStatus>,
 }
 
 impl LlamaCppSlot {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         agent_name: Option<String>,
         backend: Arc<LlamaBackend>,
@@ -54,13 +57,11 @@ impl LlamaCppSlot {
             model_ref.new_context(&backend, (*ctx_params).clone())?
         };
 
-        slot_status.ready();
-
-        info!("{agent_name:?}: slot {slot_index} ready with model {model_path:?}");
-
         Ok(Self {
+            agent_name,
             llama_context,
             model,
+            model_path,
             slot_index,
             slot_status,
         })
@@ -131,6 +132,23 @@ impl LlamaCppSlot {
 
 impl Actor for LlamaCppSlot {
     type Context = SyncContext<Self>;
+
+    fn started(&mut self, _ctx: &mut Self::Context) {
+        self.slot_status.started();
+
+        info!(
+            "{:?}: slot {} ready with model {:?}",
+            self.agent_name,
+            self.slot_index,
+            self.model_path.display(),
+        );
+    }
+
+    fn stopped(&mut self, _ctx: &mut Self::Context) {
+        self.slot_status.stopped();
+
+        info!("{:?}: slot {} stopped", self.agent_name, self.slot_index,);
+    }
 }
 
 impl Handler<GenerateTokensRequest> for LlamaCppSlot {

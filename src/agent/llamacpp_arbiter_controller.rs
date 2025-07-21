@@ -1,6 +1,7 @@
 use std::thread;
 
 use actix::Addr;
+use anyhow::anyhow;
 use anyhow::Result;
 use tokio::sync::oneshot;
 
@@ -28,10 +29,11 @@ impl LlamaCppArbiterController {
     pub async fn shutdown(self) -> Result<()> {
         self.shutdown_tx
             .send(())
-            .map_err(|_| anyhow::anyhow!("Failed to send shutdown signal"))?;
+            .map_err(|err| anyhow!("Failed to send shutdown signal: {err:?}"))?;
+
         self.sync_arbiter_thread_handle
             .join()
-            .map_err(|_| anyhow::anyhow!("Failed to join sync arbiter thread"))??;
+            .map_err(|err| anyhow!("Failed to join sync arbiter thread: {err:?}"))??;
 
         Ok(())
     }

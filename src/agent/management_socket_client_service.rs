@@ -192,6 +192,10 @@ impl ManagementSocketClientService {
         let slot_aggregated_status_clone = self.slot_aggregated_status.clone();
 
         rt::spawn(async move {
+            let mut ticker = interval(Duration::from_secs(1));
+
+            ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
+
             message_tx
                 .send(ManagementJsonRpcMessage::Notification(
                     ManagementJsonRpcNotification::RegisterAgent(RegisterAgentParams {
@@ -202,6 +206,18 @@ impl ManagementSocketClientService {
                 .unwrap_or_else(|err| {
                     error!("Failed to send register agent notification: {err}");
                 });
+
+            let do_send_status_update = || {
+                message_tx.send(
+                    ManagementJsonRpcMessage::Notification(
+                        ManagementJsonRpcNotification::UpdateAgentStatus(UpdateAgentStatusParams {
+                            slot_aggregated_status_snapshot: slot_aggregated_status_clone.make_snapshot(),
+                        })
+                    )
+                ).unwrap_or_else(|err| {
+                    error!("Failed to send status update notification: {err}");
+                });
+            };
 
             loop {
                 tokio::select! {
@@ -221,17 +237,8 @@ impl ManagementSocketClientService {
 
                         break;
                     }
-                    _ = slot_aggregated_status_clone.update_notifier.notified() => {
-                        message_tx.send(
-                            ManagementJsonRpcMessage::Notification(
-                                ManagementJsonRpcNotification::UpdateAgentStatus(UpdateAgentStatusParams {
-                                    slot_aggregated_status_snapshot: slot_aggregated_status_clone.make_snapshot(),
-                                })
-                            )
-                        ).unwrap_or_else(|err| {
-                            error!("Failed to send update slots notification: {err}");
-                        });
-                    }
+                    _ = slot_aggregated_status_clone.update_notifier.notified() => do_send_status_update(),
+                    _ = ticker.tick() => do_send_status_update(),
                     msg = read.next() => {
                         let should_close = match msg {
                             Some(Ok(msg)) => {

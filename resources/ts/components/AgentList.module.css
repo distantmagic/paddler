@@ -10,7 +10,6 @@
 .agentsTable {
   animation: fadeIn 200ms ease-in-out;
   border-collapse: collapse;
-  table-layout: fixed;
 
   td,
   th {

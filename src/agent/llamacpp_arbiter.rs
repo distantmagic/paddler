@@ -45,9 +45,9 @@ impl LlamaCppArbiter {
         let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
 
         let agent_name_clone = self.agent_name.clone();
+        let desired_slots_total = self.desired_slots_total;
         let model_path = self.applicable_state.model_path.clone();
         let slot_aggregated_status_manager = self.slot_aggregated_status_manager.clone();
-        let desired_slots_total = self.desired_slots_total;
 
         let sync_arbiter_thread_handle = thread::spawn(move || -> Result<()> {
             let backend =

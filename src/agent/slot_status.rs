@@ -18,8 +18,13 @@ impl SlotStatus {
         }
     }
 
-    pub fn ready(&self) {
+    pub fn started(&self) {
         self.slot_aggregated_status.slots_total.increment();
+        self.slot_aggregated_status.update_notifier.notify_waiters();
+    }
+
+    pub fn stopped(&self) {
+        self.slot_aggregated_status.slots_total.decrement();
         self.slot_aggregated_status.update_notifier.notify_waiters();
     }
 }
