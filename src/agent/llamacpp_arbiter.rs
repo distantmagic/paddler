@@ -19,30 +19,35 @@ use crate::agent::slot_aggregated_status_manager::SlotAggregatedStatusManager;
 use crate::agent_applicable_state::AgentApplicableState;
 
 pub struct LlamaCppArbiter {
+    agent_name: Option<String>,
     applicable_state: AgentApplicableState,
+    desired_slots_total: i32,
     slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
-    slots_total: i32,
 }
 
 impl LlamaCppArbiter {
     pub fn new(
+        agent_name: Option<String>,
         applicable_state: AgentApplicableState,
+        desired_slots_total: i32,
         slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
-        slots_total: i32,
     ) -> Self {
         Self {
+            agent_name,
             applicable_state,
+            desired_slots_total,
             slot_aggregated_status_manager,
-            slots_total,
         }
     }
 
     pub async fn spawn(&self) -> Result<LlamaCppArbiterController> {
         let (llamacpp_slot_addr_tx, llamacpp_slot_addr_rx) = oneshot::channel();
         let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
+
+        let agent_name_clone = self.agent_name.clone();
         let model_path = self.applicable_state.model_path.clone();
         let slot_aggregated_status_manager = self.slot_aggregated_status_manager.clone();
-        let slots_total = self.slots_total;
+        let desired_slots_total = self.desired_slots_total;
 
         let sync_arbiter_thread_handle = thread::spawn(move || -> Result<()> {
             let backend =
@@ -58,22 +63,30 @@ impl LlamaCppArbiter {
                 .context("Unable to load model from file")?,
             );
 
+            slot_aggregated_status_manager
+                .slot_aggregated_status
+                .set_model_path(Some(model_path.display().to_string()));
+
             let slot_index = Arc::new(AtomicU32::new(0));
             let system = System::new();
 
             system.block_on(async move {
                 llamacpp_slot_addr_tx
-                    .send(SyncArbiter::start(slots_total as usize, move || {
-                        LlamaCppSlot::new(
-                            backend.clone(),
-                            ctx_params.clone(),
-                            model.clone(),
-                            model_path.clone(),
-                            slot_index.fetch_add(1, Ordering::SeqCst),
-                            slot_aggregated_status_manager.bind_slot_status(),
-                        )
-                        .expect("Failed to create LlamaCppSlot")
-                    }))
+                    .send(SyncArbiter::start(
+                        desired_slots_total as usize,
+                        move || {
+                            LlamaCppSlot::new(
+                                agent_name_clone.clone(),
+                                backend.clone(),
+                                ctx_params.clone(),
+                                model.clone(),
+                                model_path.clone(),
+                                slot_index.fetch_add(1, Ordering::SeqCst),
+                                slot_aggregated_status_manager.bind_slot_status(),
+                            )
+                            .expect("Failed to create LlamaCppSlot")
+                        },
+                    ))
                     .expect("Failed to send LlamaCppSlot address");
 
                 shutdown_rx
@@ -131,9 +144,10 @@ mod tests {
             .expect("Failed to convert to applicable state");
 
         let llamacpp_arbiter = LlamaCppArbiter::new(
+            Some("test_agent".to_string()),
             applicable_state,
-            slot_aggregated_status_manager,
             SLOTS_TOTAL,
+            slot_aggregated_status_manager,
         );
         let controller = llamacpp_arbiter.spawn().await?;
 

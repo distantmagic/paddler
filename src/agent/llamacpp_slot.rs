@@ -30,6 +30,7 @@ pub struct LlamaCppSlot {
 
 impl LlamaCppSlot {
     pub fn new(
+        agent_name: Option<String>,
         backend: Arc<LlamaBackend>,
         ctx_params: Arc<LlamaContextParams>,
         model: Arc<LlamaModel>,
@@ -53,7 +54,9 @@ impl LlamaCppSlot {
             model_ref.new_context(&backend, (*ctx_params).clone())?
         };
 
-        info!("llama_slot {slot_index} ready with model {model_path:?}");
+        slot_status.ready();
+
+        info!("{agent_name:?}: slot {slot_index} ready with model {model_path:?}");
 
         Ok(Self {
             llama_context,

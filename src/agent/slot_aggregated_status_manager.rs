@@ -8,9 +8,9 @@ pub struct SlotAggregatedStatusManager {
 }
 
 impl SlotAggregatedStatusManager {
-    pub fn new(slots_total: i32) -> Self {
+    pub fn new(desired_slots_total: i32) -> Self {
         SlotAggregatedStatusManager {
-            slot_aggregated_status: Arc::new(SlotAggregatedStatus::new(slots_total)),
+            slot_aggregated_status: Arc::new(SlotAggregatedStatus::new(desired_slots_total)),
         }
     }
 

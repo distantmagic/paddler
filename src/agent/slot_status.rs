@@ -17,6 +17,11 @@ impl SlotStatus {
             slots_processing: Arc::new(AtomicValue::new(0)),
         }
     }
+
+    pub fn ready(&self) {
+        self.slot_aggregated_status.slots_total.increment();
+        self.slot_aggregated_status.update_notifier.notify_waiters();
+    }
 }
 
 impl DispensesSlots for SlotStatus {

@@ -41,8 +41,9 @@ impl Handler for Agent {
         service_manager.add_service(
             LlamaCppArbiterService::new(
                 agent_applicable_state_holder.clone(),
-                slot_aggregated_status_manager.clone(),
+                self.name.clone(),
                 self.slots,
+                slot_aggregated_status_manager.clone(),
             )
             .await?,
         );

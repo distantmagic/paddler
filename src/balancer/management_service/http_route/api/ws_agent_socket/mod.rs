@@ -1,5 +1,6 @@
 pub mod jsonrpc;
 use std::sync::Arc;
+use std::sync::RwLock;
 
 use actix_web::get;
 use actix_web::rt;
@@ -105,6 +106,8 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     name,
                     slot_aggregated_status_snapshot:
                         SlotAggregatedStatusSnapshot {
+                            desired_slots_total,
+                            model_path,
                             slots_processing,
                             slots_total,
                         },
@@ -113,7 +116,9 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                 let (agent_tx, mut agent_rx) = mpsc::channel::<AgentJsonRpcMessage>(1000);
                 let agent_controller = AgentController {
                     agent_tx,
+                    desired_slots_total: AtomicValue::new(desired_slots_total),
                     id: context.agent_id.clone(),
+                    model_path: RwLock::new(model_path),
                     name,
                     slots_processing: AtomicValue::new(slots_processing),
                     slots_total: AtomicValue::new(slots_total),
@@ -167,6 +172,8 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                 ManagementJsonRpcNotification::UpdateAgentStatus(UpdateAgentStatusParams {
                     slot_aggregated_status_snapshot:
                         SlotAggregatedStatusSnapshot {
+                            desired_slots_total,
+                            model_path,
                             slots_processing,
                             slots_total,
                         },
@@ -176,6 +183,10 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     .agent_controller_pool
                     .get_agent_controller(&context.agent_id)
                 {
+                    agent_controller
+                        .desired_slots_total
+                        .set(desired_slots_total);
+                    agent_controller.set_model_path(model_path);
                     agent_controller.slots_processing.set(slots_processing);
                     agent_controller.slots_total.set(slots_total);
                     context

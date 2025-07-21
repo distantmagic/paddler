@@ -28,10 +28,6 @@
   }
 }
 
-.agentRow.agentRowError {
-  outline: 2px solid red;
-}
-
 .agentUsage {
   min-width: 100px;
   padding: 0;

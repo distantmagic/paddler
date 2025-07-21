@@ -1,3 +1,5 @@
+use std::sync::RwLock;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use tokio::sync::mpsc;
@@ -14,10 +16,23 @@ use crate::sets_desired_state::SetsDesiredState;
 
 pub struct AgentController {
     pub agent_tx: mpsc::Sender<AgentJsonRpcMessage>,
+    pub desired_slots_total: AtomicValue,
     pub id: String,
+    pub model_path: RwLock<Option<String>>,
     pub name: Option<String>,
     pub slots_processing: AtomicValue,
     pub slots_total: AtomicValue,
+}
+
+impl AgentController {
+    pub fn set_model_path(&self, model_path: Option<String>) {
+        let mut locked_path = self
+            .model_path
+            .write()
+            .expect("Poisoned lock on model path");
+
+        *locked_path = model_path;
+    }
 }
 
 impl ProducesSnapshot for AgentController {
@@ -25,7 +40,13 @@ impl ProducesSnapshot for AgentController {
 
     fn make_snapshot(&self) -> Self::Snapshot {
         AgentControllerSnapshot {
+            desired_slots_total: self.desired_slots_total.get(),
             id: self.id.clone(),
+            model_path: self
+                .model_path
+                .read()
+                .expect("Poisoned lock on model path")
+                .clone(),
             name: self.name.clone(),
             slots_processing: self.slots_processing.get(),
             slots_total: self.slots_total.get(),

@@ -16,22 +16,25 @@ use crate::service::Service;
 
 pub struct LlamaCppArbiterService {
     agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
+    agent_name: Option<String>,
+    desired_slots_total: i32,
     llamacpp_arbiter_controller: Option<LlamaCppArbiterController>,
     slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
-    slots_total: i32,
 }
 
 impl LlamaCppArbiterService {
     pub async fn new(
         agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
+        agent_name: Option<String>,
+        desired_slots_total: i32,
         slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
-        slots_total: i32,
     ) -> Result<Self> {
         Ok(LlamaCppArbiterService {
             agent_applicable_state_holder,
+            agent_name,
+            desired_slots_total,
             llamacpp_arbiter_controller: None,
             slot_aggregated_status_manager,
-            slots_total,
         })
     }
 
@@ -50,9 +53,10 @@ impl LlamaCppArbiterService {
             self.slot_aggregated_status_manager.reset();
             self.llamacpp_arbiter_controller = Some(
                 LlamaCppArbiter::new(
+                    self.agent_name.clone(),
                     agent_applicable_state,
+                    self.desired_slots_total,
                     self.slot_aggregated_status_manager.clone(),
-                    self.slots_total,
                 )
                 .spawn()
                 .await
