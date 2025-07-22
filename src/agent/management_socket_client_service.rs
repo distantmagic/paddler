@@ -7,6 +7,7 @@ use anyhow::Context;
 use anyhow::Result;
 use async_trait::async_trait;
 use futures_util::SinkExt as _;
+use log::debug;
 use futures_util::StreamExt;
 use log::error;
 use log::info;
@@ -24,6 +25,7 @@ use crate::agent::jsonrpc::Message as JsonRpcMessage;
 use crate::agent::jsonrpc::Notification as JsonRpcNotification;
 use crate::agent::jsonrpc::Request as JsonRpcRequest;
 use crate::agent::jsonrpc::notification_params::SetStateParams;
+use crate::agent::generate_tokens_request::GenerateTokensRequest;
 use crate::agent::jsonrpc::notification_params::VersionParams;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
 use crate::agent::slot_aggregated_status::SlotAggregatedStatus;
@@ -33,12 +35,13 @@ use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonr
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::UpdateAgentStatusParams;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::RequestEnvelope;
+use crate::generated_token::GeneratedToken;
 use crate::produces_snapshot::ProducesSnapshot;
 use crate::jsonrpc::ErrorEnvelope;
-use crate::request_params::GenerateTokensParams;
 use crate::service::Service;
 
 pub struct ManagementSocketClientService {
+    generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
     name: Option<String>,
     reconciliation_queue: Arc<ReconciliationQueue>,
     slot_aggregated_status: Arc<SlotAggregatedStatus>,
@@ -47,6 +50,7 @@ pub struct ManagementSocketClientService {
 
 impl ManagementSocketClientService {
     pub fn new(
+        generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
         management_addr: SocketAddr,
         name: Option<String>,
         reconciliation_queue: Arc<ReconciliationQueue>,
@@ -55,6 +59,7 @@ impl ManagementSocketClientService {
         let agent_id = Uuid::new_v4();
 
         Ok(ManagementSocketClientService {
+            generate_tokens_request_tx,
             name,
             reconciliation_queue,
             slot_aggregated_status,
@@ -63,6 +68,8 @@ impl ManagementSocketClientService {
     }
 
     async fn handle_deserialized_message(
+        connection_close_tx: broadcast::Sender<()>,
+        generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
         _message_tx: mpsc::UnboundedSender<ManagementJsonRpcMessage>,
         deserialized_message: JsonRpcMessage,
         reconciliation_queue: Arc<ReconciliationQueue>,
@@ -85,7 +92,11 @@ impl ManagementSocketClientService {
                     .register_change_request(desired_state)
                     .await
             }
-            JsonRpcMessage::Notification(JsonRpcNotification::StopRequest(_)) => Ok(()),
+            JsonRpcMessage::Notification(JsonRpcNotification::StopGeneratingTokens(request_id)) => {
+                debug!("Received StopRespondingTo notification for request ID: {request_id:?}");
+
+                Ok(())
+            }
             JsonRpcMessage::Notification(JsonRpcNotification::Version(VersionParams {
                 version,
             })) => {
@@ -99,18 +110,45 @@ impl ManagementSocketClientService {
                 Ok(())
             }
             JsonRpcMessage::Request(RequestEnvelope {
-                id: _,
-                request:
-                    JsonRpcRequest::GenerateTokens(GenerateTokensParams {
-                        max_tokens: _,
-                        prompt: _,
-                    }),
-            }) => Ok(()),
+                id,
+                request: JsonRpcRequest::GenerateTokens(generate_tokens_params),
+            }) => {
+                debug!("Agent received GenerateTokens request: {id:?}, params: {generate_tokens_params:?}");
+                let (generated_tokens_tx, mut generated_tokens_rx) =
+                    mpsc::unbounded_channel::<GeneratedToken>();
+
+                generate_tokens_request_tx.send(GenerateTokensRequest {
+                    generate_tokens_params,
+                    generated_tokens_tx,
+                    request_id: id.clone(),
+                })?;
+
+                let mut connection_close_rx = connection_close_tx.subscribe();
+
+                loop {
+                    tokio::select! {
+                        _ = connection_close_rx.recv() => break,
+                        generated_token = generated_tokens_rx.recv() => {
+                            match generated_token {
+                                Some(token) => {
+                                    debug!("Generated token: {token:?}");
+                                }
+                                None => break,
+                            }
+                        }
+                    }
+                }
+
+                debug!("Agent finished processing GenerateTokens request: {id:?}");
+
+                Ok(())
+            }
         }
     }
 
     async fn handle_incoming_message(
         connection_close_tx: broadcast::Sender<()>,
+        generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
         message_tx: mpsc::UnboundedSender<ManagementJsonRpcMessage>,
         msg: Message,
         pong_tx: mpsc::UnboundedSender<Bytes>,
@@ -126,6 +164,8 @@ impl ManagementSocketClientService {
                             info!("Connection close signal received, shutting down");
                         }
                         result = Self::handle_deserialized_message(
+                            connection_close_tx,
+                            generate_tokens_request_tx,
                             message_tx,
                             match serde_json::from_str::<JsonRpcMessage>(&text).context(format!("Failed to parse JSON-RPC message: {text}")) {
                                 Ok(message) => message,
@@ -241,86 +281,82 @@ impl ManagementSocketClientService {
             }
         });
 
-        let name_clone = self.name.clone();
-        let reconciliation_queue_clone = self.reconciliation_queue.clone();
-        let slot_aggregated_status_clone = self.slot_aggregated_status.clone();
+        message_tx
+            .send(ManagementJsonRpcMessage::Notification(
+                ManagementJsonRpcNotification::RegisterAgent(RegisterAgentParams {
+                    name: self.name.clone(),
+                    slot_aggregated_status_snapshot: self.slot_aggregated_status.make_snapshot(),
+                }),
+            ))
+            .unwrap_or_else(|err| {
+                error!("Failed to send register agent notification: {err}");
+            });
 
-        rt::spawn(async move {
-            let mut ticker = interval(Duration::from_secs(1));
-
-            ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
-
+        let do_send_status_update = || {
             message_tx
                 .send(ManagementJsonRpcMessage::Notification(
-                    ManagementJsonRpcNotification::RegisterAgent(RegisterAgentParams {
-                        name: name_clone,
-                        slot_aggregated_status_snapshot: slot_aggregated_status_clone.make_snapshot(),
+                    ManagementJsonRpcNotification::UpdateAgentStatus(UpdateAgentStatusParams {
+                        slot_aggregated_status_snapshot: self
+                            .slot_aggregated_status
+                            .make_snapshot(),
                     }),
                 ))
                 .unwrap_or_else(|err| {
-                    error!("Failed to send register agent notification: {err}");
-                });
-
-            let do_send_status_update = || {
-                message_tx.send(
-                    ManagementJsonRpcMessage::Notification(
-                        ManagementJsonRpcNotification::UpdateAgentStatus(UpdateAgentStatusParams {
-                            slot_aggregated_status_snapshot: slot_aggregated_status_clone.make_snapshot(),
-                        })
-                    )
-                ).unwrap_or_else(|err| {
                     error!("Failed to send status update notification: {err}");
                 });
-            };
+        };
 
-            loop {
-                tokio::select! {
-                    _ = connection_close_rx.recv() => {
-                        info!("Connection close signal received, shutting down");
+        let mut ticker = interval(Duration::from_secs(1));
+
+        ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
+
+        loop {
+            tokio::select! {
+                _ = connection_close_rx.recv() => {
+                    info!("Connection close signal received, shutting down");
+
+                    break;
+                }
+                _ = shutdown.recv() => break,
+                _ = self.slot_aggregated_status.update_notifier.notified() => do_send_status_update(),
+                _ = ticker.tick() => do_send_status_update(),
+                msg = read.next() => {
+                    let should_close = match msg {
+                        Some(Ok(msg)) => {
+                            if let Err(err) = Self::handle_incoming_message(
+                                    connection_close_tx.clone(),
+                                    self.generate_tokens_request_tx.clone(),
+                                    message_tx.clone(),
+                                    msg,
+                                    pong_tx.clone(),
+                                    self.reconciliation_queue.clone(),
+                                )
+                                .await
+                                .context("Failed to handle incoming message")
+                            {
+                                error!("Error handling incoming message: {err}");
+                            }
+
+                            false
+                        }
+                        Some(Err(err)) => {
+                            error!("Error reading message: {err}");
+
+                            true
+                        }
+                        None => true,
+                    };
+
+                    if should_close {
+                        if let Err(err) = connection_close_tx.send(()) {
+                            error!("Failed to send connection close signal: {err}");
+                        }
 
                         break;
                     }
-                    _ = shutdown.recv() => break,
-                    _ = slot_aggregated_status_clone.update_notifier.notified() => do_send_status_update(),
-                    _ = ticker.tick() => do_send_status_update(),
-                    msg = read.next() => {
-                        let should_close = match msg {
-                            Some(Ok(msg)) => {
-                                if let Err(err) = Self::handle_incoming_message(
-                                        connection_close_tx.clone(),
-                                        message_tx.clone(),
-                                        msg,
-                                        pong_tx.clone(),
-                                        reconciliation_queue_clone.clone(),
-                                    )
-                                    .await
-                                    .context("Failed to handle incoming message")
-                                {
-                                    error!("Error handling incoming message: {err}");
-                                }
-
-                                false
-                            }
-                            Some(Err(err)) => {
-                                error!("Error reading message: {err}");
-
-                                true
-                            }
-                            None => true,
-                        };
-
-                        if should_close {
-                            if let Err(err) = connection_close_tx.send(()) {
-                                error!("Failed to send connection close signal: {err}");
-                            }
-
-                            break;
-                        }
-                    }
                 }
             }
-        })
-        .await?;
+        }
 
         message_forward_handle
             .await

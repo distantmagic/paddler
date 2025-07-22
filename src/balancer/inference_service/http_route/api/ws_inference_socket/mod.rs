@@ -5,7 +5,6 @@ pub mod jsonrpc;
 use std::sync::Arc;
 
 use actix_web::get;
-use actix_web::rt;
 use actix_web::web::Data;
 use actix_web::web::Payload;
 use actix_web::web::ServiceConfig;
@@ -79,104 +78,114 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
 
                 let buffered_request_manager = context.buffered_request_manager.clone();
                 let mut connection_close_rx = connection_close_tx.subscribe();
+                let mut respond_with_error = async |error: JsonRpcError| {
+                    websocket_session_controller
+                        .send_response(OutgoingMessage::Error(ErrorEnvelope {
+                            request_id: id.clone(),
+                            error,
+                        }))
+                        .await
+                        .unwrap_or_else(|err| {
+                            error!(
+                                "Failed to send response for GenerateTokens request {id:?}: {err}"
+                            );
+                        });
+                };
 
-                rt::spawn(async move {
-                    let mut respond_with_error = async |error: JsonRpcError| {
-                        websocket_session_controller
-                            .send_response(OutgoingMessage::Error(ErrorEnvelope {
-                                request_id: id.clone(),
-                                error,
-                            }))
-                            .await
-                            .unwrap_or_else(|err| {
-                                error!("Failed to send response for GenerateTokens request {id:?}: {err}");
-                            });
-                    };
+                tokio::select! {
+                    _ = connection_close_rx.recv() => {
+                        debug!("Connection close signal received, stopping GenerateTokens loop.");
+                    },
+                    buffered_request_agent_wait_result = buffered_request_manager.wait_for_available_agent() => {
+                        match buffered_request_agent_wait_result {
+                            Ok(BufferedRequestAgentWaitResult::Found(agent_controller)) => {
+                                debug!("Found available agent controller for GenerateTokens request: {id:?}");
 
-                    tokio::select! {
-                        _ = connection_close_rx.recv() => {
-                            debug!("Connection close signal received, stopping GenerateTokens loop.");
-                        },
-                        buffered_request_agent_wait_result = buffered_request_manager.wait_for_available_agent() => {
-                            match buffered_request_agent_wait_result {
-                                Ok(BufferedRequestAgentWaitResult::Found(agent_controller)) => {
-                                    debug!("Found available agent controller for GenerateTokens request: {id:?}");
+                                let mut agent_controller_connection_close_resubscribed = agent_controller.connection_close_rx.resubscribe();
+                                let mut generated_tokens_controller = match agent_controller.generate_tokens(id.clone(), params).await {
+                                    Ok(generated_tokens_controller) => generated_tokens_controller,
+                                    Err(err) => {
+                                        error!("Unable to start generate tokens controller for request {id:?}: {err}");
 
-                                    let mut agent_controller_connection_close_resubscribed = agent_controller.connection_close_rx.resubscribe();
-                                    let mut generated_tokens_controller = match agent_controller.generate_tokens(id.clone(), params).await {
-                                        Ok(generated_tokens_controller) => generated_tokens_controller,
-                                        Err(err) => {
-                                            error!("Unable to start generate tokens controller for request {id:?}: {err}");
+                                        respond_with_error(JsonRpcError {
+                                            code: 500,
+                                            description: "Internal server error".to_string(),
+                                        }).await;
+
+                                        return Ok(ContinuationDecision::Continue);
+                                    }
+                                };
+
+                                loop {
+                                    tokio::select! {
+                                        _ = agent_controller_connection_close_resubscribed.recv() => {
+                                            error!("Agent controller connection closed");
+                                            respond_with_error(JsonRpcError {
+                                                code: 502,
+                                                description: "Agent controller connection closed".to_string(),
+                                            }).await;
+                                            break;
+                                        }
+                                        _ = connection_close_rx.recv() => {
+                                            debug!("Connection close signal received");
+
+                                            agent_controller.stop_generating_tokens(id.clone()).await.unwrap_or_else(|err| {
+                                                error!("Failed to stop generating tokens for request {id:?}: {err}");
+                                            });
+
+                                            break;
+                                        }
+                                        _ = sleep(context.inference_service_configuration.inference_token_timeout) => {
+                                            warn!("Timed out waiting for generated token");
 
                                             respond_with_error(JsonRpcError {
-                                                code: 500,
-                                                description: "Internal server error".to_string(),
+                                                code: 504,
+                                                description: "Token generation timed out".to_string(),
                                             }).await;
 
-                                            return;
-                                        }
-                                    };
+                                            agent_controller.stop_generating_tokens(id.clone()).await.unwrap_or_else(|err| {
+                                                error!("Failed to stop generating tokens for request {id:?}: {err}");
+                                            });
 
-                                    loop {
-                                        tokio::select! {
-                                            _ = agent_controller_connection_close_resubscribed.recv() => {
-                                                error!("Agent controller connection closed");
-                                                respond_with_error(JsonRpcError {
-                                                    code: 502,
-                                                    description: "Agent controller connection closed".to_string(),
-                                                }).await;
-                                                break;
-                                            }
-                                            _ = connection_close_rx.recv() => {
-                                                debug!("Connection close signal received");
-                                                break;
-                                            }
-                                            _ = sleep(context.inference_service_configuration.inference_token_timeout) => {
-                                                warn!("Timed out waiting for generated token");
-                                                respond_with_error(JsonRpcError {
-                                                    code: 504,
-                                                    description: "Token generation timed out".to_string(),
-                                                }).await;
-                                                break;
-                                            }
-                                            generated_token = generated_tokens_controller.generated_tokens_rx.recv() => {
-                                                match generated_token {
-                                                    Some(generated_token) => {
-                                                        debug!("Received generated token for request {id:?}: {generated_token:?}");
-                                                    }
-                                                    None => break,
+                                            break;
+                                        }
+                                        generated_token = generated_tokens_controller.generated_tokens_rx.recv() => {
+                                            match generated_token {
+                                                Some(generated_token) => {
+                                                    debug!("Received generated token for request {id:?}: {generated_token:?}");
                                                 }
+                                                None => break,
                                             }
                                         }
                                     }
                                 }
-                                Ok(BufferedRequestAgentWaitResult::BufferOverflow) => {
-                                    warn!("Too many buffered requests, dropping request: {id:?}");
-                                    respond_with_error(JsonRpcError {
-                                        code: 503,
-                                        description: "Buffered requests overflow".to_string(),
-                                    }).await;
-                                }
-                                Ok(BufferedRequestAgentWaitResult::Timeout(err)) => {
-                                    warn!("Buffered request {id:?} timed out: {err:?}");
-                                    respond_with_error(JsonRpcError {
-                                        code: 408,
-                                        description: "Waiting for available agent timed out".to_string(),
-                                    }).await;
-                                }
-                                Err(err) => {
-                                    error!("Error while waiting for available agent controller for GenerateTokens request: {err}");
-                                    respond_with_error(JsonRpcError {
-                                        code: 500,
-                                        description: "Internal server error".to_string(),
-                                    }).await;
-                                }
+                            }
+                            Ok(BufferedRequestAgentWaitResult::BufferOverflow) => {
+                                warn!("Too many buffered requests, dropping request: {id:?}");
+                                respond_with_error(JsonRpcError {
+                                    code: 503,
+                                    description: "Buffered requests overflow".to_string(),
+                                }).await;
+                            }
+                            Ok(BufferedRequestAgentWaitResult::Timeout(err)) => {
+                                warn!("Buffered request {id:?} timed out: {err:?}");
+                                respond_with_error(JsonRpcError {
+                                    code: 408,
+                                    description: "Waiting for available agent timed out".to_string(),
+                                }).await;
+                            }
+                            Err(err) => {
+                                error!("Error while waiting for available agent controller for GenerateTokens request: {err}");
+                                respond_with_error(JsonRpcError {
+                                    code: 500,
+                                    description: "Internal server error".to_string(),
+                                }).await;
                             }
                         }
                     }
+                }
 
-                    debug!("GenerateTokens request processing completed for request: {id:?}");
-                });
+                debug!("GenerateTokens request processing completed for request: {id:?}");
 
                 return Ok(ContinuationDecision::Continue);
             }

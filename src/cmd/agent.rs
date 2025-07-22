@@ -4,10 +4,12 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 use clap::Parser;
+use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 
 use super::handler::Handler;
 use super::parse_socket_addr;
+use crate::agent::generate_tokens_request::GenerateTokensRequest;
 use crate::agent::llamacpp_arbiter_service::LlamaCppArbiterService;
 use crate::agent::management_socket_client_service::ManagementSocketClientService;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
@@ -33,6 +35,9 @@ pub struct Agent {
 #[async_trait]
 impl Handler for Agent {
     async fn handle(&self, shutdown_rx: oneshot::Receiver<()>) -> Result<()> {
+        let (generate_tokens_request_tx, generate_tokens_request_rx) =
+            mpsc::unbounded_channel::<GenerateTokensRequest>();
+
         let agent_applicable_state_holder = Arc::new(AgentApplicableStateHolder::new());
         let reconciliation_queue = Arc::new(ReconciliationQueue::new()?);
         let mut service_manager = ServiceManager::new();
@@ -43,12 +48,14 @@ impl Handler for Agent {
                 agent_applicable_state_holder.clone(),
                 self.name.clone(),
                 self.slots,
+                generate_tokens_request_rx,
                 slot_aggregated_status_manager.clone(),
             )
             .await?,
         );
 
         service_manager.add_service(ManagementSocketClientService::new(
+            generate_tokens_request_tx,
             self.management_addr,
             self.name.clone(),
             reconciliation_queue.clone(),

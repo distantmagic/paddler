@@ -1,15 +1,19 @@
 use std::sync::Arc;
 
+use actix_web::rt;
+use anyhow::anyhow;
 use anyhow::Context as _;
 use anyhow::Result;
 use async_trait::async_trait;
 use log::error;
 use log::info;
 use tokio::sync::broadcast;
+use tokio::sync::mpsc;
 use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
+use crate::agent::generate_tokens_request::GenerateTokensRequest;
 use crate::agent::llamacpp_arbiter::LlamaCppArbiter;
 use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
 use crate::agent::slot_aggregated_status_manager::SlotAggregatedStatusManager;
@@ -22,6 +26,7 @@ pub struct LlamaCppArbiterService {
     agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
     agent_name: Option<String>,
     desired_slots_total: i32,
+    generate_tokens_request_rx: mpsc::UnboundedReceiver<GenerateTokensRequest>,
     is_state_applied: bool,
     llamacpp_arbiter_controller: Option<LlamaCppArbiterController>,
     slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
@@ -32,6 +37,7 @@ impl LlamaCppArbiterService {
         agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
         agent_name: Option<String>,
         desired_slots_total: i32,
+        generate_tokens_request_rx: mpsc::UnboundedReceiver<GenerateTokensRequest>,
         slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
     ) -> Result<Self> {
         Ok(LlamaCppArbiterService {
@@ -39,6 +45,7 @@ impl LlamaCppArbiterService {
             agent_applicable_state_holder,
             agent_name,
             desired_slots_total,
+            generate_tokens_request_rx,
             is_state_applied: true,
             llamacpp_arbiter_controller: None,
             slot_aggregated_status_manager,
@@ -109,6 +116,34 @@ impl Service for LlamaCppArbiterService {
                 _ = ticker.tick() => {
                     if !self.is_state_applied {
                         self.try_to_apply_state().await;
+                    }
+                }
+                generate_tokens_request = self.generate_tokens_request_rx.recv() => {
+                    match generate_tokens_request {
+                        Some(generate_tokens_request) => {
+                            if let Some(llamacpp_arbiter_controller) = &self.llamacpp_arbiter_controller {
+                                let llamacpp_slot_addr = llamacpp_arbiter_controller.llamacpp_slot_addr.clone();
+                                let mut shutdown_clone = shutdown.resubscribe();
+
+                                rt::spawn(async move {
+                                    tokio::select! {
+                                        _ = shutdown_clone.recv() => {
+                                            error!("Shutdown received, stopping GenerateTokensRequest processing");
+                                        }
+                                        result = llamacpp_slot_addr.send(generate_tokens_request) => {
+                                            if let Err(err) = result {
+                                                error!("Failed to send GenerateTokensRequest: {err}");
+                                            }
+                                        }
+                                    }
+                                });
+                            } else {
+                                error!("LlamaCppArbiterController is not initialized");
+                            }
+                        }
+                        None => {
+                            break Err(anyhow!("GenerateTokensRequest channel closed unexpectedly"));
+                        }
                     }
                 }
             }

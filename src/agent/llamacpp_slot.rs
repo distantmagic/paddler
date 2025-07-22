@@ -15,6 +15,7 @@ use llama_cpp_2::model::Special;
 use llama_cpp_2::sampling::LlamaSampler;
 use log::info;
 
+use crate::agent::dispenses_slots::DispensesSlots as _;
 use crate::agent::generate_tokens_drop_guard::GenerateTokensDropGuard;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
 use crate::agent::slot_status::SlotStatus;
@@ -66,15 +67,45 @@ impl LlamaCppSlot {
             slot_status,
         })
     }
+}
 
-    fn generate_tokens(
+impl Actor for LlamaCppSlot {
+    type Context = SyncContext<Self>;
+
+    fn started(&mut self, _ctx: &mut Self::Context) {
+        self.slot_status.started();
+
+        info!(
+            "{:?}: slot {} ready with model {:?}",
+            self.agent_name,
+            self.slot_index,
+            self.model_path.display(),
+        );
+    }
+
+    fn stopped(&mut self, _ctx: &mut Self::Context) {
+        self.slot_status.stopped();
+
+        info!("{:?}: slot {} stopped", self.agent_name, self.slot_index,);
+    }
+}
+
+impl Handler<GenerateTokensRequest> for LlamaCppSlot {
+    type Result = Result<()>;
+
+    fn handle(
         &mut self,
         GenerateTokensRequest {
             generated_tokens_tx,
             generate_tokens_params: GenerateTokensParams { prompt, max_tokens },
             request_id,
         }: GenerateTokensRequest,
-    ) -> Result<()> {
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
+        self.slot_status.take_slot();
+
+        let _guard = GenerateTokensDropGuard::new(self.slot_status.clone());
+
         let tokens_list = self.model.str_to_token(&prompt, AddBos::Always)?;
         let mut batch = LlamaBatch::new(512, 1);
         let last_index = tokens_list.len() as i32 - 1;
@@ -123,36 +154,5 @@ impl LlamaCppSlot {
         }
 
         Ok(())
-    }
-}
-
-impl Actor for LlamaCppSlot {
-    type Context = SyncContext<Self>;
-
-    fn started(&mut self, _ctx: &mut Self::Context) {
-        self.slot_status.started();
-
-        info!(
-            "{:?}: slot {} ready with model {:?}",
-            self.agent_name,
-            self.slot_index,
-            self.model_path.display(),
-        );
-    }
-
-    fn stopped(&mut self, _ctx: &mut Self::Context) {
-        self.slot_status.stopped();
-
-        info!("{:?}: slot {} stopped", self.agent_name, self.slot_index,);
-    }
-}
-
-impl Handler<GenerateTokensRequest> for LlamaCppSlot {
-    type Result = Result<()>;
-
-    fn handle(&mut self, message: GenerateTokensRequest, _ctx: &mut Self::Context) -> Self::Result {
-        let _guard = GenerateTokensDropGuard::new(self.slot_status.clone());
-
-        self.generate_tokens(message)
     }
 }

@@ -6,7 +6,7 @@ use super::notification_params::VersionParams;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub enum Notification {
+    StopGeneratingTokens(String),
     SetState(SetStateParams),
-    StopRequest(String),
     Version(VersionParams),
 }
