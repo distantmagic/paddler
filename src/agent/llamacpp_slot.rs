@@ -21,6 +21,8 @@ use crate::agent::generate_tokens_drop_guard::GenerateTokensDropGuard;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
 use crate::agent::slot_status::SlotStatus;
 use crate::generated_token::GeneratedToken;
+use crate::generated_token_envelope::GeneratedTokenEnvelope;
+use crate::generated_token_result::GeneratedTokenResult;
 use crate::request_params::GenerateTokensParams;
 
 pub struct LlamaCppSlot {
@@ -100,7 +102,6 @@ impl Handler<GenerateTokensRequest> for LlamaCppSlot {
             generate_tokens_params: GenerateTokensParams { prompt, max_tokens },
             mut generate_tokens_stop_rx,
             generated_tokens_tx,
-            request_id,
         }: GenerateTokensRequest,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
@@ -149,10 +150,11 @@ impl Handler<GenerateTokensRequest> for LlamaCppSlot {
                 let _decode_result =
                     decoder.decode_to_string(&output_bytes, &mut output_string, false);
 
-                generated_tokens_tx.send(GeneratedToken {
-                    request_id: request_id.clone(),
+                generated_tokens_tx.send(GeneratedTokenEnvelope {
                     slot: self.slot_index,
-                    token: output_string,
+                    generated_token_result: GeneratedTokenResult::Token(GeneratedToken {
+                        token: output_string,
+                    }),
                 })?;
 
                 batch.clear();
@@ -163,6 +165,11 @@ impl Handler<GenerateTokensRequest> for LlamaCppSlot {
 
             self.llama_context.decode(&mut batch)?;
         }
+
+        generated_tokens_tx.send(GeneratedTokenEnvelope {
+            slot: self.slot_index,
+            generated_token_result: GeneratedTokenResult::Done,
+        })?;
 
         Ok(())
     }

@@ -25,6 +25,7 @@ use crate::agent::generate_tokens_stopper_collection::GenerateTokensStopperColle
 use crate::agent::jsonrpc::Message as JsonRpcMessage;
 use crate::agent::jsonrpc::Notification as JsonRpcNotification;
 use crate::agent::jsonrpc::Request as JsonRpcRequest;
+use crate::agent::jsonrpc::Response as JsonRpcResponse;
 use crate::agent::generate_tokens_stopper_drop_guard::GenerateTokensStopperDropGuard;
 use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
@@ -36,8 +37,9 @@ use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonr
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::RegisterAgentParams;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::UpdateAgentStatusParams;
 use crate::jsonrpc::Error as JsonRpcError;
+use crate::jsonrpc::ResponseEnvelope;
 use crate::jsonrpc::RequestEnvelope;
-use crate::generated_token::GeneratedToken;
+use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::produces_snapshot::ProducesSnapshot;
 use crate::jsonrpc::ErrorEnvelope;
 use crate::service::Service;
@@ -75,7 +77,7 @@ impl ManagementSocketClientService {
         connection_close_tx: broadcast::Sender<()>,
         generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
         generate_tokens_stopper_collection: Arc<GenerateTokensStopperCollection>,
-        _message_tx: mpsc::UnboundedSender<ManagementJsonRpcMessage>,
+        message_tx: mpsc::UnboundedSender<ManagementJsonRpcMessage>,
         deserialized_message: JsonRpcMessage,
         reconciliation_queue: Arc<ReconciliationQueue>,
     ) -> Result<()> {
@@ -126,7 +128,7 @@ impl ManagementSocketClientService {
                 debug!("Agent received GenerateTokens request: {id:?}, params: {generate_tokens_params:?}");
 
                 let (generated_tokens_tx, mut generated_tokens_rx) =
-                    mpsc::unbounded_channel::<GeneratedToken>();
+                    mpsc::unbounded_channel::<GeneratedTokenEnvelope>();
                 let (generate_tokens_stop_tx, generate_tokens_stop_rx) =
                     mpsc::unbounded_channel::<()>();
 
@@ -143,7 +145,6 @@ impl ManagementSocketClientService {
                     generate_tokens_params,
                     generate_tokens_stop_rx,
                     generated_tokens_tx,
-                    request_id: id.clone(),
                 })?;
 
                 let mut connection_close_rx = connection_close_tx.subscribe();
@@ -151,10 +152,17 @@ impl ManagementSocketClientService {
                 loop {
                     tokio::select! {
                         _ = connection_close_rx.recv() => break,
-                        generated_token = generated_tokens_rx.recv() => {
-                            match generated_token {
-                                Some(token) => {
-                                    debug!("Generated token: {token:?}");
+                        generated_token_envelope = generated_tokens_rx.recv() => {
+                            match generated_token_envelope {
+                                Some(generated_token_envelope) => {
+                                    message_tx.send(
+                                        ManagementJsonRpcMessage::Response(
+                                            ResponseEnvelope {
+                                                request_id: id.clone(),
+                                                response: JsonRpcResponse::GeneratedToken(generated_token_envelope),
+                                            }
+                                        ),
+                                    )?;
                                 }
                                 None => break,
                             }

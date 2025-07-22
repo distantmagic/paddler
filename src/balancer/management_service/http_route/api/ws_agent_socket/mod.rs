@@ -19,6 +19,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use log::error;
 use log::info;
+use log::warn;
 use serde::Deserialize;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
@@ -31,6 +32,7 @@ use self::jsonrpc::Notification as ManagementJsonRpcNotification;
 use crate::agent::jsonrpc::notification_params::VersionParams;
 use crate::agent::jsonrpc::Message as AgentJsonRpcMessage;
 use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
+use crate::agent::jsonrpc::Response as AgentJsonRpcResponse;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
@@ -38,6 +40,7 @@ use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderColl
 use crate::balancer::state_database::StateDatabase;
 use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
+use crate::jsonrpc::ResponseEnvelope;
 use crate::sets_desired_state::SetsDesiredState as _;
 use crate::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 use crate::websocket_session_controller::WebSocketSessionController;
@@ -186,6 +189,21 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                         .notify_waiters();
                 } else {
                     error!("Agent controller not found for agent: {}", context.agent_id);
+                }
+
+                Ok(ContinuationDecision::Continue)
+            }
+            ManagementJsonRpcMessage::Response(ResponseEnvelope {
+                request_id,
+                response: AgentJsonRpcResponse::GeneratedToken(generated_token_envelope),
+            }) => {
+                if let Err(err) = context
+                    .generate_tokens_sender_collection
+                    .forward_generated_token(request_id, generated_token_envelope)
+                    .await
+                {
+                    // Token might come in after the sender was deregistered
+                    warn!("Error forwarding generated token: {err}");
                 }
 
                 Ok(ContinuationDecision::Continue)

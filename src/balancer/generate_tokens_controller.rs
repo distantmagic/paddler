@@ -3,11 +3,11 @@ use log::error;
 use tokio::sync::mpsc;
 
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
-use crate::generated_token::GeneratedToken;
+use crate::generated_token_envelope::GeneratedTokenEnvelope;
 
 pub struct GenerateTokensController {
     pub generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
-    pub generated_tokens_rx: mpsc::UnboundedReceiver<GeneratedToken>,
+    pub generated_tokens_rx: mpsc::UnboundedReceiver<GeneratedTokenEnvelope>,
     pub request_id: String,
 }
 

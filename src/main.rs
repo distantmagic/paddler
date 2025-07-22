@@ -11,6 +11,8 @@ mod converts_to_applicable_state;
 mod create_cors_middleware;
 mod database_type;
 mod generated_token;
+mod generated_token_envelope;
+mod generated_token_result;
 mod huggingface_model_reference;
 mod jsonrpc;
 mod produces_snapshot;

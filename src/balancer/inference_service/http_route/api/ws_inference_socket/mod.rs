@@ -28,6 +28,9 @@ use crate::balancer::buffered_request_manager::BufferedRequestManager;
 use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
+use crate::generated_token::GeneratedToken;
+use crate::generated_token_envelope::GeneratedTokenEnvelope;
+use crate::generated_token_result::GeneratedTokenResult;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::ErrorEnvelope;
 use crate::jsonrpc::RequestEnvelope;
@@ -149,10 +152,23 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
 
                                             break;
                                         }
-                                        generated_token = generated_tokens_controller.generated_tokens_rx.recv() => {
-                                            match generated_token {
-                                                Some(generated_token) => {
-                                                    debug!("Received generated token for request {id:?}: {generated_token:?}");
+                                        generated_token_envelope = generated_tokens_controller.generated_tokens_rx.recv() => {
+                                            match generated_token_envelope {
+                                                Some(generated_token_envelope) => {
+                                                    match generated_token_envelope {
+                                                        GeneratedTokenEnvelope {
+                                                            generated_token_result: GeneratedTokenResult::Done,
+                                                            slot,
+                                                        } => break,
+                                                        GeneratedTokenEnvelope {
+                                                            generated_token_result: GeneratedTokenResult::Token(GeneratedToken {
+                                                                token,
+                                                            }),
+                                                            slot,
+                                                        } => {
+                                                            debug!("Received generated token for request {id:?}, slot: {slot}, token: {token:?}");
+                                                        },
+                                                    }
                                                 }
                                                 None => break,
                                             }

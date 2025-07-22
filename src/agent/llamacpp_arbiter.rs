@@ -167,7 +167,6 @@ mod tests {
                     max_tokens: 30,
                     prompt: prompt.to_string(),
                 },
-                request_id: "request_1".to_string(),
             }),
             controller.llamacpp_slot_addr.send(GenerateTokensRequest {
                 generated_tokens_tx: generated_tokens_tx.clone(),
@@ -176,7 +175,6 @@ mod tests {
                     max_tokens: 30,
                     prompt: prompt.to_string(),
                 },
-                request_id: "request_2".to_string(),
             }),
             controller.llamacpp_slot_addr.send(GenerateTokensRequest {
                 generated_tokens_tx,
@@ -185,7 +183,6 @@ mod tests {
                     max_tokens: 30,
                     prompt: prompt.to_string(),
                 },
-                request_id: "request_3".to_string(),
             }),
         ];
 
