@@ -113,9 +113,11 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                         },
                 }),
             ) => {
-                let (agent_tx, mut agent_rx) = mpsc::channel::<AgentJsonRpcMessage>(1000);
+                let (agent_message_tx, mut agent_message_rx) =
+                    mpsc::unbounded_channel::<AgentJsonRpcMessage>();
                 let agent_controller = Arc::new(AgentController {
-                    agent_tx,
+                    agent_message_tx,
+                    connection_close_rx: connection_close_tx.subscribe(),
                     desired_slots_total: AtomicValue::new(desired_slots_total),
                     id: context.agent_id.clone(),
                     model_path: RwLock::new(model_path),
@@ -146,7 +148,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                             _ = shutdown_tx_resubscribed.recv() => {
                                 break;
                             }
-                            result = agent_rx.recv() => {
+                            result = agent_message_rx.recv() => {
                                 match result {
                                     Some(message) => {
                                         websocket_session_controller
@@ -203,9 +205,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                 request_id: _,
                 error: _,
             }) => Ok(ContinuationDecision::Continue),
-            ManagementJsonRpcMessage::Response(ResponseEnvelope::StreamDone {
-                request_id,
-            }) => {
+            ManagementJsonRpcMessage::Response(ResponseEnvelope::StreamDone { request_id }) => {
                 println!("Stream done: {request_id}");
                 Ok(ContinuationDecision::Continue)
             }

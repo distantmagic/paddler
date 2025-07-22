@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use actix_web::rt;
 use anyhow::Result;
 use futures::future::join_all;
 use log::error;
@@ -33,12 +34,12 @@ impl ServiceManager {
             let service_name = service.name().to_string();
             let shutdown_broadcast_tx_arc_clone = shutdown_broadcast_tx_arc.clone();
 
-            service_handles.push(actix_rt::spawn(async move {
+            service_handles.push(rt::spawn(async move {
                 loop {
                     info!("{service_name}: Starting");
 
-                    let mut service_shutdown_rx = shutdown_broadcast_tx_arc_clone.subscribe();
                     let mut manager_shutdown_rx = shutdown_broadcast_tx_arc_clone.subscribe();
+                    let service_shutdown_rx = shutdown_broadcast_tx_arc_clone.subscribe();
 
                     tokio::select! {
                         _ = manager_shutdown_rx.recv() => {

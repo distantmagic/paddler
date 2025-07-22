@@ -71,11 +71,7 @@ impl LlamaCppSlot {
         &mut self,
         GenerateTokensRequest {
             generated_tokens_tx,
-            generate_tokens_params:
-                GenerateTokensParams {
-                    prompt,
-                    max_tokens,
-                },
+            generate_tokens_params: GenerateTokensParams { prompt, max_tokens },
             request_id,
         }: GenerateTokensRequest,
     ) -> Result<()> {

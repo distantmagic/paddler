@@ -116,19 +116,36 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
     ) -> Result<ContinuationDecision> {
         match serde_json::from_str::<Self::IncomingMessage>(text) {
             Ok(deserialized_message) => {
-                Self::handle_deserialized_message(
-                    connection_close_tx,
-                    context,
-                    deserialized_message,
-                    websocket_session_controller,
-                )
-                .await
+                rt::spawn(async move {
+                    match Self::handle_deserialized_message(
+                        connection_close_tx.clone(),
+                        context,
+                        deserialized_message,
+                        websocket_session_controller,
+                    )
+                    .await
+                    {
+                        Ok(ContinuationDecision::Continue) => {
+                            // Continue processing messages
+                        }
+                        Ok(ContinuationDecision::Stop) => {
+                            if let Err(close_err) = connection_close_tx.send(()) {
+                                error!("Failed to send continuation shutdown signal: {close_err}");
+                            }
+                        }
+                        Err(err) => {
+                            error!("Error handling deserialized message: {err:?}");
+
+                            if let Err(close_err) = connection_close_tx.send(()) {
+                                error!("Failed to send error shutdown signal: {close_err}");
+                            }
+                        }
+                    }
+                });
+
+                Ok(ContinuationDecision::Continue)
             }
-            Err(
-                err @ serde_json::Error {
-                    ..
-                },
-            ) if err.is_data() || err.is_syntax() => {
+            Err(err @ serde_json::Error { .. }) if err.is_data() || err.is_syntax() => {
                 error!("JSON-RPC syntax error: {err:?}");
 
                 Self::handle_serialization_error(

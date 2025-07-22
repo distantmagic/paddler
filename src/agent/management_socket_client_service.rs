@@ -1,14 +1,14 @@
 use std::net::SocketAddr;
-use futures_util::SinkExt as _;
-use actix_web::rt;
 use std::sync::Arc;
-use crate::request_params::GenerateTokensParams;
+
+use actix_web::rt;
+use actix_web::web::Bytes;
 use anyhow::Context;
 use anyhow::Result;
 use async_trait::async_trait;
+use futures_util::SinkExt as _;
 use futures_util::StreamExt;
 use log::error;
-use actix_web::web::Bytes;
 use log::info;
 use log::warn;
 use tokio::sync::broadcast;
@@ -19,20 +19,22 @@ use tokio::time::MissedTickBehavior;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use uuid::Uuid;
-use crate::agent::jsonrpc::notification_params::SetStateParams;
-use crate::agent::jsonrpc::notification_params::VersionParams;
+
 use crate::agent::jsonrpc::Message as JsonRpcMessage;
 use crate::agent::jsonrpc::Notification as JsonRpcNotification;
 use crate::agent::jsonrpc::Request as JsonRpcRequest;
+use crate::agent::jsonrpc::notification_params::SetStateParams;
+use crate::agent::jsonrpc::notification_params::VersionParams;
+use crate::agent::reconciliation_queue::ReconciliationQueue;
+use crate::agent::slot_aggregated_status::SlotAggregatedStatus;
+use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Message as ManagementJsonRpcMessage;
+use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Notification as ManagementJsonRpcNotification;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::RegisterAgentParams;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::UpdateAgentStatusParams;
-use crate::agent::reconciliation_queue::ReconciliationQueue;
-use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Notification as ManagementJsonRpcNotification;
-use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Message as ManagementJsonRpcMessage;
 use crate::jsonrpc::Error as JsonRpcError;
-use crate::produces_snapshot::ProducesSnapshot;
-use crate::agent::slot_aggregated_status::SlotAggregatedStatus;
 use crate::jsonrpc::RequestEnvelope;
+use crate::produces_snapshot::ProducesSnapshot;
+use crate::request_params::GenerateTokensParams;
 use crate::service::Service;
 
 pub struct ManagementSocketClientService {
@@ -69,10 +71,7 @@ impl ManagementSocketClientService {
             Message::Text(text) => match serde_json::from_str::<JsonRpcMessage>(&text)
                 .context(format!("Failed to parse JSON-RPC request: {text}"))?
             {
-                JsonRpcMessage::Error(JsonRpcError {
-                    code,
-                    description,
-                }) => {
+                JsonRpcMessage::Error(JsonRpcError { code, description }) => {
                     error!(
                         "Received error from server: code: {code}, description: {description:?}"
                     );

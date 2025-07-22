@@ -23,10 +23,7 @@ impl ConvertsToApplicableState for AgentDesiredModel {
 
     async fn to_applicable_state(&self) -> Result<Option<Self::ApplicableState>> {
         Ok(match self {
-            AgentDesiredModel::HuggingFace(HuggingFaceModelReference {
-                filename,
-                repo,
-            }) => {
+            AgentDesiredModel::HuggingFace(HuggingFaceModelReference { filename, repo }) => {
                 let api = Api::new()?;
                 let repo = api.model(repo.to_owned());
                 let weights_filename = repo.get(filename).await?;

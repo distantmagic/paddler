@@ -1,9 +1,9 @@
 pub mod client;
 pub mod jsonrpc;
-
 use std::sync::Arc;
 
 use actix_web::get;
+use actix_web::rt;
 use actix_web::web::Payload;
 use actix_web::web::ServiceConfig;
 use actix_web::Error;
@@ -11,6 +11,7 @@ use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use anyhow::Result;
 use async_trait::async_trait;
+use log::debug;
 use log::error;
 use tokio::sync::broadcast;
 
@@ -38,24 +39,36 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
     fn create_context(&self) -> Self::Context {}
 
     async fn handle_deserialized_message(
-        _connection_close_tx: broadcast::Sender<()>,
+        connection_close_tx: broadcast::Sender<()>,
         _context: Arc<Self::Context>,
         deserialized_message: Self::IncomingMessage,
         mut _websocket_session_controller: WebSocketSessionController<Self::OutgoingMessage>,
     ) -> Result<ContinuationDecision> {
         match deserialized_message {
-            InferenceJsonRpcMessage::Error(JsonRpcError {
-                code,
-                description,
-            }) => {
+            InferenceJsonRpcMessage::Error(JsonRpcError { code, description }) => {
                 error!("Received error from client: code: {code}, description: {description:?}");
 
                 return Ok(ContinuationDecision::Continue);
             }
             InferenceJsonRpcMessage::Request(RequestEnvelope {
-                id: _,
-                request: InferenceJsonRpcRequest::GenerateTokens(_),
+                id,
+                request: InferenceJsonRpcRequest::GenerateTokens(params),
             }) => {
+                debug!("Received GenerateTokens request from client: {id:?}, params: {params:?}");
+
+                let mut connection_close_rx = connection_close_tx.subscribe();
+
+                rt::spawn(async move {
+                    loop {
+                        tokio::select! {
+                            _ = connection_close_rx.recv() => {
+                                debug!("Connection close signal received, stopping GenerateTokens loop.");
+                                break;
+                            }
+                        }
+                    }
+                });
+
                 return Ok(ContinuationDecision::Continue);
             }
         }

@@ -13,9 +13,7 @@ impl AgentApplicableStateHolder {
     pub fn new() -> Self {
         let (change_notifier, _) = channel::<Option<AgentApplicableState>>(None);
 
-        Self {
-            change_notifier,
-        }
+        Self { change_notifier }
     }
 
     pub fn set_applicable_state(

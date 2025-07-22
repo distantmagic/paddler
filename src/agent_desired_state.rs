@@ -27,9 +27,7 @@ impl ConvertsToApplicableState for AgentDesiredState {
             }
         };
 
-        Ok(Some(AgentApplicableState {
-            model_path,
-        }))
+        Ok(Some(AgentApplicableState { model_path }))
     }
 }
 

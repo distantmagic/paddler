@@ -29,13 +29,13 @@ impl AgentControllerPool {
         }
     }
 
-    // pub fn find_best_agent_controller(&self) -> Option<Arc<AgentController>> {
-    //     self.agents
-    //         .iter()
-    //         .map(|entry| entry.value().clone())
-    //         .filter(|agent| agent.slots_processing.get() < agent.slots_total)
-    //         .min_by_key(|agent| agent.slots_processing.get())
-    // }
+    pub fn find_least_busy_agent_controller(&self) -> Option<Arc<AgentController>> {
+        self.agents
+            .iter()
+            .map(|entry| entry.value().clone())
+            .filter(|agent| agent.slots_processing.get() < agent.slots_total.get())
+            .min_by_key(|agent| agent.slots_processing.get())
+    }
 
     pub fn get_agent_controller(&self, agent_id: &str) -> Option<Arc<AgentController>> {
         self.agents.get(agent_id).map(|entry| entry.value().clone())
@@ -97,9 +97,7 @@ impl ProducesSnapshot for AgentControllerPool {
             .map(|entry| entry.value().make_snapshot())
             .collect();
 
-        AgentControllerPoolSnapshot {
-            agents,
-        }
+        AgentControllerPoolSnapshot { agents }
     }
 }
 

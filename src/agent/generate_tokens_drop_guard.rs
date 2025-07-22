@@ -11,9 +11,7 @@ impl GenerateTokensDropGuard {
     pub fn new(slot_status: Arc<SlotStatus>) -> Self {
         slot_status.take_slot();
 
-        Self {
-            slot_status,
-        }
+        Self { slot_status }
     }
 }
 

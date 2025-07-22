@@ -2,6 +2,7 @@ use std::sync::RwLock;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
 use crate::agent::jsonrpc::notification_params::SetStateParams;
@@ -15,7 +16,8 @@ use crate::sends_rpc_message::SendsRpcMessage;
 use crate::sets_desired_state::SetsDesiredState;
 
 pub struct AgentController {
-    pub agent_tx: mpsc::Sender<AgentJsonRpcMessage>,
+    pub agent_message_tx: mpsc::UnboundedSender<AgentJsonRpcMessage>,
+    pub connection_close_rx: broadcast::Receiver<()>,
     pub desired_slots_total: AtomicValue,
     pub id: String,
     pub model_path: RwLock<Option<String>>,
@@ -59,7 +61,7 @@ impl SendsRpcMessage for AgentController {
     type Message = AgentJsonRpcMessage;
 
     async fn send_rpc_message(&self, message: Self::Message) -> Result<()> {
-        self.agent_tx.send(message).await?;
+        self.agent_message_tx.send(message)?;
 
         Ok(())
     }
@@ -69,9 +71,7 @@ impl SendsRpcMessage for AgentController {
 impl SetsDesiredState for AgentController {
     async fn set_desired_state(&self, desired_state: AgentDesiredState) -> Result<()> {
         self.send_rpc_message(AgentJsonRpcMessage::Notification(
-            AgentJsonRpcNotification::SetState(SetStateParams {
-                desired_state,
-            }),
+            AgentJsonRpcNotification::SetState(SetStateParams { desired_state }),
         ))
         .await
     }
