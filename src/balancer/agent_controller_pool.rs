@@ -8,15 +8,13 @@ use tokio::sync::Notify;
 use super::agent_controller::AgentController;
 use super::agent_controller_pool_total_slots::AgentControllerPoolTotalSlots;
 use crate::agent_desired_state::AgentDesiredState;
-use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller_pool_snapshot::AgentControllerPoolSnapshot;
 use crate::balancer::agent_controller_snapshot::AgentControllerSnapshot;
 use crate::produces_snapshot::ProducesSnapshot;
 use crate::sets_desired_state::SetsDesiredState;
 
 pub struct AgentControllerPool {
-    agents: DashMap<String, Arc<AgentController>>,
-    pub total_buffered_requests: AtomicValue,
+    pub agents: DashMap<String, Arc<AgentController>>,
     pub update_notifier: Notify,
 }
 
@@ -24,7 +22,6 @@ impl AgentControllerPool {
     pub fn new() -> Self {
         AgentControllerPool {
             agents: DashMap::new(),
-            total_buffered_requests: AtomicValue::new(0),
             update_notifier: Notify::new(),
         }
     }
@@ -80,10 +77,6 @@ impl AgentControllerPool {
             slots_processing,
             slots_total,
         }
-    }
-
-    pub fn total_buffered_requests(&self) -> i32 {
-        self.total_buffered_requests.get()
     }
 }
 

@@ -3,6 +3,9 @@ pub mod agent_controller_pool;
 pub mod agent_controller_pool_snapshot;
 pub mod agent_controller_pool_total_slots;
 pub mod agent_controller_snapshot;
+pub mod buffered_request_agent_wait_result;
+pub mod buffered_request_count_guard;
+pub mod buffered_request_manager;
 pub mod inference_service;
 pub mod management_service;
 #[cfg(feature = "web_admin_panel")]

@@ -15,21 +15,25 @@ use tokio::time::MissedTickBehavior;
 
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::agent_controller_pool_total_slots::AgentControllerPoolTotalSlots;
+use crate::balancer::buffered_request_manager::BufferedRequestManager;
 use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
 use crate::service::Service;
 
 pub struct StatsdService {
     agent_controller_pool: Arc<AgentControllerPool>,
+    buffered_request_manager: Arc<BufferedRequestManager>,
     configuration: StatsdServiceConfiguration,
 }
 
 impl StatsdService {
     pub fn new(
         agent_controller_pool: Arc<AgentControllerPool>,
+        buffered_request_manager: Arc<BufferedRequestManager>,
         configuration: StatsdServiceConfiguration,
     ) -> Result<Self> {
         Ok(StatsdService {
             agent_controller_pool,
+            buffered_request_manager,
             configuration,
         })
     }
@@ -39,7 +43,7 @@ impl StatsdService {
             slots_processing,
             slots_total,
         } = self.agent_controller_pool.total_slots();
-        let requests_buffered = self.agent_controller_pool.total_buffered_requests();
+        let requests_buffered = self.buffered_request_manager.buffered_requests_count.get();
 
         client.gauge("slots_processing", slots_processing as u64)?;
         client.gauge("slots_total", slots_total as u64)?;

@@ -1,4 +1,5 @@
 group_imports = "StdExternalCrate"
+imports_granularity = "Item"
 imports_layout = "Vertical"
 reorder_impl_items = true
 reorder_imports = true

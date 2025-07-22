@@ -9,6 +9,7 @@ use indoc::indoc;
 
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::agent_controller_pool_total_slots::AgentControllerPoolTotalSlots;
+use crate::balancer::buffered_request_manager::BufferedRequestManager;
 
 pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
@@ -17,12 +18,13 @@ pub fn register(cfg: &mut ServiceConfig) {
 #[get("/metrics")]
 async fn respond(
     agent_controller_pool: Data<AgentControllerPool>,
+    buffered_request_manager: Data<BufferedRequestManager>,
 ) -> Result<impl Responder, Box<dyn Error>> {
     let AgentControllerPoolTotalSlots {
         slots_processing,
         slots_total,
     } = agent_controller_pool.total_slots();
-    let requests_buffered = agent_controller_pool.total_buffered_requests();
+    let buffered_requests_count = buffered_request_manager.buffered_requests_count.get();
 
     let metrics_response = format!(
         indoc! {"
@@ -38,7 +40,7 @@ paddler_slots_total {}
 # TYPE paddler_requests_buffered gauge
 paddler_requests_buffered {}
 "},
-        slots_processing, slots_total, requests_buffered
+        slots_processing, slots_total, buffered_requests_count
     );
 
     Ok(HttpResponse::Ok()

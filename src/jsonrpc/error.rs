@@ -8,7 +8,7 @@ use serde::Serialize;
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Error {
     pub code: i32,
-    pub description: Option<String>,
+    pub description: String,
 }
 
 impl Display for Error {

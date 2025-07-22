@@ -11,6 +11,7 @@ use super::handler::Handler;
 use super::parse_duration;
 use super::parse_socket_addr;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
+use crate::balancer::buffered_request_manager::BufferedRequestManager;
 use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::balancer::inference_service::InferenceService;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
@@ -60,7 +61,7 @@ pub struct Balancer {
     /// The maximum number of buffered requests. Like with usual requests, the request timeout
     /// is also applied to buffered ones. If the maximum number is reached, all new requests are
     /// rejected with the 429 (Too Many Requests) error.
-    max_buffered_requests: usize,
+    max_buffered_requests: i32,
 
     #[arg(long, default_value = "memory://")]
     /// Balancer state database URL. Supported: memory, memory://, or file:///path (optional)
@@ -108,6 +109,11 @@ impl Balancer {
 impl Handler for Balancer {
     async fn handle(&self, shutdown_rx: oneshot::Receiver<()>) -> Result<()> {
         let agent_controller_pool = Arc::new(AgentControllerPool::new());
+        let buffered_request_manager = Arc::new(BufferedRequestManager::new(
+            agent_controller_pool.clone(),
+            self.buffered_request_timeout,
+            self.max_buffered_requests,
+        ));
         let mut service_manager = ServiceManager::new();
         let state_database: Arc<dyn StateDatabase> = match &self.state_database {
             DatabaseType::File(path) => Arc::new(File::new(path.to_owned())),
@@ -116,11 +122,10 @@ impl Handler for Balancer {
 
         service_manager.add_service(InferenceService::new(
             agent_controller_pool.clone(),
+            buffered_request_manager.clone(),
             InferenceServiceConfiguration {
                 addr: self.inference_addr,
                 cors_allowed_hosts: self.inference_cors_allowed_hosts.clone(),
-                // buffered_request_timeout: self.buffered_request_timeout,
-                // max_buffered_requests: self.max_buffered_requests,
             },
             state_database.clone(),
             #[cfg(feature = "web_admin_panel")]
@@ -129,6 +134,7 @@ impl Handler for Balancer {
 
         service_manager.add_service(ManagementService::new(
             agent_controller_pool.clone(),
+            buffered_request_manager.clone(),
             self.get_mangement_service_configuration(),
             state_database,
             #[cfg(feature = "web_admin_panel")]
@@ -138,6 +144,7 @@ impl Handler for Balancer {
         if let Some(statsd_addr) = self.statsd_addr {
             service_manager.add_service(StatsdService::new(
                 agent_controller_pool.clone(),
+                buffered_request_manager,
                 StatsdServiceConfiguration {
                     statsd_addr,
                     statsd_prefix: self.statsd_prefix.clone(),

@@ -1,4 +1,6 @@
+mod agent_socket_controller_context;
 pub mod jsonrpc;
+
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -21,6 +23,7 @@ use serde::Deserialize;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
+use self::agent_socket_controller_context::AgentSocketControllerContext;
 use self::jsonrpc::notification_params::RegisterAgentParams;
 use self::jsonrpc::notification_params::UpdateAgentStatusParams;
 use self::jsonrpc::Message as ManagementJsonRpcMessage;
@@ -34,32 +37,12 @@ use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::state_database::StateDatabase;
 use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
-use crate::jsonrpc::ResponseEnvelope;
 use crate::sets_desired_state::SetsDesiredState as _;
 use crate::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 use crate::websocket_session_controller::WebSocketSessionController;
 
 pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
-}
-
-struct AgentSocketControllerContext {
-    agent_controller_pool: Data<AgentControllerPool>,
-    agent_id: String,
-    state_database: Data<dyn StateDatabase>,
-}
-
-impl Drop for AgentSocketControllerContext {
-    fn drop(&mut self) {
-        if let Err(err) = self
-            .agent_controller_pool
-            .remove_agent_controller(&self.agent_id)
-        {
-            error!("Failed to remove agent: {err}");
-        }
-
-        info!("Removed agent: {}", self.agent_id);
-    }
 }
 
 struct AgentSocketController {
@@ -201,26 +184,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
 
                 Ok(ContinuationDecision::Continue)
             }
-            ManagementJsonRpcMessage::Response(ResponseEnvelope::Error {
-                request_id: _,
-                error: _,
-            }) => Ok(ContinuationDecision::Continue),
-            ManagementJsonRpcMessage::Response(ResponseEnvelope::StreamDone { request_id }) => {
-                println!("Stream done: {request_id}");
-                Ok(ContinuationDecision::Continue)
-            }
         }
-    }
-
-    async fn handle_serialization_error(
-        _connection_close_tx: broadcast::Sender<()>,
-        _context: Arc<Self::Context>,
-        error: serde_json::Error,
-        _websocket_session_controller: WebSocketSessionController<Self::OutgoingMessage>,
-    ) -> Result<ContinuationDecision> {
-        error!("Error in AgentSocketController: {error}");
-
-        Ok(ContinuationDecision::Continue)
     }
 
     async fn on_connection_start(

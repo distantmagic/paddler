@@ -34,6 +34,7 @@ use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonr
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::RequestEnvelope;
 use crate::produces_snapshot::ProducesSnapshot;
+use crate::jsonrpc::ErrorEnvelope;
 use crate::request_params::GenerateTokensParams;
 use crate::service::Service;
 
@@ -71,9 +72,12 @@ impl ManagementSocketClientService {
             Message::Text(text) => match serde_json::from_str::<JsonRpcMessage>(&text)
                 .context(format!("Failed to parse JSON-RPC request: {text}"))?
             {
-                JsonRpcMessage::Error(JsonRpcError { code, description }) => {
+                JsonRpcMessage::Error(ErrorEnvelope {
+                    request_id,
+                    error: JsonRpcError { code, description },
+                }) => {
                     error!(
-                        "Received error from server: code: {code}, description: {description:?}"
+                        "Received error from server: code: {code}, description: {description:?}, request_id: {request_id:?}"
                     );
 
                     Ok(())

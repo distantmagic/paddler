@@ -3,12 +3,13 @@ use serde::Serialize;
 
 use super::Response;
 use crate::jsonrpc::Error;
+use crate::jsonrpc::ErrorEnvelope;
 use crate::jsonrpc::ResponseEnvelope;
 use crate::rpc_message::RpcMessage;
 
 #[derive(Deserialize, Serialize)]
 pub enum Message {
-    Error(Error),
+    Error(ErrorEnvelope<Error>),
     Response(ResponseEnvelope<Response>),
 }
 
