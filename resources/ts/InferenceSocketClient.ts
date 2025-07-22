@@ -16,6 +16,7 @@ export function InferenceSocketClient({
     prompt: string;
   }) {
     const requestId = crypto.randomUUID();
+
     console.log(abortSignal);
 
     function onMessage(event: MessageEvent) {
@@ -30,7 +31,11 @@ export function InferenceSocketClient({
         InferenceServiceGenerateTokensResponseSchema.safeParse(parsed);
 
       if (!result.success) {
-        console.error("Deserialization error:", result.error.issues);
+        console.error(
+          "Deserialization error:",
+          event.data,
+          result.error.issues,
+        );
         return;
       } else {
         onToken(result.data.token);
@@ -38,9 +43,6 @@ export function InferenceSocketClient({
     }
 
     webSocket.addEventListener("message", onMessage);
-    webSocket.addEventListener("message", function () {
-      console.log("Received message from WebSocket");
-    });
     webSocket.send(
       JSON.stringify({
         Request: {

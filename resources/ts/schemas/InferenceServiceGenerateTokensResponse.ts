@@ -3,11 +3,13 @@ import { z } from "zod";
 export const InferenceServiceGenerateTokensResponseSchema = z
   .object({
     Response: z.object({
-      StreamChunk: z.object({
-        request_id: z.string(),
-        chunk: z.object({
-          GeneratedToken: z.object({
-            token: z.string(),
+      request_id: z.string(),
+      response: z.object({
+        GeneratedToken: z.object({
+          generated_token_result: z.object({
+            Token: z.object({
+              token: z.string(),
+            }),
           }),
         }),
       }),
@@ -16,8 +18,10 @@ export const InferenceServiceGenerateTokensResponseSchema = z
   .strict()
   .transform(function (data) {
     return Object.freeze({
-      requestId: data.Response.StreamChunk.request_id,
-      token: data.Response.StreamChunk.chunk.GeneratedToken.token,
+      requestId: data.Response.request_id,
+      token:
+        data.Response.response.GeneratedToken.generated_token_result.Token
+          .token,
     });
   });
 

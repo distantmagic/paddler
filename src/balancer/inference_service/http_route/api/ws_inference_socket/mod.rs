@@ -20,6 +20,7 @@ use tokio::sync::broadcast;
 use tokio::time::sleep;
 
 use self::client::Message as OutgoingMessage;
+use self::client::Response as OutgoingResponse;
 use self::inference_socket_controller_context::InferenceSocketControllerContext;
 use self::jsonrpc::Message as InferenceJsonRpcMessage;
 use self::jsonrpc::Request as InferenceJsonRpcRequest;
@@ -28,12 +29,12 @@ use crate::balancer::buffered_request_manager::BufferedRequestManager;
 use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
-use crate::generated_token::GeneratedToken;
 use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::generated_token_result::GeneratedTokenResult;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::ErrorEnvelope;
 use crate::jsonrpc::RequestEnvelope;
+use crate::jsonrpc::ResponseEnvelope;
 use crate::websocket_session_controller::WebSocketSessionController;
 
 pub fn register(cfg: &mut ServiceConfig) {
@@ -43,6 +44,40 @@ pub fn register(cfg: &mut ServiceConfig) {
 struct InferenceSocketController {
     buffered_request_manager: Data<BufferedRequestManager>,
     inference_service_configuration: Data<InferenceServiceConfiguration>,
+}
+
+impl InferenceSocketController {
+    async fn respond_with_error(
+        error: JsonRpcError,
+        request_id: String,
+        mut websocket_session_controller: WebSocketSessionController<OutgoingMessage>,
+    ) {
+        websocket_session_controller
+            .send_response(OutgoingMessage::Error(ErrorEnvelope {
+                request_id: request_id.clone(),
+                error,
+            }))
+            .await
+            .unwrap_or_else(|err| {
+                error!("Failed to send response for GenerateTokens request {request_id:?}: {err}");
+            });
+    }
+
+    async fn respond_with_token(
+        generated_token_envelope: GeneratedTokenEnvelope,
+        request_id: String,
+        websocket_session_controller: &mut WebSocketSessionController<OutgoingMessage>,
+    ) {
+        websocket_session_controller
+            .send_response(OutgoingMessage::Response(ResponseEnvelope {
+                request_id: request_id.clone(),
+                response: OutgoingResponse::GeneratedToken(generated_token_envelope),
+            }))
+            .await
+            .unwrap_or_else(|err| {
+                error!("Failed to send generated token for request {request_id:?}: {err}");
+            });
+    }
 }
 
 #[async_trait]
@@ -81,19 +116,6 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
 
                 let buffered_request_manager = context.buffered_request_manager.clone();
                 let mut connection_close_rx = connection_close_tx.subscribe();
-                let mut respond_with_error = async |error: JsonRpcError| {
-                    websocket_session_controller
-                        .send_response(OutgoingMessage::Error(ErrorEnvelope {
-                            request_id: id.clone(),
-                            error,
-                        }))
-                        .await
-                        .unwrap_or_else(|err| {
-                            error!(
-                                "Failed to send response for GenerateTokens request {id:?}: {err}"
-                            );
-                        });
-                };
 
                 tokio::select! {
                     _ = connection_close_rx.recv() => {
@@ -110,10 +132,14 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                                     Err(err) => {
                                         error!("Unable to start generate tokens controller for request {id:?}: {err}");
 
-                                        respond_with_error(JsonRpcError {
-                                            code: 500,
-                                            description: "Internal server error".to_string(),
-                                        }).await;
+                                        Self::respond_with_error(
+                                            JsonRpcError {
+                                                code: 500,
+                                                description: "Internal server error".to_string(),
+                                            },
+                                            id.clone(),
+                                            websocket_session_controller,
+                                        ).await;
 
                                         return Ok(ContinuationDecision::Continue);
                                     }
@@ -123,10 +149,15 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                                     tokio::select! {
                                         _ = agent_controller_connection_close_resubscribed.recv() => {
                                             error!("Agent controller connection closed");
-                                            respond_with_error(JsonRpcError {
-                                                code: 502,
-                                                description: "Agent controller connection closed".to_string(),
-                                            }).await;
+                                            Self::respond_with_error(
+                                                JsonRpcError {
+                                                    code: 502,
+                                                    description: "Agent controller connection closed".to_string(),
+                                                },
+                                                id.clone(),
+                                                websocket_session_controller,
+                                            ).await;
+
                                             break;
                                         }
                                         _ = connection_close_rx.recv() => {
@@ -141,10 +172,14 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                                         _ = sleep(context.inference_service_configuration.inference_token_timeout) => {
                                             warn!("Timed out waiting for generated token");
 
-                                            respond_with_error(JsonRpcError {
-                                                code: 504,
-                                                description: "Token generation timed out".to_string(),
-                                            }).await;
+                                            Self::respond_with_error(
+                                                JsonRpcError {
+                                                    code: 504,
+                                                    description: "Token generation timed out".to_string(),
+                                                },
+                                                id.clone(),
+                                                websocket_session_controller,
+                                            ).await;
 
                                             agent_controller.stop_generating_tokens(id.clone()).await.unwrap_or_else(|err| {
                                                 error!("Failed to stop generating tokens for request {id:?}: {err}");
@@ -155,19 +190,16 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                                         generated_token_envelope = generated_tokens_controller.generated_tokens_rx.recv() => {
                                             match generated_token_envelope {
                                                 Some(generated_token_envelope) => {
-                                                    match generated_token_envelope {
-                                                        GeneratedTokenEnvelope {
-                                                            generated_token_result: GeneratedTokenResult::Done,
-                                                            slot,
-                                                        } => break,
-                                                        GeneratedTokenEnvelope {
-                                                            generated_token_result: GeneratedTokenResult::Token(GeneratedToken {
-                                                                token,
-                                                            }),
-                                                            slot,
-                                                        } => {
-                                                            debug!("Received generated token for request {id:?}, slot: {slot}, token: {token:?}");
-                                                        },
+                                                    let is_done = matches!(generated_token_envelope.generated_token_result, GeneratedTokenResult::Done);
+
+                                                    Self::respond_with_token(
+                                                        generated_token_envelope,
+                                                        id.clone(),
+                                                        &mut websocket_session_controller,
+                                                    ).await;
+
+                                                    if is_done {
+                                                        break;
                                                     }
                                                 }
                                                 None => break,
@@ -178,24 +210,36 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                             }
                             Ok(BufferedRequestAgentWaitResult::BufferOverflow) => {
                                 warn!("Too many buffered requests, dropping request: {id:?}");
-                                respond_with_error(JsonRpcError {
-                                    code: 503,
-                                    description: "Buffered requests overflow".to_string(),
-                                }).await;
+                                Self::respond_with_error(
+                                    JsonRpcError {
+                                        code: 503,
+                                        description: "Buffered requests overflow".to_string(),
+                                    },
+                                    id.clone(),
+                                    websocket_session_controller,
+                                ).await;
                             }
                             Ok(BufferedRequestAgentWaitResult::Timeout(err)) => {
                                 warn!("Buffered request {id:?} timed out: {err:?}");
-                                respond_with_error(JsonRpcError {
-                                    code: 408,
-                                    description: "Waiting for available agent timed out".to_string(),
-                                }).await;
+                                Self::respond_with_error(
+                                    JsonRpcError {
+                                        code: 408,
+                                        description: "Waiting for available agent timed out".to_string(),
+                                    },
+                                    id.clone(),
+                                    websocket_session_controller,
+                                ).await;
                             }
                             Err(err) => {
                                 error!("Error while waiting for available agent controller for GenerateTokens request: {err}");
-                                respond_with_error(JsonRpcError {
-                                    code: 500,
-                                    description: "Internal server error".to_string(),
-                                }).await;
+                                Self::respond_with_error(
+                                    JsonRpcError {
+                                        code: 500,
+                                        description: "Internal server error".to_string(),
+                                    },
+                                    id.clone(),
+                                    websocket_session_controller,
+                                ).await;
                             }
                         }
                     }
