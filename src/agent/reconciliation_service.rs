@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use anyhow::Context as _;
 use anyhow::Result;
 use async_trait::async_trait;
 use log::error;
@@ -66,7 +65,7 @@ impl Service for ReconciliationService {
 
         loop {
             tokio::select! {
-                _ = shutdown.recv() => return Ok(()),
+                _ = shutdown.recv() => break Ok(()),
                 _ = ticker.tick() => {
                     if !self.is_converted_to_applicable_state {
                         self.try_convert_to_applicable_state().await;

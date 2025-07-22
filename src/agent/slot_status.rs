@@ -5,7 +5,6 @@ use crate::agent::slot_aggregated_status::SlotAggregatedStatus;
 use crate::atomic_value::AtomicValue;
 
 pub struct SlotStatus {
-    // pub model_path: Option<String>,
     pub slot_aggregated_status: Arc<SlotAggregatedStatus>,
     pub slots_processing: Arc<AtomicValue>,
 }

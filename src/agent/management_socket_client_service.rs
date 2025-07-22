@@ -132,6 +132,8 @@ impl ManagementSocketClientService {
     }
 
     async fn keep_connection_alive(&self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
+        info!("Connecting to management server at {}", self.socket_url);
+
         let (ws_stream, _response) = connect_async(self.socket_url.clone()).await?;
 
         info!("Connected to management server");
@@ -144,13 +146,29 @@ impl ManagementSocketClientService {
         let mut connection_close_rx_resubscribed = connection_close_rx.resubscribe();
         let mut shutdown_resubscribed = shutdown.resubscribe();
 
-        rt::spawn(async move {
+        let message_forward_handle = rt::spawn(async move {
             loop {
                 tokio::select! {
                     _ = connection_close_rx_resubscribed.recv() => {
                         break;
                     }
                     _ = shutdown_resubscribed.recv() => {
+                        info!("Shutdown signal received, deregistering agent");
+
+                        write.send(Message::Text(match serde_json::to_string(
+                            &ManagementJsonRpcMessage::Notification(
+                                ManagementJsonRpcNotification::DeregisterAgent,
+                            )
+                        ) {
+                            Ok(serialized_message) => serialized_message.into(),
+                            Err(err) => {
+                                error!("Failed to serialize deregister agent notification: {err}");
+                                return;
+                            }
+                        })).await.unwrap_or_else(|err| {
+                            error!("Failed to send deregister agent notification: {err}");
+                        });
+
                         break;
                     }
                     message = message_rx.recv() => {
@@ -226,17 +244,7 @@ impl ManagementSocketClientService {
 
                         break;
                     }
-                    _ = shutdown.recv() => {
-                        message_tx.send(
-                            ManagementJsonRpcMessage::Notification(
-                                ManagementJsonRpcNotification::DeregisterAgent,
-                            )
-                        ).unwrap_or_else(|err| {
-                            error!("Failed to send deregister agent notification: {err}");
-                        });
-
-                        break;
-                    }
+                    _ = shutdown.recv() => break,
                     _ = slot_aggregated_status_clone.update_notifier.notified() => do_send_status_update(),
                     _ = ticker.tick() => do_send_status_update(),
                     msg = read.next() => {
@@ -277,6 +285,10 @@ impl ManagementSocketClientService {
         })
         .await?;
 
+        message_forward_handle
+            .await
+            .context("Failed to join message forwarding task")?;
+
         Ok(())
     }
 }
@@ -294,14 +306,15 @@ impl Service for ManagementSocketClientService {
 
         loop {
             tokio::select! {
-                _ = shutdown.recv() => return Ok(()),
+                _ = shutdown.recv() => break Ok(()),
                 _ = ticker.tick() => {
-                    if let Err(err) = self.keep_connection_alive(shutdown.resubscribe()).await {
-                        error!("Failed to keep the connection alive: {err:?}");
-                    } else {
-                        info!("Gracefully closed connection to management server");
-
-                        return Ok(());
+                    match self.keep_connection_alive(shutdown.resubscribe()).await {
+                        Err(err) => {
+                            error!("Failed to keep the connection alive: {err:?}");
+                        }
+                        Ok(()) => {
+                            info!("Gracefully closed connection to management server");
+                        }
                     }
                 }
             }

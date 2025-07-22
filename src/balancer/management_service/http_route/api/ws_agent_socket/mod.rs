@@ -114,7 +114,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                 }),
             ) => {
                 let (agent_tx, mut agent_rx) = mpsc::channel::<AgentJsonRpcMessage>(1000);
-                let agent_controller = AgentController {
+                let agent_controller = Arc::new(AgentController {
                     agent_tx,
                     desired_slots_total: AtomicValue::new(desired_slots_total),
                     id: context.agent_id.clone(),
@@ -122,7 +122,12 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     name,
                     slots_processing: AtomicValue::new(slots_processing),
                     slots_total: AtomicValue::new(slots_total),
-                };
+                });
+
+                context
+                    .agent_controller_pool
+                    .register_agent_controller(context.agent_id.clone(), agent_controller.clone())
+                    .context("Unable to register agent controller")?;
 
                 if let Some(desired_state) = context.state_database.read_desired_state().await? {
                     agent_controller
@@ -130,11 +135,6 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                         .await
                         .context("Unable to set desired state")?;
                 }
-
-                context
-                    .agent_controller_pool
-                    .register_agent_controller(context.agent_id.clone(), Arc::new(agent_controller))
-                    .context("Unable to register agent controller")?;
 
                 info!("Registered agent: {}", context.agent_id);
 

@@ -7,6 +7,7 @@ use actix_web::App;
 use actix_web::HttpServer;
 use anyhow::Result;
 use async_trait::async_trait;
+use log::error;
 use tokio::sync::broadcast;
 
 use crate::balancer::agent_controller_pool::AgentControllerPool;
@@ -50,7 +51,7 @@ impl Service for ManagementService {
         "balancer::management_service"
     }
 
-    async fn run(&mut self, mut _shutdown: broadcast::Receiver<()>) -> Result<()> {
+    async fn run(&mut self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
         #[allow(unused_mut)]
         let mut cors_allowed_hosts = self.configuration.cors_allowed_hosts.clone();
 
@@ -64,7 +65,7 @@ impl Service for ManagementService {
         let cors_allowed_hosts_arc = Arc::new(cors_allowed_hosts);
         let state_database: Data<dyn StateDatabase> = Data::from(self.state_database.clone());
 
-        Ok(HttpServer::new(move || {
+        HttpServer::new(move || {
             App::new()
                 .wrap(create_cors_middleware(cors_allowed_hosts_arc.clone()))
                 .app_data(agent_pool.clone())
@@ -75,9 +76,16 @@ impl Service for ManagementService {
                 .configure(http_route::api::ws_agent_socket::register)
                 .configure(http_route::get_metrics::register)
         })
+        .shutdown_signal(async move {
+            if let Err(err) = shutdown.recv().await {
+                error!("Failed to receive shutdown signal: {err}");
+            }
+        })
         .bind(self.configuration.addr)
         .expect("Unable to bind server to address")
         .run()
-        .await?)
+        .await?;
+
+        Ok(())
     }
 }

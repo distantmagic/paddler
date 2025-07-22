@@ -100,7 +100,7 @@ impl Service for LlamaCppArbiterService {
 
         loop {
             tokio::select! {
-                _ = shutdown.recv() => return Ok(()),
+                _ = shutdown.recv() => break Ok(()),
                 _ = reconciled_state.changed() => {
                     self.agent_applicable_state = reconciled_state.borrow_and_update().clone();
                     self.is_state_applied = false;

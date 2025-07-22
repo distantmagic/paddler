@@ -73,9 +73,7 @@ impl Service for StatsdService {
 
         loop {
             tokio::select! {
-                _ = shutdown.recv() => {
-                    return Ok(());
-                },
+                _ = shutdown.recv() => break Ok(()),
                 _ = ticker.tick() => {
                     if let Err(err) = self.report_metrics(&client).await {
                         error!("Failed to report metrics: {err}");
