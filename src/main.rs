@@ -10,6 +10,7 @@ mod controls_websocket_endpoint;
 mod converts_to_applicable_state;
 mod create_cors_middleware;
 mod database_type;
+mod generated_token;
 mod huggingface_model_reference;
 mod jsonrpc;
 mod produces_snapshot;
@@ -49,6 +50,7 @@ struct Cli {
     command: Option<Commands>,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Subcommand)]
 enum Commands {
     /// Agent for managing llama.cpp instances

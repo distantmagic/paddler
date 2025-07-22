@@ -2,7 +2,7 @@ use actix::Message;
 use anyhow::Result;
 use tokio::sync::mpsc;
 
-use crate::agent::generated_token::GeneratedToken;
+use crate::generated_token::GeneratedToken;
 use crate::request_params::GenerateTokensParams;
 
 #[derive(Message)]

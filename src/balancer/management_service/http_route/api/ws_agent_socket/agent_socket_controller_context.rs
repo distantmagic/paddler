@@ -3,11 +3,13 @@ use log::error;
 use log::info;
 
 use crate::balancer::agent_controller_pool::AgentControllerPool;
+use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::state_database::StateDatabase;
 
 pub struct AgentSocketControllerContext {
     pub agent_controller_pool: Data<AgentControllerPool>,
     pub agent_id: String,
+    pub generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
     pub state_database: Data<dyn StateDatabase>,
 }
 

@@ -34,6 +34,7 @@ use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
+use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::state_database::StateDatabase;
 use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
@@ -48,6 +49,7 @@ pub fn register(cfg: &mut ServiceConfig) {
 struct AgentSocketController {
     agent_controller_pool: Data<AgentControllerPool>,
     agent_id: String,
+    generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
     state_database: Data<dyn StateDatabase>,
 }
 
@@ -61,6 +63,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
         AgentSocketControllerContext {
             agent_controller_pool: self.agent_controller_pool.clone(),
             agent_id: self.agent_id.clone(),
+            generate_tokens_sender_collection: self.generate_tokens_sender_collection.clone(),
             state_database: self.state_database.clone(),
         }
     }
@@ -102,6 +105,9 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     agent_message_tx,
                     connection_close_rx: connection_close_tx.subscribe(),
                     desired_slots_total: AtomicValue::new(desired_slots_total),
+                    generate_tokens_sender_collection: context
+                        .generate_tokens_sender_collection
+                        .clone(),
                     id: context.agent_id.clone(),
                     model_path: RwLock::new(model_path),
                     name,
@@ -216,6 +222,7 @@ struct PathParams {
 #[get("/api/v1/agent_socket/{agent_id}")]
 async fn respond(
     agent_controller_pool: Data<AgentControllerPool>,
+    generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
     state_database: Data<dyn StateDatabase>,
     path_params: Path<PathParams>,
     payload: Payload,
@@ -224,6 +231,7 @@ async fn respond(
     let agent_socket_controller = AgentSocketController {
         agent_controller_pool,
         agent_id: path_params.agent_id.clone(),
+        generate_tokens_sender_collection,
         state_database,
     };
 

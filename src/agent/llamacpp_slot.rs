@@ -17,8 +17,8 @@ use log::info;
 
 use crate::agent::generate_tokens_drop_guard::GenerateTokensDropGuard;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
-use crate::agent::generated_token::GeneratedToken;
 use crate::agent::slot_status::SlotStatus;
+use crate::generated_token::GeneratedToken;
 use crate::request_params::GenerateTokensParams;
 
 pub struct LlamaCppSlot {

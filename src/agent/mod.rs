@@ -1,7 +1,6 @@
 pub mod dispenses_slots;
 pub mod generate_tokens_drop_guard;
 pub mod generate_tokens_request;
-pub mod generated_token;
 pub mod jsonrpc;
 pub mod llamacpp_arbiter;
 pub mod llamacpp_arbiter_controller;

@@ -62,55 +62,88 @@ impl ManagementSocketClientService {
         })
     }
 
-    async fn handle_incoming_message(
+    async fn handle_deserialized_message(
         _message_tx: mpsc::UnboundedSender<ManagementJsonRpcMessage>,
+        deserialized_message: JsonRpcMessage,
+        reconciliation_queue: Arc<ReconciliationQueue>,
+    ) -> Result<()> {
+        match deserialized_message {
+            JsonRpcMessage::Error(ErrorEnvelope {
+                request_id,
+                error: JsonRpcError { code, description },
+            }) => {
+                error!(
+                    "Received error from server: code: {code}, description: {description:?}, request_id: {request_id:?}"
+                );
+
+                Ok(())
+            }
+            JsonRpcMessage::Notification(JsonRpcNotification::SetState(SetStateParams {
+                desired_state,
+            })) => {
+                reconciliation_queue
+                    .register_change_request(desired_state)
+                    .await
+            }
+            JsonRpcMessage::Notification(JsonRpcNotification::StopRequest(_)) => Ok(()),
+            JsonRpcMessage::Notification(JsonRpcNotification::Version(VersionParams {
+                version,
+            })) => {
+                if version != env!("CARGO_PKG_VERSION") {
+                    warn!(
+                        "Version mismatch: server version is {version}, client version is {}",
+                        env!("CARGO_PKG_VERSION")
+                    );
+                }
+
+                Ok(())
+            }
+            JsonRpcMessage::Request(RequestEnvelope {
+                id: _,
+                request:
+                    JsonRpcRequest::GenerateTokens(GenerateTokensParams {
+                        max_tokens: _,
+                        prompt: _,
+                    }),
+            }) => Ok(()),
+        }
+    }
+
+    async fn handle_incoming_message(
+        connection_close_tx: broadcast::Sender<()>,
+        message_tx: mpsc::UnboundedSender<ManagementJsonRpcMessage>,
         msg: Message,
         pong_tx: mpsc::UnboundedSender<Bytes>,
         reconciliation_queue: Arc<ReconciliationQueue>,
     ) -> Result<()> {
         match msg {
-            Message::Text(text) => match serde_json::from_str::<JsonRpcMessage>(&text)
-                .context(format!("Failed to parse JSON-RPC request: {text}"))?
-            {
-                JsonRpcMessage::Error(ErrorEnvelope {
-                    request_id,
-                    error: JsonRpcError { code, description },
-                }) => {
-                    error!(
-                        "Received error from server: code: {code}, description: {description:?}, request_id: {request_id:?}"
-                    );
+            Message::Text(text) => {
+                let mut connection_close_rx = connection_close_tx.subscribe();
 
-                    Ok(())
-                }
-                JsonRpcMessage::Notification(JsonRpcNotification::SetState(SetStateParams {
-                    desired_state,
-                })) => {
-                    reconciliation_queue
-                        .register_change_request(desired_state)
-                        .await
-                }
-                JsonRpcMessage::Notification(JsonRpcNotification::StopRequest(_)) => Ok(()),
-                JsonRpcMessage::Notification(JsonRpcNotification::Version(VersionParams {
-                    version,
-                })) => {
-                    if version != env!("CARGO_PKG_VERSION") {
-                        warn!(
-                            "Version mismatch: server version is {version}, client version is {}",
-                            env!("CARGO_PKG_VERSION")
-                        );
+                rt::spawn(async move {
+                    tokio::select! {
+                        _ = connection_close_rx.recv() => {
+                            info!("Connection close signal received, shutting down");
+                        }
+                        result = Self::handle_deserialized_message(
+                            message_tx,
+                            match serde_json::from_str::<JsonRpcMessage>(&text).context(format!("Failed to parse JSON-RPC message: {text}")) {
+                                Ok(message) => message,
+                                Err(err) => {
+                                    error!("Failed to deserialize message: {err}");
+
+                                    return;
+                                }
+                            },
+                            reconciliation_queue,
+                        ) => if let Err(err) = result {
+                            error!("Error handling incoming message: {err}");
+                        }
                     }
+                });
 
-                    Ok(())
-                }
-                JsonRpcMessage::Request(RequestEnvelope {
-                    id: _,
-                    request:
-                        JsonRpcRequest::GenerateTokens(GenerateTokensParams {
-                            max_tokens: _,
-                            prompt: _,
-                        }),
-                }) => Ok(()),
-            },
+                Ok(())
+            }
             Message::Binary(_) => {
                 error!("Received binary message, which is not expected");
 
@@ -254,6 +287,7 @@ impl ManagementSocketClientService {
                         let should_close = match msg {
                             Some(Ok(msg)) => {
                                 if let Err(err) = Self::handle_incoming_message(
+                                        connection_close_tx.clone(),
                                         message_tx.clone(),
                                         msg,
                                         pong_tx.clone(),

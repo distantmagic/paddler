@@ -6,6 +6,8 @@ pub mod agent_controller_snapshot;
 pub mod buffered_request_agent_wait_result;
 pub mod buffered_request_count_guard;
 pub mod buffered_request_manager;
+pub mod generate_tokens_controller;
+pub mod generate_tokens_sender_collection;
 pub mod inference_service;
 pub mod management_service;
 #[cfg(feature = "web_admin_panel")]

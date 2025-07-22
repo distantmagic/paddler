@@ -103,6 +103,19 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                                     debug!("Found available agent controller for GenerateTokens request: {id:?}");
 
                                     let mut agent_controller_connection_close_resubscribed = agent_controller.connection_close_rx.resubscribe();
+                                    let mut generated_tokens_controller = match agent_controller.generate_tokens(id.clone(), params).await {
+                                        Ok(generated_tokens_controller) => generated_tokens_controller,
+                                        Err(err) => {
+                                            error!("Unable to start generate tokens controller for request {id:?}: {err}");
+
+                                            respond_with_error(JsonRpcError {
+                                                code: 500,
+                                                description: "Internal server error".to_string(),
+                                            }).await;
+
+                                            return;
+                                        }
+                                    };
 
                                     loop {
                                         tokio::select! {
@@ -125,6 +138,14 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                                                     description: "Token generation timed out".to_string(),
                                                 }).await;
                                                 break;
+                                            }
+                                            generated_token = generated_tokens_controller.generated_tokens_rx.recv() => {
+                                                match generated_token {
+                                                    Some(generated_token) => {
+                                                        debug!("Received generated token for request {id:?}: {generated_token:?}");
+                                                    }
+                                                    None => break,
+                                                }
                                             }
                                         }
                                     }
