@@ -39,6 +39,10 @@ pub struct Balancer {
     /// Address of the inference server
     inference_addr: SocketAddr,
 
+    #[arg(long, default_value = "10000", value_parser = parse_duration)]
+    /// The timeout (in milliseconds) for generating a single token.
+    inference_token_timeout: Duration,
+
     #[arg(
         long = "inference-cors-allowed-host",
         action = clap::ArgAction::Append
@@ -126,6 +130,7 @@ impl Handler for Balancer {
             InferenceServiceConfiguration {
                 addr: self.inference_addr,
                 cors_allowed_hosts: self.inference_cors_allowed_hosts.clone(),
+                inference_token_timeout: self.inference_token_timeout,
             },
             state_database.clone(),
             #[cfg(feature = "web_admin_panel")]

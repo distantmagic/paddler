@@ -87,6 +87,7 @@ impl Service for InferenceService {
         let buffered_request_manager: Data<BufferedRequestManager> =
             Data::from(self.buffered_request_manager.clone());
         let cors_allowed_hosts_arc = Arc::new(cors_allowed_hosts);
+        let inference_service_configuration = Data::new(self.configuration.clone());
         let state_database: Data<dyn StateDatabase> = Data::from(self.state_database.clone());
 
         HttpServer::new(move || {
@@ -94,6 +95,7 @@ impl Service for InferenceService {
                 .wrap(create_cors_middleware(cors_allowed_hosts_arc.clone()))
                 .app_data(agent_pool.clone())
                 .app_data(buffered_request_manager.clone())
+                .app_data(inference_service_configuration.clone())
                 .app_data(state_database.clone())
                 .configure(http_route::api::ws_inference_socket::register)
         })
