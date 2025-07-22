@@ -8,7 +8,8 @@ use crate::request_params::GenerateTokensParams;
 #[derive(Message)]
 #[rtype(result = "Result<()>")]
 pub struct GenerateTokensRequest {
-    pub generated_tokens_tx: mpsc::UnboundedSender<GeneratedToken>,
     pub generate_tokens_params: GenerateTokensParams,
+    pub generate_tokens_stop_rx: mpsc::UnboundedReceiver<()>,
+    pub generated_tokens_tx: mpsc::UnboundedSender<GeneratedToken>,
     pub request_id: String,
 }

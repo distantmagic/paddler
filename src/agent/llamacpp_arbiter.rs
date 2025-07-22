@@ -155,9 +155,14 @@ mod tests {
             "<|im_start|>user\nHow can I make a cat happy?<|im_end|>\n<|im_start|>assistant\n";
         let (generated_tokens_tx, mut generated_tokens_rx) = mpsc::unbounded_channel();
 
+        let (_, generate_tokens_stop_rx_1) = mpsc::unbounded_channel::<()>();
+        let (_, generate_tokens_stop_rx_2) = mpsc::unbounded_channel::<()>();
+        let (_, generate_tokens_stop_rx_3) = mpsc::unbounded_channel::<()>();
+
         let futures = vec![
             controller.llamacpp_slot_addr.send(GenerateTokensRequest {
                 generated_tokens_tx: generated_tokens_tx.clone(),
+                generate_tokens_stop_rx: generate_tokens_stop_rx_1,
                 generate_tokens_params: GenerateTokensParams {
                     max_tokens: 30,
                     prompt: prompt.to_string(),
@@ -166,6 +171,7 @@ mod tests {
             }),
             controller.llamacpp_slot_addr.send(GenerateTokensRequest {
                 generated_tokens_tx: generated_tokens_tx.clone(),
+                generate_tokens_stop_rx: generate_tokens_stop_rx_2,
                 generate_tokens_params: GenerateTokensParams {
                     max_tokens: 30,
                     prompt: prompt.to_string(),
@@ -174,6 +180,7 @@ mod tests {
             }),
             controller.llamacpp_slot_addr.send(GenerateTokensRequest {
                 generated_tokens_tx,
+                generate_tokens_stop_rx: generate_tokens_stop_rx_3,
                 generate_tokens_params: GenerateTokensParams {
                     max_tokens: 30,
                     prompt: prompt.to_string(),

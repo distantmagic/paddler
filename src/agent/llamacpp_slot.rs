@@ -13,6 +13,7 @@ use llama_cpp_2::model::AddBos;
 use llama_cpp_2::model::LlamaModel;
 use llama_cpp_2::model::Special;
 use llama_cpp_2::sampling::LlamaSampler;
+use log::debug;
 use log::info;
 
 use crate::agent::dispenses_slots::DispensesSlots as _;
@@ -96,8 +97,9 @@ impl Handler<GenerateTokensRequest> for LlamaCppSlot {
     fn handle(
         &mut self,
         GenerateTokensRequest {
-            generated_tokens_tx,
             generate_tokens_params: GenerateTokensParams { prompt, max_tokens },
+            mut generate_tokens_stop_rx,
+            generated_tokens_tx,
             request_id,
         }: GenerateTokensRequest,
         _ctx: &mut Self::Context,
@@ -123,6 +125,15 @@ impl Handler<GenerateTokensRequest> for LlamaCppSlot {
         let mut sampler = LlamaSampler::greedy();
 
         while n_cur <= max_tokens {
+            if generate_tokens_stop_rx.try_recv().is_ok() {
+                debug!(
+                    "{:?}: slot {} received stop signal",
+                    self.agent_name, self.slot_index
+                );
+
+                break;
+            }
+
             // sample the next token
             {
                 let token = sampler.sample(&self.llama_context, batch.n_tokens() - 1);

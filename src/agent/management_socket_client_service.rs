@@ -21,9 +21,11 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use uuid::Uuid;
 
+use crate::agent::generate_tokens_stopper_collection::GenerateTokensStopperCollection;
 use crate::agent::jsonrpc::Message as JsonRpcMessage;
 use crate::agent::jsonrpc::Notification as JsonRpcNotification;
 use crate::agent::jsonrpc::Request as JsonRpcRequest;
+use crate::agent::generate_tokens_stopper_drop_guard::GenerateTokensStopperDropGuard;
 use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
 use crate::agent::jsonrpc::notification_params::VersionParams;
@@ -42,6 +44,7 @@ use crate::service::Service;
 
 pub struct ManagementSocketClientService {
     generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
+    generate_tokens_stopper_collection: Arc<GenerateTokensStopperCollection>,
     name: Option<String>,
     reconciliation_queue: Arc<ReconciliationQueue>,
     slot_aggregated_status: Arc<SlotAggregatedStatus>,
@@ -60,6 +63,7 @@ impl ManagementSocketClientService {
 
         Ok(ManagementSocketClientService {
             generate_tokens_request_tx,
+            generate_tokens_stopper_collection: Arc::new(GenerateTokensStopperCollection::new()),
             name,
             reconciliation_queue,
             slot_aggregated_status,
@@ -70,6 +74,7 @@ impl ManagementSocketClientService {
     async fn handle_deserialized_message(
         connection_close_tx: broadcast::Sender<()>,
         generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
+        generate_tokens_stopper_collection: Arc<GenerateTokensStopperCollection>,
         _message_tx: mpsc::UnboundedSender<ManagementJsonRpcMessage>,
         deserialized_message: JsonRpcMessage,
         reconciliation_queue: Arc<ReconciliationQueue>,
@@ -93,7 +98,12 @@ impl ManagementSocketClientService {
                     .await
             }
             JsonRpcMessage::Notification(JsonRpcNotification::StopGeneratingTokens(request_id)) => {
-                debug!("Received StopRespondingTo notification for request ID: {request_id:?}");
+                debug!("Received StopGeneratingTokens notification for request ID: {request_id:?}");
+                generate_tokens_stopper_collection
+                    .stop(request_id.clone())
+                    .context(format!(
+                        "Failed to stop generating tokens for request ID: {request_id}"
+                    ))?;
 
                 Ok(())
             }
@@ -114,11 +124,24 @@ impl ManagementSocketClientService {
                 request: JsonRpcRequest::GenerateTokens(generate_tokens_params),
             }) => {
                 debug!("Agent received GenerateTokens request: {id:?}, params: {generate_tokens_params:?}");
+
                 let (generated_tokens_tx, mut generated_tokens_rx) =
                     mpsc::unbounded_channel::<GeneratedToken>();
+                let (generate_tokens_stop_tx, generate_tokens_stop_rx) =
+                    mpsc::unbounded_channel::<()>();
+
+                let _guard = GenerateTokensStopperDropGuard {
+                    generate_tokens_stopper_collection: generate_tokens_stopper_collection.clone(),
+                    request_id: id.clone(),
+                };
+
+                generate_tokens_stopper_collection
+                    .register_stopper(id.clone(), generate_tokens_stop_tx)
+                    .context(format!("Failed to register stopper for request ID: {id}"))?;
 
                 generate_tokens_request_tx.send(GenerateTokensRequest {
                     generate_tokens_params,
+                    generate_tokens_stop_rx,
                     generated_tokens_tx,
                     request_id: id.clone(),
                 })?;
@@ -149,6 +172,7 @@ impl ManagementSocketClientService {
     async fn handle_incoming_message(
         connection_close_tx: broadcast::Sender<()>,
         generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
+        generate_tokens_stopper_collection: Arc<GenerateTokensStopperCollection>,
         message_tx: mpsc::UnboundedSender<ManagementJsonRpcMessage>,
         msg: Message,
         pong_tx: mpsc::UnboundedSender<Bytes>,
@@ -157,6 +181,8 @@ impl ManagementSocketClientService {
         match msg {
             Message::Text(text) => {
                 let mut connection_close_rx = connection_close_tx.subscribe();
+                let generate_tokens_stopper_collection_clone =
+                    generate_tokens_stopper_collection.clone();
 
                 rt::spawn(async move {
                     tokio::select! {
@@ -166,6 +192,7 @@ impl ManagementSocketClientService {
                         result = Self::handle_deserialized_message(
                             connection_close_tx,
                             generate_tokens_request_tx,
+                            generate_tokens_stopper_collection_clone,
                             message_tx,
                             match serde_json::from_str::<JsonRpcMessage>(&text).context(format!("Failed to parse JSON-RPC message: {text}")) {
                                 Ok(message) => message,
@@ -326,6 +353,7 @@ impl ManagementSocketClientService {
                             if let Err(err) = Self::handle_incoming_message(
                                     connection_close_tx.clone(),
                                     self.generate_tokens_request_tx.clone(),
+                                    self.generate_tokens_stopper_collection.clone(),
                                     message_tx.clone(),
                                     msg,
                                     pong_tx.clone(),
