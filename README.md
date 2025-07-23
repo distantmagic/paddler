@@ -211,6 +211,11 @@ If you do not provide the `--statsd-addr` flag, the StatsD metrics will not be c
 
 ### v2.0.0 (in progress)
 
+> [!IMPORTANT]
+> This release no longer uses `llama-server`. Instead, we bundle the `llama.cpp` codebase directly into Paddler.
+> We only use `llama.cpp` as a library for inference and have reimplemented `llama-server` functionality within Paddler itself.
+> Instead of `llama-server`, you can use `paddler agent`, and you no longer need to run `llama-server` separately, which significantly simplifies the setup.
+
 #### Breaking Changes
 
 - Change the agent object structure (which in turn changes the response from the API)
