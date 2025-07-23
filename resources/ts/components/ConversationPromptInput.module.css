@@ -1,0 +1,53 @@
+.conversationPromptInput {
+  background-color: var(--color-body-background);
+  border: 2px solid var(--color-border);
+  box-shadow: 4px 4px 0 var(--color-border);
+  display: flex;
+  flex-direction: column;
+}
+
+.conversationPromptInput__button {
+  align-items: center;
+  appearance: none;
+  background-color: transparent;
+  border-radius: 0;
+  border: none;
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-half);
+
+  &:disabled {
+    filter: opacity(0.5);
+  }
+
+  img {
+    height: 16px;
+    width: 16px;
+  }
+}
+
+.conversationPromptInput__controls {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 0 var(--spacing-base) var(--spacing-base) var(--spacing-base);
+}
+
+.conversationPromptInput__controls__track {
+  column-gap: var(--spacing-half);
+  display: flex;
+  flex-direction: row;
+}
+
+.conversationPromptInput__textarea {
+  appearance: none;
+  border: none;
+  field-sizing: content;
+  max-height: 200px;
+  padding: var(--spacing-base);
+  resize: none;
+
+  &:focus {
+    outline: none;
+  }
+}

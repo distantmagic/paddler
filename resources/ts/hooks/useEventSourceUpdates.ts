@@ -19,8 +19,8 @@ export type ConnectionErrorState = {
   isOk: false;
 };
 
-export type DataSnapshotState<TSchema extends z.ZodTypeAny> = {
-  data: NonNullable<z.infer<TSchema>>;
+export type DataSnapshotState<TSchema extends z.ZodType> = {
+  data: z.infer<TSchema>;
   isConnected: true;
   isConnectionError: false;
   isDeserializationError: false;
@@ -46,7 +46,7 @@ export type InitialStreamState = {
   isOk: false;
 };
 
-export type StreamState<TSchema extends z.ZodTypeAny> =
+export type StreamState<TSchema extends z.ZodType> =
   | ConnectedState
   | ConnectionErrorState
   | DataSnapshotState<TSchema>
@@ -89,7 +89,7 @@ const defaultStreamState: InitialStreamState = Object.freeze({
   isOk: false,
 });
 
-export function useEventSourceUpdates<TSchema extends z.ZodTypeAny>({
+export function useEventSourceUpdates<TSchema extends z.ZodType>({
   endpoint,
   schema,
 }: {
@@ -119,7 +119,7 @@ export function useEventSourceUpdates<TSchema extends z.ZodTypeAny>({
         const result = schema.safeParse(parsed);
 
         if (!result.success) {
-          console.log("Deserialization error:", result.error);
+          console.error("Deserialization error:", result.error.issues);
           setStreamState(deserializationErrorState);
         } else {
           setStreamState({

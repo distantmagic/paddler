@@ -41,15 +41,14 @@ udpServer.on("message", (msg, rinfo) => {
 
 udpServer.on("listening", () => {
   const { port } = udpServer.address();
-  console.log(`StatsD server listening on port ${port}`);
+  console.log(`StatsD UDP server listening on port ${port}`);
 });
 
 udpServer.bind(parseInt(managementPort));
 
-const server = createServer(function (req, res) {
-  const url = new URL(req.url, `http://${req.headers.host}`);
-
-  if (url.pathname === "/health") {
+const server = createServer(function ({ url }, res) {
+  console.log(url);
+  if (url === "/health") {
     if (Object.keys(metrics).length === 0) {
       res.statusCode = 503;
       res.setHeader("Content-Type", "text/plain");
@@ -60,7 +59,7 @@ const server = createServer(function (req, res) {
       res.setHeader("Content-Type", "text/plain");
       res.end("OK");
     }
-  } else if (url.pathname === "/metrics") {
+  } else if (url === "/metrics") {
     const output = {};
 
     for (const [name, data] of Object.entries(metrics)) {
@@ -78,5 +77,5 @@ const server = createServer(function (req, res) {
 });
 
 server.listen(parseInt(exposePort, 10), function () {
-  console.log(`Statsd server is listening on port ${parseInt(exposePort)}`);
+  console.log(`StatsD HTTP server listening on port ${parseInt(exposePort)}`);
 });

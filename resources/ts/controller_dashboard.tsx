@@ -1,14 +1,35 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 
-import { Dashboard } from "./components/Dashboard";
+import { Home } from "./components/Home";
 
-const rootNode = document.getElementById("paddler-dashboard");
+class RootNode {
+  constructor(private rootNodeElement: HTMLElement) {}
 
-if (!rootNode) {
+  getFromDataset(key: string): string {
+    const value = this.rootNodeElement.dataset[key];
+
+    if (value === undefined) {
+      throw new Error(`Missing dataset key: ${key}`);
+    }
+
+    return value;
+  }
+}
+
+const rootNodeElement = document.getElementById("paddler-dashboard");
+
+if (!rootNodeElement) {
   throw new Error("Root node not found");
 }
 
-const root = createRoot(rootNode);
+const rootNode = new RootNode(rootNodeElement);
 
-root.render(<Dashboard />);
+const root = createRoot(rootNodeElement);
+
+root.render(
+  <Home
+    inferenceAddr={rootNode.getFromDataset("inferenceAddr")}
+    managementAddr={rootNode.getFromDataset("managementAddr")}
+  />,
+);

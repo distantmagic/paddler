@@ -1,16 +1,19 @@
-pub mod http_route;
+pub mod agent_controller;
+pub mod agent_controller_pool;
+pub mod agent_controller_pool_snapshot;
+pub mod agent_controller_pool_total_slots;
+pub mod agent_controller_snapshot;
+pub mod buffered_request_agent_wait_result;
+pub mod buffered_request_count_guard;
+pub mod buffered_request_manager;
+pub mod generate_tokens_controller;
+pub mod generate_tokens_sender_collection;
+pub mod inference_service;
 pub mod management_service;
-pub mod proxy_service;
-pub mod request_context;
-pub mod status_update;
-pub mod upstream_peer;
-pub mod upstream_peer_pool;
-
-#[cfg(feature = "statsd_reporter")]
-pub mod statsd_service;
-
-#[cfg(feature = "web_dashboard")]
+#[cfg(feature = "web_admin_panel")]
 pub mod response;
-
-#[cfg(test)]
-pub mod test;
+pub mod state_database;
+pub mod statsd_service;
+pub mod status_update;
+#[cfg(feature = "web_admin_panel")]
+pub mod web_admin_panel_service;

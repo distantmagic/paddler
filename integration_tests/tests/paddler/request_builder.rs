@@ -1,5 +1,8 @@
+use anyhow::Result;
+use async_trait::async_trait;
 use reqwest::Client;
 
+use crate::cleanable::Cleanable;
 use crate::request_headers_to_be_set::RequestHeadersToBeSet;
 
 #[derive(Debug, Default)]
@@ -19,8 +22,11 @@ impl RequestBuilder {
 
         request_builder
     }
+}
 
-    pub fn cleanup(&mut self) {
-        self.headers_to_be_set.cleanup();
+#[async_trait]
+impl Cleanable for RequestBuilder {
+    async fn cleanup(&mut self) -> Result<()> {
+        self.headers_to_be_set.cleanup().await
     }
 }

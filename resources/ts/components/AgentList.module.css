@@ -1,0 +1,64 @@
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.agentsTable {
+  animation: fadeIn 200ms ease-in-out;
+  border-collapse: collapse;
+
+  td,
+  th {
+    border-bottom: 1px solid #ccc;
+    padding: var(--spacing-base);
+
+    p + p {
+      margin-top: var(--spacing-half);
+    }
+  }
+
+  th {
+    background-color: #f8f8f8;
+    text-align: left;
+  }
+}
+
+.agentUsage {
+  min-width: 100px;
+  padding: 0;
+  position: relative;
+}
+
+.agentUsage__progress {
+  background-image: linear-gradient(
+    to right,
+    #0000ff,
+    #0080ff,
+    #00ffff,
+    #80ff80,
+    #ffff00,
+    #ff8000,
+    #ff0000
+  );
+  bottom: var(--spacing-half);
+  left: var(--spacing-half);
+  position: absolute;
+  right: var(--spacing-half);
+  top: var(--spacing-half);
+
+  &:after {
+    /* mask the progress bar to show the agent's state */
+    background-color: var(--color-body-background);
+    content: "";
+    display: block;
+    height: 100%;
+    position: absolute;
+    right: 0;
+    transition: width 1s;
+    width: var(--slots-usage);
+  }
+}

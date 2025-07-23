@@ -1,12 +1,20 @@
 :root {
-  --color-body-background: black;
-  --color-body-font: #eee;
-  --color-border: #555;
+  --color-body-background: #ffffff;
+  --color-body-background-o55: #ffffff55;
+  --color-body-font: #111;
+  --color-border: black;
+  --color-highlight: #ffff00aa;
+  --duration-transition-hover: 100ms;
   --font-family-body: "Noto Sans", sans-serif;
   --font-family-monospace: "Noto Sans Mono", monospace;
-  --font-size-base: 16px;
+  --font-size-base: 14px;
   --font-size-l1: calc(1.5 * var(--font-size-base));
   --font-size-l2: calc(1.5 * var(--font-size-l1));
+  --height-workbench-header: 80px;
+  --max-width-workbench-content: 1024px;
   --spacing-base: 16px;
   --spacing-half: calc(0.5 * var(--spacing-base));
+  --spacing-2x: calc(2 * var(--spacing-base));
+  --z-index-workbench-content: 1;
+  --z-index-workbench-header: 2;
 }

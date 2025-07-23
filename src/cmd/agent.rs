@@ -1,48 +1,74 @@
 use std::net::SocketAddr;
-use std::time::Duration;
+use std::sync::Arc;
 
-use actix_web::web::Bytes;
 use anyhow::Result;
-use pingora::server::configuration::Opt;
-use pingora::server::Server;
-use tokio::sync::broadcast::channel;
+use async_trait::async_trait;
+use clap::Parser;
+use tokio::sync::mpsc;
+use tokio::sync::oneshot;
 
-use crate::agent::monitoring_service::MonitoringService;
-use crate::agent::reporting_service::ReportingService;
-use crate::llamacpp::llamacpp_client::LlamacppClient;
+use super::handler::Handler;
+use super::parse_socket_addr;
+use crate::agent::generate_tokens_request::GenerateTokensRequest;
+use crate::agent::llamacpp_arbiter_service::LlamaCppArbiterService;
+use crate::agent::management_socket_client_service::ManagementSocketClientService;
+use crate::agent::reconciliation_queue::ReconciliationQueue;
+use crate::agent::reconciliation_service::ReconciliationService;
+use crate::agent::slot_aggregated_status_manager::SlotAggregatedStatusManager;
+use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
+use crate::service_manager::ServiceManager;
 
-pub fn handle(
-    external_llamacpp_addr: SocketAddr,
-    local_llamacpp_addr: SocketAddr,
-    llamacpp_api_key: Option<String>,
+#[derive(Parser)]
+pub struct Agent {
+    #[arg(long, value_parser = parse_socket_addr)]
+    /// Address of the management server that the agent will report to
     management_addr: SocketAddr,
-    monitoring_interval: Duration,
+
+    #[arg(long)]
+    /// Name of the agent (optional)
     name: Option<String>,
-) -> Result<()> {
-    let (status_update_tx, _status_update_rx) = channel::<Bytes>(1);
 
-    let llamacpp_client = LlamacppClient::new(local_llamacpp_addr, llamacpp_api_key)?;
+    #[arg(long)]
+    slots: i32,
+}
 
-    let monitoring_service = MonitoringService::new(
-        external_llamacpp_addr,
-        llamacpp_client,
-        monitoring_interval,
-        name,
-        status_update_tx.clone(),
-    )?;
+#[async_trait]
+impl Handler for Agent {
+    async fn handle(&self, shutdown_rx: oneshot::Receiver<()>) -> Result<()> {
+        let (generate_tokens_request_tx, generate_tokens_request_rx) =
+            mpsc::unbounded_channel::<GenerateTokensRequest>();
 
-    let reporting_service = ReportingService::new(management_addr, status_update_tx)?;
+        let agent_applicable_state_holder = Arc::new(AgentApplicableStateHolder::new());
+        let reconciliation_queue = Arc::new(ReconciliationQueue::new()?);
+        let mut service_manager = ServiceManager::new();
+        let slot_aggregated_status_manager = Arc::new(SlotAggregatedStatusManager::new(self.slots));
 
-    let mut pingora_server = Server::new(Opt {
-        upgrade: false,
-        daemon: false,
-        nocapture: false,
-        test: false,
-        conf: None,
-    })?;
+        service_manager.add_service(
+            LlamaCppArbiterService::new(
+                agent_applicable_state_holder.clone(),
+                self.name.clone(),
+                self.slots,
+                generate_tokens_request_rx,
+                slot_aggregated_status_manager.clone(),
+            )
+            .await?,
+        );
 
-    pingora_server.bootstrap();
-    pingora_server.add_service(monitoring_service);
-    pingora_server.add_service(reporting_service);
-    pingora_server.run_forever();
+        service_manager.add_service(ManagementSocketClientService::new(
+            generate_tokens_request_tx,
+            self.management_addr,
+            self.name.clone(),
+            reconciliation_queue.clone(),
+            slot_aggregated_status_manager
+                .slot_aggregated_status
+                .clone(),
+        )?);
+
+        service_manager.add_service(ReconciliationService::new(
+            agent_applicable_state_holder,
+            reconciliation_queue,
+        )?);
+
+        service_manager.run_forever(shutdown_rx).await
+    }
 }

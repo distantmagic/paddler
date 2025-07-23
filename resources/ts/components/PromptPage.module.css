@@ -1,0 +1,33 @@
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.promptPage {
+  animation: fadeIn 200ms ease-in-out;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  height: 100%;
+  max-width: var(--max-width-workbench-content);
+  width: 100%;
+}
+
+.promptPage__promptForm {
+  background-image: linear-gradient(
+    to bottom,
+    transparent 20%,
+    var(--color-body-background) 20%
+  );
+  bottom: 0;
+  left: 0;
+  padding: 0 var(--spacing-base) var(--spacing-base) var(--spacing-base);
+  position: sticky;
+}
+
+.promptPage__messages {
+  padding: var(--spacing-base);
+}

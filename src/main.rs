@@ -1,55 +1,48 @@
 mod agent;
+mod agent_applicable_state;
+mod agent_applicable_state_holder;
+mod agent_desired_model;
+mod agent_desired_state;
+mod atomic_value;
 mod balancer;
 mod cmd;
-mod llamacpp;
-#[cfg(feature = "web_dashboard")]
+mod controls_websocket_endpoint;
+mod converts_to_applicable_state;
+mod create_cors_middleware;
+mod database_type;
+mod generated_token;
+mod generated_token_envelope;
+mod generated_token_result;
+mod huggingface_model_reference;
+mod jsonrpc;
+mod produces_snapshot;
+mod request_params;
+mod rpc_message;
+mod sends_rpc_message;
+mod service;
+mod service_manager;
+mod sets_desired_state;
+mod slot_aggregated_status_snapshot;
+#[cfg(feature = "web_admin_panel")]
 mod static_files;
-mod supervisor;
+mod websocket_session_controller;
 
-use std::net::SocketAddr;
-use std::net::ToSocketAddrs;
-use std::time::Duration;
-
-use anyhow::anyhow;
 use anyhow::Result;
 use clap::Parser;
 use clap::Subcommand;
-#[cfg(feature = "web_dashboard")]
+#[cfg(feature = "web_admin_panel")]
 use esbuild_metafile::instance::initialize_instance;
+use log::info;
+use tokio::signal::unix::signal;
+use tokio::signal::unix::SignalKind;
+use tokio::sync::oneshot;
 
-#[cfg(feature = "web_dashboard")]
+use crate::cmd::agent::Agent;
+use crate::cmd::balancer::Balancer;
+use crate::cmd::handler::Handler as _;
+
+#[cfg(feature = "web_admin_panel")]
 pub const ESBUILD_META_CONTENTS: &str = include_str!("../esbuild-meta.json");
-
-fn resolve_socket_addr(s: &str) -> Result<SocketAddr> {
-    let addrs: Vec<SocketAddr> = s.to_socket_addrs()?.collect();
-
-    for addr in &addrs {
-        if addr.is_ipv4() {
-            return Ok(*addr);
-        }
-    }
-
-    for addr in addrs {
-        if addr.is_ipv6() {
-            return Ok(addr);
-        }
-    }
-
-    Err(anyhow!("Failed to resolve socket address"))
-}
-
-fn parse_duration(arg: &str) -> Result<Duration> {
-    let milliseconds = arg.parse()?;
-
-    Ok(std::time::Duration::from_millis(milliseconds))
-}
-
-fn parse_socket_addr(arg: &str) -> Result<SocketAddr> {
-    match arg.parse() {
-        Ok(socketaddr) => Ok(socketaddr),
-        Err(_) => Ok(resolve_socket_addr(arg)?),
-    }
-}
 
 #[derive(Parser)]
 #[command(arg_required_else_help(true), version, about, long_about = None)]
@@ -59,173 +52,49 @@ struct Cli {
     command: Option<Commands>,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Subcommand)]
 enum Commands {
-    /// Monitors llama.cpp instance and reports their status to the balancer
-    Agent {
-        #[arg(long, value_parser = parse_socket_addr)]
-        /// Address of llama.cpp instance that the balancer will forward requests to. If not
-        /// provided, then `--local-llamacpp-addr` will be used
-        external_llamacpp_addr: Option<SocketAddr>,
-
-        #[arg(long, value_parser = parse_socket_addr)]
-        /// Address of the local llama.cpp instance that the agent will monitor
-        local_llamacpp_addr: SocketAddr,
-
-        #[arg(long)]
-        /// API key for the llama.cpp instance (optional)
-        llamacpp_api_key: Option<String>,
-
-        #[arg(long, value_parser = parse_socket_addr)]
-        /// Address of the management server that the agent will report to
-        management_addr: SocketAddr,
-
-        #[arg(long, default_value = "10000", value_parser = parse_duration)]
-        /// Interval (in milliseconds) at which the agent will report the status of the llama.cpp instance
-        monitoring_interval: Duration,
-
-        #[arg(long)]
-        /// Name of the agent (optional)
-        name: Option<String>,
-    },
+    /// Agent for managing llama.cpp instances
+    Agent(Agent),
     /// Balances incoming requests to llama.cpp instances and optionally provides a web dashboard
-    Balancer {
-        #[arg(long, default_value = "10000", value_parser = parse_duration)]
-        /// The request timeout (in milliseconds). For all requests that a timely response from an
-        /// upstream isn't received for, the 504 (Gateway Timeout) error is issued.
-        buffered_request_timeout: Duration,
-
-        #[arg(long, value_parser = parse_socket_addr)]
-        /// Address of the management server that the balancer will report to
-        management_addr: SocketAddr,
-
-        #[arg(
-            long = "management-cors-allowed-host",
-            help = "Allowed CORS host (can be specified multiple times)",
-            action = clap::ArgAction::Append
-        )]
-        management_cors_allowed_hosts: Vec<String>,
-
-        #[cfg(feature = "web_dashboard")]
-        #[arg(long)]
-        /// Enable the web management dashboard
-        management_dashboard_enable: bool,
-
-        #[arg(long, default_value = "30")]
-        /// The maximum number of buffered requests. Like with usual requests, the request timeout
-        /// is also applied to buffered ones. If the maximum number is reached, all new requests are
-        /// rejected with the 429 (Too Many Requests) error.
-        max_buffered_requests: usize,
-
-        #[arg(long, value_parser = parse_socket_addr)]
-        /// Address of the reverse proxy server
-        reverseproxy_addr: SocketAddr,
-
-        #[arg(long)]
-        /// Rewrite the host header of incoming requests so that it matches the upstream server
-        /// instead of the reverse client server
-        rewrite_host_header: bool,
-
-        #[arg(long)]
-        /// Enable the web metrics endpoint
-        metrics_endpoint_enable: bool,
-
-        #[arg(long)]
-        /// Enable the slots endpoint (not recommended)
-        slots_endpoint_enable: bool,
-
-        #[cfg(feature = "statsd_reporter")]
-        #[arg(long, value_parser = parse_socket_addr)]
-        /// Address of the statsd server to report metrics to
-        statsd_addr: Option<SocketAddr>,
-
-        #[cfg(feature = "statsd_reporter")]
-        #[arg(long, default_value = "paddler")]
-        /// Prefix for statsd metrics
-        statsd_prefix: String,
-
-        #[cfg(feature = "statsd_reporter")]
-        #[arg(long, default_value = "10000", value_parser = parse_duration)]
-        /// Interval (in milliseconds) at which the balancer will report metrics to statsd
-        statsd_reporting_interval: Duration,
-    },
-    #[cfg(feature = "ratatui_dashboard")]
-    /// Command-line dashboard for monitoring the balancer
-    Dashboard {
-        #[arg(long, value_parser = parse_socket_addr)]
-        /// Address of the management server that the dashboard will connect to
-        management_addr: SocketAddr,
-    },
+    Balancer(Balancer),
 }
 
-fn main() -> Result<()> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+#[actix_web::main]
+async fn main() -> Result<()> {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug")).init();
 
-    let cli = Cli::parse();
+    let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
 
-    match &cli.command {
-        Some(Commands::Agent {
-            external_llamacpp_addr,
-            local_llamacpp_addr,
-            llamacpp_api_key,
-            management_addr,
-            monitoring_interval,
-            name,
-        }) => cmd::agent::handle(
-            match external_llamacpp_addr {
-                Some(addr) => addr.to_owned(),
-                None => local_llamacpp_addr.to_owned(),
-            },
-            local_llamacpp_addr.to_owned(),
-            llamacpp_api_key.to_owned(),
-            management_addr.to_owned(),
-            monitoring_interval.to_owned(),
-            name.to_owned(),
-        ),
-        Some(Commands::Balancer {
-            buffered_request_timeout,
-            management_addr,
-            management_cors_allowed_hosts,
-            #[cfg(feature = "web_dashboard")]
-            management_dashboard_enable,
-            max_buffered_requests,
-            metrics_endpoint_enable,
-            reverseproxy_addr,
-            rewrite_host_header,
-            slots_endpoint_enable,
-            #[cfg(feature = "statsd_reporter")]
-            statsd_addr,
-            #[cfg(feature = "statsd_reporter")]
-            statsd_prefix,
-            #[cfg(feature = "statsd_reporter")]
-            statsd_reporting_interval,
-        }) => {
-            #[cfg(feature = "web_dashboard")]
+    let tokio_join_handle = tokio::spawn(async move {
+        let mut sigterm = signal(SignalKind::terminate()).expect("Failed to listen for SIGTERM");
+        let mut sigint = signal(SignalKind::interrupt()).expect("Failed to listen for SIGINT");
+        let mut sighup = signal(SignalKind::hangup()).expect("Failed to listen for SIGHUP");
+
+        tokio::select! {
+            _ = sigterm.recv() => info!("Received SIGTERM"),
+            _ = sigint.recv() => info!("Received SIGINT (Ctrl+C)"),
+            _ = sighup.recv() => info!("Received SIGHUP"),
+        }
+
+        shutdown_tx
+            .send(())
+            .expect("Failed to send shutdown signal");
+    });
+
+    let ret = match Cli::parse().command {
+        Some(Commands::Agent(handler)) => handler.handle(shutdown_rx).await,
+        Some(Commands::Balancer(handler)) => {
+            #[cfg(feature = "web_admin_panel")]
             initialize_instance(ESBUILD_META_CONTENTS);
 
-            cmd::balancer::handle(
-                *buffered_request_timeout,
-                management_addr,
-                management_cors_allowed_hosts.to_owned(),
-                #[cfg(feature = "web_dashboard")]
-                management_dashboard_enable.to_owned(),
-                *max_buffered_requests,
-                metrics_endpoint_enable.to_owned(),
-                reverseproxy_addr,
-                rewrite_host_header.to_owned(),
-                slots_endpoint_enable.to_owned(),
-                #[cfg(feature = "statsd_reporter")]
-                statsd_addr.to_owned(),
-                #[cfg(feature = "statsd_reporter")]
-                statsd_prefix.to_owned(),
-                #[cfg(feature = "statsd_reporter")]
-                statsd_reporting_interval.to_owned(),
-            )
+            handler.handle(shutdown_rx).await
         }
-        #[cfg(feature = "ratatui_dashboard")]
-        Some(Commands::Dashboard {
-            management_addr,
-        }) => cmd::dashboard::handle(management_addr),
         None => Ok(()),
-    }
+    };
+
+    tokio_join_handle.await?;
+
+    ret
 }

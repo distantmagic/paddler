@@ -1,6 +1,12 @@
 import notifier from "node-notifier";
+import { temporaryFile } from "tempy";
 
 import { spawner } from "jarmuz/job-types";
+
+const stateDatabase = temporaryFile({
+  extension: "json",
+  prefix: "worker-paddler-state-database-",
+});
 
 spawner(async function ({ buildId, command }) {
   notifier.notify({
@@ -12,21 +18,28 @@ spawner(async function ({ buildId, command }) {
   const results = await Promise.all([
     command(`
       target/debug/paddler balancer
+        --inference-addr 127.0.0.1:8061
         --management-addr 127.0.0.1:8060
-        --management-dashboard-enable
-        --reverseproxy-addr 127.0.0.1:8061
+        --state-database file://${stateDatabase}
+        --web-admin-panel-addr 127.0.1:8062
     `),
     command(`
       target/debug/paddler agent
         --management-addr 127.0.0.1:8060
         --name agent-1
-        --local-llamacpp-addr 127.0.0.1:8050
+        --slots 4
     `),
     command(`
       target/debug/paddler agent
         --management-addr 127.0.0.1:8060
         --name agent-2
-        --local-llamacpp-addr 127.0.0.1:8051
+        --slots 4
+    `),
+    command(`
+      target/debug/paddler agent
+        --management-addr 127.0.0.1:8060
+        --name agent-3
+        --slots 2
     `),
   ]);
 

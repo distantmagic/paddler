@@ -1,6 +1,7 @@
 use anyhow::Result;
 use cucumber::when;
 
+use crate::BALANCER_PORT;
 use crate::paddler_world::PaddlerWorld;
 
 #[when(expr = "request {string} is sent to management endpoint {string}")]
@@ -11,7 +12,7 @@ pub async fn when_request_is_sent_to_management_endpoint(
 ) -> Result<()> {
     let request = world
         .request_builder
-        .get(&name, format!("http://127.0.0.1:8095{path}"));
+        .get(&name, format!("http://127.0.0.1:{BALANCER_PORT}{path}"));
     let response = request.send().await?;
 
     world.responses.insert(name, response);

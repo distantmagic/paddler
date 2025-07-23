@@ -38,9 +38,17 @@ integration_tests:
 	cargo build
 	$(MAKE) -C integration_tests test
 
+.PHONY: jarmuz-static
+jarmuz-static: node_modules
+	./jarmuz-static.mjs
+
 .PHONY: test
-test: integration_tests
+test: jarmuz-static
 	cargo test
+
+.PHONY: test.llms
+test.llms:
+	cargo test --features tests_that_use_llms -- --nocapture
 
 .PHONY: watch
 watch: node_modules

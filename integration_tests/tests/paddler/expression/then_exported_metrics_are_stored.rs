@@ -1,6 +1,5 @@
-use core::panic;
-
 use anyhow::Result;
+use anyhow::anyhow;
 use cucumber::then;
 use openmetrics_parser::MetricFamily;
 use openmetrics_parser::MetricsExposition;
@@ -17,7 +16,7 @@ async fn fetch_metrics(management_addr: u16) -> Result<Response> {
         reqwest::get(format!("http://localhost:{management_addr}/api/v1/metrics")).await?;
 
     if !response.status().is_success() {
-        return Err(anyhow::anyhow!(
+        return Err(anyhow!(
             "Failed to fetch metrics: Expected status 200, got {}",
             response.status()
         ));
@@ -27,7 +26,7 @@ async fn fetch_metrics(management_addr: u16) -> Result<Response> {
 }
 
 fn extract_gauge_u16(metrics: &MetricFamily<PrometheusType, PrometheusValue>) -> Option<u16> {
-    for metrics in metrics.iter_samples() {
+    if let Some(metrics) = metrics.iter_samples().next() {
         match metrics.value {
             PrometheusValue::Unknown(_) => return None,
             PrometheusValue::Gauge(value) => {
@@ -39,28 +38,28 @@ fn extract_gauge_u16(metrics: &MetricFamily<PrometheusType, PrometheusValue>) ->
         }
     }
 
-    return None;
+    None
 }
 
 fn get_sample_values(metric_family: MetricsExposition<PrometheusType, PrometheusValue>) -> Metrics {
     let mut metrics = Metrics::default();
 
-    if let Some(slots_idle) = metric_family.families.get("paddler_slots_idle") {
-        if let Some(slots_idle) = extract_gauge_u16(slots_idle) {
-            metrics.paddler_slots_idle = slots_idle;
-        }
+    if let Some(slots_idle) = metric_family.families.get("paddler_slots_idle")
+        && let Some(slots_idle) = extract_gauge_u16(slots_idle)
+    {
+        metrics.paddler_slots_idle = slots_idle;
     }
 
-    if let Some(slots_processing) = metric_family.families.get("paddler_slots_processing") {
-        if let Some(slots_processing) = extract_gauge_u16(slots_processing) {
-            metrics.paddler_slots_processing = slots_processing;
-        }
+    if let Some(slots_processing) = metric_family.families.get("paddler_slots_processing")
+        && let Some(slots_processing) = extract_gauge_u16(slots_processing)
+    {
+        metrics.paddler_slots_processing = slots_processing;
     }
 
-    if let Some(requests_buffered) = metric_family.families.get("paddler_requests_buffered") {
-        if let Some(requests_buffered) = extract_gauge_u16(requests_buffered) {
-            metrics.paddler_requests_buffered = requests_buffered;
-        }
+    if let Some(requests_buffered) = metric_family.families.get("paddler_requests_buffered")
+        && let Some(requests_buffered) = extract_gauge_u16(requests_buffered)
+    {
+        metrics.paddler_requests_buffered = requests_buffered;
     }
 
     metrics
@@ -71,14 +70,12 @@ fn parse_metrics(body_metrics: &str) -> Result<Metrics> {
         Ok(metric_family) => {
             let metric_values = get_sample_values(metric_family);
 
-            return Ok(metric_values);
+            Ok(metric_values)
         }
-        Err(e) => {
-            return Err(anyhow::anyhow!(
-                "Failed to fetch metrics: Expected status 200, got {e}"
-            ));
-        }
-    };
+        Err(err) => Err(anyhow!(
+            "Failed to fetch metrics: Expected status 200, got {err}"
+        )),
+    }
 }
 
 #[then(expr = "exported metrics are stored")]

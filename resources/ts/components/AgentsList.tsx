@@ -1,18 +1,26 @@
-import clsx from "clsx";
 import React, { CSSProperties } from "react";
 
 import { type Agent } from "../schemas/Agent";
 
 import {
-  agentRow,
-  agentRowError,
   agentUsage,
   agentUsage__progress,
   agentsTable,
-} from "./Dashboard.module.css";
+} from "./AgentList.module.css";
 
-function formatTimestamp(timestamp: number): string {
-  return new Date(timestamp * 1000).toLocaleString();
+function displayLastPathPart(path: string | null | undefined): string {
+  if (!path) {
+    return "";
+  }
+
+  const parts = path.split("/");
+  const last = parts.pop();
+
+  if (!last) {
+    return "";
+  }
+
+  return last;
 }
 
 export function AgentsList({ agents }: { agents: Array<Agent> }) {
@@ -21,106 +29,42 @@ export function AgentsList({ agents }: { agents: Array<Agent> }) {
       <thead>
         <tr>
           <th>Name</th>
-          <th>Issues</th>
-          <th>Llama.cpp address</th>
-          <th>Last update</th>
-          <th>Idle slots</th>
-          <th>Processing slots</th>
+          <th>Model</th>
+          <th>Slots usage</th>
+          <th>Used/Actual/Desired</th>
         </tr>
       </thead>
       <tbody>
         {agents.map(function ({
-          agent_id,
-          last_update,
-          quarantined_until,
-          status,
+          id,
+          desired_slots_total,
+          model_path,
+          name,
+          slots_processing,
+          slots_total,
         }: Agent) {
-          const hasIssues =
-            status.error ||
-            true !== status.is_authorized ||
-            true === status.is_connect_error ||
-            true === status.is_request_error ||
-            true === status.is_decode_error ||
-            true === status.is_deserialize_error ||
-            true === status.is_unexpected_response_status ||
-            true !== status.is_slots_endpoint_enabled ||
-            quarantined_until;
-
           return (
-            <tr
-              className={clsx(agentRow, {
-                [agentRowError]: hasIssues,
-              })}
-              key={agent_id}
-            >
-              <td>{status.agent_name}</td>
+            <tr key={id}>
+              <td>{name}</td>
               <td>
-                {status.error && (
-                  <>
-                    <p>Agent reported an Error</p>
-                    <p>{status.error}</p>
-                  </>
-                )}
-                {false === status.is_authorized && (
-                  <>
-                    <p>Unauthorized</p>
-                    <p>
-                      Probably llama.cpp API key is either invalid or not
-                      present. Pass it to the agent with
-                      `--llamacpp-api-key=YOURKEY` flag.
-                    </p>
-                  </>
-                )}
-                {true == status.is_connect_error && (
-                  <p>Llama.cpp server is unreachable. It is likely down.</p>
-                )}
-                {true == status.is_decode_error && (
-                  <p>
-                    Llama.cpp server returned an unexpected response. Are you
-                    sure that the agent is configured to monitor llama.cpp and
-                    is using the correct port?
-                  </p>
-                )}
-                {true == status.is_deserialize_error && (
-                  <p>Llama.cpp server response could not be deserialized.</p>
-                )}
-                {true == status.is_unexpected_response_status && (
-                  <p>Llama.cpp server response status is unexpected.</p>
-                )}
-                {false === status.is_slots_endpoint_enabled && (
-                  <>
-                    <p>Slots endpoint is not enabled</p>
-                    <p>
-                      Probably llama.cpp server is running without the `--slots`
-                      flag.
-                    </p>
-                  </>
-                )}
-                {quarantined_until && (
-                  <p>
-                    Quarantined until{" "}
-                    {formatTimestamp(quarantined_until.secs_since_epoch)}
-                  </p>
-                )}
-                {!hasIssues && <p>None</p>}
+                <abbr title={model_path ?? undefined}>
+                  {displayLastPathPart(model_path)}
+                </abbr>
               </td>
-              <td>
-                <a href={`http://${status.external_llamacpp_addr}`}>
-                  {status.external_llamacpp_addr}
-                </a>
-              </td>
-              <td>{formatTimestamp(last_update.secs_since_epoch)}</td>
-              <td>{status.slots_idle}</td>
-              <td>{status.slots_processing}</td>
               <td
                 className={agentUsage}
                 style={
                   {
-                    "--slots-usage": `${(status.slots_processing / (status.slots_idle + status.slots_processing)) * 100}%`,
+                    "--slots-usage": `${((slots_total - slots_processing) / slots_total) * 100}%`,
                   } as CSSProperties
                 }
               >
-                <div className={agentUsage__progress}></div>
+                {slots_total > 0 && (
+                  <div className={agentUsage__progress}></div>
+                )}
+              </td>
+              <td>
+                {slots_processing}/{slots_total}/{desired_slots_total}
               </td>
             </tr>
           );

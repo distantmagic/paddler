@@ -51,7 +51,6 @@ pub async fn then_balancer_state_is(world: &mut PaddlerWorld, step: &Step) -> Re
     }
 
     Err(anyhow!(
-        "Balancer state did not update after {} attempts",
-        MAX_ATTEMPTS
+        "Balancer state did not update after {MAX_ATTEMPTS} attempts"
     ))
 }

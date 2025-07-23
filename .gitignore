@@ -1,4 +1,5 @@
 /*.db
+/.tsimp
 /esbuild-meta.json
 /godepgraph.png
 /models

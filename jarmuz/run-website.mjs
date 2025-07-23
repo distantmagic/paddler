@@ -13,14 +13,12 @@ export function run({ development, once = false, rustJobs }) {
     }
 
     switch (true) {
-      case matches("resources/ts/**/*.module.css"):
-        schedule("tcm");
-        return;
       case matches("resources/**/*.{ts,tsx}"):
         schedule("tsgo");
         schedule("eslint");
         break;
       case matches("resources/css/**/*.css"):
+        schedule("tcm");
         schedule(esbuildJob);
         return;
       case matches("templates/**/*.html"):

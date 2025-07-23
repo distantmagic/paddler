@@ -1,0 +1,6 @@
+.agentListPage {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-2x) var(--spacing-base);
+  width: 100%;
+}
