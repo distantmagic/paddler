@@ -21,11 +21,11 @@ use crate::service_manager::ServiceManager;
 #[derive(Parser)]
 pub struct Agent {
     #[arg(long, value_parser = parse_socket_addr)]
-    /// Address of the management server that the agent will report to
+    /// Address of the management server that the agent will report to.
     management_addr: SocketAddr,
 
     #[arg(long)]
-    /// Name of the agent (optional)
+    /// Name of the agent (optional).
     name: Option<String>,
 
     #[arg(long)]

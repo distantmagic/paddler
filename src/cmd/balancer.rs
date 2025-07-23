@@ -34,10 +34,10 @@ pub struct Balancer {
     #[arg(long, default_value = "10000", value_parser = parse_duration)]
     /// The request timeout (in milliseconds). For all requests that a timely response from an
     /// upstream isn't received for, the 504 (Gateway Timeout) error is issued.
-    buffered_request_timeout: Duration,
+    request_timeout: Duration,
 
     #[arg(long, default_value = "127.0.0.1:8061", value_parser = parse_socket_addr)]
-    /// Address of the inference server
+    /// Address of the inference server.
     inference_addr: SocketAddr,
 
     #[arg(long, default_value = "10000", value_parser = parse_duration)]
@@ -48,18 +48,18 @@ pub struct Balancer {
         long = "inference-cors-allowed-host",
         action = clap::ArgAction::Append
     )]
-    /// Allowed CORS host (can be specified multiple times)
+    /// Allowed CORS host (can be specified multiple times).
     inference_cors_allowed_hosts: Vec<String>,
 
     #[arg(long, default_value = "127.0.0.1:8060", value_parser = parse_socket_addr)]
-    /// Address of the management server that the balancer will report to
+    /// Address of the management server that the balancer will report to.
     management_addr: SocketAddr,
 
     #[arg(
         long = "management-cors-allowed-host",
         action = clap::ArgAction::Append
     )]
-    /// Allowed CORS host (can be specified multiple times)
+    /// Allowed CORS host (can be specified multiple times).
     management_cors_allowed_hosts: Vec<String>,
 
     #[arg(long, default_value = "30")]
@@ -69,23 +69,23 @@ pub struct Balancer {
     max_buffered_requests: i32,
 
     #[arg(long, default_value = "memory://")]
-    /// Balancer state database URL. Supported: memory, memory://, or file:///path (optional)
+    /// Balancer state database URL. Supported: memory, memory://, or file:///path (optional).
     state_database: DatabaseType,
 
     #[arg(long, value_parser = parse_socket_addr)]
-    /// Address of the statsd server to report metrics to
+    /// Address of the statsd server to report metrics to.
     statsd_addr: Option<SocketAddr>,
 
     #[arg(long, default_value = "paddler")]
-    /// Prefix for statsd metrics
+    /// Prefix for statsd metrics.
     statsd_prefix: String,
 
     #[arg(long, default_value = "10000", value_parser = parse_duration)]
-    /// Interval (in milliseconds) at which the balancer will report metrics to statsd
+    /// Interval (in milliseconds) at which the balancer will report metrics to statsd.
     statsd_reporting_interval: Duration,
 
     #[arg(long, default_value = None, value_parser = parse_socket_addr)]
-    /// Address of the web management dashboard (if enabled)
+    /// Address of the web management dashboard (if enabled).
     web_admin_panel_addr: Option<SocketAddr>,
 }
 
@@ -116,7 +116,7 @@ impl Handler for Balancer {
         let agent_controller_pool = Arc::new(AgentControllerPool::new());
         let buffered_request_manager = Arc::new(BufferedRequestManager::new(
             agent_controller_pool.clone(),
-            self.buffered_request_timeout,
+            self.request_timeout,
             self.max_buffered_requests,
         ));
         let generate_tokens_sender_collection = Arc::new(GenerateTokensSenderCollection::new());

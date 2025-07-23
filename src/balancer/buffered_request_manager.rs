@@ -11,7 +11,7 @@ use crate::balancer::buffered_request_count_guard::BufferedRequestCountGuard;
 
 pub struct BufferedRequestManager {
     agent_controller_pool: Arc<AgentControllerPool>,
-    buffered_request_timeout: Duration,
+    request_timeout: Duration,
     pub buffered_requests_count: Arc<AtomicValue>,
     max_buffered_requests: i32,
 }
@@ -19,12 +19,12 @@ pub struct BufferedRequestManager {
 impl BufferedRequestManager {
     pub fn new(
         agent_controller_pool: Arc<AgentControllerPool>,
-        buffered_request_timeout: Duration,
+        request_timeout: Duration,
         max_buffered_requests: i32,
     ) -> Self {
         Self {
             agent_controller_pool,
-            buffered_request_timeout,
+            request_timeout,
             buffered_requests_count: Arc::new(AtomicValue::new(0)),
             max_buffered_requests,
         }
@@ -41,7 +41,7 @@ impl BufferedRequestManager {
         let _buffered_request_count_guard =
             BufferedRequestCountGuard::new(self.buffered_requests_count.clone());
 
-        match timeout(self.buffered_request_timeout, async {
+        match timeout(self.request_timeout, async {
             loop {
                 match agent_controller_pool.find_least_busy_agent_controller() {
                     Some(agent_controller) => {

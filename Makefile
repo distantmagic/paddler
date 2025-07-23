@@ -33,8 +33,8 @@ fmt: node_modules
 	./jarmuz-fmt.mjs
 	$(MAKE) -C integration_tests fmt
 
-.PHONY: integration_tests
-integration_tests:
+.PHONY: test.integration
+test.integration:
 	cargo build
 	$(MAKE) -C integration_tests test
 
