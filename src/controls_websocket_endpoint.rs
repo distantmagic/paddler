@@ -103,7 +103,7 @@ pub trait ControlsWebSocketEndpoint: Send + Sync + 'static {
         error: serde_json::Error,
         _websocket_session_controller: WebSocketSessionController<Self::OutgoingMessage>,
     ) -> Result<ContinuationDecision> {
-        error!("Paddler-RPC serializatikon error: {error}");
+        error!("Paddler-RPC serialization error: {error}");
 
         Ok(ContinuationDecision::Continue)
     }

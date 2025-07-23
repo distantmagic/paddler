@@ -90,7 +90,7 @@ pub struct Balancer {
 }
 
 impl Balancer {
-    fn get_mangement_service_configuration(&self) -> ManagementServiceConfiguration {
+    fn get_management_service_configuration(&self) -> ManagementServiceConfiguration {
         ManagementServiceConfiguration {
             addr: self.management_addr,
             cors_allowed_hosts: self.management_cors_allowed_hosts.clone(),
@@ -142,7 +142,7 @@ impl Handler for Balancer {
         service_manager.add_service(ManagementService::new(
             agent_controller_pool.clone(),
             buffered_request_manager.clone(),
-            self.get_mangement_service_configuration(),
+            self.get_management_service_configuration(),
             generate_tokens_sender_collection.clone(),
             state_database,
             #[cfg(feature = "web_admin_panel")]
