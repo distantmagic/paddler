@@ -49,7 +49,7 @@ mod tests {
     #[test]
     fn test_memory_basic() {
         let result = DatabaseType::from_str("memory://").unwrap();
-        matches!(result, DatabaseType::Memory);
+        assert!(matches!(result, DatabaseType::Memory));
     }
 
     #[test]
