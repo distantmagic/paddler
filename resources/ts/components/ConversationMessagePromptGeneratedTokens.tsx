@@ -51,9 +51,13 @@ export const ConversationMessagePromptGeneratedTokens = memo(
       [inferenceSocketClient, setMessage, submittedPrompt],
     );
 
+    if (!message) {
+      return;
+    }
+
     return (
       <ConversationMessage>
-        <strong>Prompt Generated Tokens</strong>: {message}
+        <strong>AI</strong>: {message}
       </ConversationMessage>
     );
   },

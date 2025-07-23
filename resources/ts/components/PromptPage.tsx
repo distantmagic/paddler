@@ -1,8 +1,10 @@
-import React from "react";
+import React, { useContext } from "react";
 
+import { PromptContext } from "../contexts/PromptContext";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { matchWebSocketState } from "../matchWebSocketState";
 import { webSocketProtocol } from "../webSocketProtocol";
+import { ConversationMessage } from "./ConversationMessage";
 import { ConversationMessagePromptGeneratedTokens } from "./ConversationMessagePromptGeneratedTokens";
 import { ConversationPromptInput } from "./ConversationPromptInput";
 import { FloatingStatus } from "./FloatingStatus";
@@ -14,6 +16,7 @@ import {
 } from "./PromptPage.module.css";
 
 export function PromptPage({ inferenceAddr }: { inferenceAddr: string }) {
+  const { submittedPrompt } = useContext(PromptContext);
   const webSocketState = useWebSocket({
     endpoint: `${webSocketProtocol(window.location.protocol)}//${inferenceAddr}/api/v1/inference_socket`,
   });
@@ -23,6 +26,11 @@ export function PromptPage({ inferenceAddr }: { inferenceAddr: string }) {
       return (
         <div className={promptPage}>
           <div className={promptPage__messages}>
+            {submittedPrompt && (
+              <ConversationMessage>
+                <strong>You</strong>: {submittedPrompt}
+              </ConversationMessage>
+            )}
             <ConversationMessagePromptGeneratedTokens webSocket={webSocket} />
           </div>
           <div className={promptPage__promptForm}>
