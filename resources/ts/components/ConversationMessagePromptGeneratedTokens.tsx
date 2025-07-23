@@ -1,41 +1,60 @@
-import React, { useEffect, useState } from "react";
+import React, { memo, useContext, useEffect, useMemo, useState } from "react";
 
-import { type InferenceSocketClient } from "../InferenceSocketClient.interface";
+import { PromptContext } from "../contexts/PromptContext";
+import { InferenceSocketClient } from "../InferenceSocketClient";
 import { ConversationMessage } from "./ConversationMessage";
 
-export function ConversationMessagePromptGeneratedTokens({
-  inferenceSocketClient,
-  prompt,
-}: {
-  inferenceSocketClient: InferenceSocketClient;
-  prompt: string;
-}) {
-  const [message, setMessage] = useState<string>("");
+export const ConversationMessagePromptGeneratedTokens = memo(
+  function ConversationMessagePromptGeneratedTokens({
+    webSocket,
+  }: {
+    webSocket: WebSocket;
+  }) {
+    const { submittedPrompt } = useContext(PromptContext);
+    const [message, setMessage] = useState<string>("");
 
-  useEffect(
-    function () {
-      const abortController = new AbortController();
+    const inferenceSocketClient = useMemo(
+      function () {
+        return InferenceSocketClient({ webSocket });
+      },
+      [webSocket],
+    );
 
-      inferenceSocketClient.generateTokens({
-        abortSignal: abortController.signal,
-        prompt,
-        onToken(token: string) {
-          setMessage(function (prevMessage) {
-            return `${prevMessage}${token}`;
-          });
-        },
-      });
+    useEffect(
+      function () {
+        if (!submittedPrompt || !submittedPrompt.trim()) {
+          return;
+        }
 
-      return function () {
-        abortController.abort();
-      };
-    },
-    [inferenceSocketClient, prompt, setMessage],
-  );
+        const abortController = new AbortController();
 
-  return (
-    <ConversationMessage>
-      <strong>Prompt Generated Tokens</strong>: {message}
-    </ConversationMessage>
-  );
-}
+        setMessage("");
+
+        inferenceSocketClient.generateTokens({
+          abortSignal: abortController.signal,
+          prompt: `<|im_start|>system
+          You are a helpful assistant. Give short, precise answers.<|im_end|>
+          <|im_start|>user
+          ${submittedPrompt}<|im_end|>
+          <|im_start|>assistant`,
+          onToken(token: string) {
+            setMessage(function (prevMessage) {
+              return `${prevMessage}${token}`;
+            });
+          },
+        });
+
+        return function () {
+          abortController.abort();
+        };
+      },
+      [inferenceSocketClient, setMessage, submittedPrompt],
+    );
+
+    return (
+      <ConversationMessage>
+        <strong>Prompt Generated Tokens</strong>: {message}
+      </ConversationMessage>
+    );
+  },
+);

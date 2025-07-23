@@ -6,19 +6,34 @@ export const InferenceServiceGenerateTokensResponseSchema = z
       request_id: z.string(),
       response: z.object({
         GeneratedToken: z.object({
-          generated_token_result: z.object({
-            Token: z.object({
-              token: z.string(),
+          generated_token_result: z.union([
+            z.literal("Done"),
+            z.object({
+              Token: z.object({
+                token: z.string(),
+              }),
             }),
-          }),
+          ]),
+          slot: z.number(),
         }),
       }),
     }),
   })
   .strict()
   .transform(function (data) {
+    if (
+      data.Response.response.GeneratedToken.generated_token_result === "Done"
+    ) {
+      return Object.freeze({
+        done: true,
+        request_id: data.Response.request_id,
+        token: null,
+      });
+    }
+
     return Object.freeze({
-      requestId: data.Response.request_id,
+      done: false,
+      request_id: data.Response.request_id,
       token:
         data.Response.response.GeneratedToken.generated_token_result.Token
           .token,

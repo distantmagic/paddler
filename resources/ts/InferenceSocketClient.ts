@@ -38,7 +38,16 @@ export function InferenceSocketClient({
         );
         return;
       } else {
-        onToken(result.data.token);
+        if (result.data.request_id !== requestId) {
+          return;
+        }
+
+        if (result.data.done) {
+          console.log("Done generating tokens for request:", requestId);
+          webSocket.removeEventListener("message", onMessage);
+        } else {
+          onToken(result.data.token);
+        }
       }
     }
 

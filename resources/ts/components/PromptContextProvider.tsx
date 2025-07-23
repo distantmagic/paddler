@@ -1,4 +1,4 @@
-import React, { useMemo, useState, type ReactNode } from "react";
+import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import {
   PromptContext,
@@ -8,6 +8,10 @@ import {
 export function PromptContextProvider({ children }: { children: ReactNode }) {
   const [currentPrompt, setCurrentPrompt] = useState<string>("");
   const [submittedPrompt, setSubmittedPrompt] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCurrentPrompt("");
+  }, [submittedPrompt, setCurrentPrompt]);
 
   const value = useMemo<PromptContextValue>(
     function () {
