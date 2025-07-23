@@ -34,13 +34,9 @@ impl SlotAggregatedStatus {
     }
 
     pub fn set_model_path(&self, model_path: Option<String>) {
-        let mut path_lock = self
-            .model_path
-            .write()
-            .expect(&format!(
-                "Lock poisoned when setting model path to {:?}",
-                model_path
-            ));
+        let mut path_lock = self.model_path.write().unwrap_or_else(|err| {
+            panic!("Lock poisoned when setting model path: {model_path:?}, error: {err:?}")
+        });
 
         *path_lock = model_path;
 
