@@ -7,4 +7,5 @@ pub struct SlotAggregatedStatusSnapshot {
     pub model_path: Option<String>,
     pub slots_processing: i32,
     pub slots_total: i32,
+    pub update_timestamp_secs: u64,
 }

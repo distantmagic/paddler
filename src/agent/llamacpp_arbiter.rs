@@ -53,7 +53,7 @@ impl LlamaCppArbiter {
             let backend =
                 Arc::new(LlamaBackend::init().context("Unable to initialize llama.cpp backend")?);
             let ctx_params = Arc::new(
-                LlamaContextParams::default().with_n_ctx(core::num::NonZeroU32::new(32768)),
+                LlamaContextParams::default().with_n_ctx(core::num::NonZeroU32::new(4096)),
             );
             let backend_clone = backend.clone();
             let model = Arc::new(

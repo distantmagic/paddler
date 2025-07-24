@@ -1,4 +1,7 @@
+use std::sync::atomic::AtomicI32;
 use std::sync::RwLock;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
 
 use tokio::sync::Notify;
 
@@ -10,8 +13,8 @@ use crate::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 pub struct SlotAggregatedStatus {
     pub desired_slots_total: i32,
     pub model_path: RwLock<Option<String>>,
-    pub slots_processing: AtomicValue,
-    pub slots_total: AtomicValue,
+    pub slots_processing: AtomicValue<AtomicI32>,
+    pub slots_total: AtomicValue<AtomicI32>,
     pub update_notifier: Notify,
 }
 
@@ -20,8 +23,8 @@ impl SlotAggregatedStatus {
         Self {
             desired_slots_total,
             model_path: RwLock::new(None),
-            slots_processing: AtomicValue::new(0),
-            slots_total: AtomicValue::new(0),
+            slots_processing: AtomicValue::<AtomicI32>::new(0),
+            slots_total: AtomicValue::<AtomicI32>::new(0),
             update_notifier: Notify::new(),
         }
     }
@@ -69,6 +72,10 @@ impl ProducesSnapshot for SlotAggregatedStatus {
                 .clone(),
             slots_processing: self.slots_processing.get(),
             slots_total: self.slots_total.get(),
+            update_timestamp_secs: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("Time went backwards")
+                .as_secs(),
         }
     }
 }

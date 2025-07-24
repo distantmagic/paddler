@@ -3,6 +3,7 @@ pub mod agent_controller_pool;
 pub mod agent_controller_pool_snapshot;
 pub mod agent_controller_pool_total_slots;
 pub mod agent_controller_snapshot;
+pub mod agent_controller_update_result;
 pub mod buffered_request_agent_wait_result;
 pub mod buffered_request_count_guard;
 pub mod buffered_request_manager;

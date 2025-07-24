@@ -1,8 +1,11 @@
+use std::sync::atomic::AtomicI32;
+use std::sync::atomic::AtomicU64;
 use std::sync::RwLock;
 
 use actix_web::web::Data;
 use anyhow::Result;
 use async_trait::async_trait;
+use log::debug;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
@@ -13,6 +16,7 @@ use crate::agent::jsonrpc::Request as AgentJsonRpcRequest;
 use crate::agent_desired_state::AgentDesiredState;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller_snapshot::AgentControllerSnapshot;
+use crate::balancer::agent_controller_update_result::AgentControllerUpdateResult;
 use crate::balancer::generate_tokens_controller::GenerateTokensController;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::jsonrpc::RequestEnvelope;
@@ -20,17 +24,19 @@ use crate::produces_snapshot::ProducesSnapshot;
 use crate::request_params::GenerateTokensParams;
 use crate::sends_rpc_message::SendsRpcMessage;
 use crate::sets_desired_state::SetsDesiredState;
+use crate::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 
 pub struct AgentController {
     pub agent_message_tx: mpsc::UnboundedSender<AgentJsonRpcMessage>,
     pub connection_close_rx: broadcast::Receiver<()>,
-    pub desired_slots_total: AtomicValue,
+    pub desired_slots_total: AtomicValue<AtomicI32>,
     pub generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
     pub id: String,
     pub model_path: RwLock<Option<String>>,
     pub name: Option<String>,
-    pub slots_processing: AtomicValue,
-    pub slots_total: AtomicValue,
+    pub slots_processing: AtomicValue<AtomicI32>,
+    pub slots_total: AtomicValue<AtomicI32>,
+    pub update_timestamp_secs: AtomicValue<AtomicU64>,
 }
 
 impl AgentController {
@@ -57,6 +63,13 @@ impl AgentController {
         })
     }
 
+    pub fn get_model_path(&self) -> Option<String> {
+        self.model_path
+            .read()
+            .expect("Poisoned lock on model path")
+            .clone()
+    }
+
     pub fn set_model_path(&self, model_path: Option<String>) {
         let mut locked_path = self
             .model_path
@@ -73,6 +86,43 @@ impl AgentController {
         .await?;
 
         Ok(())
+    }
+
+    pub fn update_from_slot_aggregated_status_snapshot(
+        &self,
+        SlotAggregatedStatusSnapshot {
+            desired_slots_total,
+            model_path,
+            slots_processing,
+            slots_total,
+            update_timestamp_secs,
+        }: SlotAggregatedStatusSnapshot,
+    ) -> AgentControllerUpdateResult {
+        if update_timestamp_secs < self.update_timestamp_secs.get() {
+            debug!("Discarding update with older timestamp: {update_timestamp_secs}");
+
+            return AgentControllerUpdateResult::NoMeaningfulChanges;
+        }
+
+        let mut changed = false;
+
+        changed = changed || self.desired_slots_total.set_check(desired_slots_total);
+        changed = changed || self.slots_processing.set_check(slots_processing);
+        changed = changed || self.slots_total.set_check(slots_total);
+
+        self.update_timestamp_secs.set(update_timestamp_secs);
+
+        if model_path != self.get_model_path() {
+            changed = true;
+
+            self.set_model_path(model_path);
+        }
+
+        if changed {
+            AgentControllerUpdateResult::Updated
+        } else {
+            AgentControllerUpdateResult::NoMeaningfulChanges
+        }
     }
 }
 
