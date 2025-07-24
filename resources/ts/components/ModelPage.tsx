@@ -60,7 +60,6 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
         return;
       }
 
-      console.log(agentDesiredState, managementAddr);
       fetch(`//${managementAddr}/api/v1/agent_desired_state`, {
         method: "PUT",
         headers: {

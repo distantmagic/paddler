@@ -17,8 +17,6 @@ export function InferenceSocketClient({
   }) {
     const requestId = crypto.randomUUID();
 
-    console.log(abortSignal);
-
     function onMessage(event: MessageEvent) {
       if ("string" !== typeof event.data) {
         console.error("Received non-string data from WebSocket:", event.data);
@@ -58,13 +56,17 @@ export function InferenceSocketClient({
           id: requestId,
           request: {
             GenerateTokens: {
-              max_tokens: 400,
+              max_tokens: 1000,
               prompt,
             },
           },
         },
       }),
     );
+
+    abortSignal.addEventListener("abort", function () {
+      webSocket.removeEventListener("message", onMessage);
+    });
   }
 
   return Object.freeze({

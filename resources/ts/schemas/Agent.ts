@@ -5,7 +5,7 @@ export const AgentSchema = z
     desired_slots_total: z.number(),
     id: z.string(),
     model_path: z.string().nullable(),
-    name: z.string(),
+    name: z.string().nullable(),
     slots_processing: z.number(),
     slots_total: z.number(),
   })

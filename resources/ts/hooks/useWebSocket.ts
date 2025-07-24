@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type ConnectingState = {
   isConnected: false;
@@ -55,7 +55,8 @@ const defaultSocketState: ConnectingState = Object.freeze({
   webSocket: null,
 });
 
-const RECONNECT_DELAY = 300;
+const MAX_RECONNECT_DEBOUNCE_TIME_INCREASE = 3;
+const RECONNECT_DELAY = 600;
 
 function incrementVersion(version: number): number {
   return version + 1;
@@ -66,6 +67,7 @@ export function useWebSocket({ endpoint }: { endpoint: string }): SocketState {
     useState<SocketState>(defaultSocketState);
   const [version, setVersion] = useState(0);
   const [webSocket, setWebSocket] = useState<null | WebSocket>(null);
+  const reconnectAttempts = useRef(0);
 
   useEffect(
     function () {
@@ -81,7 +83,15 @@ export function useWebSocket({ endpoint }: { endpoint: string }): SocketState {
         return;
       }
 
-      const timeoutId = setTimeout(connect, RECONNECT_DELAY);
+      reconnectAttempts.current += 1;
+
+      const timeoutId = setTimeout(
+        connect,
+        Math.min(
+          reconnectAttempts.current,
+          MAX_RECONNECT_DEBOUNCE_TIME_INCREASE,
+        ) * RECONNECT_DELAY,
+      );
 
       return function () {
         clearTimeout(timeoutId);
@@ -121,6 +131,8 @@ export function useWebSocket({ endpoint }: { endpoint: string }): SocketState {
       });
 
       webSocket.addEventListener("open", function () {
+        reconnectAttempts.current = 0;
+
         setSocketState({
           isConnected: true,
           isConnectionClosed: false,
