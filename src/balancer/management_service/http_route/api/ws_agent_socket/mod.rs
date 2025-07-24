@@ -2,7 +2,6 @@ mod agent_socket_controller_context;
 pub mod jsonrpc;
 
 use std::sync::atomic::AtomicI32;
-use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -102,7 +101,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                             model_path,
                             slots_processing,
                             slots_total,
-                            update_timestamp_secs: _,
+                            version,
                         },
                 }),
             ) => {
@@ -118,9 +117,9 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     id: context.agent_id.clone(),
                     model_path: RwLock::new(model_path),
                     name,
+                    newest_update_version: AtomicValue::<AtomicI32>::new(version),
                     slots_processing: AtomicValue::<AtomicI32>::new(slots_processing),
                     slots_total: AtomicValue::<AtomicI32>::new(slots_total),
-                    update_timestamp_secs: AtomicValue::<AtomicU64>::new(0),
                 });
 
                 context

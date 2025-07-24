@@ -341,10 +341,6 @@ impl ManagementSocketClientService {
                 });
         };
 
-        let mut ticker = interval(Duration::from_secs(1));
-
-        ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
-
         loop {
             tokio::select! {
                 _ = connection_close_rx.recv() => {
@@ -354,7 +350,6 @@ impl ManagementSocketClientService {
                 }
                 _ = shutdown.recv() => break,
                 _ = self.slot_aggregated_status.update_notifier.notified() => do_send_status_update(),
-                _ = ticker.tick() => do_send_status_update(),
                 msg = read.next() => {
                     let should_close = match msg {
                         Some(Ok(msg)) => {

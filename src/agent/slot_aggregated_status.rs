@@ -1,7 +1,5 @@
 use std::sync::atomic::AtomicI32;
 use std::sync::RwLock;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
 
 use tokio::sync::Notify;
 
@@ -16,6 +14,7 @@ pub struct SlotAggregatedStatus {
     pub slots_processing: AtomicValue<AtomicI32>,
     pub slots_total: AtomicValue<AtomicI32>,
     pub update_notifier: Notify,
+    pub version: AtomicValue<AtomicI32>,
 }
 
 impl SlotAggregatedStatus {
@@ -26,6 +25,7 @@ impl SlotAggregatedStatus {
             slots_processing: AtomicValue::<AtomicI32>::new(0),
             slots_total: AtomicValue::<AtomicI32>::new(0),
             update_notifier: Notify::new(),
+            version: AtomicValue::<AtomicI32>::new(0),
         }
     }
 
@@ -33,6 +33,7 @@ impl SlotAggregatedStatus {
         self.set_model_path(None);
         self.slots_processing.reset();
         self.slots_total.reset();
+        self.version.increment();
         self.update_notifier.notify_waiters();
     }
 
@@ -43,6 +44,7 @@ impl SlotAggregatedStatus {
 
         *path_lock = model_path;
 
+        self.version.increment();
         self.update_notifier.notify_waiters();
     }
 }
@@ -50,11 +52,15 @@ impl SlotAggregatedStatus {
 impl DispensesSlots for SlotAggregatedStatus {
     fn release_slot(&self) {
         self.slots_processing.decrement();
+        self.version.increment();
+
         self.update_notifier.notify_waiters();
     }
 
     fn take_slot(&self) {
         self.slots_processing.increment();
+        self.version.increment();
+
         self.update_notifier.notify_waiters();
     }
 }
@@ -72,10 +78,7 @@ impl ProducesSnapshot for SlotAggregatedStatus {
                 .clone(),
             slots_processing: self.slots_processing.get(),
             slots_total: self.slots_total.get(),
-            update_timestamp_secs: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("Time went backwards")
-                .as_secs(),
+            version: self.version.get(),
         }
     }
 }

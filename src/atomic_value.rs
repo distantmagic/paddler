@@ -1,5 +1,4 @@
 use std::sync::atomic::AtomicI32;
-use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 
 pub struct AtomicValue<TAtomic> {
@@ -41,21 +40,5 @@ impl AtomicValue<AtomicI32> {
         } else {
             false
         }
-    }
-}
-
-impl AtomicValue<AtomicU64> {
-    pub fn new(initial: u64) -> Self {
-        Self {
-            value: AtomicU64::new(initial),
-        }
-    }
-
-    pub fn get(&self) -> u64 {
-        self.value.load(Ordering::SeqCst)
-    }
-
-    pub fn set(&self, value: u64) {
-        self.value.store(value, Ordering::SeqCst);
     }
 }

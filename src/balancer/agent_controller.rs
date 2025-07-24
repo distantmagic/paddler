@@ -1,5 +1,4 @@
 use std::sync::atomic::AtomicI32;
-use std::sync::atomic::AtomicU64;
 use std::sync::RwLock;
 
 use actix_web::web::Data;
@@ -34,9 +33,9 @@ pub struct AgentController {
     pub id: String,
     pub model_path: RwLock<Option<String>>,
     pub name: Option<String>,
+    pub newest_update_version: AtomicValue<AtomicI32>,
     pub slots_processing: AtomicValue<AtomicI32>,
     pub slots_total: AtomicValue<AtomicI32>,
-    pub update_timestamp_secs: AtomicValue<AtomicU64>,
 }
 
 impl AgentController {
@@ -95,11 +94,11 @@ impl AgentController {
             model_path,
             slots_processing,
             slots_total,
-            update_timestamp_secs,
+            version,
         }: SlotAggregatedStatusSnapshot,
     ) -> AgentControllerUpdateResult {
-        if update_timestamp_secs < self.update_timestamp_secs.get() {
-            debug!("Discarding update with older timestamp: {update_timestamp_secs}");
+        if version < self.newest_update_version.get() {
+            debug!("Discarding update with older version: {version}");
 
             return AgentControllerUpdateResult::NoMeaningfulChanges;
         }
@@ -110,7 +109,7 @@ impl AgentController {
         changed = changed || self.slots_processing.set_check(slots_processing);
         changed = changed || self.slots_total.set_check(slots_total);
 
-        self.update_timestamp_secs.set(update_timestamp_secs);
+        self.newest_update_version.set(version);
 
         if model_path != self.get_model_path() {
             changed = true;
