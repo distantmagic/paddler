@@ -1,47 +1,32 @@
 # Paddler
 
-Paddler is an open-source, production-ready, stateful load balancer and reverse proxy designed to optimize servers running [llama.cpp](https://github.com/ggerganov/llama.cpp).
+Paddler is an open-source, production-ready, stateful load balancer based on [llama.cpp](https://github.com/ggerganov/llama.cpp), designed for LLM deployment at scale.
 
 ## Why Paddler
 
 <img align="right" src="https://github.com/user-attachments/assets/19e74262-1918-4b1d-9b4c-bcb4f0ab79f5">
 
-Typical load balancing strategies like round robin and least connections are ineffective for llama.cpp servers, which utilize continuous batching algorithms and allow to configure slots to handle multiple requests concurrently. 
+Typical load balancing strategies like round robin and least connections are ineffective for LLM inference workloads, which utilize continuous batching algorithms and unique features like slots.
 
-Paddler is designed to support llama.cpp-specific features like slots. It works by maintaining a stateful load balancer aware of each server's available slots, ensuring efficient request distribution.
+Paddler embeds llama.cpp and implements its own implementation of the server and slots management system optimized for distributed workloads. It manages multiple slots across distributed agents, maintaining stateful awareness of each slot's availability to ensure efficient request distribution. Paddler supports directing traffic to agents with the relevant KV cache, ensuring proper context management.
 
 > [!NOTE]
-> In simple terms, the `slots` in llama.cpp refer to predefined memory slices within the server that handle individual requests. When a request comes in, it is assigned to an available slot for processing. They are predictable and highly configurable.
+> `Slots` are predefined memory slices within the server that handle individual requests. When a request comes in, it is assigned to an available slot for processing. Paddler implements its own slot system where the model is loaded into memory once, and each slot maintains its own KV cache (the KV cache is divided between slots) and can handle its own conversation in parallel.
 >
-> You can learn more about them in [llama.cpp server](https://github.com/ggerganov/llama.cpp/tree/master/examples/server) documentation.
 
 ## Key features
-* Uses agents to monitor the slots of individual llama.cpp instances.
-* Supports the dynamic addition or removal of llama.cpp servers, enabling integration with autoscaling tools.
+* Comes with its own implementation of llama.cpp server and slots management.
+* Uses agents to monitor the slots availability and balance the incoming requests.
+* Allows for parallel usage of slots and context maintenance, with each slot having its own KV kache. 
+* Supports the dynamic addition or removal of instances, enabling integration with autoscaling tools.
 * Buffers requests, allowing to scale from zero hosts.
-* Integrates with StatsD protocol but also comes with a built-in dashboard.
-* AWS integration.
+* Integrates with StatsD protocol but also comes with a built-in web admin panel.
 
-![paddler-animation](https://github.com/user-attachments/assets/2a0f3837-7b0a-4249-b385-46ebc7c38065)
-*Paddler's aware of each server's available slots, ensuring efficient request ("R") distribution*
+{new graphic to be inserted}
 
 ## How it Works
 
-llama.cpp instances need to be registered in Paddler. Paddler’s agents should be installed alongside llama.cpp instances so that they can report their slots status to the load balancer.
-
-The sequence repeats for each agent:
-
-```mermaid
-sequenceDiagram
-    participant loadbalancer as Paddler Load Balancer
-    participant agent as Paddler Agent
-    participant llamacpp as llama.cpp
-
-    agent->>llamacpp: Hey, are you alive?
-    llamacpp-->>agent: Yes, this is my slots status
-    agent-->>loadbalancer: llama.cpp is still working
-    loadbalancer->>llamacpp: I have a request for you to handle
-```
+{TODO}
 
 ## Usage
 
@@ -51,90 +36,18 @@ For a quick demonstration of Paddler, see the Docker Compose example in the `exa
 
 ### Installation
 
-Download the latest release for Linux, Mac, or Windows from the 
+Download the latest release for Linux or Mac from the 
 [releases page](https://github.com/distantmagic/paddler/releases).
 
 On Linux, if you want Paddler to be accessible system-wide, rename the downloaded executable to `/usr/bin/paddler` (or `/usr/local/bin/paddler`).
 
-### Running llama.cpp
-
-Slots endpoint is required to be enabled in llama.cpp. To do so, run llama.cpp with the `--slots` flag. 
-
-### Running Agents
-
-The next step is to run Paddler’s agents. Agents register your llama.cpp instances in Paddler and monitor the slots of llama.cpp instances. 
-They should be installed on the same host as your server that runs [llama.cpp](https://github.com/ggerganov/llama.cpp).
-
-An agent needs a few pieces of information:
-1. `external-llamacpp-addr` tells how the load balancer can connect to the llama.cpp instance
-2. `local-llamacpp-addr` tells how the agent can connect to the llama.cpp instance
-3. `management-addr` tell where the agent should report the slots status
-
-Run the following to start a Paddler’s agent (replace the hosts and ports with your own server addresses when deploying):
-
-```shell
-./paddler agent \
-    --external-llamacpp-addr 127.0.0.1:8088 \
-    --local-llamacpp-addr 127.0.0.1:8088 \
-    --management-addr 127.0.0.1:8085
-```
-
-#### Naming the Agents
-
-With the `--name` flag, you can assign each agent a custom name. This name will be displayed in the management dashboard and not used for any other purpose. 
-
-#### API Key
-
-If your llama.cpp instance requires an API key, you can provide it with the `--local-llamacpp-api-key` flag.
-
-### Running Load Balancer
-
-Load balancer collects data from agents and exposes reverse proxy to the outside world.
-
-It requires two sets of flags:
-1. `management-addr` tells where the load balancer should listen for updates from agents
-2. `reverseproxy-addr` tells how load balancer can be reached from the outside hosts
-
-To start the load balancer, run:
-```shell
-./paddler balancer \
-    --management-addr 127.0.0.1:8085 \
-    --reverseproxy-addr 196.168.2.10:8080
-```
-
-`management-host` and `management-port` in agents should be the same as in the load balancer.
-
-#### Enabling Dashboard
-
-You can enable dashboard to see the status of the agents with 
-`--management-dashboard-enable` flag. If enabled, it is available at the 
-management server address under `/dashboard` path.
-
-#### Enabling Slots Endpoint
-
-> [!NOTE]
-> Available since v1.0.0
-
-By default, Paddler blocks access to `/slots` endpoint, even if it is enabled in `llama.cpp`, because it exposes a lot of sensistive information about the server, and should only be used internally. If you want to expose it anyway, you can use the `--slots-endpoint-enable` flag.
-
-#### Rewriting the `Host` Header
-.
-> [!NOTE]
-> Available since v0.8.0
-
-In some cases (see: [#20](https://github.com/distantmagic/paddler/issues/20)), you might want to rewrite the `Host` header.
-
-In such cases, you can use the `--rewrite-host-header` flag. If used, Paddler will use the `external` host provided by agents instead of the balancer host when forwarding the requests.
+{TODO new installation steps}
 
 ## Feature Highlights
 
-### Aggregated Health Status
+### KV cache
 
-Paddler balancer endpoint aggregates the slots of all `llama.cpp` instances and reports the total number of available and processing slots.
-
-Aggregated health status is available at the `/api/v1/agents` endpoint of the management server.
-
-![Aggregated Health Status](https://github.com/distantmagic/paddler/assets/1286785/01f2fb39-ccc5-4bfa-896f-919b66318b2c)
+{TODO}
 
 ### Buffered Requests (Scaling from Zero Hosts)
 
@@ -143,38 +56,22 @@ Aggregated health status is available at the `/api/v1/agents` endpoint of the ma
 
 Load balancer's buffered requests allow your infrastructure to scale from zero hosts by providing an additional metric (unhandled requests). 
 
-It also gives your infrastructure some additional time to add additional hosts. For example, if your autoscaler is setting up an additional server, putting an incoming request on hold for 60 seconds might give it a chance to be handled even though there might be no available llama.cpp instances at the moment of issuing it.
+It also gives your infrastructure some additional time to add additional hosts. For example, if your autoscaler is setting up an additional server, putting an incoming request on hold for 60 seconds might give it a chance to be handled even though there might be no available Paddler instances at the moment of issuing it.
 
 Scaling from zero hosts is especially suitable for low-traffic projects because it allows you to cut costs on your infrastructure—you won't be paying your cloud provider anything if you are not using your service at the moment.
 
-![Paddler Buffered Requests](https://github.com/distantmagic/paddler/assets/1286785/a1754d46-d728-4858-a991-11e8b52bd20d)
 
-https://github.com/distantmagic/paddler/assets/1286785/34b93e4c-0746-4eed-8be3-cd698e15cbf9
-
-### State Dashboard
-
-Although Paddler integrates with the [StatsD protocol](https://github.com/statsd/statsd), you can preview the cluster's state using a built-in dashboard.
-
-#### Web Dashboard
+#### Web Admin Panel
 
 Paddler needs to be compiled with the `web_dashboard` feature flag enabled (enabled by default in GitHub releases).
 
 To start the dashboard, run `paddler balancer` with the `--management-dashboard-enable` flag.
 
-![Paddler Web Dashboard](https://github.com/user-attachments/assets/b12413ca-481b-4d49-9908-5dc38346305a)
-
-#### TUI Dashobard
-
-> [!NOTE]
-> Available since v1.2.0
-
-You can connect to any running Paddler instance with `paddler dashboard --management-addr [HOST]:[PORT]`.
-
-![Paddler TUI Dashboard](https://github.com/user-attachments/assets/55dc8cfe-4b82-4619-871f-0bb79cb44d01)
-
-Thank you [@Propfend](https://github.com/Propfend) for [contributing](https://github.com/distantmagic/paddler/pull/31) the TUI Dashboard!
+{TODO: add new screenshot, new flags}
 
 ### StatsD Metrics
+
+{TODO: verify metrics}
 
 > [!NOTE]
 > Available since v0.3.0
@@ -202,10 +99,6 @@ StatsD metrics need to be enabled with the following flags:
 
 If you do not provide the `--statsd-addr` flag, the StatsD metrics will not be collected.
 
-## Tutorials
-
-- [Installing llama.cpp on AWS EC2 CUDA Instance](https://llmops-handbook.distantmagic.com/deployments/llama.cpp/aws-ec2-cuda/index.html)
-- [Installing llama.cpp with AWS EC2 Image Builder](https://llmops-handbook.distantmagic.com/deployments/llama.cpp/aws-image-builder/index.html)
 
 ## Changelog
 
@@ -325,12 +218,14 @@ Thank you, [@ScottMcNaught](https://github.com/ScottMcNaught), for the help with
 
 * [Aggregated Health Status Responses](https://github.com/distantmagic/paddler/releases/tag/v0.1.0)
 
+## Contribution guidelines and community
+
+We welcome every contribution, whether it is a submitted issue, PR, or a new discussion topic. All pull requests go through a code review process to maintain code quality and ensure consistency with the project's standards.
+Please use GitHub discussions for community conversations. 
+
 ## Why the Name
 
 I initially wanted to use [Raft](https://raft.github.io/) consensus algorithm (thus Paddler, because it paddles on a Raft), but eventually, I dropped that idea. The name stayed, though.
 
 Later, people started sending me a "that's a paddlin'" clip from The Simpsons, and I just embraced it.
 
-## Community
-
-Discord: https://discord.gg/kysUzFqSCK
