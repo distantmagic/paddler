@@ -43,7 +43,7 @@ mod tests {
 
         assert_eq!(
             serialized,
-            r#"{"Notification":{"SetState":{"desired_state":{"model":{"HuggingFace":{"branch":"main","filename":"Qwen3-0.6B-Q8_0.gguf","repo":"Qwen/Qwen3-0.6B-GGUF"}}}}}}"#
+            r#"{"Notification":{"SetState":{"desired_state":{"model":{"HuggingFace":{"filename":"Qwen3-0.6B-Q8_0.gguf","repo_id":"Qwen/Qwen3-0.6B-GGUF","revision":"main"}}}}}}"#
         );
 
         Ok(())

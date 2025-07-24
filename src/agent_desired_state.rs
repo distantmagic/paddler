@@ -51,7 +51,7 @@ mod tests {
 
         assert_eq!(
             serialized,
-            r#"{"model":{"HuggingFace":{"branch":"main","filename":"model.gguf","repo":"org/repo"}}}"#
+            r#"{"model":{"HuggingFace":{"filename":"model.gguf","repo_id":"org/repo","revision":"main"}}}"#
         );
 
         Ok(())
