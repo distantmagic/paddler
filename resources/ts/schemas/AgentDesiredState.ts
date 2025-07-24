@@ -1,9 +1,6 @@
 import { z } from "zod";
 
-const HuggingFaceModelReferenceSchema = z.object({
-  filename: z.string(),
-  repo: z.string(),
-});
+import { HuggingFaceModelReferenceSchema } from "./HuggingFaceModelReference";
 
 const AgentDesiredModelSchema = z.union([
   z.object({

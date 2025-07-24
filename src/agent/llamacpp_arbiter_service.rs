@@ -5,6 +5,7 @@ use anyhow::anyhow;
 use anyhow::Context as _;
 use anyhow::Result;
 use async_trait::async_trait;
+use log::debug;
 use log::error;
 use log::info;
 use tokio::sync::broadcast;
@@ -121,6 +122,8 @@ impl Service for LlamaCppArbiterService {
                 generate_tokens_request = self.generate_tokens_request_rx.recv() => {
                     match generate_tokens_request {
                         Some(generate_tokens_request) => {
+                            debug!("Received generate tokens request: {generate_tokens_request:?}");
+
                             if let Some(llamacpp_arbiter_controller) = &self.llamacpp_arbiter_controller {
                                 let llamacpp_slot_addr = llamacpp_arbiter_controller.llamacpp_slot_addr.clone();
                                 let mut shutdown_clone = shutdown.resubscribe();

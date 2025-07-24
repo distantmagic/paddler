@@ -152,7 +152,7 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
             </label>
           )}
           <div className={modelPage__formControls}>
-            <button className={modelPage__submitButton}>Save</button>
+            <button className={modelPage__submitButton}>Submit</button>
           </div>
         </form>
       </main>

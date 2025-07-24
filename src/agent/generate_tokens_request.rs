@@ -5,7 +5,7 @@ use tokio::sync::mpsc;
 use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::request_params::GenerateTokensParams;
 
-#[derive(Message)]
+#[derive(Debug, Message)]
 #[rtype(result = "Result<()>")]
 pub struct GenerateTokensRequest {
     pub generate_tokens_params: GenerateTokensParams,

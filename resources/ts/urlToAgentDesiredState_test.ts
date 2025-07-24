@@ -10,7 +10,8 @@ test("recognizes Hugging Face urls", function (test) {
     model: {
       HuggingFace: {
         filename: "Qwen3-0.6B-Q8_0.gguf",
-        repo: "Qwen/Qwen3-0.6B-GGUF",
+        repo_id: "Qwen/Qwen3-0.6B-GGUF",
+        revision: "main",
       },
     },
   });

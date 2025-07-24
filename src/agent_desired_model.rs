@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use anyhow::Result;
 use async_trait::async_trait;
 use hf_hub::api::tokio::Api;
+use hf_hub::Repo;
+use hf_hub::RepoType;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -23,10 +25,18 @@ impl ConvertsToApplicableState for AgentDesiredModel {
 
     async fn to_applicable_state(&self) -> Result<Option<Self::ApplicableState>> {
         Ok(match self {
-            AgentDesiredModel::HuggingFace(HuggingFaceModelReference { filename, repo }) => {
-                let api = Api::new()?;
-                let repo = api.model(repo.to_owned());
-                let weights_filename = repo.get(filename).await?;
+            AgentDesiredModel::HuggingFace(HuggingFaceModelReference {
+                filename,
+                repo_id,
+                revision,
+            }) => {
+                let hf_api = Api::new()?;
+                let hf_repo = hf_api.repo(Repo::with_revision(
+                    repo_id.to_owned(),
+                    RepoType::Model,
+                    revision.to_owned(),
+                ));
+                let weights_filename = hf_repo.get(filename).await?;
 
                 Some(weights_filename)
             }

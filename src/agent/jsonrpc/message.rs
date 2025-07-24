@@ -34,7 +34,8 @@ mod tests {
                 desired_state: AgentDesiredState {
                     model: AgentDesiredModel::HuggingFace(HuggingFaceModelReference {
                         filename: "Qwen3-0.6B-Q8_0.gguf".to_string(),
-                        repo: "Qwen/Qwen3-0.6B-GGUF".to_string(),
+                        repo_id: "Qwen/Qwen3-0.6B-GGUF".to_string(),
+                        revision: "main".to_string(),
                     }),
                 },
             },
@@ -42,7 +43,7 @@ mod tests {
 
         assert_eq!(
             serialized,
-            r#"{"Notification":{"SetState":{"desired_state":{"model":{"HuggingFace":{"filename":"Qwen3-0.6B-Q8_0.gguf","repo":"Qwen/Qwen3-0.6B-GGUF"}}}}}}"#
+            r#"{"Notification":{"SetState":{"desired_state":{"model":{"HuggingFace":{"branch":"main","filename":"Qwen3-0.6B-Q8_0.gguf","repo":"Qwen/Qwen3-0.6B-GGUF"}}}}}}"#
         );
 
         Ok(())

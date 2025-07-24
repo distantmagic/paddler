@@ -42,7 +42,8 @@ mod tests {
         let desired_state = AgentDesiredState {
             model: AgentDesiredModel::HuggingFace(HuggingFaceModelReference {
                 filename: "model.gguf".to_string(),
-                repo: "org/repo".to_string(),
+                repo_id: "org/repo".to_string(),
+                revision: "main".to_string(),
             }),
         };
 
@@ -50,7 +51,7 @@ mod tests {
 
         assert_eq!(
             serialized,
-            r#"{"model":{"HuggingFace":{"filename":"model.gguf","repo":"org/repo"}}}"#
+            r#"{"model":{"HuggingFace":{"branch":"main","filename":"model.gguf","repo":"org/repo"}}}"#
         );
 
         Ok(())
