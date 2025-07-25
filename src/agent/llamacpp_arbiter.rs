@@ -74,7 +74,10 @@ impl LlamaCppArbiter {
                 .context("Unable to load model from file")?,
             );
 
-            let model_chat_template = model.chat_template(None)?;
+            let model_chat_template = model.chat_template(None).context(format!(
+                "Failed to load chat template for model at path: {}",
+                model_path.display()
+            ))?;
             let chat_template = ChatTemplate::new(model_chat_template.to_string()?)?;
 
             chat_template_holder.set_chat_template(chat_template);

@@ -33,7 +33,7 @@ impl Default for ModelParameters {
             penalty_repeat: 1.0,
             temperature: 0.6,
             top_k: 40,
-            top_p: 0.2,
+            top_p: 0.3,
         }
     }
 }
