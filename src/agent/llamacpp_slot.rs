@@ -26,12 +26,14 @@ use crate::agent::slot_status::SlotStatus;
 use crate::generated_token::GeneratedToken;
 use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::generated_token_result::GeneratedTokenResult;
+use crate::model_parameters::ModelParameters;
 use crate::request_params::GenerateTokensParams;
 
 pub struct LlamaCppSlot {
     agent_name: Option<String>,
     llama_context: LlamaContext<'static>,
     model: Arc<LlamaModel>,
+    model_parameters: ModelParameters,
     model_path: PathBuf,
     slot_index: u32,
     slot_status: Arc<SlotStatus>,
@@ -44,6 +46,7 @@ impl LlamaCppSlot {
         backend: Arc<LlamaBackend>,
         ctx_params: Arc<LlamaContextParams>,
         model: Arc<LlamaModel>,
+        model_parameters: ModelParameters,
         model_path: PathBuf,
         slot_index: u32,
         slot_status: Arc<SlotStatus>,
@@ -68,6 +71,7 @@ impl LlamaCppSlot {
             agent_name,
             llama_context,
             model,
+            model_parameters,
             model_path,
             slot_index,
             slot_status,
@@ -158,7 +162,7 @@ impl Handler<GenerateTokensRequest> for LlamaCppSlot {
         self.llama_context.clear_kv_cache();
 
         let tokens_list = self.model.str_to_token(&prompt, AddBos::Always)?;
-        let mut batch = LlamaBatch::new(512, 1);
+        let mut batch = LlamaBatch::new(self.model_parameters.batch_n_tokens, 1);
         let last_index = tokens_list.len() as i32 - 1;
 
         for (i, token) in (0_i32..).zip(tokens_list.into_iter()) {
@@ -172,11 +176,16 @@ impl Handler<GenerateTokensRequest> for LlamaCppSlot {
         let mut n_cur = batch.n_tokens();
         let mut decoder = encoding_rs::UTF_8.new_decoder();
         let mut sampler = LlamaSampler::chain_simple([
-            LlamaSampler::temp(0.6),
-            LlamaSampler::top_k(20),
-            LlamaSampler::top_p(0.95, 0),
-            LlamaSampler::min_p(0.0, 0),
-            LlamaSampler::penalties(-1, 1.0, 0.0, 1.5),
+            LlamaSampler::temp(self.model_parameters.temperature),
+            LlamaSampler::top_k(self.model_parameters.top_k),
+            LlamaSampler::top_p(self.model_parameters.top_p, 0),
+            LlamaSampler::min_p(self.model_parameters.min_p, 0),
+            LlamaSampler::penalties(
+                self.model_parameters.penalty_last_n,
+                self.model_parameters.penalty_repeat,
+                self.model_parameters.penalty_frequency,
+                self.model_parameters.penalty_presence,
+            ),
             LlamaSampler::greedy(),
         ]);
 

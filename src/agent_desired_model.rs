@@ -17,8 +17,6 @@ pub enum AgentDesiredModel {
     Local(String),
 }
 
-impl AgentDesiredModel {}
-
 #[async_trait]
 impl ConvertsToApplicableState for AgentDesiredModel {
     type ApplicableState = PathBuf;
@@ -36,6 +34,7 @@ impl ConvertsToApplicableState for AgentDesiredModel {
                     RepoType::Model,
                     revision.to_owned(),
                 ));
+
                 let weights_filename = hf_repo.get(filename).await?;
 
                 Some(weights_filename)

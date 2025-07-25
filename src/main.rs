@@ -15,6 +15,7 @@ mod generated_token_envelope;
 mod generated_token_result;
 mod huggingface_model_reference;
 mod jsonrpc;
+mod model_parameters;
 mod produces_snapshot;
 mod request_params;
 mod rpc_message;

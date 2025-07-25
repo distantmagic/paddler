@@ -1,3 +1,4 @@
+use core::num::NonZeroU32;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -46,6 +47,7 @@ impl LlamaCppArbiter {
 
         let agent_name_clone = self.agent_name.clone();
         let desired_slots_total = self.desired_slots_total;
+        let model_parameters = self.applicable_state.model_parameters.clone();
         let model_path = self.applicable_state.model_path.clone();
         let slot_aggregated_status_manager = self.slot_aggregated_status_manager.clone();
 
@@ -53,7 +55,8 @@ impl LlamaCppArbiter {
             let backend =
                 Arc::new(LlamaBackend::init().context("Unable to initialize llama.cpp backend")?);
             let ctx_params = Arc::new(
-                LlamaContextParams::default().with_n_ctx(core::num::NonZeroU32::new(4096)),
+                LlamaContextParams::default()
+                    .with_n_ctx(NonZeroU32::new(model_parameters.context_size)),
             );
             let backend_clone = backend.clone();
             let model = Arc::new(
@@ -82,6 +85,7 @@ impl LlamaCppArbiter {
                                 backend.clone(),
                                 ctx_params.clone(),
                                 model.clone(),
+                                model_parameters.clone(),
                                 model_path.clone(),
                                 slot_index.fetch_add(1, Ordering::SeqCst),
                                 slot_aggregated_status_manager.bind_slot_status(),

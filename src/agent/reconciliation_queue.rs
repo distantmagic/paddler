@@ -44,6 +44,7 @@ mod tests {
     use super::*;
     use crate::agent_desired_model::AgentDesiredModel;
     use crate::agent_desired_state::AgentDesiredState;
+    use crate::model_parameters::ModelParameters;
 
     #[tokio::test]
     async fn test_reconciliation_queue() -> Result<()> {
@@ -51,13 +52,14 @@ mod tests {
 
         let desired_state = AgentDesiredState {
             model: AgentDesiredModel::Local("test_model_path".to_string()),
+            model_parameters: ModelParameters::default(),
         };
 
         queue.register_change_request(desired_state.clone()).await?;
 
         let received_request = queue.next_change_request().await?;
 
-        assert_eq!(desired_state, received_request);
+        assert_eq!(desired_state.model, received_request.model);
 
         Ok(())
     }

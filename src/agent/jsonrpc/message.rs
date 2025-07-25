@@ -26,6 +26,7 @@ mod tests {
     use crate::agent_desired_model::AgentDesiredModel;
     use crate::agent_desired_state::AgentDesiredState;
     use crate::huggingface_model_reference::HuggingFaceModelReference;
+    use crate::model_parameters::ModelParameters;
 
     #[test]
     fn test_message_serialization() -> Result<()> {
@@ -37,6 +38,7 @@ mod tests {
                         repo_id: "Qwen/Qwen3-0.6B-GGUF".to_string(),
                         revision: "main".to_string(),
                     }),
+                    model_parameters: ModelParameters::default(),
                 },
             },
         )))?;

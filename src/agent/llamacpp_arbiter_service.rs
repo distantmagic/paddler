@@ -86,11 +86,6 @@ impl LlamaCppArbiterService {
         if let Err(err) = self.apply_state().await {
             error!("Failed to apply reconciled state change: {err}");
         }
-
-        self.slot_aggregated_status_manager
-            .slot_aggregated_status
-            .update_notifier
-            .notify_waiters();
     }
 }
 

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { HuggingFaceModelReferenceSchema } from "./HuggingFaceModelReference";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const AgentDesiredModelSchema = z.union([
   z.object({
     HuggingFace: HuggingFaceModelReferenceSchema,
@@ -11,9 +12,4 @@ const AgentDesiredModelSchema = z.union([
   }),
 ]);
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const AgentDesiredStateSchema = z.object({
-  model: AgentDesiredModelSchema,
-});
-
-export type AgentDesiredState = z.infer<typeof AgentDesiredStateSchema>;
+export type AgentDesiredModel = z.infer<typeof AgentDesiredModelSchema>;

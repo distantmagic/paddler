@@ -19,13 +19,11 @@ impl SlotStatus {
     }
 
     pub fn started(&self) {
-        self.slot_aggregated_status.slots_total.increment();
-        self.slot_aggregated_status.update_notifier.notify_waiters();
+        self.slot_aggregated_status.increment_total_slots();
     }
 
     pub fn stopped(&self) {
-        self.slot_aggregated_status.slots_total.decrement();
-        self.slot_aggregated_status.update_notifier.notify_waiters();
+        self.slot_aggregated_status.decrement_total_slots();
     }
 }
 

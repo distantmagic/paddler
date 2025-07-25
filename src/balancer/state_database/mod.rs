@@ -22,17 +22,19 @@ mod tests {
 
     use super::*;
     use crate::agent_desired_model::AgentDesiredModel;
+    use crate::model_parameters::ModelParameters;
 
     async fn subtest_store_desired_state<TDatabase: StateDatabase>(db: &TDatabase) -> Result<()> {
         let desired_state = AgentDesiredState {
             model: AgentDesiredModel::Local("test_model_path".to_string()),
+            model_parameters: ModelParameters::default(),
         };
 
         db.store_desired_state(&desired_state).await?;
 
         let read_state = db.read_desired_state().await?;
 
-        assert_eq!(read_state, Some(desired_state));
+        assert_eq!(read_state.unwrap().model, desired_state.model);
 
         Ok(())
     }

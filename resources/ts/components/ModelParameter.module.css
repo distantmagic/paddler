@@ -1,0 +1,18 @@
+.modelParameter {
+  column-gap: var(--spacing-half);
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+}
+
+.modelParameter__head {
+  display: flex;
+  flex-direction: column;
+  padding-left: var(--spacing-base);
+}
+
+.modelParameter__input {
+  appearance: none;
+  border: 2px solid var(--color-border);
+  box-shadow: 2px 2px 0 var(--color-border);
+  padding: var(--spacing-half);
+}

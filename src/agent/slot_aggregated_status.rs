@@ -9,12 +9,12 @@ use crate::produces_snapshot::ProducesSnapshot;
 use crate::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 
 pub struct SlotAggregatedStatus {
-    pub desired_slots_total: i32,
-    pub model_path: RwLock<Option<String>>,
-    pub slots_processing: AtomicValue<AtomicI32>,
-    pub slots_total: AtomicValue<AtomicI32>,
+    desired_slots_total: i32,
+    model_path: RwLock<Option<String>>,
+    slots_processing: AtomicValue<AtomicI32>,
+    slots_total: AtomicValue<AtomicI32>,
     pub update_notifier: Notify,
-    pub version: AtomicValue<AtomicI32>,
+    version: AtomicValue<AtomicI32>,
 }
 
 impl SlotAggregatedStatus {
@@ -27,6 +27,18 @@ impl SlotAggregatedStatus {
             update_notifier: Notify::new(),
             version: AtomicValue::<AtomicI32>::new(0),
         }
+    }
+
+    pub fn decrement_total_slots(&self) {
+        self.slots_total.decrement();
+        self.version.increment();
+        self.update_notifier.notify_waiters();
+    }
+
+    pub fn increment_total_slots(&self) {
+        self.slots_total.increment();
+        self.version.increment();
+        self.update_notifier.notify_waiters();
     }
 
     pub fn reset(&self) {
@@ -53,14 +65,12 @@ impl DispensesSlots for SlotAggregatedStatus {
     fn release_slot(&self) {
         self.slots_processing.decrement();
         self.version.increment();
-
         self.update_notifier.notify_waiters();
     }
 
     fn take_slot(&self) {
         self.slots_processing.increment();
         self.version.increment();
-
         self.update_notifier.notify_waiters();
     }
 }

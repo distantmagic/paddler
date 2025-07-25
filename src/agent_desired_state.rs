@@ -7,10 +7,12 @@ use serde::Serialize;
 use crate::agent_applicable_state::AgentApplicableState;
 use crate::agent_desired_model::AgentDesiredModel;
 use crate::converts_to_applicable_state::ConvertsToApplicableState;
+use crate::model_parameters::ModelParameters;
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AgentDesiredState {
     pub model: AgentDesiredModel,
+    pub model_parameters: ModelParameters,
 }
 
 #[async_trait]
@@ -27,7 +29,10 @@ impl ConvertsToApplicableState for AgentDesiredState {
             }
         };
 
-        Ok(Some(AgentApplicableState { model_path }))
+        Ok(Some(AgentApplicableState {
+            model_parameters: self.model_parameters.clone(),
+            model_path,
+        }))
     }
 }
 
@@ -40,6 +45,7 @@ mod tests {
     #[test]
     fn test_serialization() -> Result<()> {
         let desired_state = AgentDesiredState {
+            model_parameters: ModelParameters::default(),
             model: AgentDesiredModel::HuggingFace(HuggingFaceModelReference {
                 filename: "model.gguf".to_string(),
                 repo_id: "org/repo".to_string(),

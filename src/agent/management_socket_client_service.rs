@@ -328,18 +328,22 @@ impl ManagementSocketClientService {
             });
 
         let do_send_status_update = || {
+            let slot_aggregated_status_snapshot = self.slot_aggregated_status.make_snapshot();
+
             message_tx
                 .send(ManagementJsonRpcMessage::Notification(
                     ManagementJsonRpcNotification::UpdateAgentStatus(UpdateAgentStatusParams {
-                        slot_aggregated_status_snapshot: self
-                            .slot_aggregated_status
-                            .make_snapshot(),
+                        slot_aggregated_status_snapshot,
                     }),
                 ))
                 .unwrap_or_else(|err| {
                     error!("Failed to send status update notification: {err}");
                 });
         };
+
+        let mut ticker = interval(Duration::from_secs(1));
+
+        ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
         loop {
             tokio::select! {
