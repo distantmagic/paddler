@@ -267,9 +267,27 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                 .await?
                 {
                     Some(agent_controller) => {
-                        let receive_tokens_controller = agent_controller
+                        let receive_tokens_controller = match agent_controller
                             .continue_conversation(id.clone(), params)
-                            .await?;
+                            .await
+                        {
+                            Ok(receive_tokens_controller) => receive_tokens_controller,
+                            Err(err) => {
+                                error!("Failed to continue conversation for request {id:?}: {err}");
+
+                                Self::respond_with_error(
+                                    JsonRpcError {
+                                        code: 500,
+                                        description: "Failed to continue conversation".to_string(),
+                                    },
+                                    id.clone(),
+                                    &mut websocket_session_controller,
+                                )
+                                .await;
+
+                                return Ok(ContinuationDecision::Continue);
+                            }
+                        };
 
                         Self::generate_tokens(
                             agent_controller,
@@ -300,7 +318,24 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                 {
                     Some(agent_controller) => {
                         let receive_tokens_controller =
-                            agent_controller.generate_tokens(id.clone(), params).await?;
+                            match agent_controller.generate_tokens(id.clone(), params).await {
+                                Ok(receive_tokens_controller) => receive_tokens_controller,
+                                Err(err) => {
+                                    error!("Failed to generate tokens: {err}");
+
+                                    Self::respond_with_error(
+                                        JsonRpcError {
+                                            code: 500,
+                                            description: "Failed to generate tokens".to_string(),
+                                        },
+                                        id.clone(),
+                                        &mut websocket_session_controller,
+                                    )
+                                    .await;
+
+                                    return Ok(ContinuationDecision::Continue);
+                                }
+                            };
 
                         Self::generate_tokens(
                             agent_controller,
