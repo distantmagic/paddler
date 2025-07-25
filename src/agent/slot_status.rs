@@ -1,3 +1,4 @@
+use std::sync::atomic::AtomicI32;
 use std::sync::Arc;
 
 use crate::agent::dispenses_slots::DispensesSlots;
@@ -6,25 +7,23 @@ use crate::atomic_value::AtomicValue;
 
 pub struct SlotStatus {
     pub slot_aggregated_status: Arc<SlotAggregatedStatus>,
-    pub slots_processing: Arc<AtomicValue>,
+    pub slots_processing: Arc<AtomicValue<AtomicI32>>,
 }
 
 impl SlotStatus {
     pub fn new(slot_aggregated_status: Arc<SlotAggregatedStatus>) -> Self {
         Self {
             slot_aggregated_status,
-            slots_processing: Arc::new(AtomicValue::new(0)),
+            slots_processing: Arc::new(AtomicValue::<AtomicI32>::new(0)),
         }
     }
 
     pub fn started(&self) {
-        self.slot_aggregated_status.slots_total.increment();
-        self.slot_aggregated_status.update_notifier.notify_waiters();
+        self.slot_aggregated_status.increment_total_slots();
     }
 
     pub fn stopped(&self) {
-        self.slot_aggregated_status.slots_total.decrement();
-        self.slot_aggregated_status.update_notifier.notify_waiters();
+        self.slot_aggregated_status.decrement_total_slots();
     }
 }
 

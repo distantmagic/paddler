@@ -1,3 +1,4 @@
+use std::sync::atomic::AtomicI32;
 use std::sync::RwLock;
 
 use tokio::sync::Notify;
@@ -8,11 +9,12 @@ use crate::produces_snapshot::ProducesSnapshot;
 use crate::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 
 pub struct SlotAggregatedStatus {
-    pub desired_slots_total: i32,
-    pub model_path: RwLock<Option<String>>,
-    pub slots_processing: AtomicValue,
-    pub slots_total: AtomicValue,
+    desired_slots_total: i32,
+    model_path: RwLock<Option<String>>,
+    slots_processing: AtomicValue<AtomicI32>,
+    slots_total: AtomicValue<AtomicI32>,
     pub update_notifier: Notify,
+    version: AtomicValue<AtomicI32>,
 }
 
 impl SlotAggregatedStatus {
@@ -20,16 +22,30 @@ impl SlotAggregatedStatus {
         Self {
             desired_slots_total,
             model_path: RwLock::new(None),
-            slots_processing: AtomicValue::new(0),
-            slots_total: AtomicValue::new(0),
+            slots_processing: AtomicValue::<AtomicI32>::new(0),
+            slots_total: AtomicValue::<AtomicI32>::new(0),
             update_notifier: Notify::new(),
+            version: AtomicValue::<AtomicI32>::new(0),
         }
+    }
+
+    pub fn decrement_total_slots(&self) {
+        self.slots_total.decrement();
+        self.version.increment();
+        self.update_notifier.notify_waiters();
+    }
+
+    pub fn increment_total_slots(&self) {
+        self.slots_total.increment();
+        self.version.increment();
+        self.update_notifier.notify_waiters();
     }
 
     pub fn reset(&self) {
         self.set_model_path(None);
         self.slots_processing.reset();
         self.slots_total.reset();
+        self.version.increment();
         self.update_notifier.notify_waiters();
     }
 
@@ -40,6 +56,7 @@ impl SlotAggregatedStatus {
 
         *path_lock = model_path;
 
+        self.version.increment();
         self.update_notifier.notify_waiters();
     }
 }
@@ -47,11 +64,13 @@ impl SlotAggregatedStatus {
 impl DispensesSlots for SlotAggregatedStatus {
     fn release_slot(&self) {
         self.slots_processing.decrement();
+        self.version.increment();
         self.update_notifier.notify_waiters();
     }
 
     fn take_slot(&self) {
         self.slots_processing.increment();
+        self.version.increment();
         self.update_notifier.notify_waiters();
     }
 }
@@ -69,6 +88,7 @@ impl ProducesSnapshot for SlotAggregatedStatus {
                 .clone(),
             slots_processing: self.slots_processing.get(),
             slots_total: self.slots_total.get(),
+            version: self.version.get(),
         }
     }
 }

@@ -1,10 +1,10 @@
 import React, { useContext } from "react";
 
-import { InferenceSocketClient } from "../InferenceSocketClient";
 import { PromptContext } from "../contexts/PromptContext";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { matchWebSocketState } from "../matchWebSocketState";
 import { webSocketProtocol } from "../webSocketProtocol";
+import { ConversationMessage } from "./ConversationMessage";
 import { ConversationMessagePromptGeneratedTokens } from "./ConversationMessagePromptGeneratedTokens";
 import { ConversationPromptInput } from "./ConversationPromptInput";
 import { FloatingStatus } from "./FloatingStatus";
@@ -26,16 +26,12 @@ export function PromptPage({ inferenceAddr }: { inferenceAddr: string }) {
       return (
         <div className={promptPage}>
           <div className={promptPage__messages}>
-            <ConversationMessagePromptGeneratedTokens
-              inferenceSocketClient={InferenceSocketClient({ webSocket })}
-              prompt="How to make a cat happy?"
-            />
             {submittedPrompt && (
-              <ConversationMessagePromptGeneratedTokens
-                inferenceSocketClient={InferenceSocketClient({ webSocket })}
-                prompt={submittedPrompt}
-              />
+              <ConversationMessage>
+                <strong>You</strong>: {submittedPrompt}
+              </ConversationMessage>
             )}
+            <ConversationMessagePromptGeneratedTokens webSocket={webSocket} />
           </div>
           <div className={promptPage__promptForm}>
             <ConversationPromptInput />

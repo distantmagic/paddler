@@ -63,7 +63,7 @@
 .modelPage__form {
   display: flex;
   flex-direction: column;
-  row-gap: var(--spacing-base);
+  row-gap: var(--spacing-2x);
 }
 
 .modelPage__formControls {
@@ -81,12 +81,18 @@
 
 .modelPage__formLabel__title {
   font-weight: bold;
-  padding: 0 calc(var(--spacing-base) + 2px);
+  padding: 0 var(--spacing-base);
 }
 
-.modelPage__input {
+.modelPage__textarea {
+  field-sizing: content;
+  resize: none;
+}
+
+.modelPage__input,
+.modelPage__textarea {
   appearance: none;
-  background-color: transparent;
+  background-color: var(--color-body-background);
   border: 2px solid var(--color-border);
   box-shadow: 4px 4px 0 var(--color-border);
   padding: var(--spacing-base);
@@ -102,17 +108,41 @@
     var(--spacing-base);
 }
 
-.modelPage__payloadPreview {
-  border: 2px solid var(--color-border);
-  padding: var(--spacing-base);
-}
+.modelPage__parameters {
+  appearance: none;
+  border-radius: 30px 20px 40px 20px;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
 
-.modelPage__payloadPreviewCorrect {
-  background-color: #00ff0022;
-}
+  &::after {
+    --spacing-overflow: calc(-1 * var(--spacing-base));
 
-.modelPage__payloadPreviewError {
-  background-color: #ff000022;
+    background-color: #00ff0011;
+    border-radius: 40% 60% 30% 70%;
+    bottom: var(--spacing-overflow);
+    content: "";
+    left: var(--spacing-base);
+    pointer-events: none;
+    position: absolute;
+    right: var(--spacing-overflow);
+    top: var(--spacing-overflow);
+    user-select: none;
+    z-index: -1;
+  }
+
+  legend {
+    appearance: none;
+    font-weight: bold;
+    padding: 0 var(--spacing-base) var(--spacing-base) var(--spacing-base);
+  }
+
+  p {
+    margin-bottom: var(--spacing-base);
+    padding: 0 var(--spacing-base);
+  }
 }
 
 .modelPage__submitButton {

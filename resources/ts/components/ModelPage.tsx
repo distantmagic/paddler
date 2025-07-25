@@ -1,13 +1,15 @@
-import clsx from "clsx";
 import React, {
   useCallback,
+  useContext,
   useMemo,
   useState,
   type FormEvent,
   type InputEvent,
 } from "react";
+import { useLocation } from "wouter";
 
-import { urlToAgentDesiredState } from "../urlToAgentDesiredState";
+import { ModelParametersContext } from "../contexts/ModelParametersContext";
+import { urlToAgentDesiredModel } from "../urlToAgentDesiredModel";
 import {
   modelPage,
   modelPage__asideInfo,
@@ -17,13 +19,14 @@ import {
   modelPage__formLabel__title,
   modelPage__input,
   modelPage__main,
-  modelPage__payloadPreview,
-  modelPage__payloadPreviewCorrect,
-  modelPage__payloadPreviewError,
+  modelPage__parameters,
   modelPage__submitButton,
 } from "./ModelPage.module.css";
+import { ModelParameter } from "./ModelParameter";
 
 export function ModelPage({ managementAddr }: { managementAddr: string }) {
+  const { parameters } = useContext(ModelParametersContext);
+  const [, navigate] = useLocation();
   const [modelUriString, setModelUriString] = useState(
     "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/blob/main/Qwen3-0.6B-Q8_0.gguf",
   );
@@ -35,7 +38,7 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
     [setModelUriString],
   );
 
-  const agentDesiredState = useMemo(
+  const agentDesiredModel = useMemo(
     function () {
       if (!modelUriString) {
         return undefined;
@@ -44,7 +47,7 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
       try {
         const modelUri = new URL(modelUriString);
 
-        return urlToAgentDesiredState(modelUri);
+        return urlToAgentDesiredModel(modelUri);
       } catch (error) {
         return error;
       }
@@ -52,24 +55,57 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
     [modelUriString],
   );
 
+  const agentDesiredModelError: null | string = useMemo(
+    function () {
+      if (agentDesiredModel instanceof Error) {
+        return agentDesiredModel.message;
+      }
+
+      return null;
+    },
+    [agentDesiredModel],
+  );
+
+  const isAgentDesiredModelValid = useMemo(
+    function () {
+      return "string" !== typeof agentDesiredModelError;
+    },
+    [agentDesiredModelError],
+  );
+
+  const properPayload = useMemo(
+    function () {
+      if (!isAgentDesiredModelValid) {
+        return null;
+      }
+
+      return JSON.stringify({
+        model: agentDesiredModel,
+        model_parameters: parameters,
+      });
+    },
+    [agentDesiredModel, isAgentDesiredModelValid, parameters],
+  );
+
   const onSubmit = useCallback(
     function (evt: FormEvent<HTMLFormElement>) {
       evt.preventDefault();
 
-      if (agentDesiredState instanceof Error) {
+      if ("string" !== typeof properPayload || !isAgentDesiredModelValid) {
         return;
       }
 
-      console.log(agentDesiredState, managementAddr);
       fetch(`//${managementAddr}/api/v1/agent_desired_state`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(agentDesiredState),
+        body: properPayload,
       })
         .then(function (response) {
-          if (!response.ok) {
+          if (response.ok) {
+            navigate("/");
+          } else {
             throw new Error(
               `Failed to update agent desired state: ${response.statusText}`,
             );
@@ -79,7 +115,7 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
           console.error("Error updating agent desired state:", error);
         });
     },
-    [agentDesiredState, managementAddr],
+    [isAgentDesiredModelValid, managementAddr, navigate, properPayload],
   );
 
   return (
@@ -133,26 +169,52 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
               value={modelUriString}
             />
           </label>
-          {undefined !== agentDesiredState && (
-            <label className={modelPage__formLabel}>
-              <div className={modelPage__formLabel__title}>Payload Preview</div>
-              <pre
-                className={clsx(modelPage__payloadPreview, {
-                  [modelPage__payloadPreviewCorrect]: !(
-                    agentDesiredState instanceof Error
-                  ),
-                  [modelPage__payloadPreviewError]:
-                    agentDesiredState instanceof Error,
-                })}
-              >
-                {agentDesiredState instanceof Error
-                  ? agentDesiredState.message
-                  : JSON.stringify(agentDesiredState, null, "  ")}
-              </pre>
-            </label>
-          )}
+          <fieldset className={modelPage__parameters}>
+            <legend>Model Parameters</legend>
+            <p>
+              <strong>Note:</strong> These parameters are model-specific and are
+              usually provided by the model authors.
+            </p>
+            <ModelParameter
+              description="Batch Size (higher = more memory usage, lower = less inference speed)"
+              name="batch_n_tokens"
+            />
+            <ModelParameter
+              description="Context Size (higher = longer chat history, lower = less memory usage)"
+              name="context_size"
+            />
+            <ModelParameter
+              description="Minimum token probability to consider for selection"
+              name="min_p"
+            />
+            <ModelParameter
+              description="Frequency Penalty"
+              name="penalty_frequency"
+            />
+            <ModelParameter
+              description="Number of last tokens to consider for penalty (-1 = entire context, 0 = disabled)"
+              name="penalty_last_n"
+            />
+            <ModelParameter
+              description="Presence Penalty"
+              name="penalty_presence"
+            />
+            <ModelParameter
+              description="Repeated Token Penalty"
+              name="penalty_repeat"
+            />
+            <ModelParameter description="Temperature" name="temperature" />
+            <ModelParameter
+              description="Number of tokens to consider for selection"
+              name="top_k"
+            />
+            <ModelParameter
+              description="Probability threshold for selecting tokens"
+              name="top_p"
+            />
+          </fieldset>
           <div className={modelPage__formControls}>
-            <button className={modelPage__submitButton}>Save</button>
+            <button className={modelPage__submitButton}>Submit</button>
           </div>
         </form>
       </main>

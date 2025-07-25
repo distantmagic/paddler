@@ -4,6 +4,7 @@ use std::sync::Arc;
 use actix::Actor;
 use actix::Handler;
 use actix::SyncContext;
+use anyhow::anyhow;
 use anyhow::Result;
 use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::context::LlamaContext;
@@ -13,34 +14,39 @@ use llama_cpp_2::model::AddBos;
 use llama_cpp_2::model::LlamaModel;
 use llama_cpp_2::model::Special;
 use llama_cpp_2::sampling::LlamaSampler;
+use llama_cpp_2::DecodeError;
 use log::debug;
 use log::info;
 
 use crate::agent::dispenses_slots::DispensesSlots as _;
 use crate::agent::generate_tokens_drop_guard::GenerateTokensDropGuard;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
+use crate::agent::kv_cache_repair_action::KVCacheRepairAction;
 use crate::agent::slot_status::SlotStatus;
 use crate::generated_token::GeneratedToken;
 use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::generated_token_result::GeneratedTokenResult;
+use crate::model_parameters::ModelParameters;
 use crate::request_params::GenerateTokensParams;
 
 pub struct LlamaCppSlot {
     agent_name: Option<String>,
     llama_context: LlamaContext<'static>,
     model: Arc<LlamaModel>,
+    model_parameters: ModelParameters,
     model_path: PathBuf,
     slot_index: u32,
     slot_status: Arc<SlotStatus>,
 }
 
 impl LlamaCppSlot {
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn new(
         agent_name: Option<String>,
         backend: Arc<LlamaBackend>,
         ctx_params: Arc<LlamaContextParams>,
         model: Arc<LlamaModel>,
+        model_parameters: ModelParameters,
         model_path: PathBuf,
         slot_index: u32,
         slot_status: Arc<SlotStatus>,
@@ -65,10 +71,50 @@ impl LlamaCppSlot {
             agent_name,
             llama_context,
             model,
+            model_parameters,
             model_path,
             slot_index,
             slot_status,
         })
+    }
+
+    fn decode_batch(
+        &mut self,
+        batch: &mut LlamaBatch,
+        taken_kv_cache_repair_actions: &mut Vec<KVCacheRepairAction>,
+    ) -> Result<()> {
+        if let Err(err) = self.llama_context.decode(batch) {
+            match err {
+                DecodeError::NoKvCacheSlot => {
+                    if !taken_kv_cache_repair_actions.contains(&KVCacheRepairAction::Defrag) {
+                        debug!(
+                            "{:?}: slot {} has no KV cache slot, defragmenting",
+                            self.agent_name, self.slot_index
+                        );
+
+                        taken_kv_cache_repair_actions.push(KVCacheRepairAction::Defrag);
+                        self.llama_context.kv_cache_defrag();
+
+                        return self.decode_batch(batch, taken_kv_cache_repair_actions);
+                    }
+
+                    Err(err.into())
+                }
+                DecodeError::NTokensZero => {
+                    debug!(
+                        "{:?}: slot {} - the number of tokens in the batch was 0",
+                        self.agent_name, self.slot_index,
+                    );
+
+                    Err(err.into())
+                }
+                DecodeError::Unknown(error_code) => {
+                    Err(anyhow!("Unknown error code: {error_code}"))
+                }
+            }
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -107,10 +153,16 @@ impl Handler<GenerateTokensRequest> for LlamaCppSlot {
     ) -> Self::Result {
         self.slot_status.take_slot();
 
-        let _guard = GenerateTokensDropGuard::new(self.slot_status.clone());
+        let _guard = GenerateTokensDropGuard::new(
+            generated_tokens_tx.clone(),
+            self.slot_index,
+            self.slot_status.clone(),
+        );
+
+        self.llama_context.clear_kv_cache();
 
         let tokens_list = self.model.str_to_token(&prompt, AddBos::Always)?;
-        let mut batch = LlamaBatch::new(512, 1);
+        let mut batch = LlamaBatch::new(self.model_parameters.batch_n_tokens, 1);
         let last_index = tokens_list.len() as i32 - 1;
 
         for (i, token) in (0_i32..).zip(tokens_list.into_iter()) {
@@ -119,11 +171,23 @@ impl Handler<GenerateTokensRequest> for LlamaCppSlot {
             batch.add(token, i, &[0], is_last)?;
         }
 
-        self.llama_context.decode(&mut batch)?;
+        self.decode_batch(&mut batch, &mut vec![])?;
 
         let mut n_cur = batch.n_tokens();
         let mut decoder = encoding_rs::UTF_8.new_decoder();
-        let mut sampler = LlamaSampler::greedy();
+        let mut sampler = LlamaSampler::chain_simple([
+            LlamaSampler::temp(self.model_parameters.temperature),
+            LlamaSampler::top_k(self.model_parameters.top_k),
+            LlamaSampler::top_p(self.model_parameters.top_p, 0),
+            LlamaSampler::min_p(self.model_parameters.min_p, 0),
+            LlamaSampler::penalties(
+                self.model_parameters.penalty_last_n,
+                self.model_parameters.penalty_repeat,
+                self.model_parameters.penalty_frequency,
+                self.model_parameters.penalty_presence,
+            ),
+            LlamaSampler::greedy(),
+        ]);
 
         while n_cur <= max_tokens {
             if generate_tokens_stop_rx.try_recv().is_ok() {
@@ -163,13 +227,8 @@ impl Handler<GenerateTokensRequest> for LlamaCppSlot {
 
             n_cur += 1;
 
-            self.llama_context.decode(&mut batch)?;
+            self.decode_batch(&mut batch, &mut vec![])?;
         }
-
-        generated_tokens_tx.send(GeneratedTokenEnvelope {
-            slot: self.slot_index,
-            generated_token_result: GeneratedTokenResult::Done,
-        })?;
 
         Ok(())
     }

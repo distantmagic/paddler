@@ -224,6 +224,7 @@ If you do not provide the `--statsd-addr` flag, the StatsD metrics will not be c
 - Use milliseconds instead of seconds in CLI arguments for the following flags:
     - `--monitoring-interval` in `agents`
     - `--buffered-request_timeout` and `--statsd-reporting-interval` in `balancer`
+- Use `minijinja` to render chat templates
 
 #### Features
 

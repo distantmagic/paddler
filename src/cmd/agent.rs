@@ -9,6 +9,7 @@ use tokio::sync::oneshot;
 
 use super::handler::Handler;
 use super::parse_socket_addr;
+use crate::agent::chat_template_holder::ChatTemplateHolder;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
 use crate::agent::llamacpp_arbiter_service::LlamaCppArbiterService;
 use crate::agent::management_socket_client_service::ManagementSocketClientService;
@@ -39,6 +40,7 @@ impl Handler for Agent {
             mpsc::unbounded_channel::<GenerateTokensRequest>();
 
         let agent_applicable_state_holder = Arc::new(AgentApplicableStateHolder::new());
+        let chat_template_holder = Arc::new(ChatTemplateHolder::new());
         let reconciliation_queue = Arc::new(ReconciliationQueue::new()?);
         let mut service_manager = ServiceManager::new();
         let slot_aggregated_status_manager = Arc::new(SlotAggregatedStatusManager::new(self.slots));
@@ -47,6 +49,7 @@ impl Handler for Agent {
             LlamaCppArbiterService::new(
                 agent_applicable_state_holder.clone(),
                 self.name.clone(),
+                chat_template_holder.clone(),
                 self.slots,
                 generate_tokens_request_rx,
                 slot_aggregated_status_manager.clone(),
@@ -55,6 +58,7 @@ impl Handler for Agent {
         );
 
         service_manager.add_service(ManagementSocketClientService::new(
+            chat_template_holder,
             generate_tokens_request_tx,
             self.management_addr,
             self.name.clone(),

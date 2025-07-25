@@ -96,3 +96,8 @@ body {
 canvas {
   image-rendering: pixelated;
 }
+
+::selection {
+  color: white;
+  background-color: black;
+}

@@ -32,7 +32,7 @@ export function ConversationPromptInput() {
   );
 
   const onTextareaInput = useCallback(
-    function (event: FormEvent<HTMLTextAreaElement>) {
+    function (event: FormEvent<HTMLInputElement>) {
       setCurrentPrompt(event.currentTarget.value);
     },
     [setCurrentPrompt],
@@ -40,7 +40,7 @@ export function ConversationPromptInput() {
 
   return (
     <form className={conversationPromptInput} onSubmit={onSubmit}>
-      <textarea
+      <input
         autoFocus
         className={conversationPromptInput__textarea}
         placeholder="Type your prompt here..."

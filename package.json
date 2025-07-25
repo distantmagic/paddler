@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "@types/hotwired__turbo": "^8",
+    "@types/path-to-regexp": "^1.0.29",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@typescript/native-preview": "^7.0.0-dev.20250718.1",
@@ -35,8 +36,10 @@
     "@hotwired/stimulus": "^3.2.2",
     "@hotwired/turbo": "^8.0.13",
     "clsx": "^2.1.1",
+    "path-to-regexp": "^8.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "rxjs": "^7.8.2",
     "wouter": "^3.7.1",
     "zod": "^4.0.5"
   },

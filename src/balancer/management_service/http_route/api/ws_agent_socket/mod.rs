@@ -1,6 +1,7 @@
 mod agent_socket_controller_context;
 pub mod jsonrpc;
 
+use std::sync::atomic::AtomicI32;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -36,6 +37,7 @@ use crate::agent::jsonrpc::Response as AgentJsonRpcResponse;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
+use crate::balancer::agent_controller_update_result::AgentControllerUpdateResult;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::state_database::StateDatabase;
 use crate::controls_websocket_endpoint::ContinuationDecision;
@@ -99,6 +101,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                             model_path,
                             slots_processing,
                             slots_total,
+                            version,
                         },
                 }),
             ) => {
@@ -107,15 +110,16 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                 let agent_controller = Arc::new(AgentController {
                     agent_message_tx,
                     connection_close_rx: connection_close_tx.subscribe(),
-                    desired_slots_total: AtomicValue::new(desired_slots_total),
+                    desired_slots_total: AtomicValue::<AtomicI32>::new(desired_slots_total),
                     generate_tokens_sender_collection: context
                         .generate_tokens_sender_collection
                         .clone(),
                     id: context.agent_id.clone(),
                     model_path: RwLock::new(model_path),
                     name,
-                    slots_processing: AtomicValue::new(slots_processing),
-                    slots_total: AtomicValue::new(slots_total),
+                    newest_update_version: AtomicValue::<AtomicI32>::new(version),
+                    slots_processing: AtomicValue::<AtomicI32>::new(slots_processing),
+                    slots_total: AtomicValue::<AtomicI32>::new(slots_total),
                 });
 
                 context
@@ -164,29 +168,24 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
             }
             ManagementJsonRpcMessage::Notification(
                 ManagementJsonRpcNotification::UpdateAgentStatus(UpdateAgentStatusParams {
-                    slot_aggregated_status_snapshot:
-                        SlotAggregatedStatusSnapshot {
-                            desired_slots_total,
-                            model_path,
-                            slots_processing,
-                            slots_total,
-                        },
+                    slot_aggregated_status_snapshot,
                 }),
             ) => {
                 if let Some(agent_controller) = context
                     .agent_controller_pool
                     .get_agent_controller(&context.agent_id)
                 {
-                    agent_controller
-                        .desired_slots_total
-                        .set(desired_slots_total);
-                    agent_controller.set_model_path(model_path);
-                    agent_controller.slots_processing.set(slots_processing);
-                    agent_controller.slots_total.set(slots_total);
-                    context
-                        .agent_controller_pool
-                        .update_notifier
-                        .notify_waiters();
+                    match agent_controller.update_from_slot_aggregated_status_snapshot(
+                        slot_aggregated_status_snapshot,
+                    ) {
+                        AgentControllerUpdateResult::NoMeaningfulChanges => {}
+                        AgentControllerUpdateResult::Updated => {
+                            context
+                                .agent_controller_pool
+                                .update_notifier
+                                .notify_waiters();
+                        }
+                    }
                 } else {
                     error!("Agent controller not found for agent: {}", context.agent_id);
                 }

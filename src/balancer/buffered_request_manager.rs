@@ -1,3 +1,4 @@
+use std::sync::atomic::AtomicI32;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -12,7 +13,7 @@ use crate::balancer::buffered_request_count_guard::BufferedRequestCountGuard;
 pub struct BufferedRequestManager {
     agent_controller_pool: Arc<AgentControllerPool>,
     buffered_request_timeout: Duration,
-    pub buffered_requests_count: Arc<AtomicValue>,
+    pub buffered_requests_count: Arc<AtomicValue<AtomicI32>>,
     max_buffered_requests: i32,
 }
 
@@ -25,7 +26,7 @@ impl BufferedRequestManager {
         Self {
             agent_controller_pool,
             buffered_request_timeout,
-            buffered_requests_count: Arc::new(AtomicValue::new(0)),
+            buffered_requests_count: Arc::new(AtomicValue::<AtomicI32>::new(0)),
             max_buffered_requests,
         }
     }

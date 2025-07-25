@@ -1,7 +1,9 @@
+import { type Observable } from "rxjs";
+
+import { type ConversationMessage } from "./ConversationMessage.type";
+
 export interface InferenceSocketClient {
-  generateTokens(params: {
-    abortSignal: AbortSignal;
-    onToken(this: void, token: string): void;
-    prompt: string;
-  }): void;
+  continueConversation(params: {
+    conversation_history: ConversationMessage[];
+  }): Observable<string>;
 }
