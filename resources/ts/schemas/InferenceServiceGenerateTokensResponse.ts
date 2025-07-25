@@ -20,7 +20,17 @@ export const InferenceServiceGenerateTokensResponseSchema = z
     }),
   })
   .strict()
-  .transform(function (data) {
+  .transform(function (data):
+    | {
+        done: true;
+        request_id: string;
+        token: null;
+      }
+    | {
+        done: false;
+        request_id: string;
+        token: string;
+      } {
     if (
       data.Response.response.GeneratedToken.generated_token_result === "Done"
     ) {

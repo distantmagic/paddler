@@ -1,7 +1,5 @@
+import { type Observable } from "rxjs";
+
 export interface InferenceSocketClient {
-  generateTokens(params: {
-    abortSignal: AbortSignal;
-    onToken(this: void, token: string): void;
-    prompt: string;
-  }): void;
+  generateTokens(params: { prompt: string }): Observable<string>;
 }

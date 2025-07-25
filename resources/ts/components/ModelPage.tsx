@@ -1,11 +1,13 @@
 import React, {
   useCallback,
+  useContext,
   useMemo,
   useState,
   type FormEvent,
   type InputEvent,
 } from "react";
 
+import { ModelParametersContext } from "../contexts/ModelParametersContext";
 import { urlToAgentDesiredModel } from "../urlToAgentDesiredModel";
 import {
   modelPage,
@@ -22,6 +24,7 @@ import {
 import { ModelParameter } from "./ModelParameter";
 
 export function ModelPage({ managementAddr }: { managementAddr: string }) {
+  const { parameters } = useContext(ModelParametersContext);
   const [modelUriString, setModelUriString] = useState(
     "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/blob/main/Qwen3-0.6B-Q8_0.gguf",
   );
@@ -77,24 +80,13 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
       return JSON.stringify(
         {
           model: agentDesiredModel,
-          model_parameters: {
-            batch_n_tokens: 1024,
-            context_size: 4096,
-            min_p: 0.05,
-            penalty_frequency: 0.0,
-            penalty_last_n: 0,
-            penalty_presence: 1.5,
-            penalty_repeat: 1.0,
-            temperature: 0.6,
-            top_k: 40,
-            top_p: 0.3,
-          },
+          model_parameters: parameters,
         },
         null,
         "  ",
       );
     },
-    [agentDesiredModel, isAgentDesiredModelValid],
+    [agentDesiredModel, isAgentDesiredModelValid, parameters],
   );
 
   const onSubmit = useCallback(
@@ -179,52 +171,39 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
           </label>
           <fieldset className={modelPage__parameters}>
             <ModelParameter
-              defaultvalue={512}
               description="Batch Size (higher = more memory usage, lower = less inference speed)"
               name="batch_n_tokens"
             />
             <ModelParameter
-              defaultvalue={4096}
               description="Context Size (higher = longer chat history, lower = less memory usage)"
               name="context_size"
             />
             <ModelParameter
-              defaultvalue={0.05}
               description="Minimum token probability to consider for selection"
               name="min_p"
             />
             <ModelParameter
-              defaultvalue={0.0}
               description="Frequency Penalty"
               name="penalty_frequency"
             />
             <ModelParameter
-              defaultvalue={-1}
               description="Number of last tokens to consider for penalty (-1 = entire context, 0 = disabled)"
               name="penalty_last_n"
             />
             <ModelParameter
-              defaultvalue={1.5}
               description="Presence Penalty"
               name="penalty_presence"
             />
             <ModelParameter
-              defaultvalue={1.0}
               description="Repeated Token Penalty"
               name="penalty_repeat"
             />
+            <ModelParameter description="Temperature" name="temperature" />
             <ModelParameter
-              defaultvalue={0.6}
-              description="Temperature"
-              name="temperature"
-            />
-            <ModelParameter
-              defaultvalue={40}
               description="Number of tokens to consider for selection"
               name="top_k"
             />
             <ModelParameter
-              defaultvalue={0.3}
               description="Probability threshold for selecting tokens"
               name="top_p"
             />

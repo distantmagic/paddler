@@ -1,4 +1,5 @@
 import React, { memo, useContext, useEffect, useMemo, useState } from "react";
+import { scan } from "rxjs";
 
 import { PromptContext } from "../contexts/PromptContext";
 import { InferenceSocketClient } from "../InferenceSocketClient";
@@ -26,26 +27,25 @@ export const ConversationMessagePromptGeneratedTokens = memo(
           return;
         }
 
-        const abortController = new AbortController();
+        const prompt = `<|im_start|>system
+        You are a helpful assistant. Give short, precise answers.<|im_end|>
+        <|im_start|>user
+        ${submittedPrompt}<|im_end|>
+        <|im_start|>assistant`;
 
-        setMessage("");
-
-        inferenceSocketClient.generateTokens({
-          abortSignal: abortController.signal,
-          prompt: `<|im_start|>system
-          You are a helpful assistant. Give short, precise answers.<|im_end|>
-          <|im_start|>user
-          ${submittedPrompt}<|im_end|>
-          <|im_start|>assistant`,
-          onToken(token: string) {
-            setMessage(function (prevMessage) {
-              return `${prevMessage}${token}`;
-            });
-          },
-        });
+        const subscription = inferenceSocketClient
+          .generateTokens({
+            prompt,
+          })
+          .pipe(
+            scan(function (message: string, token: string) {
+              return `${message}${token}`;
+            }),
+          )
+          .subscribe(setMessage);
 
         return function () {
-          abortController.abort();
+          subscription.unsubscribe();
         };
       },
       [inferenceSocketClient, setMessage, submittedPrompt],

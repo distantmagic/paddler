@@ -1,16 +1,22 @@
 import { createContext } from "react";
 
+import { type ModelParameters } from "../ModelParameters.type";
+
 export type ModelParametersContextValue = {
-  isCurrentPromptEmpty: boolean;
-  setCurrentPrompt(this: void, prompt: string): void;
+  parameters: ModelParameters;
+  setParameter(this: void, name: keyof ModelParameters, value: number): void;
+  setPartialParameters(this: void, parameters: Partial<ModelParameters>): void;
 };
 
 export const ModelParametersContext =
   createContext<ModelParametersContextValue>({
-    get isCurrentPromptEmpty(): never {
+    get parameters(): never {
       throw new Error("ModelParametersContext not provided");
     },
-    setCurrentPrompt(): never {
+    setParameter(): never {
+      throw new Error("ModelParametersContext not provided");
+    },
+    setPartialParameters(): never {
       throw new Error("ModelParametersContext not provided");
     },
   });

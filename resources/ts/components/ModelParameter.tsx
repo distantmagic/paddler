@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useCallback, useContext, type FormEvent } from "react";
 
+import { ModelParametersContext } from "../contexts/ModelParametersContext";
+import { type ModelParameters } from "../ModelParameters.type";
 import {
   modelParameter,
   modelParameter__input,
@@ -7,14 +9,23 @@ import {
 } from "./ModelParameter.module.css";
 
 export function ModelParameter({
-  defaultvalue,
   description,
   name,
 }: {
-  defaultvalue: number;
   description: string;
-  name: string;
+  name: keyof ModelParameters;
 }) {
+  const { parameters, setParameter } = useContext(ModelParametersContext);
+
+  const onInput = useCallback(
+    function (event: FormEvent<HTMLInputElement>) {
+      event.preventDefault();
+
+      setParameter(name, parseFloat(event.currentTarget.value));
+    },
+    [name, setParameter],
+  );
+
   return (
     <label className={modelParameter}>
       <abbr className={modelParameter__label} title={description}>
@@ -22,9 +33,10 @@ export function ModelParameter({
       </abbr>
       <input
         className={modelParameter__input}
-        defaultValue={defaultvalue}
+        onInput={onInput}
         required
         type="number"
+        value={parameters[name]}
       />
     </label>
   );
