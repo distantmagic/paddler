@@ -12,6 +12,12 @@ impl AtomicValue<AtomicI32> {
         }
     }
 
+    pub fn compare_and_swap(&self, current: i32, new: i32) -> bool {
+        self.value
+            .compare_exchange(current, new, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+    }
+
     pub fn decrement(&self) {
         self.value.fetch_sub(1, Ordering::SeqCst);
     }

@@ -230,8 +230,6 @@ impl Handler<GenerateTokensRequest> for LlamaCppSlot {
             self.decode_batch(&mut batch, &mut vec![])?;
         }
 
-        self.llama_context.kv_cache_update();
-
         Ok(())
     }
 }

@@ -19,7 +19,10 @@ impl ChatTemplateHolder {
     }
 
     pub fn set_chat_template(&self, chat_template: ChatTemplate<'static>) {
-        let mut lock = self.chat_template.write().unwrap();
+        let mut lock = self
+            .chat_template
+            .write()
+            .expect("Failed to acquire write lock on chat template");
 
         *lock = Some(chat_template);
     }

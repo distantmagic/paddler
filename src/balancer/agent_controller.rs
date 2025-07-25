@@ -107,7 +107,9 @@ impl AgentController {
             version,
         }: SlotAggregatedStatusSnapshot,
     ) -> AgentControllerUpdateResult {
-        if version < self.newest_update_version.get() {
+        let newest_update_version = self.newest_update_version.get();
+
+        if version < newest_update_version {
             debug!("Discarding update with older version: {version}");
 
             return AgentControllerUpdateResult::NoMeaningfulChanges;
@@ -119,7 +121,8 @@ impl AgentController {
         changed = changed || self.slots_processing.set_check(slots_processing);
         changed = changed || self.slots_total.set_check(slots_total);
 
-        self.newest_update_version.set(version);
+        self.newest_update_version
+            .compare_and_swap(newest_update_version, version);
 
         if model_path != self.get_model_path() {
             changed = true;

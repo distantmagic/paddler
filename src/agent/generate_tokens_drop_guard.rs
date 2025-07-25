@@ -38,7 +38,10 @@ impl Drop for GenerateTokensDropGuard {
                 generated_token_result: GeneratedTokenResult::Done,
             })
             .unwrap_or_else(|err| {
-                error!("Failed to notify about ending token generation: {err}");
+                error!(
+                    "Failed to notify about ending token generation in slot {}: {err}",
+                    self.slot_index
+                );
             });
     }
 }
