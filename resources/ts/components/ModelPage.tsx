@@ -6,6 +6,7 @@ import React, {
   type FormEvent,
   type InputEvent,
 } from "react";
+import { useLocation } from "wouter";
 
 import { ModelParametersContext } from "../contexts/ModelParametersContext";
 import { urlToAgentDesiredModel } from "../urlToAgentDesiredModel";
@@ -25,6 +26,7 @@ import { ModelParameter } from "./ModelParameter";
 
 export function ModelPage({ managementAddr }: { managementAddr: string }) {
   const { parameters } = useContext(ModelParametersContext);
+  const [, navigate] = useLocation();
   const [modelUriString, setModelUriString] = useState(
     "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/blob/main/Qwen3-0.6B-Q8_0.gguf",
   );
@@ -77,14 +79,10 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
         return null;
       }
 
-      return JSON.stringify(
-        {
-          model: agentDesiredModel,
-          model_parameters: parameters,
-        },
-        null,
-        "  ",
-      );
+      return JSON.stringify({
+        model: agentDesiredModel,
+        model_parameters: parameters,
+      });
     },
     [agentDesiredModel, isAgentDesiredModelValid, parameters],
   );
@@ -105,7 +103,9 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
         body: properPayload,
       })
         .then(function (response) {
-          if (!response.ok) {
+          if (response.ok) {
+            navigate("/");
+          } else {
             throw new Error(
               `Failed to update agent desired state: ${response.statusText}`,
             );
@@ -115,7 +115,7 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
           console.error("Error updating agent desired state:", error);
         });
     },
-    [isAgentDesiredModelValid, managementAddr, properPayload],
+    [isAgentDesiredModelValid, managementAddr, navigate, properPayload],
   );
 
   return (
@@ -170,6 +170,11 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
             />
           </label>
           <fieldset className={modelPage__parameters}>
+            <legend>Model Parameters</legend>
+            <p>
+              <strong>Note:</strong> These parameters are model-specific and are
+              usually provided by the model authors.
+            </p>
             <ModelParameter
               description="Batch Size (higher = more memory usage, lower = less inference speed)"
               name="batch_n_tokens"

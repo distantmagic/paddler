@@ -21,8 +21,11 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use uuid::Uuid;
 
+use crate::agent::chat_template_holder::ChatTemplateHolder;
 use crate::agent::generate_tokens_stopper_collection::GenerateTokensStopperCollection;
 use crate::agent::jsonrpc::Message as JsonRpcMessage;
+use crate::agent::chat_render_params::ChatRenderParams;
+use crate::agent::renders_chat_template::RendersChatTemplate as _;
 use crate::agent::jsonrpc::Notification as JsonRpcNotification;
 use crate::agent::jsonrpc::Request as JsonRpcRequest;
 use crate::agent::jsonrpc::Response as JsonRpcResponse;
@@ -36,6 +39,7 @@ use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonr
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Notification as ManagementJsonRpcNotification;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::RegisterAgentParams;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::UpdateAgentStatusParams;
+use crate::request_params::ContinueConversationParams;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::ResponseEnvelope;
 use crate::jsonrpc::RequestEnvelope;
@@ -43,8 +47,10 @@ use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::produces_snapshot::ProducesSnapshot;
 use crate::jsonrpc::ErrorEnvelope;
 use crate::service::Service;
+use crate::request_params::GenerateTokensParams;
 
 pub struct ManagementSocketClientService {
+    chat_template_holder: Arc<ChatTemplateHolder>,
     generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
     generate_tokens_stopper_collection: Arc<GenerateTokensStopperCollection>,
     name: Option<String>,
@@ -55,6 +61,7 @@ pub struct ManagementSocketClientService {
 
 impl ManagementSocketClientService {
     pub fn new(
+        chat_template_holder: Arc<ChatTemplateHolder>,
         generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
         management_addr: SocketAddr,
         name: Option<String>,
@@ -64,6 +71,7 @@ impl ManagementSocketClientService {
         let agent_id = Uuid::new_v4();
 
         Ok(ManagementSocketClientService {
+            chat_template_holder,
             generate_tokens_request_tx,
             generate_tokens_stopper_collection: Arc::new(GenerateTokensStopperCollection::new()),
             name,
@@ -73,7 +81,61 @@ impl ManagementSocketClientService {
         })
     }
 
+    async fn generate_tokens(
+        connection_close_tx: broadcast::Sender<()>,
+        generate_tokens_params: GenerateTokensParams,
+        generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
+        generate_tokens_stopper_collection: Arc<GenerateTokensStopperCollection>,
+        id: String,
+        message_tx: mpsc::UnboundedSender<ManagementJsonRpcMessage>,
+    ) -> Result<()> {
+        let (generated_tokens_tx, mut generated_tokens_rx) =
+            mpsc::unbounded_channel::<GeneratedTokenEnvelope>();
+        let (generate_tokens_stop_tx, generate_tokens_stop_rx) = mpsc::unbounded_channel::<()>();
+
+        let _guard = GenerateTokensStopperDropGuard {
+            generate_tokens_stopper_collection: generate_tokens_stopper_collection.clone(),
+            request_id: id.clone(),
+        };
+
+        generate_tokens_stopper_collection
+            .register_stopper(id.clone(), generate_tokens_stop_tx)
+            .context(format!("Failed to register stopper for request ID: {id}"))?;
+
+        generate_tokens_request_tx.send(GenerateTokensRequest {
+            generate_tokens_params,
+            generate_tokens_stop_rx,
+            generated_tokens_tx,
+        })?;
+
+        let mut connection_close_rx = connection_close_tx.subscribe();
+
+        loop {
+            tokio::select! {
+                _ = connection_close_rx.recv() => break,
+                generated_token_envelope = generated_tokens_rx.recv() => {
+                    match generated_token_envelope {
+                        Some(generated_token_envelope) => {
+                            message_tx.send(
+                                ManagementJsonRpcMessage::Response(
+                                    ResponseEnvelope {
+                                        request_id: id.clone(),
+                                        response: JsonRpcResponse::GeneratedToken(generated_token_envelope),
+                                    }
+                                ),
+                            )?;
+                        }
+                        None => break,
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     async fn handle_deserialized_message(
+        chat_template_holder: Arc<ChatTemplateHolder>,
         connection_close_tx: broadcast::Sender<()>,
         generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
         generate_tokens_stopper_collection: Arc<GenerateTokensStopperCollection>,
@@ -123,61 +185,49 @@ impl ManagementSocketClientService {
             }
             JsonRpcMessage::Request(RequestEnvelope {
                 id,
+                request:
+                    JsonRpcRequest::ContinueConversation(ContinueConversationParams {
+                        add_generation_prompt,
+                        conversation_history,
+                        max_tokens,
+                    }),
+            }) => {
+                Self::generate_tokens(
+                    connection_close_tx,
+                    GenerateTokensParams {
+                        max_tokens,
+                        prompt: chat_template_holder.render(ChatRenderParams {
+                            add_generation_prompt,
+                            conversation_history,
+                        })?,
+                    },
+                    generate_tokens_request_tx,
+                    generate_tokens_stopper_collection,
+                    id,
+                    message_tx,
+                )
+                .await
+            }
+            JsonRpcMessage::Request(RequestEnvelope {
+                id,
                 request: JsonRpcRequest::GenerateTokens(generate_tokens_params),
             }) => {
-                debug!("Agent received GenerateTokens request: {id:?}, params: {generate_tokens_params:?}");
-
-                let (generated_tokens_tx, mut generated_tokens_rx) =
-                    mpsc::unbounded_channel::<GeneratedTokenEnvelope>();
-                let (generate_tokens_stop_tx, generate_tokens_stop_rx) =
-                    mpsc::unbounded_channel::<()>();
-
-                let _guard = GenerateTokensStopperDropGuard {
-                    generate_tokens_stopper_collection: generate_tokens_stopper_collection.clone(),
-                    request_id: id.clone(),
-                };
-
-                generate_tokens_stopper_collection
-                    .register_stopper(id.clone(), generate_tokens_stop_tx)
-                    .context(format!("Failed to register stopper for request ID: {id}"))?;
-
-                generate_tokens_request_tx.send(GenerateTokensRequest {
+                Self::generate_tokens(
+                    connection_close_tx,
                     generate_tokens_params,
-                    generate_tokens_stop_rx,
-                    generated_tokens_tx,
-                })?;
-
-                let mut connection_close_rx = connection_close_tx.subscribe();
-
-                loop {
-                    tokio::select! {
-                        _ = connection_close_rx.recv() => break,
-                        generated_token_envelope = generated_tokens_rx.recv() => {
-                            match generated_token_envelope {
-                                Some(generated_token_envelope) => {
-                                    message_tx.send(
-                                        ManagementJsonRpcMessage::Response(
-                                            ResponseEnvelope {
-                                                request_id: id.clone(),
-                                                response: JsonRpcResponse::GeneratedToken(generated_token_envelope),
-                                            }
-                                        ),
-                                    )?;
-                                }
-                                None => break,
-                            }
-                        }
-                    }
-                }
-
-                debug!("Agent finished processing GenerateTokens request: {id:?}");
-
-                Ok(())
+                    generate_tokens_request_tx,
+                    generate_tokens_stopper_collection,
+                    id,
+                    message_tx,
+                )
+                .await
             }
         }
     }
 
+    #[expect(clippy::too_many_arguments)]
     async fn handle_incoming_message(
+        chat_template_holder: Arc<ChatTemplateHolder>,
         connection_close_tx: broadcast::Sender<()>,
         generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
         generate_tokens_stopper_collection: Arc<GenerateTokensStopperCollection>,
@@ -198,6 +248,7 @@ impl ManagementSocketClientService {
                             info!("Connection close signal received, shutting down");
                         }
                         result = Self::handle_deserialized_message(
+                            chat_template_holder,
                             connection_close_tx,
                             generate_tokens_request_tx,
                             generate_tokens_stopper_collection_clone,
@@ -354,10 +405,12 @@ impl ManagementSocketClientService {
                 }
                 _ = shutdown.recv() => break,
                 _ = self.slot_aggregated_status.update_notifier.notified() => do_send_status_update(),
+                _ = ticker.tick() => do_send_status_update(),
                 msg = read.next() => {
                     let should_close = match msg {
                         Some(Ok(msg)) => {
                             if let Err(err) = Self::handle_incoming_message(
+                                    self.chat_template_holder.clone(),
                                     connection_close_tx.clone(),
                                     self.generate_tokens_request_tx.clone(),
                                     self.generate_tokens_stopper_collection.clone(),

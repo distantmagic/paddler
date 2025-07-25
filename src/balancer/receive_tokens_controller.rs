@@ -5,13 +5,13 @@ use tokio::sync::mpsc;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::generated_token_envelope::GeneratedTokenEnvelope;
 
-pub struct GenerateTokensController {
+pub struct ReceiveTokensController {
     pub generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
     pub generated_tokens_rx: mpsc::UnboundedReceiver<GeneratedTokenEnvelope>,
     pub request_id: String,
 }
 
-impl Drop for GenerateTokensController {
+impl Drop for ReceiveTokensController {
     fn drop(&mut self) {
         self.generate_tokens_sender_collection
             .deregister_sender(self.request_id.clone())

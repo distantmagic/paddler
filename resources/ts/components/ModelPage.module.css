@@ -84,7 +84,13 @@
   padding: 0 var(--spacing-base);
 }
 
-.modelPage__input {
+.modelPage__textarea {
+  field-sizing: content;
+  resize: none;
+}
+
+.modelPage__input,
+.modelPage__textarea {
   appearance: none;
   background-color: var(--color-body-background);
   border: 2px solid var(--color-border);
@@ -125,6 +131,17 @@
     top: var(--spacing-overflow);
     user-select: none;
     z-index: -1;
+  }
+
+  legend {
+    appearance: none;
+    font-weight: bold;
+    padding: 0 var(--spacing-base) var(--spacing-base) var(--spacing-base);
+  }
+
+  p {
+    margin-bottom: var(--spacing-base);
+    padding: 0 var(--spacing-base);
   }
 }
 

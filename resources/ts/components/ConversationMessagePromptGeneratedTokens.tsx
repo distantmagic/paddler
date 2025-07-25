@@ -27,15 +27,16 @@ export const ConversationMessagePromptGeneratedTokens = memo(
           return;
         }
 
-        const prompt = `<|im_start|>system
-        You are a helpful assistant. Give short, precise answers.<|im_end|>
-        <|im_start|>user
-        ${submittedPrompt}<|im_end|>
-        <|im_start|>assistant`;
-
         const subscription = inferenceSocketClient
-          .generateTokens({
-            prompt,
+          .continueConversation({
+            conversation_history: [
+              {
+                role: "system",
+                content:
+                  "You are a helpful assistant. Give short, precise answers.",
+              },
+              { role: "user", content: submittedPrompt },
+            ],
           })
           .pipe(
             scan(function (message: string, token: string) {

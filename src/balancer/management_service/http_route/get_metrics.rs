@@ -28,18 +28,18 @@ async fn respond(
 
     let metrics_response = format!(
         indoc! {"
-# HELP paddler_slots_processing Number of processing slots
-# TYPE paddler_slots_processing gauge
-paddler_slots_processing {}
+            # HELP paddler_slots_processing Number of processing slots
+            # TYPE paddler_slots_processing gauge
+            paddler_slots_processing {}
 
-# HELP paddler_slots_total Number of total slots
-# TYPE paddler_slots_total gauge
-paddler_slots_total {}
+            # HELP paddler_slots_total Number of total slots
+            # TYPE paddler_slots_total gauge
+            paddler_slots_total {}
 
-# HELP paddler_requests_buffered Number of buffered requests
-# TYPE paddler_requests_buffered gauge
-paddler_requests_buffered {}
-"},
+            # HELP paddler_requests_buffered Number of buffered requests
+            # TYPE paddler_requests_buffered gauge
+            paddler_requests_buffered {}
+        "},
         slots_processing, slots_total, buffered_requests_count
     );
 

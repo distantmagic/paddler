@@ -14,6 +14,7 @@ use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
+use crate::agent::chat_template_holder::ChatTemplateHolder;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
 use crate::agent::llamacpp_arbiter::LlamaCppArbiter;
 use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
@@ -26,6 +27,7 @@ pub struct LlamaCppArbiterService {
     agent_applicable_state: Option<AgentApplicableState>,
     agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
     agent_name: Option<String>,
+    chat_template_holder: Arc<ChatTemplateHolder>,
     desired_slots_total: i32,
     generate_tokens_request_rx: mpsc::UnboundedReceiver<GenerateTokensRequest>,
     is_state_applied: bool,
@@ -37,6 +39,7 @@ impl LlamaCppArbiterService {
     pub async fn new(
         agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
         agent_name: Option<String>,
+        chat_template_holder: Arc<ChatTemplateHolder>,
         desired_slots_total: i32,
         generate_tokens_request_rx: mpsc::UnboundedReceiver<GenerateTokensRequest>,
         slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
@@ -45,6 +48,7 @@ impl LlamaCppArbiterService {
             agent_applicable_state: None,
             agent_applicable_state_holder,
             agent_name,
+            chat_template_holder,
             desired_slots_total,
             generate_tokens_request_rx,
             is_state_applied: true,
@@ -67,6 +71,7 @@ impl LlamaCppArbiterService {
                 LlamaCppArbiter::new(
                     self.agent_name.clone(),
                     agent_applicable_state,
+                    self.chat_template_holder.clone(),
                     self.desired_slots_total,
                     self.slot_aggregated_status_manager.clone(),
                 )

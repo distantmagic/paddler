@@ -16,10 +16,11 @@ use crate::agent_desired_state::AgentDesiredState;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller_snapshot::AgentControllerSnapshot;
 use crate::balancer::agent_controller_update_result::AgentControllerUpdateResult;
-use crate::balancer::generate_tokens_controller::GenerateTokensController;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
+use crate::balancer::receive_tokens_controller::ReceiveTokensController;
 use crate::jsonrpc::RequestEnvelope;
 use crate::produces_snapshot::ProducesSnapshot;
+use crate::request_params::ContinueConversationParams;
 use crate::request_params::GenerateTokensParams;
 use crate::sends_rpc_message::SendsRpcMessage;
 use crate::sets_desired_state::SetsDesiredState;
@@ -39,27 +40,36 @@ pub struct AgentController {
 }
 
 impl AgentController {
+    pub async fn continue_conversation(
+        &self,
+        request_id: String,
+        continue_conversation_params: ContinueConversationParams,
+    ) -> Result<ReceiveTokensController> {
+        self.receiver_from_message(
+            request_id.clone(),
+            AgentJsonRpcMessage::Request(RequestEnvelope {
+                id: request_id,
+                request: AgentJsonRpcRequest::ContinueConversation(
+                    continue_conversation_params.clone(),
+                ),
+            }),
+        )
+        .await
+    }
+
     pub async fn generate_tokens(
         &self,
         request_id: String,
         generate_tokens_params: GenerateTokensParams,
-    ) -> Result<GenerateTokensController> {
-        let (generated_tokens_tx, generated_tokens_rx) = mpsc::unbounded_channel();
-
-        self.generate_tokens_sender_collection
-            .register_sender(request_id.clone(), generated_tokens_tx)?;
-
-        self.send_rpc_message(AgentJsonRpcMessage::Request(RequestEnvelope {
-            id: request_id.clone(),
-            request: AgentJsonRpcRequest::GenerateTokens(generate_tokens_params.clone()),
-        }))
-        .await?;
-
-        Ok(GenerateTokensController {
-            generate_tokens_sender_collection: self.generate_tokens_sender_collection.clone(),
-            generated_tokens_rx,
-            request_id,
-        })
+    ) -> Result<ReceiveTokensController> {
+        self.receiver_from_message(
+            request_id.clone(),
+            AgentJsonRpcMessage::Request(RequestEnvelope {
+                id: request_id,
+                request: AgentJsonRpcRequest::GenerateTokens(generate_tokens_params.clone()),
+            }),
+        )
+        .await
     }
 
     pub fn get_model_path(&self) -> Option<String> {
@@ -122,6 +132,24 @@ impl AgentController {
         } else {
             AgentControllerUpdateResult::NoMeaningfulChanges
         }
+    }
+
+    async fn receiver_from_message(
+        &self,
+        request_id: String,
+        message: AgentJsonRpcMessage,
+    ) -> Result<ReceiveTokensController> {
+        let (generated_tokens_tx, generated_tokens_rx) = mpsc::unbounded_channel();
+
+        self.generate_tokens_sender_collection
+            .register_sender(request_id.clone(), generated_tokens_tx)?;
+        self.send_rpc_message(message).await?;
+
+        Ok(ReceiveTokensController {
+            generate_tokens_sender_collection: self.generate_tokens_sender_collection.clone(),
+            generated_tokens_rx,
+            request_id,
+        })
     }
 }
 

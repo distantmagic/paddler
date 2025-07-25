@@ -1,3 +1,6 @@
+pub mod chat_render_params;
+pub mod chat_template;
+pub mod chat_template_holder;
 pub mod dispenses_slots;
 pub mod generate_tokens_drop_guard;
 pub mod generate_tokens_request;
@@ -12,6 +15,7 @@ pub mod llamacpp_slot;
 pub mod management_socket_client_service;
 pub mod reconciliation_queue;
 pub mod reconciliation_service;
+pub mod renders_chat_template;
 pub mod slot_aggregated_status;
 pub mod slot_aggregated_status_manager;
 pub mod slot_status;

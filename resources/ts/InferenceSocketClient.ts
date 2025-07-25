@@ -1,5 +1,6 @@
 import { filter, fromEvent, map, takeWhile, type Observable } from "rxjs";
 
+import { type ConversationMessage } from "./ConversationMessage.type";
 import { type InferenceSocketClient } from "./InferenceSocketClient.interface";
 import { InferenceServiceGenerateTokensResponseSchema } from "./schemas/InferenceServiceGenerateTokensResponse";
 
@@ -8,7 +9,11 @@ export function InferenceSocketClient({
 }: {
   webSocket: WebSocket;
 }): InferenceSocketClient {
-  function generateTokens({ prompt }: { prompt: string }): Observable<string> {
+  function continueConversation({
+    conversation_history,
+  }: {
+    conversation_history: ConversationMessage[];
+  }): Observable<string> {
     const requestId = crypto.randomUUID();
     const messages = fromEvent<MessageEvent>(webSocket, "message").pipe(
       map(function (event): unknown {
@@ -33,14 +38,16 @@ export function InferenceSocketClient({
         return String(token);
       }),
     );
+
     webSocket.send(
       JSON.stringify({
         Request: {
           id: requestId,
           request: {
-            GenerateTokens: {
+            ContinueConversation: {
+              add_generation_prompt: true,
               max_tokens: 1000,
-              prompt,
+              conversation_history,
             },
           },
         },
@@ -51,6 +58,6 @@ export function InferenceSocketClient({
   }
 
   return Object.freeze({
-    generateTokens,
+    continueConversation,
   });
 }

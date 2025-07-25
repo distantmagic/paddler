@@ -40,7 +40,7 @@ pub struct LlamaCppSlot {
 }
 
 impl LlamaCppSlot {
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn new(
         agent_name: Option<String>,
         backend: Arc<LlamaBackend>,

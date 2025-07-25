@@ -7,6 +7,7 @@ mod atomic_value;
 mod balancer;
 mod cmd;
 mod controls_websocket_endpoint;
+mod conversation_message;
 mod converts_to_applicable_state;
 mod create_cors_middleware;
 mod database_type;
@@ -53,7 +54,7 @@ struct Cli {
     command: Option<Commands>,
 }
 
-#[allow(clippy::large_enum_variant)]
+#[expect(clippy::large_enum_variant)]
 #[derive(Subcommand)]
 enum Commands {
     /// Agent for managing llama.cpp instances

@@ -6,7 +6,7 @@ import {
 } from "../contexts/PromptContext";
 
 export function PromptContextProvider({ children }: { children: ReactNode }) {
-  const [currentPrompt, setCurrentPrompt] = useState<string>("");
+  const [currentPrompt, setCurrentPrompt] = useState<string>("Hi");
   const [submittedPrompt, setSubmittedPrompt] = useState<string | null>(null);
 
   useEffect(() => {
