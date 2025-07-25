@@ -38,7 +38,7 @@ impl RendersChatTemplate for ChatTemplateHolder {
         if let Some(chat_template) = lock.as_ref() {
             chat_template.render(params)
         } else {
-            Err(anyhow!("Chat template is not set"))
+            Err(anyhow!("Chat template not available. Model may not have been loaded or template extraction failed"))
         }
     }
 }
