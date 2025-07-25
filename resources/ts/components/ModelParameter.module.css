@@ -1,18 +1,31 @@
-.modelParameter {
-  column-gap: var(--spacing-half);
-  display: grid;
-  grid-template-columns: 2fr 3fr;
-}
-
-.modelParameter__head {
-  display: flex;
-  flex-direction: column;
-  padding-left: var(--spacing-base);
-}
-
 .modelParameter__input {
   appearance: none;
-  border: 2px solid var(--color-border);
-  box-shadow: 2px 2px 0 var(--color-border);
+  border-color: var(--color-border);
+  border-style: solid;
+  border-width: 0 var(--width-input-border) var(--width-input-border)
+    var(--width-input-border);
+  box-shadow: 1px 1px 0 var(--color-border);
   padding: var(--spacing-half);
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.modelParameter {
+  --width-input-border: 1px;
+
+  align-items: center;
+  column-gap: var(--spacing-base);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+
+  &:first-of-type .modelParameter__input {
+    border-top-width: var(--width-input-border);
+  }
+}
+
+.modelParameter__label {
+  font-weight: bold;
+  text-align: right;
 }

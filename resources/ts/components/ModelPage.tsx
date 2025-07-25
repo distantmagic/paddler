@@ -1,4 +1,3 @@
-import clsx from "clsx";
 import React, {
   useCallback,
   useMemo,
@@ -11,7 +10,6 @@ import { urlToAgentDesiredModel } from "../urlToAgentDesiredModel";
 import {
   modelPage,
   modelPage__asideInfo,
-  modelPage__details,
   modelPage__form,
   modelPage__formControls,
   modelPage__formLabel,
@@ -19,9 +17,6 @@ import {
   modelPage__input,
   modelPage__main,
   modelPage__parameters,
-  modelPage__payloadPreview,
-  modelPage__payloadPreviewCorrect,
-  modelPage__payloadPreviewError,
   modelPage__submitButton,
 } from "./ModelPage.module.css";
 import { ModelParameter } from "./ModelParameter";
@@ -100,15 +95,6 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
       );
     },
     [agentDesiredModel, isAgentDesiredModelValid],
-  );
-
-  const payloadPreview = useMemo(
-    function () {
-      return agentDesiredModel instanceof Error
-        ? agentDesiredModelError
-        : properPayload;
-    },
-    [agentDesiredModel, agentDesiredModelError, properPayload],
   );
 
   const onSubmit = useCallback(
@@ -194,17 +180,17 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
           <fieldset className={modelPage__parameters}>
             <ModelParameter
               defaultvalue={512}
-              description="Batch Tokens Size"
+              description="Batch Size (higher = more memory usage, lower = less inference speed)"
               name="batch_n_tokens"
             />
             <ModelParameter
               defaultvalue={4096}
-              description="Context Size"
+              description="Context Size (higher = longer chat history, lower = less memory usage)"
               name="context_size"
             />
             <ModelParameter
               defaultvalue={0.05}
-              description="Minimum Token Probability"
+              description="Minimum token probability to consider for selection"
               name="min_p"
             />
             <ModelParameter
@@ -214,17 +200,17 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
             />
             <ModelParameter
               defaultvalue={-1}
-              description="Number of last tokens to consider for penalty"
+              description="Number of last tokens to consider for penalty (-1 = entire context, 0 = disabled)"
               name="penalty_last_n"
             />
             <ModelParameter
               defaultvalue={1.5}
-              description="Penalty Presence"
+              description="Presence Penalty"
               name="penalty_presence"
             />
             <ModelParameter
               defaultvalue={1.0}
-              description="Penalty Repeat"
+              description="Repeated Token Penalty"
               name="penalty_repeat"
             />
             <ModelParameter
@@ -234,28 +220,15 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
             />
             <ModelParameter
               defaultvalue={40}
-              description="Top K"
+              description="Number of tokens to consider for selection"
               name="top_k"
             />
             <ModelParameter
               defaultvalue={0.3}
-              description="Top P"
+              description="Probability threshold for selecting tokens"
               name="top_p"
             />
           </fieldset>
-          {undefined !== agentDesiredModel && (
-            <details className={modelPage__details}>
-              <summary>Payload Preview</summary>
-              <pre
-                className={clsx(modelPage__payloadPreview, {
-                  [modelPage__payloadPreviewCorrect]: isAgentDesiredModelValid,
-                  [modelPage__payloadPreviewError]: !isAgentDesiredModelValid,
-                })}
-              >
-                {payloadPreview}
-              </pre>
-            </details>
-          )}
           <div className={modelPage__formControls}>
             <button className={modelPage__submitButton}>Submit</button>
           </div>

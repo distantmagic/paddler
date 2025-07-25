@@ -60,30 +60,6 @@
   }
 }
 
-.modelPage__details {
-  display: flex;
-  flex-direction: column;
-  row-gap: var(--spacing-half);
-
-  summary {
-    cursor: pointer;
-    display: flex;
-    flex-direction: row;
-    font-weight: bold;
-    padding: 0 var(--spacing-base);
-  }
-
-  & > summary::before {
-    content: "▶ ";
-    margin-right: var(--spacing-half);
-    transition: transform 100ms;
-  }
-
-  &[open] > summary::before {
-    transform: rotate(90deg);
-  }
-}
-
 .modelPage__form {
   display: flex;
   flex-direction: column;
@@ -128,24 +104,28 @@
 
 .modelPage__parameters {
   appearance: none;
-  border: none;
   border-radius: 30px 20px 40px 20px;
+  border: none;
   display: flex;
   flex-direction: column;
-  row-gap: var(--spacing-base);
-}
+  position: relative;
+  z-index: 1;
 
-.modelPage__payloadPreview {
-  border: 2px solid var(--color-border);
-  padding: var(--spacing-base);
-}
+  &::after {
+    --spacing-overflow: calc(-1 * var(--spacing-base));
 
-.modelPage__payloadPreviewCorrect {
-  background-color: #00ff0022;
-}
-
-.modelPage__payloadPreviewError {
-  background-color: #ff000022;
+    background-color: #00ff0011;
+    border-radius: 40% 60% 30% 70%;
+    bottom: var(--spacing-overflow);
+    content: "";
+    left: var(--spacing-base);
+    pointer-events: none;
+    position: absolute;
+    right: var(--spacing-overflow);
+    top: var(--spacing-overflow);
+    user-select: none;
+    z-index: -1;
+  }
 }
 
 .modelPage__submitButton {

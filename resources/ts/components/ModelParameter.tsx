@@ -2,8 +2,8 @@ import React from "react";
 
 import {
   modelParameter,
-  modelParameter__head,
   modelParameter__input,
+  modelParameter__label,
 } from "./ModelParameter.module.css";
 
 export function ModelParameter({
@@ -17,10 +17,9 @@ export function ModelParameter({
 }) {
   return (
     <label className={modelParameter}>
-      <div className={modelParameter__head}>
-        <span>{description}</span>
-        <abbr title={description}>{name}</abbr>
-      </div>
+      <abbr className={modelParameter__label} title={description}>
+        {name}
+      </abbr>
       <input
         className={modelParameter__input}
         defaultValue={defaultvalue}
