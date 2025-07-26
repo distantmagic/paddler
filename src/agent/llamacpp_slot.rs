@@ -11,14 +11,17 @@ use llama_cpp_2::context::LlamaContext;
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::llama_batch::LlamaBatch;
 use llama_cpp_2::model::AddBos;
-use llama_cpp_2::model::LlamaChatMessage;
-use llama_cpp_2::model::LlamaChatTemplate;
 use llama_cpp_2::model::LlamaModel;
 use llama_cpp_2::model::Special;
 use llama_cpp_2::sampling::LlamaSampler;
 use llama_cpp_2::DecodeError;
 use log::debug;
+use log::error;
 use log::info;
+use minijinja::context;
+use minijinja::Environment;
+use minijinja::Error;
+use minijinja::ErrorKind;
 use tokio::sync::mpsc;
 
 use crate::agent::continue_conversation_request::ContinueConversationRequest;
@@ -34,10 +37,21 @@ use crate::model_parameters::ModelParameters;
 use crate::request_params::ContinueConversationParams;
 use crate::request_params::GenerateTokensParams;
 
+const CHAT_TEMPLATE_NAME: &str = "chat_template";
+
+// Known uses:
+// https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF
+fn minijinja_raise_exception(message: String) -> std::result::Result<String, Error> {
+    Err(Error::new::<String>(
+        ErrorKind::InvalidOperation,
+        format!("Chat template raised an exception: '{message}'"),
+    ))
+}
+
 pub struct LlamaCppSlot {
     agent_name: Option<String>,
-    llama_chat_template: Arc<LlamaChatTemplate>,
     llama_context: LlamaContext<'static>,
+    minijinja_env: Environment<'static>,
     model: Arc<LlamaModel>,
     model_parameters: ModelParameters,
     model_path: PathBuf,
@@ -51,7 +65,7 @@ impl LlamaCppSlot {
         agent_name: Option<String>,
         backend: Arc<LlamaBackend>,
         ctx_params: Arc<LlamaContextParams>,
-        llama_chat_template: Arc<LlamaChatTemplate>,
+        llama_chat_template_string: String,
         model: Arc<LlamaModel>,
         model_parameters: ModelParameters,
         model_path: PathBuf,
@@ -74,10 +88,16 @@ impl LlamaCppSlot {
             model_ref.new_context(&backend, (*ctx_params).clone())?
         };
 
+        let mut minijinja_env = Environment::new();
+
+        minijinja_env.add_function("raise_exception", minijinja_raise_exception);
+
+        minijinja_env.add_template_owned(CHAT_TEMPLATE_NAME, llama_chat_template_string)?;
+
         Ok(Self {
             agent_name,
-            llama_chat_template,
             llama_context,
+            minijinja_env,
             model,
             model_parameters,
             model_path,
@@ -253,20 +273,34 @@ impl Handler<ContinueConversationRequest> for LlamaCppSlot {
         }: ContinueConversationRequest,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
-        let mut llama_chat_messages: Vec<LlamaChatMessage> =
-            Vec::with_capacity(conversation_history.len());
+        let prompt = match self
+            .minijinja_env
+            .get_template(CHAT_TEMPLATE_NAME)?
+            .render(context! {
+                // Known uses:
+                // https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF
+                // https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF
+                bos_token => format!("{}", self.model.token_bos()),
+                messages => conversation_history,
+                // Known uses:
+                // https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF
+                add_generation_prompt => add_generation_prompt,
+            }) {
+            Ok(prompt) => prompt,
+            Err(err) => {
+                error!(
+                    "{:?}: slot {} failed to render chat template: {err:?}",
+                    self.agent_name, self.slot_index
+                );
 
-        for message in conversation_history {
-            let llama_chat_message = LlamaChatMessage::new(message.role, message.content)?;
+                return Err(err.into());
+            }
+        };
 
-            llama_chat_messages.push(llama_chat_message);
-        }
-
-        let prompt = self.model.apply_chat_template(
-            &self.llama_chat_template,
-            &llama_chat_messages,
-            add_generation_prompt,
-        )?;
+        debug!(
+            "{:?}: slot {} generating from prompt: {:?}",
+            self.agent_name, self.slot_index, prompt
+        );
 
         self.generate_from_prompt(
             generate_tokens_stop_rx,

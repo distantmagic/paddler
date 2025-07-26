@@ -35,6 +35,7 @@ export const ConversationMessagePromptGeneratedTokens = memo(
                 content:
                   "You are a helpful assistant. Give short, precise answers.",
               },
+              { role: "user", content: "Hello, who are you?" },
               { role: "user", content: submittedPrompt },
             ],
           })
