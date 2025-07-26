@@ -74,16 +74,8 @@
     flex-direction: row;
     padding: var(--spacing-base);
 
-    &::after {
-      background-image: url("../../icons/info.svg");
-      content: "";
-      display: flex;
-      height: 1em;
-      width: 1em;
-    }
-
     &::before {
-      background-image: url("../../icons/arrow_forward.svg");
+      background-image: url("../../icons/arrow_right.svg");
       content: "";
       display: inline-block;
       height: 1em;

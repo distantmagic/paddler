@@ -18,6 +18,7 @@ use llama_cpp_2::DecodeError;
 use log::debug;
 use log::info;
 
+use crate::agent::continue_conversation_request::ContinueConversationRequest;
 use crate::agent::dispenses_slots::DispensesSlots as _;
 use crate::agent::generate_tokens_drop_guard::GenerateTokensDropGuard;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
@@ -136,6 +137,23 @@ impl Actor for LlamaCppSlot {
         self.slot_status.stopped();
 
         info!("{:?}: slot {} stopped", self.agent_name, self.slot_index,);
+    }
+}
+
+impl Handler<ContinueConversationRequest> for LlamaCppSlot {
+    type Result = Result<()>;
+
+    fn handle(
+        &mut self,
+        request: ContinueConversationRequest,
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
+        debug!(
+            "Received ContinueConversationRequest for slot {} {request:?}",
+            self.slot_index
+        );
+
+        Ok(())
     }
 }
 

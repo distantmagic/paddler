@@ -1,5 +1,7 @@
+use std::fmt::Debug;
 use std::sync::Arc;
 
+use actix::Message;
 use actix_web::rt;
 use anyhow::anyhow;
 use anyhow::Context as _;
@@ -14,10 +16,11 @@ use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
-use crate::agent::chat_template_holder::ChatTemplateHolder;
+use crate::agent::continue_conversation_request::ContinueConversationRequest;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
 use crate::agent::llamacpp_arbiter::LlamaCppArbiter;
 use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
+use crate::agent::llamacpp_slot::LlamaCppSlot;
 use crate::agent::slot_aggregated_status_manager::SlotAggregatedStatusManager;
 use crate::agent_applicable_state::AgentApplicableState;
 use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
@@ -27,7 +30,7 @@ pub struct LlamaCppArbiterService {
     agent_applicable_state: Option<AgentApplicableState>,
     agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
     agent_name: Option<String>,
-    chat_template_holder: Arc<ChatTemplateHolder>,
+    continue_conversation_request_rx: mpsc::UnboundedReceiver<ContinueConversationRequest>,
     desired_slots_total: i32,
     generate_tokens_request_rx: mpsc::UnboundedReceiver<GenerateTokensRequest>,
     is_state_applied: bool,
@@ -39,7 +42,7 @@ impl LlamaCppArbiterService {
     pub async fn new(
         agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
         agent_name: Option<String>,
-        chat_template_holder: Arc<ChatTemplateHolder>,
+        continue_conversation_request_rx: mpsc::UnboundedReceiver<ContinueConversationRequest>,
         desired_slots_total: i32,
         generate_tokens_request_rx: mpsc::UnboundedReceiver<GenerateTokensRequest>,
         slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
@@ -48,7 +51,7 @@ impl LlamaCppArbiterService {
             agent_applicable_state: None,
             agent_applicable_state_holder,
             agent_name,
-            chat_template_holder,
+            continue_conversation_request_rx,
             desired_slots_total,
             generate_tokens_request_rx,
             is_state_applied: true,
@@ -71,7 +74,6 @@ impl LlamaCppArbiterService {
                 LlamaCppArbiter::new(
                     self.agent_name.clone(),
                     agent_applicable_state,
-                    self.chat_template_holder.clone(),
                     self.desired_slots_total,
                     self.slot_aggregated_status_manager.clone(),
                 )
@@ -85,6 +87,37 @@ impl LlamaCppArbiterService {
         self.is_state_applied = true;
 
         Ok(())
+    }
+
+    async fn generate_tokens<TRequest>(
+        &mut self,
+        request: TRequest,
+        mut shutdown: broadcast::Receiver<()>,
+    ) where
+        TRequest: Message + Debug + Send + 'static,
+        TRequest::Result: Send + 'static,
+        LlamaCppSlot: actix::Handler<TRequest>,
+    {
+        debug!("Received generate tokens request: {request:?}");
+
+        if let Some(llamacpp_arbiter_controller) = &self.llamacpp_arbiter_controller {
+            let llamacpp_slot_addr = llamacpp_arbiter_controller.llamacpp_slot_addr.clone();
+
+            rt::spawn(async move {
+                tokio::select! {
+                    _ = shutdown.recv() => {
+                        error!("Shutdown received, stopping GenerateTokensRequest processing");
+                    }
+                    result = llamacpp_slot_addr.send(request) => {
+                        if let Err(err) = result {
+                            error!("Failed to send GenerateTokensRequest: {err}");
+                        }
+                    }
+                }
+            });
+        } else {
+            error!("LlamaCppArbiterController is not initialized");
+        }
     }
 
     async fn try_to_apply_state(&mut self) {
@@ -119,30 +152,32 @@ impl Service for LlamaCppArbiterService {
                         self.try_to_apply_state().await;
                     }
                 }
+                continue_conversation_request = self.continue_conversation_request_rx.recv() => {
+                    debug!("Received continue conversation request: {continue_conversation_request:?}");
+
+                    match continue_conversation_request {
+                        Some(continue_conversation_request) => {
+                            debug!("Received continue conversation request: {continue_conversation_request:?}");
+
+                            self.generate_tokens(
+                                continue_conversation_request,
+                                shutdown.resubscribe(),
+                            ).await
+                        }
+                        None => {
+                            break Err(anyhow!("ContinueConversationRequest channel closed unexpectedly"));
+                        }
+                    }
+                }
                 generate_tokens_request = self.generate_tokens_request_rx.recv() => {
                     match generate_tokens_request {
                         Some(generate_tokens_request) => {
                             debug!("Received generate tokens request: {generate_tokens_request:?}");
 
-                            if let Some(llamacpp_arbiter_controller) = &self.llamacpp_arbiter_controller {
-                                let llamacpp_slot_addr = llamacpp_arbiter_controller.llamacpp_slot_addr.clone();
-                                let mut shutdown_clone = shutdown.resubscribe();
-
-                                rt::spawn(async move {
-                                    tokio::select! {
-                                        _ = shutdown_clone.recv() => {
-                                            error!("Shutdown received, stopping GenerateTokensRequest processing");
-                                        }
-                                        result = llamacpp_slot_addr.send(generate_tokens_request) => {
-                                            if let Err(err) = result {
-                                                error!("Failed to send GenerateTokensRequest: {err}");
-                                            }
-                                        }
-                                    }
-                                });
-                            } else {
-                                error!("LlamaCppArbiterController is not initialized");
-                            }
+                            self.generate_tokens(
+                                generate_tokens_request,
+                                shutdown.resubscribe(),
+                            ).await
                         }
                         None => {
                             break Err(anyhow!("GenerateTokensRequest channel closed unexpectedly"));

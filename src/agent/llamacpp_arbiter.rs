@@ -14,8 +14,6 @@ use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::model::LlamaModel;
 use tokio::sync::oneshot;
 
-use crate::agent::chat_template::ChatTemplate;
-use crate::agent::chat_template_holder::ChatTemplateHolder;
 use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
 use crate::agent::llamacpp_slot::LlamaCppSlot;
 use crate::agent::slot_aggregated_status_manager::SlotAggregatedStatusManager;
@@ -24,7 +22,6 @@ use crate::agent_applicable_state::AgentApplicableState;
 pub struct LlamaCppArbiter {
     agent_name: Option<String>,
     applicable_state: AgentApplicableState,
-    chat_template_holder: Arc<ChatTemplateHolder>,
     desired_slots_total: i32,
     slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
 }
@@ -33,14 +30,12 @@ impl LlamaCppArbiter {
     pub fn new(
         agent_name: Option<String>,
         applicable_state: AgentApplicableState,
-        chat_template_holder: Arc<ChatTemplateHolder>,
         desired_slots_total: i32,
         slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
     ) -> Self {
         Self {
             agent_name,
             applicable_state,
-            chat_template_holder,
             desired_slots_total,
             slot_aggregated_status_manager,
         }
@@ -51,7 +46,6 @@ impl LlamaCppArbiter {
         let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
 
         let agent_name_clone = self.agent_name.clone();
-        let chat_template_holder = self.chat_template_holder.clone();
         let desired_slots_total = self.desired_slots_total;
         let model_parameters = self.applicable_state.model_parameters.clone();
         let model_path = self.applicable_state.model_path.clone();
@@ -74,13 +68,11 @@ impl LlamaCppArbiter {
                 .context("Unable to load model from file")?,
             );
 
-            let model_chat_template = model.chat_template(None).context(format!(
-                "Failed to load chat template for model at path: {}",
-                model_path.display()
-            ))?;
-            let chat_template = ChatTemplate::new(model_chat_template.to_string()?)?;
-
-            chat_template_holder.set_chat_template(chat_template);
+            // let model_chat_template = model.chat_template(None).context(format!(
+            //     "Failed to load chat template for model at path: {}",
+            //     model_path.display()
+            // ))?;
+            // let chat_template = ChatTemplate::new(model_chat_template.to_string()?)?;
 
             slot_aggregated_status_manager
                 .slot_aggregated_status
