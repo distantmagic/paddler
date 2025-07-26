@@ -20,4 +20,5 @@
   --spacing-2x: calc(2 * var(--spacing-base));
   --z-index-workbench-content: 1;
   --z-index-workbench-header: 2;
+  --z-index-modal: 3;
 }

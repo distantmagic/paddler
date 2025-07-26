@@ -1,29 +1,22 @@
 import React, { CSSProperties } from "react";
 
 import { type Agent } from "../schemas/Agent";
+import { AgentListModelDetailsButton } from "./AgentListModelDetailsButton";
 
 import {
-  agentUsage,
-  agentUsage__progress,
+  agentList,
+  agentList__model,
+  agentList__progress,
   agentsTable,
 } from "./AgentList.module.css";
 
-function displayLastPathPart(path: string | null | undefined): string {
-  if (!path) {
-    return "";
-  }
-
-  const parts = path.split("/");
-  const last = parts.pop();
-
-  if (!last) {
-    return "";
-  }
-
-  return last;
-}
-
-export function AgentsList({ agents }: { agents: Array<Agent> }) {
+export function AgentsList({
+  agents,
+  managementAddr,
+}: {
+  agents: Array<Agent>;
+  managementAddr: string;
+}) {
   return (
     <table className={agentsTable}>
       <thead>
@@ -47,21 +40,30 @@ export function AgentsList({ agents }: { agents: Array<Agent> }) {
             <tr key={id}>
               <td>{name}</td>
               <td>
-                <abbr title={model_path ?? undefined}>
-                  {displayLastPathPart(model_path)}
-                </abbr>
+                {"string" === typeof model_path ? (
+                  <div className={agentList__model}>
+                    🪺
+                    <AgentListModelDetailsButton
+                      agentId={id}
+                      managementAddr={managementAddr}
+                      modelPath={model_path}
+                    />
+                  </div>
+                ) : (
+                  <div className={agentList__model}>
+                    🪹 <i>No model loaded</i>
+                  </div>
+                )}
               </td>
               <td
-                className={agentUsage}
+                className={agentList}
                 style={
                   {
                     "--slots-usage": `${((slots_total - slots_processing) / slots_total) * 100}%`,
                   } as CSSProperties
                 }
               >
-                {slots_total > 0 && (
-                  <div className={agentUsage__progress}></div>
-                )}
+                {slots_total > 0 && <div className={agentList__progress}></div>}
               </td>
               <td>
                 {slots_processing}/{slots_total}/{desired_slots_total}

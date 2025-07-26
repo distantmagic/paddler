@@ -27,13 +27,20 @@
   }
 }
 
-.agentUsage {
+.agentList {
   min-width: 100px;
   padding: 0;
   position: relative;
 }
 
-.agentUsage__progress {
+.agentList__model {
+  align-items: center;
+  column-gap: var(--spacing-half);
+  display: flex;
+  flex-direction: row;
+}
+
+.agentList__progress {
   background-image: linear-gradient(
     to right,
     #0000ff,

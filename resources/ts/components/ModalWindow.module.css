@@ -1,0 +1,54 @@
+.modalWindowBackdrop {
+  backdrop-filter: blur(5px);
+  bottom: 0;
+  height: 100%;
+  left: 0;
+  overflow: hidden;
+  padding: var(--spacing-base);
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 100%;
+  z-index: var(--z-index-modal);
+}
+
+.modalWindow {
+  background-color: var(--color-body-background);
+  border: 2px solid var(--color-border);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  left: 50%;
+  max-height: calc(100dvh - 2 * var(--spacing-base));
+  max-width: 600px;
+  position: absolute;
+  transform: translateX(-50%);
+  width: 100%;
+}
+
+.modalWindow__closeButton {
+  appearance: none;
+  background: none;
+  border: none;
+  display: flex;
+  padding: 0 var(--spacing-base);
+
+  img {
+    height: 24px;
+    width: 24px;
+  }
+}
+
+.modalWindow__content {
+  overflow-y: auto;
+}
+
+.modalWindow__titleBar {
+  align-items: center;
+  border-bottom: 2px solid var(--color-border);
+  display: grid;
+  grid-template-columns: 1fr auto;
+}
+
+.modalWindow__titleBar__title {
+  padding: var(--spacing-base);
+}

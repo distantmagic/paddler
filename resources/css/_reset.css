@@ -50,6 +50,7 @@ textarea {
   font-family: inherit;
   font-size: inherit;
   font-weight: inherit;
+  margin: 0;
 }
 
 button {

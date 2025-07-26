@@ -1,0 +1,31 @@
+.modelMetadataLoader {
+  padding: var(--spacing-base);
+
+  dl {
+    display: flex;
+    flex-direction: column;
+    row-gap: var(--spacing-half);
+
+    dd {
+      margin-bottom: var(--spacing-base);
+    }
+
+    dt {
+      font-weight: bold;
+    }
+  }
+}
+
+.modelMetadataLoader__spinner {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--spacing-base);
+  row-gap: var(--spacing-base);
+
+  img {
+    height: 48px;
+    width: 48px;
+  }
+}
