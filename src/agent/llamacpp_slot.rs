@@ -31,6 +31,7 @@ use crate::generated_token::GeneratedToken;
 use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::generated_token_result::GeneratedTokenResult;
 use crate::model_parameters::ModelParameters;
+use crate::request_params::ContinueConversationParams;
 use crate::request_params::GenerateTokensParams;
 
 pub struct LlamaCppSlot {
@@ -241,16 +242,21 @@ impl Handler<ContinueConversationRequest> for LlamaCppSlot {
     fn handle(
         &mut self,
         ContinueConversationRequest {
-            continue_conversation_params,
+            continue_conversation_params:
+                ContinueConversationParams {
+                    add_generation_prompt,
+                    conversation_history,
+                    max_tokens,
+                },
             generate_tokens_stop_rx,
             generated_tokens_tx,
         }: ContinueConversationRequest,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
         let mut llama_chat_messages: Vec<LlamaChatMessage> =
-            Vec::with_capacity(continue_conversation_params.conversation_history.len());
+            Vec::with_capacity(conversation_history.len());
 
-        for message in continue_conversation_params.conversation_history {
+        for message in conversation_history {
             let llama_chat_message = LlamaChatMessage::new(message.role, message.content)?;
 
             llama_chat_messages.push(llama_chat_message);
@@ -259,13 +265,13 @@ impl Handler<ContinueConversationRequest> for LlamaCppSlot {
         let prompt = self.model.apply_chat_template(
             &self.llama_chat_template,
             &llama_chat_messages,
-            true,
+            add_generation_prompt,
         )?;
 
         self.generate_from_prompt(
             generate_tokens_stop_rx,
             generated_tokens_tx,
-            continue_conversation_params.max_tokens,
+            max_tokens,
             prompt,
         )
     }
