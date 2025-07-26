@@ -1,4 +1,32 @@
 .conversationMessage {
   background-color: white;
+  column-gap: var(--spacing-base);
+  display: grid;
+  grid-template-areas:
+    "nothing author"
+    "thoughts response";
+  grid-template-columns: 1fr 2fr;
   padding: var(--spacing-base);
+  row-gap: var(--spacing-half);
+}
+
+.conversationMessage__author {
+  display: flex;
+  grid-area: author;
+  padding-right: var(--spacing-half);
+}
+
+.conversationMessage__response {
+  display: flex;
+  flex-direction: column;
+  grid-area: response;
+  row-gap: var(--spacing-half);
+}
+
+.conversationMessage__thoughts {
+  font-size: var(--font-size-small);
+  font-style: italic;
+  grid-area: thoughts;
+  padding-right: var(--spacing-base);
+  text-align: right;
 }

@@ -68,6 +68,17 @@ impl LlamaCppArbiter {
                 )
                 .context("Unable to load model from file")?,
             );
+
+            log::debug!("Model has meta parameters: {:?}", model.meta_count());
+
+            for i in 0..model.meta_count() {
+                log::debug!(
+                    "Model meta parameter {i}: {}: {}",
+                    model.meta_key_by_index(i)?,
+                    model.meta_val_str_by_index(i)?,
+                );
+            }
+
             let llama_chat_template_string = model
                 .chat_template(None)
                 .context(format!(
@@ -83,6 +94,7 @@ impl LlamaCppArbiter {
             let slot_index = Arc::new(AtomicU32::new(0));
             let system = System::new();
             let token_bos_str = model.token_to_str(model.token_bos(), Special::Tokenize)?;
+            let token_nl_str = model.token_to_str(model.token_nl(), Special::Tokenize)?;
             let token_eos_str = model.token_to_str(model.token_eos(), Special::Tokenize)?;
 
             system.block_on(async move {
@@ -101,6 +113,7 @@ impl LlamaCppArbiter {
                                 slot_index.fetch_add(1, Ordering::SeqCst),
                                 slot_aggregated_status_manager.bind_slot_status(),
                                 token_bos_str.clone(),
+                                token_nl_str.clone(),
                                 token_eos_str.clone(),
                             )
                             .expect("Failed to create LlamaCppSlot")

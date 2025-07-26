@@ -11,21 +11,25 @@ import { useLocation } from "wouter";
 import { ModelParametersContext } from "../contexts/ModelParametersContext";
 import { urlToAgentDesiredModel } from "../urlToAgentDesiredModel";
 import {
-  modelPage,
-  modelPage__asideInfo,
-  modelPage__details,
-  modelPage__form,
-  modelPage__formControls,
-  modelPage__formLabel,
-  modelPage__formLabel__title,
-  modelPage__input,
-  modelPage__main,
-  modelPage__parameters,
-  modelPage__submitButton,
-} from "./ModelPage.module.css";
-import { ModelParameter } from "./ModelParameter";
+  changeModelPage,
+  changeModelPage__asideInfo,
+  changeModelPage__details,
+  changeModelPage__form,
+  changeModelPage__formControls,
+  changeModelPage__formLabel,
+  changeModelPage__formLabel__title,
+  changeModelPage__input,
+  changeModelPage__main,
+  changeModelPage__parameters,
+  changeModelPage__submitButton,
+} from "./ChangeModelPage.module.css";
+import { ModelParameterInput } from "./ModelParameterInput";
 
-export function ModelPage({ managementAddr }: { managementAddr: string }) {
+export function ChangeModelPage({
+  managementAddr,
+}: {
+  managementAddr: string;
+}) {
   const { parameters } = useContext(ModelParametersContext);
   const [, navigate] = useLocation();
   const [modelUriString, setModelUriString] = useState(
@@ -120,8 +124,8 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
   );
 
   return (
-    <div className={modelPage}>
-      <aside className={modelPage__asideInfo}>
+    <div className={changeModelPage}>
+      <aside className={changeModelPage__asideInfo}>
         <p>
           Paddler is based on <strong>llama.cpp</strong>, and it supports models
           in the <strong>GGUF</strong> format.
@@ -157,12 +161,12 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
           </dd>
         </dl>
       </aside>
-      <main className={modelPage__main}>
-        <form className={modelPage__form} onSubmit={onSubmit}>
-          <label className={modelPage__formLabel}>
-            <div className={modelPage__formLabel__title}>Model URI</div>
+      <main className={changeModelPage__main}>
+        <form className={changeModelPage__form} onSubmit={onSubmit}>
+          <label className={changeModelPage__formLabel}>
+            <div className={changeModelPage__formLabel__title}>Model URI</div>
             <input
-              className={modelPage__input}
+              className={changeModelPage__input}
               onInput={onModelUriInput}
               placeholder="https://huggingface.co/..."
               required
@@ -170,9 +174,9 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
               value={modelUriString}
             />
           </label>
-          <fieldset className={modelPage__parameters}>
-            <legend>Model Parameters</legend>
-            <details className={modelPage__details}>
+          <fieldset className={changeModelPage__parameters}>
+            <legend>Inference Parameters</legend>
+            <details className={changeModelPage__details}>
               <summary>What are these parameters?</summary>
               <p>
                 These parameters control how the model behaves during inference.
@@ -193,46 +197,46 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
                 handle LLMs just fine. 🙂
               </p>
             </details>
-            <ModelParameter
+            <ModelParameterInput
               description="Batch Size (higher = more memory usage, lower = less inference speed)"
               name="batch_n_tokens"
             />
-            <ModelParameter
+            <ModelParameterInput
               description="Context Size (higher = longer chat history, lower = less memory usage)"
               name="context_size"
             />
-            <ModelParameter
+            <ModelParameterInput
               description="Minimum token probability to consider for selection"
               name="min_p"
             />
-            <ModelParameter
+            <ModelParameterInput
               description="Frequency Penalty"
               name="penalty_frequency"
             />
-            <ModelParameter
+            <ModelParameterInput
               description="Number of last tokens to consider for penalty (-1 = entire context, 0 = disabled)"
               name="penalty_last_n"
             />
-            <ModelParameter
+            <ModelParameterInput
               description="Presence Penalty"
               name="penalty_presence"
             />
-            <ModelParameter
+            <ModelParameterInput
               description="Repeated Token Penalty"
               name="penalty_repeat"
             />
-            <ModelParameter description="Temperature" name="temperature" />
-            <ModelParameter
+            <ModelParameterInput description="Temperature" name="temperature" />
+            <ModelParameterInput
               description="Number of tokens to consider for selection"
               name="top_k"
             />
-            <ModelParameter
+            <ModelParameterInput
               description="Probability threshold for selecting tokens"
               name="top_p"
             />
           </fieldset>
-          <div className={modelPage__formControls}>
-            <button className={modelPage__submitButton}>Submit</button>
+          <div className={changeModelPage__formControls}>
+            <button className={changeModelPage__submitButton}>Submit</button>
           </div>
         </form>
       </main>

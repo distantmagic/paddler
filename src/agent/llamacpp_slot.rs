@@ -58,6 +58,7 @@ pub struct LlamaCppSlot {
     slot_index: u32,
     slot_status: Arc<SlotStatus>,
     token_bos_str: String,
+    token_nl_str: String,
     token_eos_str: String,
 }
 
@@ -74,6 +75,7 @@ impl LlamaCppSlot {
         slot_index: u32,
         slot_status: Arc<SlotStatus>,
         token_bos_str: String,
+        token_nl_str: String,
         token_eos_str: String,
     ) -> Result<Self> {
         debug_assert!(
@@ -108,6 +110,7 @@ impl LlamaCppSlot {
             slot_index,
             slot_status,
             token_bos_str,
+            token_nl_str,
             token_eos_str,
         })
     }
@@ -290,6 +293,7 @@ impl Handler<ContinueConversationRequest> for LlamaCppSlot {
                 // Known uses:
                 // https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF
                 eos_token => self.token_eos_str,
+                nl_token => self.token_nl_str,
                 messages => conversation_history,
                 // Known uses:
                 // https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF

@@ -3,12 +3,12 @@ import React, { useCallback, useContext, type FormEvent } from "react";
 import { ModelParametersContext } from "../contexts/ModelParametersContext";
 import { type ModelParameters } from "../ModelParameters.type";
 import {
-  modelParameter,
-  modelParameter__input,
-  modelParameter__label,
-} from "./ModelParameter.module.css";
+  modelParameterInput,
+  modelParameterInput__input,
+  modelParameterInput__label,
+} from "./ModelParameterInput.module.css";
 
-export function ModelParameter({
+export function ModelParameterInput({
   description,
   name,
 }: {
@@ -27,12 +27,12 @@ export function ModelParameter({
   );
 
   return (
-    <label className={modelParameter}>
-      <abbr className={modelParameter__label} title={description}>
+    <label className={modelParameterInput}>
+      <abbr className={modelParameterInput__label} title={description}>
         {name}
       </abbr>
       <input
-        className={modelParameter__input}
+        className={modelParameterInput__input}
         onInput={onInput}
         required
         type="number"

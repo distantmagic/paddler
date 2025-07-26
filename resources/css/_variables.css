@@ -9,6 +9,7 @@
   --font-family-body: "Noto Sans", sans-serif;
   --font-family-monospace: "Noto Sans Mono", monospace;
   --font-size-base: 14px;
+  --font-size-small: 11px;
   --font-size-l1: calc(1.5 * var(--font-size-base));
   --font-size-l2: calc(1.5 * var(--font-size-l1));
   --height-workbench-header: 80px;

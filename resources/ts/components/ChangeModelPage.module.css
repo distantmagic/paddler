@@ -1,4 +1,4 @@
-.modelPage {
+.changeModelPage {
   align-items: flex-start;
   column-gap: var(--spacing-base);
   display: grid;
@@ -9,7 +9,7 @@
   width: 100%;
 }
 
-.modelPage__asideInfo {
+.changeModelPage__asideInfo {
   background-color: var(--color-note-background);
   border-radius: 20px 50px 20px 20px;
   border: 2px solid var(--color-border);
@@ -61,7 +61,7 @@
   }
 }
 
-.modelPage__details {
+.changeModelPage__details {
   background-color: var(--color-note-background);
   border: 2px solid var(--color-border);
   margin: var(--spacing-base) 0;
@@ -89,31 +89,31 @@
   }
 }
 
-.modelPage__form {
+.changeModelPage__form {
   display: flex;
   flex-direction: column;
   row-gap: var(--spacing-2x);
 }
 
-.modelPage__formControls {
+.changeModelPage__formControls {
   justify-content: flex-end;
   display: flex;
   flex-direction: row;
   padding: 0 var(--spacing-base);
 }
 
-.modelPage__formLabel {
+.changeModelPage__formLabel {
   display: flex;
   flex-direction: column;
   row-gap: var(--spacing-half);
 }
 
-.modelPage__formLabel__title {
+.changeModelPage__formLabel__title {
   font-weight: bold;
   padding: 0 var(--spacing-base);
 }
 
-.modelPage__input {
+.changeModelPage__input {
   appearance: none;
   background-color: var(--color-body-background);
   border: 2px solid var(--color-border);
@@ -125,13 +125,13 @@
   }
 }
 
-.modelPage__main {
+.changeModelPage__main {
   grid-area: main;
   padding: var(--spacing-2x) var(--spacing-base) var(--spacing-base)
     var(--spacing-base);
 }
 
-.modelPage__parameters {
+.changeModelPage__parameters {
   appearance: none;
   border-radius: 30px 20px 40px 20px;
   border: none;
@@ -168,7 +168,7 @@
   }
 }
 
-.modelPage__submitButton {
+.changeModelPage__submitButton {
   appearance: none;
   background-color: black;
   border-radius: 20px 30%;

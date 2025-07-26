@@ -5,6 +5,20 @@ import { PromptContext } from "../contexts/PromptContext";
 import { InferenceSocketClient } from "../InferenceSocketClient";
 import { ConversationMessage } from "./ConversationMessage";
 
+interface Message {
+  isEmpty: boolean;
+  isThinking: boolean;
+  response: string;
+  thoughts: string;
+}
+
+const defaultMessage: Message = Object.freeze({
+  isEmpty: true,
+  isThinking: false,
+  response: "",
+  thoughts: "",
+});
+
 export const ConversationMessagePromptGeneratedTokens = memo(
   function ConversationMessagePromptGeneratedTokens({
     webSocket,
@@ -12,7 +26,7 @@ export const ConversationMessagePromptGeneratedTokens = memo(
     webSocket: WebSocket;
   }) {
     const { submittedPrompt } = useContext(PromptContext);
-    const [message, setMessage] = useState<string>("");
+    const [message, setMessage] = useState<Message>(defaultMessage);
 
     const inferenceSocketClient = useMemo(
       function () {
@@ -31,18 +45,49 @@ export const ConversationMessagePromptGeneratedTokens = memo(
           .continueConversation({
             conversation_history: [
               {
-                role: "user",
+                role: "system",
                 content:
                   "You are a helpful assistant. Give short, precise answers.",
               },
-              { role: "assistant", content: "" },
               { role: "user", content: submittedPrompt },
             ],
           })
           .pipe(
-            scan(function (message: string, token: string) {
-              return `${message}${token}`;
-            }),
+            scan(function (message: Message, token: string) {
+              if ("<think>" === token) {
+                return Object.freeze({
+                  isEmpty: false,
+                  isThinking: true,
+                  response: message.response,
+                  thoughts: message.thoughts,
+                });
+              }
+
+              if ("</think>" === token) {
+                return Object.freeze({
+                  isEmpty: false,
+                  isThinking: false,
+                  response: message.response,
+                  thoughts: message.thoughts,
+                });
+              }
+
+              if (message.isThinking) {
+                return Object.freeze({
+                  isEmpty: false,
+                  isThinking: true,
+                  response: message.response,
+                  thoughts: `${message.thoughts}${token}`,
+                });
+              }
+
+              return Object.freeze({
+                isEmpty: false,
+                isThinking: false,
+                response: `${message.response}${token}`,
+                thoughts: message.thoughts,
+              });
+            }, defaultMessage),
           )
           .subscribe(setMessage);
 
@@ -53,14 +98,17 @@ export const ConversationMessagePromptGeneratedTokens = memo(
       [inferenceSocketClient, setMessage, submittedPrompt],
     );
 
-    if (!message) {
+    if (message.isEmpty) {
       return;
     }
 
     return (
-      <ConversationMessage>
-        <strong>AI</strong>: {message}
-      </ConversationMessage>
+      <ConversationMessage
+        author="AI"
+        isThinking={message.isThinking}
+        response={message.response}
+        thoughts={message.thoughts}
+      />
     );
   },
 );

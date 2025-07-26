@@ -1,4 +1,4 @@
-.modelParameter__input {
+.modelParameterInput__input {
   appearance: none;
   border-color: var(--color-border);
   border-style: solid;
@@ -12,7 +12,7 @@
   }
 }
 
-.modelParameter {
+.modelParameterInput {
   --width-input-border: 1px;
 
   align-items: center;
@@ -20,12 +20,12 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
 
-  &:first-of-type .modelParameter__input {
+  &:first-of-type .modelParameterInput__input {
     border-top-width: var(--width-input-border);
   }
 }
 
-.modelParameter__label {
+.modelParameterInput__label {
   cursor: help;
   font-weight: bold;
   text-align: right;
