@@ -10,7 +10,7 @@ type ModelMetadataResult =
   | {
       error: null;
       loading: false;
-      metadata: Record<string, string>;
+      metadata: null | Record<string, string>;
       ok: true;
     }
   | {
@@ -61,11 +61,11 @@ export function ModelMetadataLoader({
 
           return response.json();
         })
-        .then(function ({ metadata }: { metadata: Record<string, string> }) {
+        .then(function (metadata: null | { metadata: Record<string, string> }) {
           setModelMetadataResult({
             error: null,
             loading: false,
-            metadata,
+            metadata: metadata?.metadata ?? null,
             ok: true,
           });
         })
@@ -97,7 +97,17 @@ export function ModelMetadataLoader({
           <span>Loading model metadata...</span>
         </div>
       )}
-      {modelMetadataResult.ok && (
+      {modelMetadataResult.error && (
+        <div>
+          <span>Error: {modelMetadataResult.error}</span>
+        </div>
+      )}
+      {modelMetadataResult.ok && !modelMetadataResult.metadata && (
+        <div>
+          <span>No model loaded</span>
+        </div>
+      )}
+      {modelMetadataResult.metadata && (
         <dl>
           {Object.entries(modelMetadataResult.metadata).map(function ([
             key,
