@@ -11,12 +11,15 @@ use llama_cpp_2::context::LlamaContext;
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::llama_batch::LlamaBatch;
 use llama_cpp_2::model::AddBos;
+use llama_cpp_2::model::LlamaChatMessage;
+use llama_cpp_2::model::LlamaChatTemplate;
 use llama_cpp_2::model::LlamaModel;
 use llama_cpp_2::model::Special;
 use llama_cpp_2::sampling::LlamaSampler;
 use llama_cpp_2::DecodeError;
 use log::debug;
 use log::info;
+use tokio::sync::mpsc;
 
 use crate::agent::continue_conversation_request::ContinueConversationRequest;
 use crate::agent::dispenses_slots::DispensesSlots as _;
@@ -32,6 +35,7 @@ use crate::request_params::GenerateTokensParams;
 
 pub struct LlamaCppSlot {
     agent_name: Option<String>,
+    llama_chat_template: Arc<LlamaChatTemplate>,
     llama_context: LlamaContext<'static>,
     model: Arc<LlamaModel>,
     model_parameters: ModelParameters,
@@ -46,6 +50,7 @@ impl LlamaCppSlot {
         agent_name: Option<String>,
         backend: Arc<LlamaBackend>,
         ctx_params: Arc<LlamaContextParams>,
+        llama_chat_template: Arc<LlamaChatTemplate>,
         model: Arc<LlamaModel>,
         model_parameters: ModelParameters,
         model_path: PathBuf,
@@ -70,6 +75,7 @@ impl LlamaCppSlot {
 
         Ok(Self {
             agent_name,
+            llama_chat_template,
             llama_context,
             model,
             model_parameters,
@@ -117,58 +123,14 @@ impl LlamaCppSlot {
             Ok(())
         }
     }
-}
 
-impl Actor for LlamaCppSlot {
-    type Context = SyncContext<Self>;
-
-    fn started(&mut self, _ctx: &mut Self::Context) {
-        self.slot_status.started();
-
-        info!(
-            "{:?}: slot {} ready with model {:?}",
-            self.agent_name,
-            self.slot_index,
-            self.model_path.display(),
-        );
-    }
-
-    fn stopped(&mut self, _ctx: &mut Self::Context) {
-        self.slot_status.stopped();
-
-        info!("{:?}: slot {} stopped", self.agent_name, self.slot_index,);
-    }
-}
-
-impl Handler<ContinueConversationRequest> for LlamaCppSlot {
-    type Result = Result<()>;
-
-    fn handle(
+    fn generate_from_prompt(
         &mut self,
-        request: ContinueConversationRequest,
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
-        debug!(
-            "Received ContinueConversationRequest for slot {} {request:?}",
-            self.slot_index
-        );
-
-        Ok(())
-    }
-}
-
-impl Handler<GenerateTokensRequest> for LlamaCppSlot {
-    type Result = Result<()>;
-
-    fn handle(
-        &mut self,
-        GenerateTokensRequest {
-            generate_tokens_params: GenerateTokensParams { prompt, max_tokens },
-            mut generate_tokens_stop_rx,
-            generated_tokens_tx,
-        }: GenerateTokensRequest,
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
+        mut generate_tokens_stop_rx: mpsc::UnboundedReceiver<()>,
+        generated_tokens_tx: mpsc::UnboundedSender<GeneratedTokenEnvelope>,
+        max_tokens: i32,
+        prompt: String,
+    ) -> Result<()> {
         self.slot_status.take_slot();
 
         let _guard = GenerateTokensDropGuard::new(
@@ -249,5 +211,83 @@ impl Handler<GenerateTokensRequest> for LlamaCppSlot {
         }
 
         Ok(())
+    }
+}
+
+impl Actor for LlamaCppSlot {
+    type Context = SyncContext<Self>;
+
+    fn started(&mut self, _ctx: &mut Self::Context) {
+        self.slot_status.started();
+
+        info!(
+            "{:?}: slot {} ready with model {:?}",
+            self.agent_name,
+            self.slot_index,
+            self.model_path.display(),
+        );
+    }
+
+    fn stopped(&mut self, _ctx: &mut Self::Context) {
+        self.slot_status.stopped();
+
+        info!("{:?}: slot {} stopped", self.agent_name, self.slot_index,);
+    }
+}
+
+impl Handler<ContinueConversationRequest> for LlamaCppSlot {
+    type Result = Result<()>;
+
+    fn handle(
+        &mut self,
+        ContinueConversationRequest {
+            continue_conversation_params,
+            generate_tokens_stop_rx,
+            generated_tokens_tx,
+        }: ContinueConversationRequest,
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
+        let mut llama_chat_messages: Vec<LlamaChatMessage> =
+            Vec::with_capacity(continue_conversation_params.conversation_history.len());
+
+        for message in continue_conversation_params.conversation_history {
+            let llama_chat_message = LlamaChatMessage::new(message.role, message.content)?;
+
+            llama_chat_messages.push(llama_chat_message);
+        }
+
+        let prompt = self.model.apply_chat_template(
+            &self.llama_chat_template,
+            &llama_chat_messages,
+            true,
+        )?;
+
+        self.generate_from_prompt(
+            generate_tokens_stop_rx,
+            generated_tokens_tx,
+            continue_conversation_params.max_tokens,
+            prompt,
+        )
+    }
+}
+
+impl Handler<GenerateTokensRequest> for LlamaCppSlot {
+    type Result = Result<()>;
+
+    fn handle(
+        &mut self,
+        GenerateTokensRequest {
+            generate_tokens_params: GenerateTokensParams { prompt, max_tokens },
+            generate_tokens_stop_rx,
+            generated_tokens_tx,
+        }: GenerateTokensRequest,
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
+        self.generate_from_prompt(
+            generate_tokens_stop_rx,
+            generated_tokens_tx,
+            max_tokens,
+            prompt,
+        )
     }
 }

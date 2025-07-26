@@ -30,11 +30,11 @@ export const ConversationMessagePromptGeneratedTokens = memo(
         const subscription = inferenceSocketClient
           .continueConversation({
             conversation_history: [
-              // {
-              //   role: "system",
-              //   content:
-              //     "You are a helpful assistant. Give short, precise answers.",
-              // },
+              {
+                role: "system",
+                content:
+                  "You are a helpful assistant. Give short, precise answers.",
+              },
               { role: "user", content: submittedPrompt },
             ],
           })

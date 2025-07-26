@@ -67,12 +67,10 @@ impl LlamaCppArbiter {
                 )
                 .context("Unable to load model from file")?,
             );
-
-            // let model_chat_template = model.chat_template(None).context(format!(
-            //     "Failed to load chat template for model at path: {}",
-            //     model_path.display()
-            // ))?;
-            // let chat_template = ChatTemplate::new(model_chat_template.to_string()?)?;
+            let llama_chat_template = Arc::new(model.chat_template(None).context(format!(
+                "Failed to load chat template for model at path: {}",
+                model_path.display()
+            ))?);
 
             slot_aggregated_status_manager
                 .slot_aggregated_status
@@ -90,6 +88,7 @@ impl LlamaCppArbiter {
                                 agent_name_clone.clone(),
                                 backend.clone(),
                                 ctx_params.clone(),
+                                llama_chat_template.clone(),
                                 model.clone(),
                                 model_parameters.clone(),
                                 model_path.clone(),

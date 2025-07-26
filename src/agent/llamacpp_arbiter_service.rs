@@ -7,7 +7,6 @@ use anyhow::anyhow;
 use anyhow::Context as _;
 use anyhow::Result;
 use async_trait::async_trait;
-use log::debug;
 use log::error;
 use log::info;
 use tokio::sync::broadcast;
@@ -98,8 +97,6 @@ impl LlamaCppArbiterService {
         TRequest::Result: Send + 'static,
         LlamaCppSlot: actix::Handler<TRequest>,
     {
-        debug!("Received generate tokens request: {request:?}");
-
         if let Some(llamacpp_arbiter_controller) = &self.llamacpp_arbiter_controller {
             let llamacpp_slot_addr = llamacpp_arbiter_controller.llamacpp_slot_addr.clone();
 
@@ -153,12 +150,8 @@ impl Service for LlamaCppArbiterService {
                     }
                 }
                 continue_conversation_request = self.continue_conversation_request_rx.recv() => {
-                    debug!("Received continue conversation request: {continue_conversation_request:?}");
-
                     match continue_conversation_request {
                         Some(continue_conversation_request) => {
-                            debug!("Received continue conversation request: {continue_conversation_request:?}");
-
                             self.generate_tokens(
                                 continue_conversation_request,
                                 shutdown.resubscribe(),
@@ -172,8 +165,6 @@ impl Service for LlamaCppArbiterService {
                 generate_tokens_request = self.generate_tokens_request_rx.recv() => {
                     match generate_tokens_request {
                         Some(generate_tokens_request) => {
-                            debug!("Received generate tokens request: {generate_tokens_request:?}");
-
                             self.generate_tokens(
                                 generate_tokens_request,
                                 shutdown.resubscribe(),
