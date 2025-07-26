@@ -10,8 +10,9 @@
 }
 
 .modelPage__asideInfo {
-  background-color: #ffff0022;
+  background-color: var(--color-note-background);
   border-radius: 20px 50px 20px 20px;
+  border: 2px solid var(--color-border);
   display: flex;
   flex-direction: column;
   grid-area: aside;
@@ -60,6 +61,42 @@
   }
 }
 
+.modelPage__details {
+  background-color: var(--color-note-background);
+  border: 2px solid var(--color-border);
+  margin: var(--spacing-base) 0;
+
+  > summary {
+    align-items: center;
+    column-gap: var(--spacing-half);
+    cursor: pointer;
+    display: flex;
+    flex-direction: row;
+    padding: var(--spacing-base);
+
+    &::after {
+      background-image: url("../../icons/info.svg");
+      content: "";
+      display: flex;
+      height: 1em;
+      width: 1em;
+    }
+
+    &::before {
+      background-image: url("../../icons/arrow_forward.svg");
+      content: "";
+      display: inline-block;
+      height: 1em;
+      transition: transform 0.2s ease;
+      width: 1em;
+    }
+  }
+
+  &[open] > summary::before {
+    transform: rotate(90deg);
+  }
+}
+
 .modelPage__form {
   display: flex;
   flex-direction: column;
@@ -84,13 +121,7 @@
   padding: 0 var(--spacing-base);
 }
 
-.modelPage__textarea {
-  field-sizing: content;
-  resize: none;
-}
-
-.modelPage__input,
-.modelPage__textarea {
+.modelPage__input {
   appearance: none;
   background-color: var(--color-body-background);
   border: 2px solid var(--color-border);
@@ -98,7 +129,7 @@
   padding: var(--spacing-base);
 
   &:focus {
-    outline: none;
+    outline: 4px solid var(--color-highlight);
   }
 }
 
@@ -120,7 +151,7 @@
   &::after {
     --spacing-overflow: calc(-1 * var(--spacing-base));
 
-    background-color: #00ff0011;
+    background-color: #eeffee;
     border-radius: 40% 60% 30% 70%;
     bottom: var(--spacing-overflow);
     content: "";
@@ -136,7 +167,7 @@
   legend {
     appearance: none;
     font-weight: bold;
-    padding: 0 var(--spacing-base) var(--spacing-base) var(--spacing-base);
+    padding: 0 var(--spacing-base);
   }
 
   p {

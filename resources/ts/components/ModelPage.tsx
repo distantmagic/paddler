@@ -13,6 +13,7 @@ import { urlToAgentDesiredModel } from "../urlToAgentDesiredModel";
 import {
   modelPage,
   modelPage__asideInfo,
+  modelPage__details,
   modelPage__form,
   modelPage__formControls,
   modelPage__formLabel,
@@ -171,10 +172,27 @@ export function ModelPage({ managementAddr }: { managementAddr: string }) {
           </label>
           <fieldset className={modelPage__parameters}>
             <legend>Model Parameters</legend>
-            <p>
-              <strong>Note:</strong> These parameters are model-specific and are
-              usually provided by the model authors.
-            </p>
+            <details className={modelPage__details}>
+              <summary>What are these parameters?</summary>
+              <p>
+                These parameters control how the model behaves during inference.
+                They can affect the quality, speed, and memory usage of the
+                model.
+              </p>
+              <p>
+                They are model-specific and are usually provided by the model
+                authors.
+              </p>
+              <p>
+                Experimenting with these settings is worth exploring to optimize
+                performance for your specific needs. The main constraints you'll
+                encounter are memory limits or thermal throttling during
+                extended runs without adequate cooling. But honestly, nothing to
+                lose sleep over - if your system handles intensive workloads
+                like rendering, gaming marathons, or data processing, it'll
+                handle LLMs just fine. 🙂
+              </p>
+            </details>
             <ModelParameter
               description="Batch Size (higher = more memory usage, lower = less inference speed)"
               name="batch_n_tokens"

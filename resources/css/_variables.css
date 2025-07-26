@@ -3,7 +3,8 @@
   --color-body-background-o55: #ffffff55;
   --color-body-font: #111;
   --color-border: black;
-  --color-highlight: #ffff00aa;
+  --color-highlight: #ffff55;
+  --color-note-background: #ffffdd;
   --duration-transition-hover: 100ms;
   --font-family-body: "Noto Sans", sans-serif;
   --font-family-monospace: "Noto Sans Mono", monospace;
