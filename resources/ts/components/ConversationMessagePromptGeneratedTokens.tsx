@@ -31,11 +31,11 @@ export const ConversationMessagePromptGeneratedTokens = memo(
           .continueConversation({
             conversation_history: [
               {
-                role: "system",
+                role: "user",
                 content:
                   "You are a helpful assistant. Give short, precise answers.",
               },
-              { role: "user", content: "Hello, who are you?" },
+              { role: "assistant", content: "" },
               { role: "user", content: submittedPrompt },
             ],
           })

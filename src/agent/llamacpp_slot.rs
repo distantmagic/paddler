@@ -44,7 +44,7 @@ const CHAT_TEMPLATE_NAME: &str = "chat_template";
 fn minijinja_raise_exception(message: String) -> std::result::Result<String, Error> {
     Err(Error::new::<String>(
         ErrorKind::InvalidOperation,
-        format!("Chat template raised an exception: '{message}'"),
+        format!("Model's chat template raised an exception: '{message}'"),
     ))
 }
 
@@ -57,6 +57,8 @@ pub struct LlamaCppSlot {
     model_path: PathBuf,
     slot_index: u32,
     slot_status: Arc<SlotStatus>,
+    token_bos_str: String,
+    token_eos_str: String,
 }
 
 impl LlamaCppSlot {
@@ -71,6 +73,8 @@ impl LlamaCppSlot {
         model_path: PathBuf,
         slot_index: u32,
         slot_status: Arc<SlotStatus>,
+        token_bos_str: String,
+        token_eos_str: String,
     ) -> Result<Self> {
         debug_assert!(
             Arc::strong_count(&model) >= 1,
@@ -103,6 +107,8 @@ impl LlamaCppSlot {
             model_path,
             slot_index,
             slot_status,
+            token_bos_str,
+            token_eos_str,
         })
     }
 
@@ -280,7 +286,10 @@ impl Handler<ContinueConversationRequest> for LlamaCppSlot {
                 // Known uses:
                 // https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF
                 // https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF
-                bos_token => format!("{}", self.model.token_bos()),
+                bos_token => self.token_bos_str,
+                // Known uses:
+                // https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF
+                eos_token => self.token_eos_str,
                 messages => conversation_history,
                 // Known uses:
                 // https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF

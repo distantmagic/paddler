@@ -12,6 +12,7 @@ use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::model::LlamaModel;
+use llama_cpp_2::model::Special;
 use tokio::sync::oneshot;
 
 use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
@@ -81,6 +82,8 @@ impl LlamaCppArbiter {
 
             let slot_index = Arc::new(AtomicU32::new(0));
             let system = System::new();
+            let token_bos_str = model.token_to_str(model.token_bos(), Special::Tokenize)?;
+            let token_eos_str = model.token_to_str(model.token_eos(), Special::Tokenize)?;
 
             system.block_on(async move {
                 llamacpp_slot_addr_tx
@@ -97,6 +100,8 @@ impl LlamaCppArbiter {
                                 model_path.clone(),
                                 slot_index.fetch_add(1, Ordering::SeqCst),
                                 slot_aggregated_status_manager.bind_slot_status(),
+                                token_bos_str.clone(),
+                                token_eos_str.clone(),
                             )
                             .expect("Failed to create LlamaCppSlot")
                         },
