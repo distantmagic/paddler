@@ -17,13 +17,16 @@ use tokio::sync::oneshot;
 
 use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
 use crate::agent::llamacpp_slot::LlamaCppSlot;
+use crate::agent::model_metadata_holder::ModelMetadataHolder;
 use crate::agent::slot_aggregated_status_manager::SlotAggregatedStatusManager;
 use crate::agent_applicable_state::AgentApplicableState;
+use crate::model_metadata::ModelMetadata;
 
 pub struct LlamaCppArbiter {
     agent_name: Option<String>,
     applicable_state: AgentApplicableState,
     desired_slots_total: i32,
+    model_metadata_holder: Arc<ModelMetadataHolder>,
     slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
 }
 
@@ -32,12 +35,14 @@ impl LlamaCppArbiter {
         agent_name: Option<String>,
         applicable_state: AgentApplicableState,
         desired_slots_total: i32,
+        model_metadata_holder: Arc<ModelMetadataHolder>,
         slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
     ) -> Self {
         Self {
             agent_name,
             applicable_state,
             desired_slots_total,
+            model_metadata_holder,
             slot_aggregated_status_manager,
         }
     }
@@ -48,7 +53,8 @@ impl LlamaCppArbiter {
 
         let agent_name_clone = self.agent_name.clone();
         let desired_slots_total = self.desired_slots_total;
-        let model_parameters = self.applicable_state.model_parameters.clone();
+        let inference_parameters = self.applicable_state.inference_parameters.clone();
+        let model_metadata_holder = self.model_metadata_holder.clone();
         let model_path = self.applicable_state.model_path.clone();
         let slot_aggregated_status_manager = self.slot_aggregated_status_manager.clone();
 
@@ -57,7 +63,7 @@ impl LlamaCppArbiter {
                 Arc::new(LlamaBackend::init().context("Unable to initialize llama.cpp backend")?);
             let ctx_params = Arc::new(
                 LlamaContextParams::default()
-                    .with_n_ctx(NonZeroU32::new(model_parameters.context_size)),
+                    .with_n_ctx(NonZeroU32::new(inference_parameters.context_size)),
             );
             let backend_clone = backend.clone();
             let model = Arc::new(
@@ -71,13 +77,14 @@ impl LlamaCppArbiter {
 
             log::debug!("Model has meta parameters: {:?}", model.meta_count());
 
+            let mut model_metadata = ModelMetadata::new();
+
             for i in 0..model.meta_count() {
-                log::debug!(
-                    "Model meta parameter {i}: {}: {}",
-                    model.meta_key_by_index(i)?,
-                    model.meta_val_str_by_index(i)?,
-                );
+                model_metadata
+                    .set_meta_field(model.meta_key_by_index(i)?, model.meta_val_str_by_index(i)?);
             }
+
+            model_metadata_holder.set_model_metadata(model_metadata);
 
             let llama_chat_template_string = model
                 .chat_template(None)
@@ -106,15 +113,15 @@ impl LlamaCppArbiter {
                                 agent_name_clone.clone(),
                                 backend.clone(),
                                 ctx_params.clone(),
+                                inference_parameters.clone(),
                                 llama_chat_template_string.clone(),
                                 model.clone(),
-                                model_parameters.clone(),
                                 model_path.clone(),
                                 slot_index.fetch_add(1, Ordering::SeqCst),
                                 slot_aggregated_status_manager.bind_slot_status(),
                                 token_bos_str.clone(),
-                                token_nl_str.clone(),
                                 token_eos_str.clone(),
+                                token_nl_str.clone(),
                             )
                             .expect("Failed to create LlamaCppSlot")
                         },
@@ -153,7 +160,7 @@ mod tests {
     use crate::agent_desired_state::AgentDesiredState;
     use crate::converts_to_applicable_state::ConvertsToApplicableState as _;
     use crate::huggingface_model_reference::HuggingFaceModelReference;
-    use crate::model_parameters::ModelParameters;
+    use crate::inference_parameters::ModelParameters;
     use crate::request_params::GenerateTokensParams;
 
     const SLOTS_TOTAL: i32 = 2;
@@ -168,7 +175,7 @@ mod tests {
                 // filename: "Qwen3-8B-Q4_K_M.gguf".to_string(),
                 // repo: "Qwen/Qwen3-8B-GGUF".to_string(),
             }),
-            model_parameters: ModelParameters::default(),
+            inference_parameters: ModelParameters::default(),
         };
         let slot_aggregated_status_manager =
             Arc::new(SlotAggregatedStatusManager::new(SLOTS_TOTAL));

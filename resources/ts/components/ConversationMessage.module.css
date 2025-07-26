@@ -22,6 +22,19 @@
   grid-area: response;
   row-gap: var(--spacing-half);
 
+  blockquote {
+    border-left: 2px solid var(--color-border);
+    border-style: dashed;
+    margin: var(--spacing-base) 0;
+    padding: var(--spacing-base);
+  }
+
+  h1,
+  h2,
+  h3 {
+    margin-bottom: 0.25em;
+  }
+
   p {
     margin-bottom: var(--spacing-half);
   }

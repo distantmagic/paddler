@@ -20,6 +20,7 @@ use crate::agent::generate_tokens_request::GenerateTokensRequest;
 use crate::agent::llamacpp_arbiter::LlamaCppArbiter;
 use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
 use crate::agent::llamacpp_slot::LlamaCppSlot;
+use crate::agent::model_metadata_holder::ModelMetadataHolder;
 use crate::agent::slot_aggregated_status_manager::SlotAggregatedStatusManager;
 use crate::agent_applicable_state::AgentApplicableState;
 use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
@@ -34,6 +35,7 @@ pub struct LlamaCppArbiterService {
     generate_tokens_request_rx: mpsc::UnboundedReceiver<GenerateTokensRequest>,
     is_state_applied: bool,
     llamacpp_arbiter_controller: Option<LlamaCppArbiterController>,
+    model_metadata_holder: Arc<ModelMetadataHolder>,
     slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
 }
 
@@ -44,6 +46,7 @@ impl LlamaCppArbiterService {
         continue_conversation_request_rx: mpsc::UnboundedReceiver<ContinueConversationRequest>,
         desired_slots_total: i32,
         generate_tokens_request_rx: mpsc::UnboundedReceiver<GenerateTokensRequest>,
+        model_metadata_holder: Arc<ModelMetadataHolder>,
         slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
     ) -> Result<Self> {
         Ok(LlamaCppArbiterService {
@@ -55,6 +58,7 @@ impl LlamaCppArbiterService {
             generate_tokens_request_rx,
             is_state_applied: true,
             llamacpp_arbiter_controller: None,
+            model_metadata_holder,
             slot_aggregated_status_manager,
         })
     }
@@ -74,6 +78,7 @@ impl LlamaCppArbiterService {
                     self.agent_name.clone(),
                     agent_applicable_state,
                     self.desired_slots_total,
+                    self.model_metadata_holder.clone(),
                     self.slot_aggregated_status_manager.clone(),
                 )
                 .spawn()

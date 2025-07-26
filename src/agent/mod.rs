@@ -10,6 +10,7 @@ pub mod llamacpp_arbiter_controller;
 pub mod llamacpp_arbiter_service;
 pub mod llamacpp_slot;
 pub mod management_socket_client_service;
+pub mod model_metadata_holder;
 pub mod receive_tokens_stopper_collection;
 pub mod receive_tokens_stopper_drop_guard;
 pub mod reconciliation_queue;

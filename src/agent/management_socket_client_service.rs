@@ -45,10 +45,12 @@ use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::produces_snapshot::ProducesSnapshot;
 use crate::jsonrpc::ErrorEnvelope;
 use crate::service::Service;
+use crate::agent::model_metadata_holder::ModelMetadataHolder;
 
 pub struct ManagementSocketClientService {
     continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
     generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
+    model_metadata_holder: Arc<ModelMetadataHolder>,
     name: Option<String>,
     receive_tokens_stopper_collection: Arc<ReceiveTokensStopperCollection>,
     reconciliation_queue: Arc<ReconciliationQueue>,
@@ -61,6 +63,7 @@ impl ManagementSocketClientService {
         continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
         generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
         management_addr: SocketAddr,
+        model_metadata_holder: Arc<ModelMetadataHolder>,
         name: Option<String>,
         reconciliation_queue: Arc<ReconciliationQueue>,
         slot_aggregated_status: Arc<SlotAggregatedStatus>,
@@ -70,6 +73,7 @@ impl ManagementSocketClientService {
         Ok(ManagementSocketClientService {
             continue_conversation_request_tx,
             generate_tokens_request_tx,
+            model_metadata_holder,
             name,
             receive_tokens_stopper_collection: Arc::new(ReceiveTokensStopperCollection::new()),
             reconciliation_queue,
@@ -131,11 +135,13 @@ impl ManagementSocketClientService {
         Ok(())
     }
 
+    #[expect(clippy::too_many_arguments)]
     async fn handle_deserialized_message(
         connection_close_tx: broadcast::Sender<()>,
         continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
         generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
         message_tx: mpsc::UnboundedSender<ManagementJsonRpcMessage>,
+        model_metadata_holder: Arc<ModelMetadataHolder>,
         deserialized_message: JsonRpcMessage,
         receive_tokens_stopper_collection: Arc<ReceiveTokensStopperCollection>,
         reconciliation_queue: Arc<ReconciliationQueue>,
@@ -208,6 +214,17 @@ impl ManagementSocketClientService {
                 )
                 .await
             }
+            JsonRpcMessage::Request(RequestEnvelope {
+                id,
+                request: JsonRpcRequest::GetModelMetadata,
+            }) => Ok(
+                message_tx.send(ManagementJsonRpcMessage::Response(ResponseEnvelope {
+                    request_id: id.clone(),
+                    response: JsonRpcResponse::ModelMetadata(
+                        model_metadata_holder.get_model_metadata(),
+                    ),
+                }))?,
+            ),
         }
     }
 
@@ -216,6 +233,7 @@ impl ManagementSocketClientService {
         connection_close_tx: broadcast::Sender<()>,
         continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
         generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
+        model_metadata_holder: Arc<ModelMetadataHolder>,
         receive_tokens_stopper_collection: Arc<ReceiveTokensStopperCollection>,
         message_tx: mpsc::UnboundedSender<ManagementJsonRpcMessage>,
         msg: Message,
@@ -238,6 +256,7 @@ impl ManagementSocketClientService {
                             continue_conversation_request_tx,
                             generate_tokens_request_tx,
                             message_tx,
+                            model_metadata_holder,
                             match serde_json::from_str::<JsonRpcMessage>(&text).context(format!("Failed to parse JSON-RPC message: {text}")) {
                                 Ok(message) => message,
                                 Err(err) => {
@@ -399,6 +418,7 @@ impl ManagementSocketClientService {
                                     connection_close_tx.clone(),
                                     self.continue_conversation_request_tx.clone(),
                                     self.generate_tokens_request_tx.clone(),
+                                    self.model_metadata_holder.clone(),
                                     self.receive_tokens_stopper_collection.clone(),
                                     message_tx.clone(),
                                     msg,

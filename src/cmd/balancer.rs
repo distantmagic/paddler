@@ -17,6 +17,7 @@ use crate::balancer::inference_service::configuration::Configuration as Inferenc
 use crate::balancer::inference_service::InferenceService;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::management_service::ManagementService;
+use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
 use crate::balancer::state_database::File;
 use crate::balancer::state_database::Memory;
 use crate::balancer::state_database::StateDatabase;
@@ -120,6 +121,7 @@ impl Handler for Balancer {
             self.max_buffered_requests,
         ));
         let generate_tokens_sender_collection = Arc::new(GenerateTokensSenderCollection::new());
+        let model_metadata_sender_collection = Arc::new(ModelMetadataSenderCollection::new());
         let mut service_manager = ServiceManager::new();
         let state_database: Arc<dyn StateDatabase> = match &self.state_database {
             DatabaseType::File(path) => Arc::new(File::new(path.to_owned())),
@@ -144,6 +146,7 @@ impl Handler for Balancer {
             buffered_request_manager.clone(),
             self.get_management_service_configuration(),
             generate_tokens_sender_collection.clone(),
+            model_metadata_sender_collection,
             state_database,
             #[cfg(feature = "web_admin_panel")]
             self.get_web_admin_panel_service_configuration(),

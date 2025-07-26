@@ -22,12 +22,12 @@ mod tests {
 
     use super::*;
     use crate::agent_desired_model::AgentDesiredModel;
-    use crate::model_parameters::ModelParameters;
+    use crate::inference_parameters::InferenceParameters;
 
     async fn subtest_store_desired_state<TDatabase: StateDatabase>(db: &TDatabase) -> Result<()> {
         let desired_state = AgentDesiredState {
+            inference_parameters: InferenceParameters::default(),
             model: AgentDesiredModel::Local("test_model_path".to_string()),
-            model_parameters: ModelParameters::default(),
         };
 
         db.store_desired_state(&desired_state).await?;

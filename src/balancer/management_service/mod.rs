@@ -15,6 +15,7 @@ use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
+use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
 use crate::balancer::state_database::StateDatabase;
 #[cfg(feature = "web_admin_panel")]
 use crate::balancer::web_admin_panel_service::configuration::Configuration as WebAdminPanelServiceConfiguration;
@@ -26,6 +27,7 @@ pub struct ManagementService {
     buffered_request_manager: Arc<BufferedRequestManager>,
     configuration: ManagementServiceConfiguration,
     generate_tokens_sender_collection: Arc<GenerateTokensSenderCollection>,
+    model_metadata_sender_collection: Arc<ModelMetadataSenderCollection>,
     state_database: Arc<dyn StateDatabase>,
     #[cfg(feature = "web_admin_panel")]
     web_admin_panel_service_configuration: Option<WebAdminPanelServiceConfiguration>,
@@ -37,6 +39,7 @@ impl ManagementService {
         buffered_request_manager: Arc<BufferedRequestManager>,
         configuration: ManagementServiceConfiguration,
         generate_tokens_sender_collection: Arc<GenerateTokensSenderCollection>,
+        model_metadata_sender_collection: Arc<ModelMetadataSenderCollection>,
         state_database: Arc<dyn StateDatabase>,
         #[cfg(feature = "web_admin_panel")] web_admin_panel_service_configuration: Option<
             WebAdminPanelServiceConfiguration,
@@ -47,6 +50,7 @@ impl ManagementService {
             buffered_request_manager,
             configuration,
             generate_tokens_sender_collection,
+            model_metadata_sender_collection,
             state_database,
             #[cfg(feature = "web_admin_panel")]
             web_admin_panel_service_configuration,
@@ -76,6 +80,8 @@ impl Service for ManagementService {
         let cors_allowed_hosts_arc = Arc::new(cors_allowed_hosts);
         let generate_tokens_sender_collection: Data<GenerateTokensSenderCollection> =
             Data::from(self.generate_tokens_sender_collection.clone());
+        let model_metadata_sender_collection: Data<ModelMetadataSenderCollection> =
+            Data::from(self.model_metadata_sender_collection.clone());
         let state_database: Data<dyn StateDatabase> = Data::from(self.state_database.clone());
 
         HttpServer::new(move || {
@@ -84,9 +90,11 @@ impl Service for ManagementService {
                 .app_data(agent_pool.clone())
                 .app_data(buffered_request_manager.clone())
                 .app_data(generate_tokens_sender_collection.clone())
+                .app_data(model_metadata_sender_collection.clone())
                 .app_data(state_database.clone())
                 .configure(http_route::api::get_agents::register)
                 .configure(http_route::api::get_agents_stream::register)
+                .configure(http_route::api::get_model_metadata::register)
                 .configure(http_route::api::put_agent_desired_state::register)
                 .configure(http_route::api::ws_agent_socket::register)
                 .configure(http_route::get_metrics::register)

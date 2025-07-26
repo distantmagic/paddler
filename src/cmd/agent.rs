@@ -13,6 +13,7 @@ use crate::agent::continue_conversation_request::ContinueConversationRequest;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
 use crate::agent::llamacpp_arbiter_service::LlamaCppArbiterService;
 use crate::agent::management_socket_client_service::ManagementSocketClientService;
+use crate::agent::model_metadata_holder::ModelMetadataHolder;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
 use crate::agent::reconciliation_service::ReconciliationService;
 use crate::agent::slot_aggregated_status_manager::SlotAggregatedStatusManager;
@@ -42,6 +43,7 @@ impl Handler for Agent {
             mpsc::unbounded_channel::<GenerateTokensRequest>();
 
         let agent_applicable_state_holder = Arc::new(AgentApplicableStateHolder::new());
+        let model_metadata_holder = Arc::new(ModelMetadataHolder::new());
         let reconciliation_queue = Arc::new(ReconciliationQueue::new()?);
         let mut service_manager = ServiceManager::new();
         let slot_aggregated_status_manager = Arc::new(SlotAggregatedStatusManager::new(self.slots));
@@ -53,6 +55,7 @@ impl Handler for Agent {
                 continue_conversation_request_rx,
                 self.slots,
                 generate_tokens_request_rx,
+                model_metadata_holder.clone(),
                 slot_aggregated_status_manager.clone(),
             )
             .await?,
@@ -62,6 +65,7 @@ impl Handler for Agent {
             continue_conversation_request_tx,
             generate_tokens_request_tx,
             self.management_addr,
+            model_metadata_holder,
             self.name.clone(),
             reconciliation_queue.clone(),
             slot_aggregated_status_manager

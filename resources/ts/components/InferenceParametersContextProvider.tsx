@@ -1,12 +1,12 @@
 import React, { useMemo, useState, type ReactNode } from "react";
 
-import { type ModelParameters } from "../ModelParameters.type";
+import { type InferenceParameters } from "../InferenceParameters.type";
 import {
-  ModelParametersContext,
-  type ModelParametersContextValue,
-} from "../contexts/ModelParametersContext";
+  InferenceParametersContext,
+  type InferenceParametersContextValue,
+} from "../contexts/InferenceParametersContext";
 
-const defaultModelParameters: ModelParameters = Object.freeze({
+const defaultInferenceParameters: InferenceParameters = Object.freeze({
   batch_n_tokens: 512,
   context_size: 4096,
   min_p: 0.05,
@@ -19,19 +19,19 @@ const defaultModelParameters: ModelParameters = Object.freeze({
   top_p: 0.3,
 });
 
-export function ModelParametersContextProvider({
+export function InferenceParametersContextProvider({
   children,
 }: {
   children: ReactNode;
 }) {
-  const [parameters, setParameters] = useState<ModelParameters>(
-    defaultModelParameters,
+  const [parameters, setParameters] = useState<InferenceParameters>(
+    defaultInferenceParameters,
   );
 
-  const value = useMemo<ModelParametersContextValue>(
+  const value = useMemo<InferenceParametersContextValue>(
     function () {
       function setPartialParameters(
-        partialParameters: Partial<ModelParameters>,
+        partialParameters: Partial<InferenceParameters>,
       ) {
         setParameters({
           ...parameters,
@@ -39,7 +39,7 @@ export function ModelParametersContextProvider({
         });
       }
 
-      function setParameter(name: keyof ModelParameters, value: number) {
+      function setParameter(name: keyof InferenceParameters, value: number) {
         setPartialParameters({
           ...parameters,
           ...{
@@ -58,8 +58,8 @@ export function ModelParametersContextProvider({
   );
 
   return (
-    <ModelParametersContext.Provider value={value}>
+    <InferenceParametersContext.Provider value={value}>
       {children}
-    </ModelParametersContext.Provider>
+    </InferenceParametersContext.Provider>
   );
 }

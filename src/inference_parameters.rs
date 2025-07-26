@@ -2,7 +2,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct ModelParameters {
+pub struct InferenceParameters {
     pub batch_n_tokens: usize,
     pub context_size: u32,
     /// The minimum probability for a token to be considered, relative to the probability of the most likely token
@@ -21,7 +21,7 @@ pub struct ModelParameters {
     pub top_p: f32,
 }
 
-impl Default for ModelParameters {
+impl Default for InferenceParameters {
     fn default() -> Self {
         Self {
             batch_n_tokens: 512,

@@ -45,9 +45,13 @@ export const ConversationMessagePromptGeneratedTokens = memo(
           .continueConversation({
             conversation_history: [
               {
-                role: "system",
+                role: "user",
                 content:
-                  "You are a helpful assistant. Give short, precise answers.",
+                  "You are a helpful assistant. Give engaging, short, precise answers. Be friendly, supportive, use emojis.",
+              },
+              {
+                role: "assistant",
+                content: "Hello! How can I help you today?",
               },
               { role: "user", content: submittedPrompt },
             ],

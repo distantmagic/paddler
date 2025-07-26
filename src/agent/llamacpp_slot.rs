@@ -33,7 +33,7 @@ use crate::agent::slot_status::SlotStatus;
 use crate::generated_token::GeneratedToken;
 use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::generated_token_result::GeneratedTokenResult;
-use crate::model_parameters::ModelParameters;
+use crate::inference_parameters::InferenceParameters;
 use crate::request_params::ContinueConversationParams;
 use crate::request_params::GenerateTokensParams;
 
@@ -50,16 +50,16 @@ fn minijinja_raise_exception(message: String) -> std::result::Result<String, Err
 
 pub struct LlamaCppSlot {
     agent_name: Option<String>,
+    inference_parameters: InferenceParameters,
     llama_context: LlamaContext<'static>,
     minijinja_env: Environment<'static>,
     model: Arc<LlamaModel>,
-    model_parameters: ModelParameters,
     model_path: PathBuf,
     slot_index: u32,
     slot_status: Arc<SlotStatus>,
     token_bos_str: String,
-    token_nl_str: String,
     token_eos_str: String,
+    token_nl_str: String,
 }
 
 impl LlamaCppSlot {
@@ -68,15 +68,15 @@ impl LlamaCppSlot {
         agent_name: Option<String>,
         backend: Arc<LlamaBackend>,
         ctx_params: Arc<LlamaContextParams>,
+        inference_parameters: InferenceParameters,
         llama_chat_template_string: String,
         model: Arc<LlamaModel>,
-        model_parameters: ModelParameters,
         model_path: PathBuf,
         slot_index: u32,
         slot_status: Arc<SlotStatus>,
         token_bos_str: String,
-        token_nl_str: String,
         token_eos_str: String,
+        token_nl_str: String,
     ) -> Result<Self> {
         debug_assert!(
             Arc::strong_count(&model) >= 1,
@@ -102,16 +102,16 @@ impl LlamaCppSlot {
 
         Ok(Self {
             agent_name,
+            inference_parameters,
             llama_context,
             minijinja_env,
             model,
-            model_parameters,
             model_path,
             slot_index,
             slot_status,
             token_bos_str,
-            token_nl_str,
             token_eos_str,
+            token_nl_str,
         })
     }
 
@@ -172,7 +172,7 @@ impl LlamaCppSlot {
         self.llama_context.clear_kv_cache();
 
         let tokens_list = self.model.str_to_token(&prompt, AddBos::Always)?;
-        let mut batch = LlamaBatch::new(self.model_parameters.batch_n_tokens, 1);
+        let mut batch = LlamaBatch::new(self.inference_parameters.batch_n_tokens, 1);
         let last_index = tokens_list.len() as i32 - 1;
 
         for (i, token) in (0_i32..).zip(tokens_list.into_iter()) {
@@ -186,15 +186,15 @@ impl LlamaCppSlot {
         let mut n_cur = batch.n_tokens();
         let mut decoder = encoding_rs::UTF_8.new_decoder();
         let mut sampler = LlamaSampler::chain_simple([
-            LlamaSampler::temp(self.model_parameters.temperature),
-            LlamaSampler::top_k(self.model_parameters.top_k),
-            LlamaSampler::top_p(self.model_parameters.top_p, 0),
-            LlamaSampler::min_p(self.model_parameters.min_p, 0),
+            LlamaSampler::temp(self.inference_parameters.temperature),
+            LlamaSampler::top_k(self.inference_parameters.top_k),
+            LlamaSampler::top_p(self.inference_parameters.top_p, 0),
+            LlamaSampler::min_p(self.inference_parameters.min_p, 0),
             LlamaSampler::penalties(
-                self.model_parameters.penalty_last_n,
-                self.model_parameters.penalty_repeat,
-                self.model_parameters.penalty_frequency,
-                self.model_parameters.penalty_presence,
+                self.inference_parameters.penalty_last_n,
+                self.inference_parameters.penalty_repeat,
+                self.inference_parameters.penalty_frequency,
+                self.inference_parameters.penalty_presence,
             ),
             LlamaSampler::greedy(),
         ]);

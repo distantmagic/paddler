@@ -1,4 +1,4 @@
-export type ModelParameters = {
+export type InferenceParameters = {
   batch_n_tokens: number;
   context_size: number;
   min_p: number;

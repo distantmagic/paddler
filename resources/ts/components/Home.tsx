@@ -3,7 +3,7 @@ import { Route, Router, Switch } from "wouter";
 
 import { AgentListPage } from "./AgentListPage";
 import { ChangeModelPage } from "./ChangeModelPage";
-import { ModelParametersContextProvider } from "./ModelParametersContextProvider";
+import { InferenceParametersContextProvider } from "./InferenceParametersContextProvider";
 import { PromptContextProvider } from "./PromptContextProvider";
 import { PromptPage } from "./PromptPage";
 import { WorkbenchLayout } from "./WorkbenchLayout";
@@ -23,9 +23,9 @@ export function Home({
             <AgentListPage managementAddr={managementAddr} />
           </Route>
           <Route path="/model">
-            <ModelParametersContextProvider>
+            <InferenceParametersContextProvider>
               <ChangeModelPage managementAddr={managementAddr} />
-            </ModelParametersContextProvider>
+            </InferenceParametersContextProvider>
           </Route>
           <Route path="/prompt">
             <PromptContextProvider>

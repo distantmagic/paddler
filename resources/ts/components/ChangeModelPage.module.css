@@ -12,7 +12,7 @@
 .changeModelPage__asideInfo {
   background-color: var(--color-note-background);
   border-radius: 20px 50px 20px 20px;
-  border: 2px solid var(--color-border);
+  border: 2px dashed var(--color-border);
   display: flex;
   flex-direction: column;
   grid-area: aside;
@@ -63,7 +63,7 @@
 
 .changeModelPage__details {
   background-color: var(--color-note-background);
-  border: 2px solid var(--color-border);
+  border: 2px dashed var(--color-border);
   margin: var(--spacing-base) 0;
 
   > summary {

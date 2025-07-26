@@ -7,12 +7,12 @@ use serde::Serialize;
 use crate::agent_applicable_state::AgentApplicableState;
 use crate::agent_desired_model::AgentDesiredModel;
 use crate::converts_to_applicable_state::ConvertsToApplicableState;
-use crate::model_parameters::ModelParameters;
+use crate::inference_parameters::InferenceParameters;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AgentDesiredState {
+    pub inference_parameters: InferenceParameters,
     pub model: AgentDesiredModel,
-    pub model_parameters: ModelParameters,
 }
 
 #[async_trait]
@@ -30,7 +30,7 @@ impl ConvertsToApplicableState for AgentDesiredState {
         };
 
         Ok(Some(AgentApplicableState {
-            model_parameters: self.model_parameters.clone(),
+            inference_parameters: self.inference_parameters.clone(),
             model_path,
         }))
     }

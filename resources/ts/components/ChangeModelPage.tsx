@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { useLocation } from "wouter";
 
-import { ModelParametersContext } from "../contexts/ModelParametersContext";
+import { InferenceParametersContext } from "../contexts/InferenceParametersContext";
 import { urlToAgentDesiredModel } from "../urlToAgentDesiredModel";
 import {
   changeModelPage,
@@ -23,14 +23,14 @@ import {
   changeModelPage__parameters,
   changeModelPage__submitButton,
 } from "./ChangeModelPage.module.css";
-import { ModelParameterInput } from "./ModelParameterInput";
+import { InferenceParameterInput } from "./InferenceParameterInput";
 
 export function ChangeModelPage({
   managementAddr,
 }: {
   managementAddr: string;
 }) {
-  const { parameters } = useContext(ModelParametersContext);
+  const { parameters } = useContext(InferenceParametersContext);
   const [, navigate] = useLocation();
   const [modelUriString, setModelUriString] = useState(
     "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/blob/main/Qwen3-0.6B-Q8_0.gguf",
@@ -85,8 +85,8 @@ export function ChangeModelPage({
       }
 
       return JSON.stringify({
+        inference_parameters: parameters,
         model: agentDesiredModel,
-        model_parameters: parameters,
       });
     },
     [agentDesiredModel, isAgentDesiredModelValid, parameters],
@@ -197,40 +197,43 @@ export function ChangeModelPage({
                 handle LLMs just fine. 🙂
               </p>
             </details>
-            <ModelParameterInput
+            <InferenceParameterInput
               description="Batch Size (higher = more memory usage, lower = less inference speed)"
               name="batch_n_tokens"
             />
-            <ModelParameterInput
+            <InferenceParameterInput
               description="Context Size (higher = longer chat history, lower = less memory usage)"
               name="context_size"
             />
-            <ModelParameterInput
+            <InferenceParameterInput
               description="Minimum token probability to consider for selection"
               name="min_p"
             />
-            <ModelParameterInput
+            <InferenceParameterInput
               description="Frequency Penalty"
               name="penalty_frequency"
             />
-            <ModelParameterInput
+            <InferenceParameterInput
               description="Number of last tokens to consider for penalty (-1 = entire context, 0 = disabled)"
               name="penalty_last_n"
             />
-            <ModelParameterInput
+            <InferenceParameterInput
               description="Presence Penalty"
               name="penalty_presence"
             />
-            <ModelParameterInput
+            <InferenceParameterInput
               description="Repeated Token Penalty"
               name="penalty_repeat"
             />
-            <ModelParameterInput description="Temperature" name="temperature" />
-            <ModelParameterInput
+            <InferenceParameterInput
+              description="Temperature"
+              name="temperature"
+            />
+            <InferenceParameterInput
               description="Number of tokens to consider for selection"
               name="top_k"
             />
-            <ModelParameterInput
+            <InferenceParameterInput
               description="Probability threshold for selecting tokens"
               name="top_p"
             />
