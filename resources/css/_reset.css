@@ -86,7 +86,7 @@ body {
   flex-direction: column;
   font-family: var(--font-family-monospace);
   font-size: var(--font-size-base);
-  line-height: 1.5;
+  line-height: var(--line-height-base);
   margin: 0;
   overflow-y: scroll;
   padding: 0;

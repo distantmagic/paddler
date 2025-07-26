@@ -21,6 +21,19 @@
   flex-direction: column;
   grid-area: response;
   row-gap: var(--spacing-half);
+
+  p {
+    margin-bottom: var(--spacing-half);
+  }
+
+  ol,
+  ul {
+    margin-left: var(--spacing-2x);
+
+    li {
+      margin-bottom: var(--spacing-half);
+    }
+  }
 }
 
 .conversationMessage__thoughts {

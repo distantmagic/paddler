@@ -1,4 +1,5 @@
 import React from "react";
+import Markdown from "react-markdown";
 
 import {
   conversationMessage,
@@ -22,7 +23,7 @@ export function ConversationMessage({
     <div className={conversationMessage}>
       <strong className={conversationMessage__author}>{author}:</strong>
       <div className={conversationMessage__response}>
-        <div>{isThinking ? "🤔" : response}</div>
+        <div>{isThinking ? "🤔" : <Markdown>{response}</Markdown>}</div>
       </div>
       <div className={conversationMessage__thoughts}>{thoughts}</div>
     </div>
