@@ -5,6 +5,7 @@ use std::str::FromStr;
 use anyhow::anyhow;
 use anyhow::Error;
 use anyhow::Result;
+use indoc::formatdoc;
 use url::Url;
 
 #[derive(Clone)]
@@ -31,7 +32,12 @@ impl FromStr for StateDatabaseType {
                 }
 
                 if !Path::new(path).is_absolute() {
-                    return Err(anyhow!("File path must be absolute: {path}"));
+                    let expanded_path = shellexpand::tilde(path);
+
+                    return Err(anyhow!(formatdoc! {"
+                        To avoid ambiguity, and to stay safe, we require absolute paths. Without asbolute paths, Paddler would need to guess the correct file path.
+                        The path you wanted is probably '{expanded_path}'. If that is so, pass it as '--state-database file://{expanded_path}'.
+                    "}));
                 }
 
                 Ok(StateDatabaseType::File(PathBuf::from(path)))
