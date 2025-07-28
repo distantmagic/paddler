@@ -121,7 +121,7 @@
   padding: var(--spacing-base);
 
   &:focus {
-    outline: 4px solid var(--color-highlight);
+    outline: 4px solid var(--color-highlight-1);
   }
 }
 

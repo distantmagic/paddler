@@ -1,7 +1,15 @@
 .modalWindowBackdrop {
-  backdrop-filter: blur(5px);
+  --color-modal-window-background: var(--color-body-background);
+  --height-modal-window-titlebar: 42px;
+  --max-height-modal-window: calc(100dvh - 2 * var(--spacing-base));
+  --max-width-modal-window: 800px;
+
+  align-items: center;
+  backdrop-filter: brightness(0.5);
   bottom: 0;
+  display: grid;
   height: 100%;
+  justify-content: center;
   left: 0;
   overflow: hidden;
   padding: var(--spacing-base);
@@ -12,25 +20,32 @@
   z-index: var(--z-index-modal);
 }
 
+.modalWindowBackdrop ~ .modalWindowBackdrop {
+  --max-height-modal-window: calc(100dvh - 2 * var(--spacing-2x));
+  --max-width-modal-window: calc(800px - 2 * var(--spacing-base));
+}
+
 .modalWindow {
-  background-color: var(--color-body-background);
-  border: 2px solid var(--color-border);
   display: grid;
   grid-template-rows: auto 1fr;
+  height: 100%;
   left: 50%;
-  max-height: calc(100dvh - 2 * var(--spacing-base));
-  max-width: 600px;
+  max-height: var(--max-height-modal-window);
+  max-width: var(--max-width-modal-window);
   position: absolute;
   transform: translateX(-50%);
   width: 100%;
 }
 
 .modalWindow__closeButton {
+  align-items: center;
   appearance: none;
   background: none;
   border: none;
   display: flex;
-  padding: 0 var(--spacing-base);
+  height: 100%;
+  justify-content: center;
+  width: var(--height-modal-window-titlebar);
 
   img {
     height: 24px;
@@ -39,16 +54,24 @@
 }
 
 .modalWindow__content {
+  background-color: var(--color-modal-window-background);
   overflow-y: auto;
 }
 
 .modalWindow__titleBar {
   align-items: center;
-  border-bottom: 2px solid var(--color-border);
+  background-color: var(--color-highlight-2);
+  border-radius: 10% 20% 0 0;
   display: grid;
   grid-template-columns: 1fr auto;
+  height: var(--height-modal-window-titlebar);
+  padding-top: 4px;
 }
 
 .modalWindow__titleBar__title {
-  padding: var(--spacing-base);
+  align-items: center;
+  display: flex;
+  font-weight: bold;
+  height: 100%;
+  padding: 0 var(--spacing-base);
 }

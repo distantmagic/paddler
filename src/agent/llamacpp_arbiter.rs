@@ -164,7 +164,7 @@ mod tests {
     use crate::agent_desired_state::AgentDesiredState;
     use crate::converts_to_applicable_state::ConvertsToApplicableState as _;
     use crate::huggingface_model_reference::HuggingFaceModelReference;
-    use crate::inference_parameters::ModelParameters;
+    use crate::inference_parameters::InferenceParameters;
     use crate::request_params::GenerateTokensParams;
 
     const SLOTS_TOTAL: i32 = 2;
@@ -176,10 +176,8 @@ mod tests {
                 filename: "Qwen3-0.6B-Q8_0.gguf".to_string(),
                 repo_id: "Qwen/Qwen3-0.6B-GGUF".to_string(),
                 revision: "main".to_string(),
-                // filename: "Qwen3-8B-Q4_K_M.gguf".to_string(),
-                // repo: "Qwen/Qwen3-8B-GGUF".to_string(),
             }),
-            inference_parameters: ModelParameters::default(),
+            inference_parameters: InferenceParameters::default(),
         };
         let slot_aggregated_status_manager =
             Arc::new(SlotAggregatedStatusManager::new(SLOTS_TOTAL));
@@ -191,9 +189,10 @@ mod tests {
 
         let llamacpp_arbiter = LlamaCppArbiter::new(
             Some("test_agent".to_string()),
-            applicable_state,
-            Arc::new(ChatTemplateHolder::new()),
             SLOTS_TOTAL,
+            applicable_state.inference_parameters,
+            Arc::new(ModelMetadataHolder::new()),
+            applicable_state.model_path.expect("Model path is required"),
             slot_aggregated_status_manager,
         );
         let controller = llamacpp_arbiter.spawn().await?;

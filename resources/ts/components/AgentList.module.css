@@ -35,7 +35,7 @@
 
 .agentList__model {
   align-items: center;
-  column-gap: var(--spacing-half);
+  column-gap: var(--spacing-base);
   display: flex;
   flex-direction: row;
 }

@@ -1,0 +1,3 @@
+.modelMetadataPreviewButton {
+  composes: modelDetailsPreviewButton from "./modelDetailsPreviewButton.module.css";
+}

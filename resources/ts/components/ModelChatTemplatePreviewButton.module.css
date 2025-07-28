@@ -1,0 +1,3 @@
+.modelChatTemplatePreviewButton {
+  composes: modelDetailsPreviewButton from "./modelDetailsPreviewButton.module.css";
+}

@@ -1,4 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
+
+import { useModelMetadata } from "../hooks/useModelMetadata";
+import { ModalWindow } from "./ModalWindow";
+import { ModelMetadata } from "./ModelMetadata";
+import { ModelMetadataContextProvider } from "./ModelMetadataContextProvider";
 
 import iconHourglass from "../../icons/hourglass.svg";
 import {
@@ -6,121 +11,48 @@ import {
   modelMetadataLoader__spinner,
 } from "./ModelMetadataLoader.module.css";
 
-type ModelMetadataResult =
-  | {
-      error: null;
-      loading: false;
-      metadata: null | Record<string, string>;
-      ok: true;
-    }
-  | {
-      error: string;
-      loading: false;
-      metadata: null;
-      ok: false;
-    }
-  | {
-      error: null;
-      loading: true;
-      metadata: null;
-      ok: false;
-    };
-
-const defaultModelMetadataResult: ModelMetadataResult = Object.freeze({
-  error: null,
-  loading: true,
-  metadata: null,
-  ok: false,
-});
-
 export function ModelMetadataLoader({
   agentId,
+  agentName,
   managementAddr,
-  modelPath,
+  onClose,
 }: {
   agentId: string;
+  agentName: null | string;
   managementAddr: string;
-  modelPath: string;
+  onClose(this: void): void;
 }) {
-  const [modelMetadataResult, setModelMetadataResult] =
-    useState<ModelMetadataResult>(defaultModelMetadataResult);
-
-  useEffect(
-    function () {
-      const abortController = new AbortController();
-
-      fetch(`//${managementAddr}/api/v1/agent/${agentId}/model_metadata`, {
-        signal: abortController.signal,
-      })
-        .then(function (response) {
-          if (!response.ok) {
-            throw new Error(
-              `Failed to fetch model metadata: ${response.statusText}`,
-            );
-          }
-
-          return response.json();
-        })
-        .then(function (metadata: null | { metadata: Record<string, string> }) {
-          setModelMetadataResult({
-            error: null,
-            loading: false,
-            metadata: metadata?.metadata ?? null,
-            ok: true,
-          });
-        })
-        .catch(function (error: unknown) {
-          setModelMetadataResult({
-            error: error instanceof Error ? error.message : String(error),
-            loading: false,
-            metadata: null,
-            ok: false,
-          });
-        });
-
-      return function () {
-        abortController.abort();
-      };
-    },
-    [agentId, managementAddr, setModelMetadataResult],
-  );
+  const {
+    result: { error, loading, metadata, ok },
+  } = useModelMetadata({
+    agentId,
+    managementAddr,
+  });
 
   return (
     <div className={modelMetadataLoader}>
-      <dl>
-        <dt>Model Path:</dt>
-        <dd>{modelPath}</dd>
-      </dl>
-      {modelMetadataResult.loading && (
-        <div className={modelMetadataLoader__spinner}>
-          <img src={iconHourglass} alt="Loading..." />
-          <span>Loading model metadata...</span>
-        </div>
+      {loading && (
+        <ModalWindow onClose={onClose} title={`${agentName} / Loading`}>
+          <div className={modelMetadataLoader__spinner}>
+            <img src={iconHourglass} alt="Loading..." />
+            <span>Loading model metadata...</span>
+          </div>
+        </ModalWindow>
       )}
-      {modelMetadataResult.error && (
-        <div>
-          <span>Error: {modelMetadataResult.error}</span>
-        </div>
+      {error && (
+        <ModalWindow onClose={onClose} title={`${agentName} / Error`}>
+          <span>Error: {error}</span>
+        </ModalWindow>
       )}
-      {modelMetadataResult.ok && !modelMetadataResult.metadata && (
-        <div>
+      {ok && !metadata && (
+        <ModalWindow onClose={onClose} title={`${agentName}`}>
           <span>No model loaded</span>
-        </div>
+        </ModalWindow>
       )}
-      {modelMetadataResult.metadata && (
-        <dl>
-          {Object.entries(modelMetadataResult.metadata).map(function ([
-            key,
-            value,
-          ]) {
-            return (
-              <React.Fragment key={key}>
-                <dt>{key}:</dt>
-                <dd>{value}</dd>
-              </React.Fragment>
-            );
-          })}
-        </dl>
+      {metadata && (
+        <ModelMetadataContextProvider metadata={metadata}>
+          <ModelMetadata agentName={agentName} onClose={onClose} />
+        </ModelMetadataContextProvider>
       )}
     </div>
   );

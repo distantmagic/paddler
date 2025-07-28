@@ -1,7 +1,7 @@
 import React, { CSSProperties } from "react";
 
 import { type Agent } from "../schemas/Agent";
-import { AgentListModelDetailsButton } from "./AgentListModelDetailsButton";
+import { ModelMetadataPreviewButton } from "./ModelMetadataPreviewButton";
 
 import {
   agentList,
@@ -9,6 +9,21 @@ import {
   agentList__progress,
   agentsTable,
 } from "./AgentList.module.css";
+
+function displayLastPathPart(path: string | null | undefined): string {
+  if (!path) {
+    return "";
+  }
+
+  const parts = path.split("/");
+  const last = parts.pop();
+
+  if (!last) {
+    return "";
+  }
+
+  return last;
+}
 
 export function AgentsList({
   agents,
@@ -43,10 +58,13 @@ export function AgentsList({
                 {"string" === typeof model_path ? (
                   <div className={agentList__model}>
                     🪺
-                    <AgentListModelDetailsButton
+                    <abbr title={model_path}>
+                      {displayLastPathPart(model_path)}
+                    </abbr>
+                    <ModelMetadataPreviewButton
                       agentId={id}
+                      agentName={name}
                       managementAddr={managementAddr}
-                      modelPath={model_path}
                     />
                   </div>
                 ) : (

@@ -1,0 +1,16 @@
+.modelDetailsPreviewButton {
+  align-items: center;
+  appearance: none;
+  background-color: var(--color-highlight-2);
+  column-gap: var(--spacing-half);
+  display: inline-flex;
+  border: none;
+  font-size: var(--font-size-small);
+  border-radius: 10px 20% 10px 30%;
+  padding: 4px 8px;
+
+  img {
+    height: 14px;
+    width: 14px;
+  }
+}

@@ -1,0 +1,38 @@
+.modelMetadata {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-2x) var(--spacing-base);
+  row-gap: var(--spacing-half);
+}
+
+.modelMetadata__parameter {
+  display: grid;
+
+  @media screen and (max-width: 700px) {
+    grid-template-columns: 1fr;
+    row-gap: var(--spacing-base);
+  }
+
+  @media screen and (min-width: 701px) {
+    column-gap: var(--spacing-base);
+    grid-template-columns: 300px 1fr;
+  }
+}
+
+.modelMetadata__parameter__title,
+.modelMetadata__parameter__value {
+  display: flex;
+  flex-direction: row;
+}
+
+.modelMetadata__parameter__title {
+  font-size: var(--font-size-small);
+  font-weight: bold;
+  justify-content: flex-end;
+  line-height: 21px;
+  text-align: right;
+}
+
+.modelMetadata__parameter__value {
+  overflow-wrap: anywhere;
+}

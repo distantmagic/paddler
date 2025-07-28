@@ -32,7 +32,7 @@ impl File {
                 }
 
                 let state: AgentDesiredState = serde_json::from_str(&content)
-                    .context(format!("Unable to parse file contents: '{content}'"))?;
+                    .context(format!("Unable to parse database file contents: '{}'. Either that is not a valid database file, or this version of Paddler is incompatible with it.", self.path.display()))?;
 
                 Ok(Some(state))
             }
