@@ -9,6 +9,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use log::error;
 use log::info;
+use log::warn;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::time::interval;
@@ -71,19 +72,29 @@ impl LlamaCppArbiterService {
                 .context("Unable to stop arbiter controller")?;
         }
 
-        if let Some(agent_applicable_state) = self.agent_applicable_state.clone() {
+        if let Some(AgentApplicableState {
+            inference_parameters,
+            model_path,
+        }) = self.agent_applicable_state.clone()
+        {
             self.slot_aggregated_status_manager.reset();
-            self.llamacpp_arbiter_controller = Some(
-                LlamaCppArbiter::new(
-                    self.agent_name.clone(),
-                    agent_applicable_state,
-                    self.desired_slots_total,
-                    self.model_metadata_holder.clone(),
-                    self.slot_aggregated_status_manager.clone(),
-                )
-                .spawn()
-                .await?,
-            );
+
+            if let Some(model_path) = model_path {
+                self.llamacpp_arbiter_controller = Some(
+                    LlamaCppArbiter::new(
+                        self.agent_name.clone(),
+                        self.desired_slots_total,
+                        inference_parameters,
+                        self.model_metadata_holder.clone(),
+                        model_path,
+                        self.slot_aggregated_status_manager.clone(),
+                    )
+                    .spawn()
+                    .await?,
+                );
+            } else {
+                warn!("Model path is not set, skipping llama.cpp initialization");
+            }
 
             info!("Reconciled state change applied successfully");
         }

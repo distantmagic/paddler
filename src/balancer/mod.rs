@@ -16,6 +16,7 @@ pub mod receive_tokens_controller;
 #[cfg(feature = "web_admin_panel")]
 pub mod response;
 pub mod state_database;
+pub mod state_database_type;
 pub mod statsd_service;
 pub mod status_update;
 #[cfg(feature = "web_admin_panel")]

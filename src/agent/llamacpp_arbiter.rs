@@ -1,4 +1,5 @@
 use core::num::NonZeroU32;
+use std::path::PathBuf;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -19,30 +20,33 @@ use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
 use crate::agent::llamacpp_slot::LlamaCppSlot;
 use crate::agent::model_metadata_holder::ModelMetadataHolder;
 use crate::agent::slot_aggregated_status_manager::SlotAggregatedStatusManager;
-use crate::agent_applicable_state::AgentApplicableState;
+use crate::inference_parameters::InferenceParameters;
 use crate::model_metadata::ModelMetadata;
 
 pub struct LlamaCppArbiter {
     agent_name: Option<String>,
-    applicable_state: AgentApplicableState,
     desired_slots_total: i32,
+    inference_parameters: InferenceParameters,
     model_metadata_holder: Arc<ModelMetadataHolder>,
+    model_path: PathBuf,
     slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
 }
 
 impl LlamaCppArbiter {
     pub fn new(
         agent_name: Option<String>,
-        applicable_state: AgentApplicableState,
         desired_slots_total: i32,
+        inference_parameters: InferenceParameters,
         model_metadata_holder: Arc<ModelMetadataHolder>,
+        model_path: PathBuf,
         slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
     ) -> Self {
         Self {
             agent_name,
-            applicable_state,
             desired_slots_total,
+            inference_parameters,
             model_metadata_holder,
+            model_path,
             slot_aggregated_status_manager,
         }
     }
@@ -53,9 +57,9 @@ impl LlamaCppArbiter {
 
         let agent_name_clone = self.agent_name.clone();
         let desired_slots_total = self.desired_slots_total;
-        let inference_parameters = self.applicable_state.inference_parameters.clone();
+        let inference_parameters = self.inference_parameters.clone();
         let model_metadata_holder = self.model_metadata_holder.clone();
-        let model_path = self.applicable_state.model_path.clone();
+        let model_path = self.model_path.clone();
         let slot_aggregated_status_manager = self.slot_aggregated_status_manager.clone();
 
         let sync_arbiter_thread_handle = thread::spawn(move || -> Result<()> {

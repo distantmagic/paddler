@@ -5,9 +5,9 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use cadence::BufferedUdpMetricSink;
 use cadence::Gauged;
 use cadence::StatsdClient;
+use cadence::UdpMetricSink;
 use log::error;
 use tokio::sync::broadcast;
 use tokio::time::interval;
@@ -61,10 +61,8 @@ impl Service for StatsdService {
     }
 
     async fn run(&mut self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
-        let statsd_sink_socket = UdpSocket::bind("0.0.0.0:0").expect("Failed to bind UDP socket");
-        let statsd_sink =
-            BufferedUdpMetricSink::from(self.configuration.statsd_addr, statsd_sink_socket)
-                .expect("Failed to create statsd sink");
+        let statsd_sink_socket = UdpSocket::bind("0.0.0.0:0")?;
+        let statsd_sink = UdpMetricSink::from(self.configuration.statsd_addr, statsd_sink_socket)?;
 
         let client =
             StatsdClient::builder(&self.configuration.statsd_prefix.to_owned(), statsd_sink)
