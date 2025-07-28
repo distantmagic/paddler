@@ -1,4 +1,4 @@
-use std::path::absolute;
+use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -30,9 +30,11 @@ impl FromStr for StateDatabaseType {
                     return Err(anyhow!("File path cannot be empty"));
                 }
 
-                let absolute_path = absolute(path)?;
+                if !Path::new(path).is_absolute() {
+                    return Err(anyhow!("File path must be absolute: {path}"));
+                }
 
-                Ok(StateDatabaseType::File(absolute_path))
+                Ok(StateDatabaseType::File(PathBuf::from(path)))
             }
             "memory" => Ok(StateDatabaseType::Memory),
             scheme => Err(anyhow!("Unsupported scheme '{scheme}'")),
