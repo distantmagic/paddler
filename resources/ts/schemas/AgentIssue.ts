@@ -8,9 +8,6 @@ export const AgentIssueSchema = z.union([
     HuggingFaceModelDoesNotExist: z.string(),
   }),
   z.object({
-    ModelCannotBeDownloaded: z.string(),
-  }),
-  z.object({
     ModelCannotBeLoaded: z.string(),
   }),
   z.object({
