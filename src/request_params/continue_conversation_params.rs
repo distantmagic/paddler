@@ -7,5 +7,6 @@ use crate::conversation_message::ConversationMessage;
 pub struct ContinueConversationParams {
     pub add_generation_prompt: bool,
     pub conversation_history: Vec<ConversationMessage>,
+    pub enable_thinking: bool,
     pub max_tokens: i32,
 }

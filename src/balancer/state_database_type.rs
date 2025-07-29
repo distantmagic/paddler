@@ -66,7 +66,7 @@ mod tests {
     fn test_file_relative_path() {
         let result = StateDatabaseType::from_str("file://path/to/db");
 
-        assert!(result.is_ok());
+        assert!(result.is_err());
     }
 
     #[test]

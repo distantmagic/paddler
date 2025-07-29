@@ -133,12 +133,16 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     .register_agent_controller(context.agent_id.clone(), agent_controller.clone())
                     .context("Unable to register agent controller")?;
 
-                if let Some(desired_state) = context.state_database.read_desired_state().await? {
-                    agent_controller
-                        .set_desired_state(desired_state)
-                        .await
-                        .context("Unable to set desired state")?;
-                }
+                let desired_state = context
+                    .state_database
+                    .read_desired_state()
+                    .await?
+                    .unwrap_or_default();
+
+                agent_controller
+                    .set_desired_state(desired_state)
+                    .await
+                    .context("Unable to set desired state")?;
 
                 info!("Registered agent: {}", context.agent_id);
 

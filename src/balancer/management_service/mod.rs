@@ -92,6 +92,7 @@ impl Service for ManagementService {
                 .app_data(generate_tokens_sender_collection.clone())
                 .app_data(model_metadata_sender_collection.clone())
                 .app_data(state_database.clone())
+                .configure(http_route::api::get_agent_desired_state::register)
                 .configure(http_route::api::get_agents::register)
                 .configure(http_route::api::get_agents_stream::register)
                 .configure(http_route::api::get_model_metadata::register)

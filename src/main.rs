@@ -27,6 +27,7 @@ mod sets_desired_state;
 mod slot_aggregated_status_snapshot;
 #[cfg(feature = "web_admin_panel")]
 mod static_files;
+mod tool;
 mod websocket_session_controller;
 
 use anyhow::Result;
@@ -65,7 +66,7 @@ enum Commands {
 
 #[actix_web::main]
 async fn main() -> Result<()> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug")).init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
 

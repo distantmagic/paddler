@@ -1,31 +1,13 @@
-import { useEffect, useState } from "react";
+import { z } from "zod";
 
-type ModelMetadataResult =
-  | {
-      error: null;
-      loading: false;
-      metadata: null | Record<string, string>;
-      ok: true;
-    }
-  | {
-      error: string;
-      loading: false;
-      metadata: null;
-      ok: false;
-    }
-  | {
-      error: null;
-      loading: true;
-      metadata: null;
-      ok: false;
-    };
+import { useFetchJson } from "./useFetchJson";
 
-const defaultModelMetadataResult: ModelMetadataResult = Object.freeze({
-  error: null,
-  loading: true,
-  metadata: null,
-  ok: false,
-});
+const responseSchema = z
+  .object({
+    metadata: z.record(z.string(), z.string()),
+  })
+  .strict()
+  .nullable();
 
 export function useModelMetadata({
   agentId,
@@ -34,50 +16,17 @@ export function useModelMetadata({
   agentId: string;
   managementAddr: string;
 }) {
-  const [modelMetadataResult, setModelMetadataResult] =
-    useState<ModelMetadataResult>(defaultModelMetadataResult);
-
-  useEffect(
-    function () {
-      const abortController = new AbortController();
-
-      fetch(`//${managementAddr}/api/v1/agent/${agentId}/model_metadata`, {
-        signal: abortController.signal,
-      })
-        .then(function (response) {
-          if (!response.ok) {
-            throw new Error(
-              `Failed to fetch model metadata: ${response.statusText}`,
-            );
-          }
-
-          return response.json();
-        })
-        .then(function (metadata: null | { metadata: Record<string, string> }) {
-          setModelMetadataResult({
-            error: null,
-            loading: false,
-            metadata: metadata?.metadata ?? null,
-            ok: true,
-          });
-        })
-        .catch(function (error: unknown) {
-          setModelMetadataResult({
-            error: error instanceof Error ? error.message : String(error),
-            loading: false,
-            metadata: null,
-            ok: false,
-          });
-        });
-
-      return function () {
-        abortController.abort();
-      };
+  const result = useFetchJson({
+    produceFetchPromise(signal) {
+      return fetch(
+        `//${managementAddr}/api/v1/agent/${agentId}/model_metadata`,
+        {
+          signal,
+        },
+      );
     },
-    [agentId, managementAddr, setModelMetadataResult],
-  );
+    responseSchema,
+  });
 
-  return {
-    result: modelMetadataResult,
-  };
+  return result;
 }

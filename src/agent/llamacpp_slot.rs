@@ -274,6 +274,7 @@ impl Handler<ContinueConversationRequest> for LlamaCppSlot {
             continue_conversation_params:
                 ContinueConversationParams {
                     add_generation_prompt,
+                    enable_thinking,
                     conversation_history,
                     max_tokens,
                 },
@@ -287,17 +288,20 @@ impl Handler<ContinueConversationRequest> for LlamaCppSlot {
             .get_template(CHAT_TEMPLATE_NAME)?
             .render(context! {
                 // Known uses:
+                // https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF
+                add_generation_prompt => add_generation_prompt,
+                // Known uses:
                 // https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF
                 // https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF
                 bos_token => self.token_bos_str,
                 // Known uses:
+                // https://huggingface.co/Qwen/Qwen3-0.6B-GGUF
+                enable_thinking => enable_thinking,
+                // Known uses:
                 // https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF
                 eos_token => self.token_eos_str,
-                nl_token => self.token_nl_str,
                 messages => conversation_history,
-                // Known uses:
-                // https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF
-                add_generation_prompt => add_generation_prompt,
+                nl_token => self.token_nl_str,
             }) {
             Ok(prompt) => prompt,
             Err(err) => {
