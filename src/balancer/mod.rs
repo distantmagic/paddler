@@ -8,12 +8,16 @@ pub mod buffered_request_agent_wait_result;
 pub mod buffered_request_count_guard;
 pub mod buffered_request_manager;
 pub mod generate_tokens_sender_collection;
+pub mod http_route;
 pub mod inference_service;
 pub mod management_service;
+pub mod model_metadata_sender_collection;
+pub mod receive_model_metadata_controller;
 pub mod receive_tokens_controller;
 #[cfg(feature = "web_admin_panel")]
 pub mod response;
 pub mod state_database;
+pub mod state_database_type;
 pub mod statsd_service;
 pub mod status_update;
 #[cfg(feature = "web_admin_panel")]

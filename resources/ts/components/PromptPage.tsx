@@ -27,9 +27,12 @@ export function PromptPage({ inferenceAddr }: { inferenceAddr: string }) {
         <div className={promptPage}>
           <div className={promptPage__messages}>
             {submittedPrompt && (
-              <ConversationMessage>
-                <strong>You</strong>: {submittedPrompt}
-              </ConversationMessage>
+              <ConversationMessage
+                author="You"
+                isThinking={false}
+                response={submittedPrompt}
+                thoughts=""
+              />
             )}
             <ConversationMessagePromptGeneratedTokens webSocket={webSocket} />
           </div>

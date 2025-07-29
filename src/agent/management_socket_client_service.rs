@@ -21,25 +21,23 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use uuid::Uuid;
 
-use crate::agent::chat_template_holder::ChatTemplateHolder;
-use crate::agent::generate_tokens_stopper_collection::GenerateTokensStopperCollection;
+use crate::agent::receive_tokens_stopper_collection::ReceiveTokensStopperCollection;
 use crate::agent::jsonrpc::Message as JsonRpcMessage;
-use crate::agent::chat_render_params::ChatRenderParams;
-use crate::agent::renders_chat_template::RendersChatTemplate as _;
 use crate::agent::jsonrpc::Notification as JsonRpcNotification;
 use crate::agent::jsonrpc::Request as JsonRpcRequest;
 use crate::agent::jsonrpc::Response as JsonRpcResponse;
-use crate::agent::generate_tokens_stopper_drop_guard::GenerateTokensStopperDropGuard;
+use crate::agent::receive_tokens_stopper_drop_guard::ReceiveTokensStopperDropGuard;
 use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
 use crate::agent::jsonrpc::notification_params::VersionParams;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
-use crate::agent::slot_aggregated_status::SlotAggregatedStatus;
+use crate::slot_aggregated_status::SlotAggregatedStatus;
+use crate::agent::from_request_params::FromRequestParams;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Message as ManagementJsonRpcMessage;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Notification as ManagementJsonRpcNotification;
+use crate::agent::continue_conversation_request::ContinueConversationRequest;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::RegisterAgentParams;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::UpdateAgentStatusParams;
-use crate::request_params::ContinueConversationParams;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::ResponseEnvelope;
 use crate::jsonrpc::RequestEnvelope;
@@ -47,13 +45,14 @@ use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::produces_snapshot::ProducesSnapshot;
 use crate::jsonrpc::ErrorEnvelope;
 use crate::service::Service;
-use crate::request_params::GenerateTokensParams;
+use crate::agent::model_metadata_holder::ModelMetadataHolder;
 
 pub struct ManagementSocketClientService {
-    chat_template_holder: Arc<ChatTemplateHolder>,
+    continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
     generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
-    generate_tokens_stopper_collection: Arc<GenerateTokensStopperCollection>,
+    model_metadata_holder: Arc<ModelMetadataHolder>,
     name: Option<String>,
+    receive_tokens_stopper_collection: Arc<ReceiveTokensStopperCollection>,
     reconciliation_queue: Arc<ReconciliationQueue>,
     slot_aggregated_status: Arc<SlotAggregatedStatus>,
     socket_url: String,
@@ -61,9 +60,10 @@ pub struct ManagementSocketClientService {
 
 impl ManagementSocketClientService {
     pub fn new(
-        chat_template_holder: Arc<ChatTemplateHolder>,
+        continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
         generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
         management_addr: SocketAddr,
+        model_metadata_holder: Arc<ModelMetadataHolder>,
         name: Option<String>,
         reconciliation_queue: Arc<ReconciliationQueue>,
         slot_aggregated_status: Arc<SlotAggregatedStatus>,
@@ -71,42 +71,43 @@ impl ManagementSocketClientService {
         let agent_id = Uuid::new_v4();
 
         Ok(ManagementSocketClientService {
-            chat_template_holder,
+            continue_conversation_request_tx,
             generate_tokens_request_tx,
-            generate_tokens_stopper_collection: Arc::new(GenerateTokensStopperCollection::new()),
+            model_metadata_holder,
             name,
+            receive_tokens_stopper_collection: Arc::new(ReceiveTokensStopperCollection::new()),
             reconciliation_queue,
             slot_aggregated_status,
             socket_url: format!("ws://{management_addr}/api/v1/agent_socket/{agent_id}"),
         })
     }
 
-    async fn generate_tokens(
+    async fn generate_tokens<TRequest: FromRequestParams + 'static>(
         connection_close_tx: broadcast::Sender<()>,
-        generate_tokens_params: GenerateTokensParams,
-        generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
-        generate_tokens_stopper_collection: Arc<GenerateTokensStopperCollection>,
         id: String,
         message_tx: mpsc::UnboundedSender<ManagementJsonRpcMessage>,
+        request_params: TRequest::RequestParams,
+        receive_tokens_stopper_collection: Arc<ReceiveTokensStopperCollection>,
+        request_tx: mpsc::UnboundedSender<TRequest>,
     ) -> Result<()> {
         let (generated_tokens_tx, mut generated_tokens_rx) =
             mpsc::unbounded_channel::<GeneratedTokenEnvelope>();
         let (generate_tokens_stop_tx, generate_tokens_stop_rx) = mpsc::unbounded_channel::<()>();
 
-        let _guard = GenerateTokensStopperDropGuard {
-            generate_tokens_stopper_collection: generate_tokens_stopper_collection.clone(),
+        let _guard = ReceiveTokensStopperDropGuard {
+            receive_tokens_stopper_collection: receive_tokens_stopper_collection.clone(),
             request_id: id.clone(),
         };
 
-        generate_tokens_stopper_collection
+        receive_tokens_stopper_collection
             .register_stopper(id.clone(), generate_tokens_stop_tx)
             .context(format!("Failed to register stopper for request ID: {id}"))?;
 
-        generate_tokens_request_tx.send(GenerateTokensRequest {
-            generate_tokens_params,
+        request_tx.send(TRequest::from_request_params(
+            request_params,
             generate_tokens_stop_rx,
             generated_tokens_tx,
-        })?;
+        ))?;
 
         let mut connection_close_rx = connection_close_tx.subscribe();
 
@@ -134,13 +135,15 @@ impl ManagementSocketClientService {
         Ok(())
     }
 
+    #[expect(clippy::too_many_arguments)]
     async fn handle_deserialized_message(
-        chat_template_holder: Arc<ChatTemplateHolder>,
         connection_close_tx: broadcast::Sender<()>,
+        continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
         generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
-        generate_tokens_stopper_collection: Arc<GenerateTokensStopperCollection>,
         message_tx: mpsc::UnboundedSender<ManagementJsonRpcMessage>,
+        model_metadata_holder: Arc<ModelMetadataHolder>,
         deserialized_message: JsonRpcMessage,
+        receive_tokens_stopper_collection: Arc<ReceiveTokensStopperCollection>,
         reconciliation_queue: Arc<ReconciliationQueue>,
     ) -> Result<()> {
         match deserialized_message {
@@ -163,7 +166,7 @@ impl ManagementSocketClientService {
             }
             JsonRpcMessage::Notification(JsonRpcNotification::StopGeneratingTokens(request_id)) => {
                 debug!("Received StopGeneratingTokens notification for request ID: {request_id:?}");
-                generate_tokens_stopper_collection
+                receive_tokens_stopper_collection
                     .stop(request_id.clone())
                     .context(format!(
                         "Failed to stop generating tokens for request ID: {request_id}"
@@ -185,26 +188,15 @@ impl ManagementSocketClientService {
             }
             JsonRpcMessage::Request(RequestEnvelope {
                 id,
-                request:
-                    JsonRpcRequest::ContinueConversation(ContinueConversationParams {
-                        add_generation_prompt,
-                        conversation_history,
-                        max_tokens,
-                    }),
+                request: JsonRpcRequest::ContinueConversation(continue_conversation_params),
             }) => {
                 Self::generate_tokens(
                     connection_close_tx,
-                    GenerateTokensParams {
-                        max_tokens,
-                        prompt: chat_template_holder.render(ChatRenderParams {
-                            add_generation_prompt,
-                            conversation_history,
-                        })?,
-                    },
-                    generate_tokens_request_tx,
-                    generate_tokens_stopper_collection,
                     id,
                     message_tx,
+                    continue_conversation_params,
+                    receive_tokens_stopper_collection,
+                    continue_conversation_request_tx,
                 )
                 .await
             }
@@ -214,23 +206,35 @@ impl ManagementSocketClientService {
             }) => {
                 Self::generate_tokens(
                     connection_close_tx,
-                    generate_tokens_params,
-                    generate_tokens_request_tx,
-                    generate_tokens_stopper_collection,
                     id,
                     message_tx,
+                    generate_tokens_params,
+                    receive_tokens_stopper_collection,
+                    generate_tokens_request_tx,
                 )
                 .await
             }
+            JsonRpcMessage::Request(RequestEnvelope {
+                id,
+                request: JsonRpcRequest::GetModelMetadata,
+            }) => Ok(
+                message_tx.send(ManagementJsonRpcMessage::Response(ResponseEnvelope {
+                    request_id: id.clone(),
+                    response: JsonRpcResponse::ModelMetadata(
+                        model_metadata_holder.get_model_metadata(),
+                    ),
+                }))?,
+            ),
         }
     }
 
     #[expect(clippy::too_many_arguments)]
     async fn handle_incoming_message(
-        chat_template_holder: Arc<ChatTemplateHolder>,
         connection_close_tx: broadcast::Sender<()>,
+        continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
         generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
-        generate_tokens_stopper_collection: Arc<GenerateTokensStopperCollection>,
+        model_metadata_holder: Arc<ModelMetadataHolder>,
+        receive_tokens_stopper_collection: Arc<ReceiveTokensStopperCollection>,
         message_tx: mpsc::UnboundedSender<ManagementJsonRpcMessage>,
         msg: Message,
         pong_tx: mpsc::UnboundedSender<Bytes>,
@@ -239,8 +243,8 @@ impl ManagementSocketClientService {
         match msg {
             Message::Text(text) => {
                 let mut connection_close_rx = connection_close_tx.subscribe();
-                let generate_tokens_stopper_collection_clone =
-                    generate_tokens_stopper_collection.clone();
+                let receive_tokens_stopper_collection_clone =
+                    receive_tokens_stopper_collection.clone();
 
                 rt::spawn(async move {
                     tokio::select! {
@@ -248,11 +252,11 @@ impl ManagementSocketClientService {
                             info!("Connection close signal received, shutting down");
                         }
                         result = Self::handle_deserialized_message(
-                            chat_template_holder,
                             connection_close_tx,
+                            continue_conversation_request_tx,
                             generate_tokens_request_tx,
-                            generate_tokens_stopper_collection_clone,
                             message_tx,
+                            model_metadata_holder,
                             match serde_json::from_str::<JsonRpcMessage>(&text).context(format!("Failed to parse JSON-RPC message: {text}")) {
                                 Ok(message) => message,
                                 Err(err) => {
@@ -261,6 +265,7 @@ impl ManagementSocketClientService {
                                     return;
                                 }
                             },
+                            receive_tokens_stopper_collection_clone,
                             reconciliation_queue,
                         ) => if let Err(err) = result {
                             error!("Error handling incoming message: {err}");
@@ -410,10 +415,11 @@ impl ManagementSocketClientService {
                     let should_close = match msg {
                         Some(Ok(msg)) => {
                             if let Err(err) = Self::handle_incoming_message(
-                                    self.chat_template_holder.clone(),
                                     connection_close_tx.clone(),
+                                    self.continue_conversation_request_tx.clone(),
                                     self.generate_tokens_request_tx.clone(),
-                                    self.generate_tokens_stopper_collection.clone(),
+                                    self.model_metadata_holder.clone(),
+                                    self.receive_tokens_stopper_collection.clone(),
                                     message_tx.clone(),
                                     msg,
                                     pong_tx.clone(),

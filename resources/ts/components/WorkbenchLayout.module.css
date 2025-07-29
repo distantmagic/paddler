@@ -32,7 +32,7 @@
 }
 
 .workbench__header__link.workbench__header__linkActive {
-  background-color: var(--color-highlight);
+  background-color: var(--color-highlight-1);
   border-radius: 20px 30% 20px 20px;
 }
 

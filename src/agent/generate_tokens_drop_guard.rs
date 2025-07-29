@@ -3,10 +3,10 @@ use std::sync::Arc;
 use log::error;
 use tokio::sync::mpsc;
 
-use crate::agent::dispenses_slots::DispensesSlots as _;
-use crate::agent::slot_status::SlotStatus;
+use crate::dispenses_slots::DispensesSlots as _;
 use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::generated_token_result::GeneratedTokenResult;
+use crate::slot_status::SlotStatus;
 
 pub struct GenerateTokensDropGuard {
     generated_tokens_tx: mpsc::UnboundedSender<GeneratedTokenEnvelope>,

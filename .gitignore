@@ -1,3 +1,4 @@
+.DS_Store
 /*.db
 /.tsimp
 /esbuild-meta.json

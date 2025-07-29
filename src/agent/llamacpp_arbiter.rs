@@ -1,4 +1,5 @@
 use core::num::NonZeroU32;
+use std::path::PathBuf;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -6,55 +7,64 @@ use std::thread;
 
 use actix::sync::SyncArbiter;
 use actix::System;
+use anyhow::anyhow;
 use anyhow::Context as _;
 use anyhow::Result;
 use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::model::LlamaModel;
+use llama_cpp_2::model::Special;
+use log::error;
 use tokio::sync::oneshot;
 
-use crate::agent::chat_template::ChatTemplate;
-use crate::agent::chat_template_holder::ChatTemplateHolder;
 use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
 use crate::agent::llamacpp_slot::LlamaCppSlot;
-use crate::agent::slot_aggregated_status_manager::SlotAggregatedStatusManager;
-use crate::agent_applicable_state::AgentApplicableState;
+use crate::agent::model_metadata_holder::ModelMetadataHolder;
+use crate::agent_issue::AgentIssue;
+use crate::agent_issue_fix::AgentIssueFix;
+use crate::inference_parameters::InferenceParameters;
+use crate::model_metadata::ModelMetadata;
+use crate::slot_aggregated_status_manager::SlotAggregatedStatusManager;
 
 pub struct LlamaCppArbiter {
     agent_name: Option<String>,
-    applicable_state: AgentApplicableState,
-    chat_template_holder: Arc<ChatTemplateHolder>,
     desired_slots_total: i32,
+    inference_parameters: InferenceParameters,
+    model_metadata_holder: Arc<ModelMetadataHolder>,
+    model_path: PathBuf,
     slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
 }
 
 impl LlamaCppArbiter {
     pub fn new(
         agent_name: Option<String>,
-        applicable_state: AgentApplicableState,
-        chat_template_holder: Arc<ChatTemplateHolder>,
         desired_slots_total: i32,
+        inference_parameters: InferenceParameters,
+        model_metadata_holder: Arc<ModelMetadataHolder>,
+        model_path: PathBuf,
         slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
     ) -> Self {
         Self {
             agent_name,
-            applicable_state,
-            chat_template_holder,
             desired_slots_total,
+            inference_parameters,
+            model_metadata_holder,
+            model_path,
             slot_aggregated_status_manager,
         }
     }
 
     pub async fn spawn(&self) -> Result<LlamaCppArbiterController> {
         let (llamacpp_slot_addr_tx, llamacpp_slot_addr_rx) = oneshot::channel();
+        let (model_loaded_tx, model_loaded_rx) = oneshot::channel::<()>();
         let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
 
         let agent_name_clone = self.agent_name.clone();
-        let chat_template_holder = self.chat_template_holder.clone();
         let desired_slots_total = self.desired_slots_total;
-        let model_parameters = self.applicable_state.model_parameters.clone();
-        let model_path = self.applicable_state.model_path.clone();
+        let inference_parameters = self.inference_parameters.clone();
+        let model_metadata_holder = self.model_metadata_holder.clone();
+        let model_path = self.model_path.clone();
         let slot_aggregated_status_manager = self.slot_aggregated_status_manager.clone();
 
         let sync_arbiter_thread_handle = thread::spawn(move || -> Result<()> {
@@ -62,7 +72,7 @@ impl LlamaCppArbiter {
                 Arc::new(LlamaBackend::init().context("Unable to initialize llama.cpp backend")?);
             let ctx_params = Arc::new(
                 LlamaContextParams::default()
-                    .with_n_ctx(NonZeroU32::new(model_parameters.context_size)),
+                    .with_n_ctx(NonZeroU32::new(inference_parameters.context_size)),
             );
             let backend_clone = backend.clone();
             let model = Arc::new(
@@ -74,13 +84,33 @@ impl LlamaCppArbiter {
                 .context("Unable to load model from file")?,
             );
 
-            let model_chat_template = model.chat_template(None).context(format!(
-                "Failed to load chat template for model at path: {}",
-                model_path.display()
-            ))?;
-            let chat_template = ChatTemplate::new(model_chat_template.to_string()?)?;
+            if model_loaded_tx.send(()).is_err() {
+                let message = format!(
+                    "Failed to send model loaded signal for model at path: {}",
+                    model_path.display()
+                );
 
-            chat_template_holder.set_chat_template(chat_template);
+                error!("{message}");
+
+                return Err(anyhow!(message));
+            }
+
+            let mut model_metadata = ModelMetadata::new();
+
+            for i in 0..model.meta_count() {
+                model_metadata
+                    .set_meta_field(model.meta_key_by_index(i)?, model.meta_val_str_by_index(i)?);
+            }
+
+            model_metadata_holder.set_model_metadata(model_metadata);
+
+            let llama_chat_template_string = model
+                .chat_template(None)
+                .context(format!(
+                    "Failed to load chat template for model at path: {}",
+                    model_path.display()
+                ))?
+                .to_string()?;
 
             slot_aggregated_status_manager
                 .slot_aggregated_status
@@ -88,6 +118,9 @@ impl LlamaCppArbiter {
 
             let slot_index = Arc::new(AtomicU32::new(0));
             let system = System::new();
+            let token_bos_str = model.token_to_str(model.token_bos(), Special::Tokenize)?;
+            let token_nl_str = model.token_to_str(model.token_nl(), Special::Tokenize)?;
+            let token_eos_str = model.token_to_str(model.token_eos(), Special::Tokenize)?;
 
             system.block_on(async move {
                 llamacpp_slot_addr_tx
@@ -98,11 +131,15 @@ impl LlamaCppArbiter {
                                 agent_name_clone.clone(),
                                 backend.clone(),
                                 ctx_params.clone(),
+                                inference_parameters.clone(),
+                                llama_chat_template_string.clone(),
                                 model.clone(),
-                                model_parameters.clone(),
                                 model_path.clone(),
                                 slot_index.fetch_add(1, Ordering::SeqCst),
                                 slot_aggregated_status_manager.bind_slot_status(),
+                                token_bos_str.clone(),
+                                token_eos_str.clone(),
+                                token_nl_str.clone(),
                             )
                             .expect("Failed to create LlamaCppSlot")
                         },
@@ -118,6 +155,26 @@ impl LlamaCppArbiter {
 
             Ok(())
         });
+
+        match model_loaded_rx
+            .await
+            .context("Failed to receive model loaded signal")
+        {
+            Ok(()) => {
+                self.slot_aggregated_status_manager
+                    .slot_aggregated_status
+                    .register_fix(AgentIssueFix::ModelIsLoaded);
+            }
+            Err(err) => {
+                error!("Failed to load model: {err}");
+
+                self.slot_aggregated_status_manager
+                    .slot_aggregated_status
+                    .register_issue(AgentIssue::ModelCannotBeLoaded(
+                        self.model_path.display().to_string(),
+                    ));
+            }
+        }
 
         Ok(LlamaCppArbiterController::new(
             llamacpp_slot_addr_rx
@@ -141,7 +198,7 @@ mod tests {
     use crate::agent_desired_state::AgentDesiredState;
     use crate::converts_to_applicable_state::ConvertsToApplicableState as _;
     use crate::huggingface_model_reference::HuggingFaceModelReference;
-    use crate::model_parameters::ModelParameters;
+    use crate::inference_parameters::InferenceParameters;
     use crate::request_params::GenerateTokensParams;
 
     const SLOTS_TOTAL: i32 = 2;
@@ -153,10 +210,8 @@ mod tests {
                 filename: "Qwen3-0.6B-Q8_0.gguf".to_string(),
                 repo_id: "Qwen/Qwen3-0.6B-GGUF".to_string(),
                 revision: "main".to_string(),
-                // filename: "Qwen3-8B-Q4_K_M.gguf".to_string(),
-                // repo: "Qwen/Qwen3-8B-GGUF".to_string(),
             }),
-            model_parameters: ModelParameters::default(),
+            inference_parameters: InferenceParameters::default(),
         };
         let slot_aggregated_status_manager =
             Arc::new(SlotAggregatedStatusManager::new(SLOTS_TOTAL));
@@ -168,9 +223,10 @@ mod tests {
 
         let llamacpp_arbiter = LlamaCppArbiter::new(
             Some("test_agent".to_string()),
-            applicable_state,
-            Arc::new(ChatTemplateHolder::new()),
             SLOTS_TOTAL,
+            applicable_state.inference_parameters,
+            Arc::new(ModelMetadataHolder::new()),
+            applicable_state.model_path.expect("Model path is required"),
             slot_aggregated_status_manager,
         );
         let controller = llamacpp_arbiter.spawn().await?;

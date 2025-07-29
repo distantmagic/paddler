@@ -44,15 +44,15 @@ mod tests {
     use super::*;
     use crate::agent_desired_model::AgentDesiredModel;
     use crate::agent_desired_state::AgentDesiredState;
-    use crate::model_parameters::ModelParameters;
+    use crate::inference_parameters::InferenceParameters;
 
     #[tokio::test]
     async fn test_reconciliation_queue() -> Result<()> {
         let queue = ReconciliationQueue::new()?;
 
         let desired_state = AgentDesiredState {
+            inference_parameters: InferenceParameters::default(),
             model: AgentDesiredModel::Local("test_model_path".to_string()),
-            model_parameters: ModelParameters::default(),
         };
 
         queue.register_change_request(desired_state.clone()).await?;

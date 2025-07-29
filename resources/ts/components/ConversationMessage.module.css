@@ -1,4 +1,58 @@
 .conversationMessage {
   background-color: white;
+  column-gap: var(--spacing-base);
+  display: grid;
+  grid-template-areas:
+    "nothing author"
+    "thoughts response";
+  grid-template-columns: 1fr 2fr;
   padding: var(--spacing-base);
+  row-gap: var(--spacing-half);
+}
+
+.conversationMessage__author {
+  display: flex;
+  grid-area: author;
+  padding-right: var(--spacing-half);
+}
+
+.conversationMessage__response {
+  display: flex;
+  flex-direction: column;
+  grid-area: response;
+  row-gap: var(--spacing-half);
+
+  blockquote {
+    border-left: 2px solid var(--color-border);
+    border-style: dashed;
+    margin: var(--spacing-base) 0;
+    padding: var(--spacing-base);
+  }
+
+  h1,
+  h2,
+  h3 {
+    margin-bottom: 0.25em;
+  }
+
+  p {
+    margin-bottom: var(--spacing-half);
+  }
+
+  ol,
+  ul {
+    margin-left: var(--spacing-2x);
+
+    li {
+      margin-bottom: var(--spacing-half);
+    }
+  }
+}
+
+.conversationMessage__thoughts {
+  font-size: var(--font-size-small);
+  font-style: italic;
+  grid-area: thoughts;
+  padding-right: var(--spacing-base);
+  text-align: right;
 }

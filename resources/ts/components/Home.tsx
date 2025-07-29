@@ -2,8 +2,7 @@ import React from "react";
 import { Route, Router, Switch } from "wouter";
 
 import { AgentListPage } from "./AgentListPage";
-import { ModelPage } from "./ModelPage";
-import { ModelParametersContextProvider } from "./ModelParametersContextProvider";
+import { ChangeModelPage } from "./ChangeModelPage";
 import { PromptContextProvider } from "./PromptContextProvider";
 import { PromptPage } from "./PromptPage";
 import { WorkbenchLayout } from "./WorkbenchLayout";
@@ -23,9 +22,7 @@ export function Home({
             <AgentListPage managementAddr={managementAddr} />
           </Route>
           <Route path="/model">
-            <ModelParametersContextProvider>
-              <ModelPage managementAddr={managementAddr} />
-            </ModelParametersContextProvider>
+            <ChangeModelPage managementAddr={managementAddr} />
           </Route>
           <Route path="/prompt">
             <PromptContextProvider>

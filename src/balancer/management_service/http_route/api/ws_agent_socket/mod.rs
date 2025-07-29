@@ -39,6 +39,7 @@ use crate::balancer::agent_controller::AgentController;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::agent_controller_update_result::AgentControllerUpdateResult;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
+use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
 use crate::balancer::state_database::StateDatabase;
 use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
@@ -55,6 +56,7 @@ struct AgentSocketController {
     agent_controller_pool: Data<AgentControllerPool>,
     agent_id: String,
     generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
+    model_metadata_sender_collection: Data<ModelMetadataSenderCollection>,
     state_database: Data<dyn StateDatabase>,
 }
 
@@ -69,6 +71,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
             agent_controller_pool: self.agent_controller_pool.clone(),
             agent_id: self.agent_id.clone(),
             generate_tokens_sender_collection: self.generate_tokens_sender_collection.clone(),
+            model_metadata_sender_collection: self.model_metadata_sender_collection.clone(),
             state_database: self.state_database.clone(),
         }
     }
@@ -98,6 +101,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     slot_aggregated_status_snapshot:
                         SlotAggregatedStatusSnapshot {
                             desired_slots_total,
+                            issues,
                             model_path,
                             slots_processing,
                             slots_total,
@@ -114,7 +118,11 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     generate_tokens_sender_collection: context
                         .generate_tokens_sender_collection
                         .clone(),
+                    model_metadata_sender_collection: context
+                        .model_metadata_sender_collection
+                        .clone(),
                     id: context.agent_id.clone(),
+                    issues: RwLock::new(issues),
                     model_path: RwLock::new(model_path),
                     name,
                     newest_update_version: AtomicValue::<AtomicI32>::new(version),
@@ -127,12 +135,16 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     .register_agent_controller(context.agent_id.clone(), agent_controller.clone())
                     .context("Unable to register agent controller")?;
 
-                if let Some(desired_state) = context.state_database.read_desired_state().await? {
-                    agent_controller
-                        .set_desired_state(desired_state)
-                        .await
-                        .context("Unable to set desired state")?;
-                }
+                let desired_state = context
+                    .state_database
+                    .read_desired_state()
+                    .await?
+                    .unwrap_or_default();
+
+                agent_controller
+                    .set_desired_state(desired_state)
+                    .await
+                    .context("Unable to set desired state")?;
 
                 info!("Registered agent: {}", context.agent_id);
 
@@ -207,6 +219,21 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
 
                 Ok(ContinuationDecision::Continue)
             }
+            ManagementJsonRpcMessage::Response(ResponseEnvelope {
+                request_id,
+                response: AgentJsonRpcResponse::ModelMetadata(model_metadata),
+            }) => {
+                if let Err(err) = context
+                    .model_metadata_sender_collection
+                    .forward_model_metadata(request_id, model_metadata)
+                    .await
+                {
+                    // Metadata might come in after awaiting connection is closed
+                    warn!("Error forwarding model metadata: {err}");
+                }
+
+                Ok(ContinuationDecision::Continue)
+            }
         }
     }
 
@@ -240,6 +267,7 @@ struct PathParams {
 async fn respond(
     agent_controller_pool: Data<AgentControllerPool>,
     generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
+    model_metadata_sender_collection: Data<ModelMetadataSenderCollection>,
     state_database: Data<dyn StateDatabase>,
     path_params: Path<PathParams>,
     payload: Payload,
@@ -249,6 +277,7 @@ async fn respond(
         agent_controller_pool,
         agent_id: path_params.agent_id.clone(),
         generate_tokens_sender_collection,
+        model_metadata_sender_collection,
         state_database,
     };
 

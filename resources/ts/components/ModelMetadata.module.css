@@ -1,0 +1,46 @@
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modelMetadata {
+  animation: fadeIn 200ms ease-in-out;
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-2x) var(--spacing-base);
+  row-gap: var(--spacing-half);
+}
+
+.modelMetadata__parameter {
+  display: grid;
+
+  @media screen and (max-width: 700px) {
+    grid-template-columns: 1fr;
+    row-gap: var(--spacing-base);
+  }
+
+  @media screen and (min-width: 701px) {
+    column-gap: var(--spacing-base);
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.modelMetadata__parameter__title,
+.modelMetadata__parameter__value {
+  display: flex;
+  flex-direction: row;
+}
+
+.modelMetadata__parameter__title {
+  font-weight: bold;
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.modelMetadata__parameter__value {
+  overflow-wrap: anywhere;
+}

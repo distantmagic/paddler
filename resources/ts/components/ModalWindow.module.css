@@ -1,0 +1,75 @@
+.modalWindowBackdrop {
+  --color-modal-window-background: var(--color-body-background);
+  --height-modal-window-titlebar: 42px;
+  --max-height-modal-window: calc(100dvh - 2 * var(--spacing-base));
+  --max-width-modal-window: 800px;
+
+  align-items: center;
+  backdrop-filter: brightness(0.5);
+  bottom: 0;
+  display: grid;
+  height: 100%;
+  justify-content: center;
+  left: 0;
+  overflow: hidden;
+  padding: var(--spacing-base);
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 100%;
+  z-index: var(--z-index-modal);
+}
+
+.modalWindowBackdrop ~ .modalWindowBackdrop {
+  --max-height-modal-window: calc(100dvh - 2 * var(--spacing-2x));
+  --max-width-modal-window: calc(800px - 2 * var(--spacing-base));
+}
+
+.modalWindow {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  left: 50%;
+  max-height: var(--max-height-modal-window);
+  max-width: var(--max-width-modal-window);
+  position: absolute;
+  transform: translateX(-50%);
+  width: 100%;
+}
+
+.modalWindow__closeButton {
+  align-items: center;
+  appearance: none;
+  background: none;
+  border: none;
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  width: var(--height-modal-window-titlebar);
+
+  img {
+    height: 24px;
+    width: 24px;
+  }
+}
+
+.modalWindow__content {
+  background-color: var(--color-modal-window-background);
+  overflow-y: auto;
+}
+
+.modalWindow__titleBar {
+  align-items: center;
+  background-color: var(--color-highlight-2);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  height: var(--height-modal-window-titlebar);
+}
+
+.modalWindow__titleBar__title {
+  align-items: center;
+  display: flex;
+  font-weight: bold;
+  height: 100%;
+  padding: 0 var(--spacing-base);
+}

@@ -9,15 +9,16 @@ use tokio::sync::oneshot;
 
 use super::handler::Handler;
 use super::parse_socket_addr;
-use crate::agent::chat_template_holder::ChatTemplateHolder;
+use crate::agent::continue_conversation_request::ContinueConversationRequest;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
 use crate::agent::llamacpp_arbiter_service::LlamaCppArbiterService;
 use crate::agent::management_socket_client_service::ManagementSocketClientService;
+use crate::agent::model_metadata_holder::ModelMetadataHolder;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
 use crate::agent::reconciliation_service::ReconciliationService;
-use crate::agent::slot_aggregated_status_manager::SlotAggregatedStatusManager;
 use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
 use crate::service_manager::ServiceManager;
+use crate::slot_aggregated_status_manager::SlotAggregatedStatusManager;
 
 #[derive(Parser)]
 pub struct Agent {
@@ -36,11 +37,13 @@ pub struct Agent {
 #[async_trait]
 impl Handler for Agent {
     async fn handle(&self, shutdown_rx: oneshot::Receiver<()>) -> Result<()> {
+        let (continue_conversation_request_tx, continue_conversation_request_rx) =
+            mpsc::unbounded_channel::<ContinueConversationRequest>();
         let (generate_tokens_request_tx, generate_tokens_request_rx) =
             mpsc::unbounded_channel::<GenerateTokensRequest>();
 
         let agent_applicable_state_holder = Arc::new(AgentApplicableStateHolder::new());
-        let chat_template_holder = Arc::new(ChatTemplateHolder::new());
+        let model_metadata_holder = Arc::new(ModelMetadataHolder::new());
         let reconciliation_queue = Arc::new(ReconciliationQueue::new()?);
         let mut service_manager = ServiceManager::new();
         let slot_aggregated_status_manager = Arc::new(SlotAggregatedStatusManager::new(self.slots));
@@ -49,18 +52,20 @@ impl Handler for Agent {
             LlamaCppArbiterService::new(
                 agent_applicable_state_holder.clone(),
                 self.name.clone(),
-                chat_template_holder.clone(),
+                continue_conversation_request_rx,
                 self.slots,
                 generate_tokens_request_rx,
+                model_metadata_holder.clone(),
                 slot_aggregated_status_manager.clone(),
             )
             .await?,
         );
 
         service_manager.add_service(ManagementSocketClientService::new(
-            chat_template_holder,
+            continue_conversation_request_tx,
             generate_tokens_request_tx,
             self.management_addr,
+            model_metadata_holder,
             self.name.clone(),
             reconciliation_queue.clone(),
             slot_aggregated_status_manager
@@ -71,6 +76,9 @@ impl Handler for Agent {
         service_manager.add_service(ReconciliationService::new(
             agent_applicable_state_holder,
             reconciliation_queue,
+            slot_aggregated_status_manager
+                .slot_aggregated_status
+                .clone(),
         )?);
 
         service_manager.run_forever(shutdown_rx).await

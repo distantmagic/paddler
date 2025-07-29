@@ -35,25 +35,25 @@ impl ServiceManager {
             let shutdown_broadcast_tx_arc_clone = shutdown_broadcast_tx_arc.clone();
 
             service_handles.push(rt::spawn(async move {
-                loop {
-                    info!("{service_name}: Starting");
+                info!("{service_name}: Starting");
 
-                    let mut manager_shutdown_rx = shutdown_broadcast_tx_arc_clone.subscribe();
-                    let service_shutdown_rx = shutdown_broadcast_tx_arc_clone.subscribe();
+                let mut manager_shutdown_rx = shutdown_broadcast_tx_arc_clone.subscribe();
+                let service_shutdown_rx = shutdown_broadcast_tx_arc_clone.subscribe();
 
-                    tokio::select! {
-                        _ = manager_shutdown_rx.recv() => {
-                            info!("{service_name}: Received shutdown signal");
-                            break;
-                        }
-                        result = service.run(service_shutdown_rx) => {
-                            match result {
-                                Ok(()) => {
-                                    info!("{service_name}: Stopped");
-                                    break;
+                tokio::select! {
+                    _ = manager_shutdown_rx.recv() => {
+                        info!("{service_name}: Received shutdown signal");
+                    }
+                    result = service.run(service_shutdown_rx) => {
+                        match result {
+                            Ok(()) => {
+                                info!("{service_name}: Stopped");
+
+                                if let Err(err) = shutdown_broadcast_tx_arc_clone.send(()) {
+                                    error!("{service_name}: Failed to send shutdown signal: {err}");
                                 }
-                                Err(err) => error!("{service_name}: {err}"),
                             }
+                            Err(err) => error!("{service_name}: {err}"),
                         }
                     }
                 }

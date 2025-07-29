@@ -36,7 +36,7 @@ export function AgentListPage({ managementAddr }: { managementAddr: string }) {
 
       return (
         <div className={agentListPage}>
-          <AgentsList agents={data.agents} />
+          <AgentsList agents={data.agents} managementAddr={managementAddr} />
         </div>
       );
     },

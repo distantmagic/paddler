@@ -8,4 +8,5 @@ use crate::request_params::GenerateTokensParams;
 pub enum Request {
     ContinueConversation(ContinueConversationParams),
     GenerateTokens(GenerateTokensParams),
+    GetModelMetadata,
 }

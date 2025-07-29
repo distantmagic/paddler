@@ -17,16 +17,17 @@ use crate::balancer::inference_service::configuration::Configuration as Inferenc
 use crate::balancer::inference_service::InferenceService;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::management_service::ManagementService;
+use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
 use crate::balancer::state_database::File;
 use crate::balancer::state_database::Memory;
 use crate::balancer::state_database::StateDatabase;
+use crate::balancer::state_database_type::StateDatabaseType;
 use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
 use crate::balancer::statsd_service::StatsdService;
 #[cfg(feature = "web_admin_panel")]
 use crate::balancer::web_admin_panel_service::configuration::Configuration as WebAdminPanelServiceConfiguration;
 #[cfg(feature = "web_admin_panel")]
 use crate::balancer::web_admin_panel_service::WebAdminPanelService;
-use crate::database_type::DatabaseType;
 use crate::service_manager::ServiceManager;
 
 #[derive(Parser)]
@@ -70,7 +71,7 @@ pub struct Balancer {
 
     #[arg(long, default_value = "memory://")]
     /// Balancer state database URL. Supported: memory, memory://, or file:///path (optional)
-    state_database: DatabaseType,
+    state_database: StateDatabaseType,
 
     #[arg(long, value_parser = parse_socket_addr)]
     /// Address of the statsd server to report metrics to
@@ -120,11 +121,15 @@ impl Handler for Balancer {
             self.max_buffered_requests,
         ));
         let generate_tokens_sender_collection = Arc::new(GenerateTokensSenderCollection::new());
+        let model_metadata_sender_collection = Arc::new(ModelMetadataSenderCollection::new());
         let mut service_manager = ServiceManager::new();
         let state_database: Arc<dyn StateDatabase> = match &self.state_database {
-            DatabaseType::File(path) => Arc::new(File::new(path.to_owned())),
-            DatabaseType::Memory => Arc::new(Memory::new()),
+            StateDatabaseType::File(path) => Arc::new(File::new(path.to_owned())),
+            StateDatabaseType::Memory => Arc::new(Memory::new()),
         };
+
+        // Check if state database can read the desired state
+        state_database.read_desired_state().await?;
 
         service_manager.add_service(InferenceService::new(
             agent_controller_pool.clone(),
@@ -144,6 +149,7 @@ impl Handler for Balancer {
             buffered_request_manager.clone(),
             self.get_management_service_configuration(),
             generate_tokens_sender_collection.clone(),
+            model_metadata_sender_collection,
             state_database,
             #[cfg(feature = "web_admin_panel")]
             self.get_web_admin_panel_service_configuration(),

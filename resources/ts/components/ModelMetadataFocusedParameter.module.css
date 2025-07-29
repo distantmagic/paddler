@@ -1,0 +1,34 @@
+.modelMetadataFocusedParameter,
+.modelMetadataFocusedParameter__content {
+  display: flex;
+  flex-direction: column;
+}
+
+.modelMetadataFocusedParameter__backButton {
+  align-items: center;
+  appearance: none;
+  background-color: transparent;
+  border: none;
+  column-gap: var(--spacing-base);
+  display: flex;
+  flex-direction: row;
+  padding: var(--spacing-half);
+  text-decoration: underline;
+
+  img {
+    height: 1em;
+    width: 1em;
+  }
+}
+
+.modelMetadataFocusedParameter__backPanel {
+  background-color: var(--color-modal-window-background);
+  border-bottom: 2px solid var(--color-border);
+  padding: var(--spacing-half);
+  position: sticky;
+  top: 0;
+}
+
+.modelMetadataFocusedParameter__content {
+  padding: var(--spacing-base);
+}

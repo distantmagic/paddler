@@ -1,10 +1,13 @@
 import React, { CSSProperties } from "react";
 
 import { type Agent } from "../schemas/Agent";
+import { AgentIssuesPreviewButton } from "./AgentIssuesPreviewButton";
+import { ModelMetadataPreviewButton } from "./ModelMetadataPreviewButton";
 
 import {
-  agentUsage,
-  agentUsage__progress,
+  agentList,
+  agentList__model,
+  agentList__progress,
   agentsTable,
 } from "./AgentList.module.css";
 
@@ -23,12 +26,19 @@ function displayLastPathPart(path: string | null | undefined): string {
   return last;
 }
 
-export function AgentsList({ agents }: { agents: Array<Agent> }) {
+export function AgentsList({
+  agents,
+  managementAddr,
+}: {
+  agents: Array<Agent>;
+  managementAddr: string;
+}) {
   return (
     <table className={agentsTable}>
       <thead>
         <tr>
           <th>Name</th>
+          <th>Issues</th>
           <th>Model</th>
           <th>Slots usage</th>
           <th>Used/Actual/Desired</th>
@@ -38,6 +48,7 @@ export function AgentsList({ agents }: { agents: Array<Agent> }) {
         {agents.map(function ({
           id,
           desired_slots_total,
+          issues,
           model_path,
           name,
           slots_processing,
@@ -47,21 +58,40 @@ export function AgentsList({ agents }: { agents: Array<Agent> }) {
             <tr key={id}>
               <td>{name}</td>
               <td>
-                <abbr title={model_path ?? undefined}>
-                  {displayLastPathPart(model_path)}
-                </abbr>
+                {issues.length > 0 ? (
+                  <AgentIssuesPreviewButton agentName={name} issues={issues} />
+                ) : (
+                  <i>None</i>
+                )}
+              </td>
+              <td>
+                {"string" === typeof model_path ? (
+                  <div className={agentList__model}>
+                    🪺
+                    <abbr title={model_path}>
+                      {displayLastPathPart(model_path)}
+                    </abbr>
+                    <ModelMetadataPreviewButton
+                      agentId={id}
+                      agentName={name}
+                      managementAddr={managementAddr}
+                    />
+                  </div>
+                ) : (
+                  <div className={agentList__model}>
+                    🪹 <i>No model loaded</i>
+                  </div>
+                )}
               </td>
               <td
-                className={agentUsage}
+                className={agentList}
                 style={
                   {
                     "--slots-usage": `${((slots_total - slots_processing) / slots_total) * 100}%`,
                   } as CSSProperties
                 }
               >
-                {slots_total > 0 && (
-                  <div className={agentUsage__progress}></div>
-                )}
+                {slots_total > 0 && <div className={agentList__progress}></div>}
               </td>
               <td>
                 {slots_processing}/{slots_total}/{desired_slots_total}

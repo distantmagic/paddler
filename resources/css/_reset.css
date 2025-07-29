@@ -50,6 +50,7 @@ textarea {
   font-family: inherit;
   font-size: inherit;
   font-weight: inherit;
+  margin: 0;
 }
 
 button {
@@ -64,6 +65,7 @@ textarea {
 button:disabled,
 input:disabled {
   cursor: not-allowed;
+  filter: grayscale(100%) opacity(0.6);
   user-select: none;
 }
 
@@ -86,7 +88,7 @@ body {
   flex-direction: column;
   font-family: var(--font-family-monospace);
   font-size: var(--font-size-base);
-  line-height: 1.5;
+  line-height: var(--line-height-base);
   margin: 0;
   overflow-y: scroll;
   padding: 0;

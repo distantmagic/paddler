@@ -1,4 +1,5 @@
-use anyhow::anyhow;
+use std::sync::Arc;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::Deserialize;
@@ -7,31 +8,29 @@ use serde::Serialize;
 use crate::agent_applicable_state::AgentApplicableState;
 use crate::agent_desired_model::AgentDesiredModel;
 use crate::converts_to_applicable_state::ConvertsToApplicableState;
-use crate::model_parameters::ModelParameters;
+use crate::inference_parameters::InferenceParameters;
+use crate::slot_aggregated_status::SlotAggregatedStatus;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct AgentDesiredState {
+    pub inference_parameters: InferenceParameters,
     pub model: AgentDesiredModel,
-    pub model_parameters: ModelParameters,
 }
 
 #[async_trait]
 impl ConvertsToApplicableState for AgentDesiredState {
     type ApplicableState = AgentApplicableState;
 
-    async fn to_applicable_state(&self) -> Result<Option<Self::ApplicableState>> {
-        let model_path = match self.model.to_applicable_state().await? {
-            Some(path) => path,
-            None => {
-                return Err(anyhow!(
-                    "Unable to obtain model path. Make sure that the path is correct."
-                ))
-            }
-        };
-
+    async fn to_applicable_state(
+        &self,
+        slot_aggregated_status: Arc<SlotAggregatedStatus>,
+    ) -> Result<Option<Self::ApplicableState>> {
         Ok(Some(AgentApplicableState {
-            model_parameters: self.model_parameters.clone(),
-            model_path,
+            inference_parameters: self.inference_parameters.clone(),
+            model_path: self
+                .model
+                .to_applicable_state(slot_aggregated_status)
+                .await?,
         }))
     }
 }
