@@ -1,4 +1,5 @@
 use std::sync::atomic::AtomicI32;
+use std::sync::atomic::AtomicUsize;
 use std::sync::RwLock;
 
 use dashmap::DashSet;
@@ -13,6 +14,9 @@ use crate::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 
 pub struct SlotAggregatedStatus {
     desired_slots_total: i32,
+    download_current: AtomicValue<AtomicUsize>,
+    download_filename: RwLock<Option<String>>,
+    download_total: AtomicValue<AtomicUsize>,
     issues: DashSet<AgentIssue>,
     model_path: RwLock<Option<String>>,
     slots_processing: AtomicValue<AtomicI32>,
@@ -25,6 +29,9 @@ impl SlotAggregatedStatus {
     pub fn new(desired_slots_total: i32) -> Self {
         Self {
             desired_slots_total,
+            download_current: AtomicValue::<AtomicUsize>::new(0),
+            download_filename: RwLock::new(None),
+            download_total: AtomicValue::<AtomicUsize>::new(0),
             issues: DashSet::new(),
             model_path: RwLock::new(None),
             slots_processing: AtomicValue::<AtomicI32>::new(0),
@@ -42,6 +49,12 @@ impl SlotAggregatedStatus {
 
     pub fn has_issue(&self, issue: &AgentIssue) -> bool {
         self.issues.contains(issue)
+    }
+
+    pub fn increment_download_current(&self, size: usize) {
+        self.download_current.increment_by(size);
+        self.version.increment();
+        self.update_notifier.notify_waiters();
     }
 
     pub fn increment_total_slots(&self) {
@@ -71,6 +84,32 @@ impl SlotAggregatedStatus {
         self.slots_processing.reset();
         self.slots_total.reset();
         self.version.increment();
+        self.update_notifier.notify_waiters();
+    }
+
+    pub fn reset_download(&self) {
+        self.download_current.set(0);
+        self.download_total.set(0);
+        self.set_download_filename(None);
+        self.version.increment();
+        self.update_notifier.notify_waiters();
+    }
+
+    pub fn set_download_status(&self, current: usize, total: usize, filename: Option<String>) {
+        self.download_current.set(current);
+        self.download_total.set(total);
+        self.set_download_filename(filename);
+    }
+
+    pub fn set_download_filename(&self, filename: Option<String>) {
+        let mut filename_lock = self.download_filename.write().unwrap_or_else(|err| {
+            panic!("Lock poisoned when setting download filename: {filename:?}, error: {err:?}")
+        });
+
+        *filename_lock = filename;
+
+        self.version.increment();
+
         self.update_notifier.notify_waiters();
     }
 
@@ -107,6 +146,13 @@ impl ProducesSnapshot for SlotAggregatedStatus {
         SlotAggregatedStatusSnapshot {
             issues: self.issues.iter().map(|item| item.clone()).collect(),
             desired_slots_total: self.desired_slots_total,
+            download_current: self.download_current.get(),
+            download_filename: self
+                .download_filename
+                .read()
+                .expect("Lock poisoned when getting download filename")
+                .clone(),
+            download_total: self.download_total.get(),
             model_path: self
                 .model_path
                 .read()

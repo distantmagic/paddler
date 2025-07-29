@@ -4,8 +4,9 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use anyhow::Result;
 use async_trait::async_trait;
-use hf_hub::api::tokio::Api;
+use hf_hub::api::tokio::ApiBuilder;
 use hf_hub::api::tokio::ApiError;
+use hf_hub::Cache;
 use hf_hub::Repo;
 use hf_hub::RepoType;
 use log::warn;
@@ -19,6 +20,7 @@ use crate::agent_issue_fix::AgentIssueFix;
 use crate::converts_to_applicable_state::ConvertsToApplicableState;
 use crate::huggingface_model_reference::HuggingFaceModelReference;
 use crate::slot_aggregated_status::SlotAggregatedStatus;
+use crate::slot_aggregated_status_download_progress::SlotAggregatedStatusDownloadProgress;
 
 const LOCK_RETRY_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -52,14 +54,30 @@ impl ConvertsToApplicableState for AgentDesiredModel {
                     return Err(anyhow!("Model '{model_path}' does not exist on Hugging Face. Not attempting to download it again."));
                 }
 
-                let hf_api = Api::new()?;
+                let hf_cache = Cache::default();
+                let hf_api = ApiBuilder::from_cache(hf_cache.clone()).build()?;
                 let hf_repo = hf_api.repo(Repo::with_revision(
                     repo_id.to_owned(),
                     RepoType::Model,
                     revision.to_owned(),
                 ));
 
-                let weights_filename = match hf_repo.get(filename).await {
+                if let Some(cached_path) = hf_cache
+                    .repo(Repo::new(repo_id.to_owned(), RepoType::Model))
+                    .get(filename)
+                {
+                    slot_aggregated_status.reset_download();
+
+                    return Ok(Some(cached_path));
+                }
+
+                let weights_filename = match hf_repo
+                    .download_with_progress(
+                        filename,
+                        SlotAggregatedStatusDownloadProgress::new(slot_aggregated_status.clone()),
+                    )
+                    .await
+                {
                     Ok(resolved_filename) => {
                         slot_aggregated_status
                             .register_fix(AgentIssueFix::HuggingFaceDownloadedModel);

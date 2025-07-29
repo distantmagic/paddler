@@ -2,6 +2,7 @@ import React, { CSSProperties } from "react";
 
 import { type Agent } from "../schemas/Agent";
 import { AgentIssuesPreviewButton } from "./AgentIssuesPreviewButton";
+import { DownloadProgress } from "./DownloadProgress";
 import { ModelMetadataPreviewButton } from "./ModelMetadataPreviewButton";
 
 import {
@@ -40,6 +41,7 @@ export function AgentsList({
           <th>Name</th>
           <th>Issues</th>
           <th>Model</th>
+          <th>Download</th>
           <th>Slots usage</th>
           <th>Used/Actual/Desired</th>
         </tr>
@@ -51,6 +53,9 @@ export function AgentsList({
           issues,
           model_path,
           name,
+          download_current,
+          download_filename,
+          download_total,
           slots_processing,
           slots_total,
         }: Agent) {
@@ -81,6 +86,15 @@ export function AgentsList({
                   <div className={agentList__model}>
                     🪹 <i>No model loaded</i>
                   </div>
+                )}
+              </td>
+              <td>
+                {download_total > 0 && (
+                  <DownloadProgress
+                    current={download_current}
+                    filename={download_filename}
+                    total={download_total}
+                  />
                 )}
               </td>
               <td

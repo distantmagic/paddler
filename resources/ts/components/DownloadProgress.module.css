@@ -1,0 +1,4 @@
+.downloadProgress {
+  display: flex;
+  flex-direction: column;
+}

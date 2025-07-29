@@ -28,6 +28,7 @@ mod service;
 mod service_manager;
 mod sets_desired_state;
 mod slot_aggregated_status;
+mod slot_aggregated_status_download_progress;
 mod slot_aggregated_status_manager;
 mod slot_aggregated_status_snapshot;
 mod slot_status;

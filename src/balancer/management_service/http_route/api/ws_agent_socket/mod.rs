@@ -2,6 +2,7 @@ mod agent_socket_controller_context;
 pub mod jsonrpc;
 
 use std::sync::atomic::AtomicI32;
+use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -101,6 +102,9 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     slot_aggregated_status_snapshot:
                         SlotAggregatedStatusSnapshot {
                             desired_slots_total,
+                            download_current,
+                            download_filename,
+                            download_total,
                             issues,
                             model_path,
                             slots_processing,
@@ -115,6 +119,9 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     agent_message_tx,
                     connection_close_rx: connection_close_tx.subscribe(),
                     desired_slots_total: AtomicValue::<AtomicI32>::new(desired_slots_total),
+                    download_current: AtomicValue::<AtomicUsize>::new(download_current),
+                    download_filename: RwLock::new(download_filename),
+                    download_total: AtomicValue::<AtomicUsize>::new(download_total),
                     generate_tokens_sender_collection: context
                         .generate_tokens_sender_collection
                         .clone(),

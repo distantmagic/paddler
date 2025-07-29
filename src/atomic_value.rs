@@ -1,4 +1,5 @@
 use std::sync::atomic::AtomicI32;
+use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
 pub struct AtomicValue<TAtomic> {
@@ -39,6 +40,36 @@ impl AtomicValue<AtomicI32> {
     }
 
     pub fn set_check(&self, value: i32) -> bool {
+        if self.get() != value {
+            self.set(value);
+
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl AtomicValue<AtomicUsize> {
+    pub fn new(initial: usize) -> Self {
+        Self {
+            value: AtomicUsize::new(initial),
+        }
+    }
+
+    pub fn get(&self) -> usize {
+        self.value.load(Ordering::SeqCst)
+    }
+
+    pub fn increment_by(&self, increment: usize) {
+        self.value.fetch_add(increment, Ordering::SeqCst);
+    }
+
+    pub fn set(&self, value: usize) {
+        self.value.store(value, Ordering::SeqCst);
+    }
+
+    pub fn set_check(&self, value: usize) -> bool {
         if self.get() != value {
             self.set(value);
 

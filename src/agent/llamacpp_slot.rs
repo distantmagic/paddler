@@ -289,14 +289,14 @@ impl Handler<ContinueConversationRequest> for LlamaCppSlot {
             .render(context! {
                 // Known uses:
                 // https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF
-                add_generation_prompt => add_generation_prompt,
+                add_generation_prompt,
                 // Known uses:
                 // https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF
                 // https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF
                 bos_token => self.token_bos_str,
                 // Known uses:
                 // https://huggingface.co/Qwen/Qwen3-0.6B-GGUF
-                enable_thinking => enable_thinking,
+                enable_thinking,
                 // Known uses:
                 // https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF
                 eos_token => self.token_eos_str,
