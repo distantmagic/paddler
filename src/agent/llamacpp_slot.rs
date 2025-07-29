@@ -25,17 +25,17 @@ use minijinja::ErrorKind;
 use tokio::sync::mpsc;
 
 use crate::agent::continue_conversation_request::ContinueConversationRequest;
-use crate::agent::dispenses_slots::DispensesSlots as _;
 use crate::agent::generate_tokens_drop_guard::GenerateTokensDropGuard;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
 use crate::agent::kv_cache_repair_action::KVCacheRepairAction;
-use crate::agent::slot_status::SlotStatus;
+use crate::dispenses_slots::DispensesSlots as _;
 use crate::generated_token::GeneratedToken;
 use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::generated_token_result::GeneratedTokenResult;
 use crate::inference_parameters::InferenceParameters;
 use crate::request_params::ContinueConversationParams;
 use crate::request_params::GenerateTokensParams;
+use crate::slot_status::SlotStatus;
 
 const CHAT_TEMPLATE_NAME: &str = "chat_template";
 

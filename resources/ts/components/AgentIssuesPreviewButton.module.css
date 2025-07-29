@@ -1,0 +1,5 @@
+.agentIssuesPreviewButton {
+  --color-button-background: #ffdae1;
+
+  composes: modelDetailsPreviewButton from "./modelDetailsPreviewButton.module.css";
+}

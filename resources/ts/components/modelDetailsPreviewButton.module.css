@@ -1,10 +1,11 @@
 .modelDetailsPreviewButton {
   align-items: center;
   appearance: none;
-  background-color: var(--color-highlight-2);
+  background-color: var(--color-button-background, var(--color-highlight-2));
+  color: var(--color-button-text, var(--color-body-font));
   column-gap: var(--spacing-half);
   display: inline-flex;
-  border: none;
+  border: var(--border-button, none);
   font-size: var(--font-size-small);
   border-radius: 10px 20% 10px 30%;
   padding: 4px 8px;

@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::anyhow;
 use anyhow::Result;
@@ -13,8 +14,11 @@ use serde::Serialize;
 use tokio::time::sleep;
 use tokio::time::Duration;
 
+use crate::agent_issue::AgentIssue;
+use crate::agent_issue_fix::AgentIssueFix;
 use crate::converts_to_applicable_state::ConvertsToApplicableState;
 use crate::huggingface_model_reference::HuggingFaceModelReference;
+use crate::slot_aggregated_status::SlotAggregatedStatus;
 
 const LOCK_RETRY_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -30,13 +34,24 @@ pub enum AgentDesiredModel {
 impl ConvertsToApplicableState for AgentDesiredModel {
     type ApplicableState = PathBuf;
 
-    async fn to_applicable_state(&self) -> Result<Option<Self::ApplicableState>> {
+    async fn to_applicable_state(
+        &self,
+        slot_aggregated_status: Arc<SlotAggregatedStatus>,
+    ) -> Result<Option<Self::ApplicableState>> {
         Ok(match self {
             AgentDesiredModel::HuggingFace(HuggingFaceModelReference {
                 filename,
                 repo_id,
                 revision,
             }) => {
+                let model_path = format!("{repo_id}/{revision}/{filename}");
+
+                if slot_aggregated_status.has_issue(&AgentIssue::HuggingFaceModelDoesNotExist(
+                    model_path.clone(),
+                )) {
+                    return Err(anyhow!("Model '{model_path}' does not exist on Hugging Face. Not attempting to download it again."));
+                }
+
                 let hf_api = Api::new()?;
                 let hf_repo = hf_api.repo(Repo::with_revision(
                     repo_id.to_owned(),
@@ -45,8 +60,19 @@ impl ConvertsToApplicableState for AgentDesiredModel {
                 ));
 
                 let weights_filename = match hf_repo.get(filename).await {
-                    Ok(resolved_filename) => resolved_filename,
+                    Ok(resolved_filename) => {
+                        slot_aggregated_status
+                            .register_fix(AgentIssueFix::HuggingFaceDownloadedModel);
+
+                        resolved_filename
+                    }
                     Err(ApiError::LockAcquisition(lock_path)) => {
+                        slot_aggregated_status.register_issue(
+                            AgentIssue::HuggingFaceCannotAcquireLock(
+                                lock_path.display().to_string(),
+                            ),
+                        );
+
                         warn!(
                             "Waiting to acquire download lock for '{}'. Sleeping for {} secs",
                             lock_path.display(),
@@ -57,6 +83,23 @@ impl ConvertsToApplicableState for AgentDesiredModel {
 
                         return Err(anyhow!("Failed to acquire download lock '{}'. Is more than one agent running on this machine?", lock_path.display()));
                     }
+                    Err(ApiError::RequestError(reqwest_error)) => match reqwest_error.status() {
+                        Some(reqwest::StatusCode::NOT_FOUND) => {
+                            slot_aggregated_status.register_issue(
+                                AgentIssue::HuggingFaceModelDoesNotExist(model_path.clone()),
+                            );
+
+                            return Err(anyhow!(
+                                "Model '{model_path}' does not exist on Hugging Face."
+                            ));
+                        }
+                        _ => {
+                            return Err(anyhow!(
+                                "Failed to download model from Hugging Face: {}",
+                                reqwest_error
+                            ))
+                        }
+                    },
                     Err(err_other) => return Err(err_other.into()),
                 };
 

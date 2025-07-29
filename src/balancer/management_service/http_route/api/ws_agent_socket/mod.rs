@@ -101,6 +101,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     slot_aggregated_status_snapshot:
                         SlotAggregatedStatusSnapshot {
                             desired_slots_total,
+                            issues,
                             model_path,
                             slots_processing,
                             slots_total,
@@ -121,6 +122,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                         .model_metadata_sender_collection
                         .clone(),
                     id: context.agent_id.clone(),
+                    issues: RwLock::new(issues),
                     model_path: RwLock::new(model_path),
                     name,
                     newest_update_version: AtomicValue::<AtomicI32>::new(version),

@@ -1,6 +1,6 @@
 import { createContext } from "react";
 
-import { type InferenceParameters } from "../InferenceParameters.type";
+import { type InferenceParameters } from "../schemas/InferenceParameters";
 
 export type InferenceParametersContextValue = {
   parameters: InferenceParameters;

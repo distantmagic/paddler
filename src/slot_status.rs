@@ -1,9 +1,9 @@
 use std::sync::atomic::AtomicI32;
 use std::sync::Arc;
 
-use crate::agent::dispenses_slots::DispensesSlots;
-use crate::agent::slot_aggregated_status::SlotAggregatedStatus;
 use crate::atomic_value::AtomicValue;
+use crate::dispenses_slots::DispensesSlots;
+use crate::slot_aggregated_status::SlotAggregatedStatus;
 
 pub struct SlotStatus {
     pub slot_aggregated_status: Arc<SlotAggregatedStatus>,

@@ -1,15 +1,19 @@
 use std::sync::atomic::AtomicI32;
 use std::sync::RwLock;
 
+use dashmap::DashSet;
 use tokio::sync::Notify;
 
-use crate::agent::dispenses_slots::DispensesSlots;
+use crate::agent_issue::AgentIssue;
+use crate::agent_issue_fix::AgentIssueFix;
 use crate::atomic_value::AtomicValue;
+use crate::dispenses_slots::DispensesSlots;
 use crate::produces_snapshot::ProducesSnapshot;
 use crate::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 
 pub struct SlotAggregatedStatus {
     desired_slots_total: i32,
+    issues: DashSet<AgentIssue>,
     model_path: RwLock<Option<String>>,
     slots_processing: AtomicValue<AtomicI32>,
     slots_total: AtomicValue<AtomicI32>,
@@ -21,6 +25,7 @@ impl SlotAggregatedStatus {
     pub fn new(desired_slots_total: i32) -> Self {
         Self {
             desired_slots_total,
+            issues: DashSet::new(),
             model_path: RwLock::new(None),
             slots_processing: AtomicValue::<AtomicI32>::new(0),
             slots_total: AtomicValue::<AtomicI32>::new(0),
@@ -35,10 +40,30 @@ impl SlotAggregatedStatus {
         self.update_notifier.notify_waiters();
     }
 
+    pub fn has_issue(&self, issue: &AgentIssue) -> bool {
+        self.issues.contains(issue)
+    }
+
     pub fn increment_total_slots(&self) {
         self.slots_total.increment();
         self.version.increment();
         self.update_notifier.notify_waiters();
+    }
+
+    pub fn register_issue(&self, issue: AgentIssue) {
+        if self.issues.insert(issue) {
+            self.update_notifier.notify_waiters();
+        }
+    }
+
+    pub fn register_fix(&self, fix: AgentIssueFix) {
+        let size_before = self.issues.len();
+
+        self.issues.retain(|issue| !fix.can_fix(issue));
+
+        if self.issues.len() < size_before {
+            self.update_notifier.notify_waiters();
+        }
     }
 
     pub fn reset(&self) {
@@ -80,6 +105,7 @@ impl ProducesSnapshot for SlotAggregatedStatus {
 
     fn make_snapshot(&self) -> Self::Snapshot {
         SlotAggregatedStatusSnapshot {
+            issues: self.issues.iter().map(|item| item.clone()).collect(),
             desired_slots_total: self.desired_slots_total,
             model_path: self
                 .model_path

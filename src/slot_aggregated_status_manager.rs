@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use crate::agent::slot_aggregated_status::SlotAggregatedStatus;
-use crate::agent::slot_status::SlotStatus;
+use crate::slot_aggregated_status::SlotAggregatedStatus;
+use crate::slot_status::SlotStatus;
 
 pub struct SlotAggregatedStatusManager {
     pub slot_aggregated_status: Arc<SlotAggregatedStatus>,

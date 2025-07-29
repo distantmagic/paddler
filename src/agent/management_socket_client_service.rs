@@ -31,7 +31,7 @@ use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
 use crate::agent::jsonrpc::notification_params::VersionParams;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
-use crate::agent::slot_aggregated_status::SlotAggregatedStatus;
+use crate::slot_aggregated_status::SlotAggregatedStatus;
 use crate::agent::from_request_params::FromRequestParams;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Message as ManagementJsonRpcMessage;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Notification as ManagementJsonRpcNotification;

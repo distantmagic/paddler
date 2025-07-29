@@ -1,0 +1,17 @@
+.agentIssues {
+  display: flex;
+  flex-direction: column;
+  list-style-type: none;
+  padding: var(--spacing-base);
+  row-gap: var(--spacing-base);
+}
+
+.agentIssues__issue {
+  border-left: 2px solid crimson;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: var(--spacing-half);
+  padding-left: var(--spacing-base);
+  padding-top: var(--spacing-half);
+  row-gap: var(--spacing-half);
+}

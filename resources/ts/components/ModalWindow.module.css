@@ -61,11 +61,9 @@
 .modalWindow__titleBar {
   align-items: center;
   background-color: var(--color-highlight-2);
-  border-radius: 10% 20% 0 0;
   display: grid;
   grid-template-columns: 1fr auto;
   height: var(--height-modal-window-titlebar);
-  padding-top: 4px;
 }
 
 .modalWindow__titleBar__title {

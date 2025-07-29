@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { z } from "zod";
 
 import { useFetchJson } from "./useFetchJson";
@@ -16,8 +17,8 @@ export function useModelMetadata({
   agentId: string;
   managementAddr: string;
 }) {
-  const result = useFetchJson({
-    produceFetchPromise(signal) {
+  const produceFetchPromise = useCallback(
+    function (signal: AbortSignal) {
       return fetch(
         `//${managementAddr}/api/v1/agent/${agentId}/model_metadata`,
         {
@@ -25,6 +26,11 @@ export function useModelMetadata({
         },
       );
     },
+    [agentId, managementAddr],
+  );
+
+  const result = useFetchJson({
+    produceFetchPromise,
     responseSchema,
   });
 

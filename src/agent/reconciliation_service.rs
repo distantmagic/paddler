@@ -11,36 +11,47 @@ use tokio::time::MissedTickBehavior;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
 use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
 use crate::agent_desired_state::AgentDesiredState;
+use crate::agent_issue_fix::AgentIssueFix;
 use crate::converts_to_applicable_state::ConvertsToApplicableState;
 use crate::service::Service;
+use crate::slot_aggregated_status::SlotAggregatedStatus;
 
 pub struct ReconciliationService {
     agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
     agent_desired_state: Option<AgentDesiredState>,
     is_converted_to_applicable_state: bool,
     reconciliation_queue: Arc<ReconciliationQueue>,
+    slot_aggregated_status: Arc<SlotAggregatedStatus>,
 }
 
 impl ReconciliationService {
     pub fn new(
         agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
         reconciliation_queue: Arc<ReconciliationQueue>,
+        slot_aggregated_status: Arc<SlotAggregatedStatus>,
     ) -> Result<Self> {
         Ok(ReconciliationService {
             agent_applicable_state_holder,
             agent_desired_state: None,
             is_converted_to_applicable_state: true,
             reconciliation_queue,
+            slot_aggregated_status,
         })
     }
 
     pub async fn convert_to_applicable_state(&mut self) -> Result<()> {
         let applicable_state = match &self.agent_desired_state {
             None => None,
-            Some(agent_desired_state) => agent_desired_state.to_applicable_state().await?,
+            Some(agent_desired_state) => {
+                agent_desired_state
+                    .to_applicable_state(self.slot_aggregated_status.clone())
+                    .await?
+            }
         };
 
         self.is_converted_to_applicable_state = true;
+        self.slot_aggregated_status
+            .register_fix(AgentIssueFix::ModelStateIsReconciled);
         self.agent_applicable_state_holder
             .set_applicable_state(applicable_state)
     }

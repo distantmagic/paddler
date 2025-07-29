@@ -16,9 +16,9 @@ use crate::agent::management_socket_client_service::ManagementSocketClientServic
 use crate::agent::model_metadata_holder::ModelMetadataHolder;
 use crate::agent::reconciliation_queue::ReconciliationQueue;
 use crate::agent::reconciliation_service::ReconciliationService;
-use crate::agent::slot_aggregated_status_manager::SlotAggregatedStatusManager;
 use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
 use crate::service_manager::ServiceManager;
+use crate::slot_aggregated_status_manager::SlotAggregatedStatusManager;
 
 #[derive(Parser)]
 pub struct Agent {
@@ -76,6 +76,9 @@ impl Handler for Agent {
         service_manager.add_service(ReconciliationService::new(
             agent_applicable_state_holder,
             reconciliation_queue,
+            slot_aggregated_status_manager
+                .slot_aggregated_status
+                .clone(),
         )?);
 
         service_manager.run_forever(shutdown_rx).await

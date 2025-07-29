@@ -14,6 +14,7 @@ use tokio::sync::broadcast;
 
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
+use crate::balancer::http_route as common_http_route;
 use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::balancer::state_database::StateDatabase;
 #[cfg(feature = "web_admin_panel")]
@@ -97,6 +98,7 @@ impl Service for InferenceService {
                 .app_data(buffered_request_manager.clone())
                 .app_data(inference_service_configuration.clone())
                 .app_data(state_database.clone())
+                .configure(common_http_route::get_health::register)
                 .configure(http_route::api::ws_inference_socket::register)
         })
         .shutdown_signal(async move {

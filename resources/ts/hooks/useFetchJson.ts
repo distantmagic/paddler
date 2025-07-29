@@ -1,7 +1,16 @@
 import { useEffect, useState } from "react";
 import { z } from "zod";
 
+export type EmptyState = {
+  empty: true;
+  error: null;
+  loading: false;
+  ok: false;
+  response: null;
+};
+
 export type ErrorState = {
+  empty: false;
   error: string;
   loading: false;
   response: null;
@@ -9,6 +18,7 @@ export type ErrorState = {
 };
 
 export type LoadingState = {
+  empty: false;
   error: null;
   loading: true;
   response: null;
@@ -16,6 +26,7 @@ export type LoadingState = {
 };
 
 export type SuccessState<TResult> = {
+  empty: false;
   error: null;
   loading: false;
   response: TResult;
@@ -23,11 +34,21 @@ export type SuccessState<TResult> = {
 };
 
 export type FetchJsonState<TResult> =
+  | EmptyState
   | ErrorState
   | LoadingState
   | SuccessState<TResult>;
 
-const defaultState: LoadingState = Object.freeze({
+const emptyState: EmptyState = Object.freeze({
+  empty: true,
+  error: null,
+  loading: false,
+  response: null,
+  ok: false,
+});
+
+const loadingState: LoadingState = Object.freeze({
+  empty: false,
   error: null,
   loading: true,
   response: null,
@@ -38,17 +59,31 @@ export function useFetchJson<TResponseSchema extends z.ZodType>({
   produceFetchPromise,
   responseSchema,
 }: {
-  produceFetchPromise(this: void, abortSignal: AbortSignal): Promise<Response>;
+  produceFetchPromise(
+    this: void,
+    abortSignal: AbortSignal,
+  ): null | Promise<Response>;
   responseSchema: TResponseSchema;
 }): FetchJsonState<z.infer<TResponseSchema>> {
   const [fetchState, setFetchState] =
-    useState<FetchJsonState<z.infer<TResponseSchema>>>(defaultState);
+    useState<FetchJsonState<z.infer<TResponseSchema>>>(loadingState);
 
   useEffect(
     function () {
-      const abortcontroller = new AbortController();
+      const abortController = new AbortController();
+      const fetchPromise = produceFetchPromise(abortController.signal);
 
-      produceFetchPromise(abortcontroller.signal)
+      if (!fetchPromise) {
+        setFetchState(emptyState);
+
+        return function () {
+          abortController.abort("Fetch promise was not provided.");
+        };
+      }
+
+      setFetchState(loadingState);
+
+      fetchPromise
         .then(function (response) {
           if (!response.ok) {
             throw new Error(`HTTP error status: ${response.status}`);
@@ -61,6 +96,7 @@ export function useFetchJson<TResponseSchema extends z.ZodType>({
         })
         .then(function (result: z.infer<TResponseSchema>) {
           setFetchState({
+            empty: false,
             error: null,
             loading: false,
             response: result,
@@ -69,6 +105,7 @@ export function useFetchJson<TResponseSchema extends z.ZodType>({
         })
         .catch(function (error: unknown) {
           setFetchState({
+            empty: false,
             error: String(error),
             loading: false,
             response: null,
@@ -77,7 +114,7 @@ export function useFetchJson<TResponseSchema extends z.ZodType>({
         });
 
       return function () {
-        abortcontroller.abort();
+        abortController.abort("Component unmounted or fetch cancelled.");
       };
     },
     [produceFetchPromise, responseSchema, setFetchState],

@@ -1,5 +1,4 @@
 pub mod continue_conversation_request;
-pub mod dispenses_slots;
 pub mod from_request_params;
 pub mod generate_tokens_drop_guard;
 pub mod generate_tokens_request;
@@ -15,6 +14,3 @@ pub mod receive_tokens_stopper_collection;
 pub mod receive_tokens_stopper_drop_guard;
 pub mod reconciliation_queue;
 pub mod reconciliation_service;
-pub mod slot_aggregated_status;
-pub mod slot_aggregated_status_manager;
-pub mod slot_status;

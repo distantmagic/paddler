@@ -31,6 +31,13 @@ export function ModelMetadataLoader({
   return (
     <div className={modelMetadataLoader}>
       {matchFetchJsonState(loadingState, {
+        empty() {
+          return (
+            <ModalWindow onClose={onClose} title={`${agentName} / No Model`}>
+              <span>No model loaded</span>
+            </ModalWindow>
+          );
+        },
         error({ error }) {
           return (
             <ModalWindow onClose={onClose} title={`${agentName} / Error`}>

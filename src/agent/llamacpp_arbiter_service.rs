@@ -10,6 +10,7 @@ use async_trait::async_trait;
 use log::error;
 use log::info;
 use log::warn;
+use tokio::fs;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::time::interval;
@@ -22,10 +23,12 @@ use crate::agent::llamacpp_arbiter::LlamaCppArbiter;
 use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
 use crate::agent::llamacpp_slot::LlamaCppSlot;
 use crate::agent::model_metadata_holder::ModelMetadataHolder;
-use crate::agent::slot_aggregated_status_manager::SlotAggregatedStatusManager;
 use crate::agent_applicable_state::AgentApplicableState;
 use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
+use crate::agent_issue::AgentIssue;
+use crate::agent_issue_fix::AgentIssueFix;
 use crate::service::Service;
+use crate::slot_aggregated_status_manager::SlotAggregatedStatusManager;
 
 pub struct LlamaCppArbiterService {
     agent_applicable_state: Option<AgentApplicableState>,
@@ -80,6 +83,22 @@ impl LlamaCppArbiterService {
             self.slot_aggregated_status_manager.reset();
 
             if let Some(model_path) = model_path {
+                if !fs::try_exists(&model_path).await? {
+                    self.slot_aggregated_status_manager
+                        .slot_aggregated_status
+                        .register_issue(AgentIssue::ModelFileDoesNotExist(
+                            model_path.display().to_string(),
+                        ));
+
+                    return Err(anyhow!(
+                        "Model path does not exist: {}",
+                        model_path.display()
+                    ));
+                }
+
+                self.slot_aggregated_status_manager
+                    .slot_aggregated_status
+                    .register_fix(AgentIssueFix::ModelFileExists);
                 self.llamacpp_arbiter_controller = Some(
                     LlamaCppArbiter::new(
                         self.agent_name.clone(),

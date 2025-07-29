@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, type FormEvent } from "react";
 
 import { InferenceParametersContext } from "../contexts/InferenceParametersContext";
-import { type InferenceParameters } from "../InferenceParameters.type";
+import { type InferenceParameters } from "../schemas/InferenceParameters";
 import {
   inferenceParameterInput,
   inferenceParameterInput__input,
@@ -33,6 +33,7 @@ export function InferenceParameterInput({
       </abbr>
       <input
         className={inferenceParameterInput__input}
+        name={name}
         onInput={onInput}
         required
         type="number"

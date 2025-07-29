@@ -1,6 +1,7 @@
 import React, { CSSProperties } from "react";
 
 import { type Agent } from "../schemas/Agent";
+import { AgentIssuesPreviewButton } from "./AgentIssuesPreviewButton";
 import { ModelMetadataPreviewButton } from "./ModelMetadataPreviewButton";
 
 import {
@@ -37,6 +38,7 @@ export function AgentsList({
       <thead>
         <tr>
           <th>Name</th>
+          <th>Issues</th>
           <th>Model</th>
           <th>Slots usage</th>
           <th>Used/Actual/Desired</th>
@@ -46,6 +48,7 @@ export function AgentsList({
         {agents.map(function ({
           id,
           desired_slots_total,
+          issues,
           model_path,
           name,
           slots_processing,
@@ -54,6 +57,13 @@ export function AgentsList({
           return (
             <tr key={id}>
               <td>{name}</td>
+              <td>
+                {issues.length > 0 ? (
+                  <AgentIssuesPreviewButton agentName={name} issues={issues} />
+                ) : (
+                  <i>None</i>
+                )}
+              </td>
               <td>
                 {"string" === typeof model_path ? (
                   <div className={agentList__model}>

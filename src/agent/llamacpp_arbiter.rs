@@ -7,6 +7,7 @@ use std::thread;
 
 use actix::sync::SyncArbiter;
 use actix::System;
+use anyhow::anyhow;
 use anyhow::Context as _;
 use anyhow::Result;
 use llama_cpp_2::context::params::LlamaContextParams;
@@ -14,14 +15,17 @@ use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::model::LlamaModel;
 use llama_cpp_2::model::Special;
+use log::error;
 use tokio::sync::oneshot;
 
 use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
 use crate::agent::llamacpp_slot::LlamaCppSlot;
 use crate::agent::model_metadata_holder::ModelMetadataHolder;
-use crate::agent::slot_aggregated_status_manager::SlotAggregatedStatusManager;
+use crate::agent_issue::AgentIssue;
+use crate::agent_issue_fix::AgentIssueFix;
 use crate::inference_parameters::InferenceParameters;
 use crate::model_metadata::ModelMetadata;
+use crate::slot_aggregated_status_manager::SlotAggregatedStatusManager;
 
 pub struct LlamaCppArbiter {
     agent_name: Option<String>,
@@ -53,6 +57,7 @@ impl LlamaCppArbiter {
 
     pub async fn spawn(&self) -> Result<LlamaCppArbiterController> {
         let (llamacpp_slot_addr_tx, llamacpp_slot_addr_rx) = oneshot::channel();
+        let (model_loaded_tx, model_loaded_rx) = oneshot::channel::<()>();
         let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
 
         let agent_name_clone = self.agent_name.clone();
@@ -79,7 +84,16 @@ impl LlamaCppArbiter {
                 .context("Unable to load model from file")?,
             );
 
-            log::debug!("Model has meta parameters: {:?}", model.meta_count());
+            if model_loaded_tx.send(()).is_err() {
+                let message = format!(
+                    "Failed to send model loaded signal for model at path: {}",
+                    model_path.display()
+                );
+
+                error!("{message}");
+
+                return Err(anyhow!(message));
+            }
 
             let mut model_metadata = ModelMetadata::new();
 
@@ -141,6 +155,26 @@ impl LlamaCppArbiter {
 
             Ok(())
         });
+
+        match model_loaded_rx
+            .await
+            .context("Failed to receive model loaded signal")
+        {
+            Ok(()) => {
+                self.slot_aggregated_status_manager
+                    .slot_aggregated_status
+                    .register_fix(AgentIssueFix::ModelIsLoaded);
+            }
+            Err(err) => {
+                error!("Failed to load model: {err}");
+
+                self.slot_aggregated_status_manager
+                    .slot_aggregated_status
+                    .register_issue(AgentIssue::ModelCannotBeLoaded(
+                        self.model_path.display().to_string(),
+                    ));
+            }
+        }
 
         Ok(LlamaCppArbiterController::new(
             llamacpp_slot_addr_rx

@@ -14,6 +14,7 @@ use tokio::sync::broadcast;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
+use crate::balancer::http_route as common_http_route;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
 use crate::balancer::state_database::StateDatabase;
@@ -92,6 +93,7 @@ impl Service for ManagementService {
                 .app_data(generate_tokens_sender_collection.clone())
                 .app_data(model_metadata_sender_collection.clone())
                 .app_data(state_database.clone())
+                .configure(common_http_route::get_health::register)
                 .configure(http_route::api::get_agent_desired_state::register)
                 .configure(http_route::api::get_agents::register)
                 .configure(http_route::api::get_agents_stream::register)

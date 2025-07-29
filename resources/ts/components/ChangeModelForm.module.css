@@ -1,5 +1,15 @@
-.changeModelPage {
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.changeModelForm {
   align-items: flex-start;
+  animation: fadeIn 200ms ease-in-out;
   column-gap: var(--spacing-base);
   display: grid;
   grid-template-areas: "main aside";
@@ -9,7 +19,7 @@
   width: 100%;
 }
 
-.changeModelPage__asideInfo {
+.changeModelForm__asideInfo {
   background-color: var(--color-note-background);
   border-radius: 20px 50px 20px 20px;
   border: 2px dashed var(--color-border);
@@ -61,7 +71,7 @@
   }
 }
 
-.changeModelPage__details {
+.changeModelForm__details {
   background-color: var(--color-note-background);
   border: 2px dashed var(--color-border);
   margin: var(--spacing-base) 0;
@@ -89,31 +99,31 @@
   }
 }
 
-.changeModelPage__form {
+.changeModelForm__form {
   display: flex;
   flex-direction: column;
   row-gap: var(--spacing-2x);
 }
 
-.changeModelPage__formControls {
+.changeModelForm__formControls {
   justify-content: flex-end;
   display: flex;
   flex-direction: row;
   padding: 0 var(--spacing-base);
 }
 
-.changeModelPage__formLabel {
+.changeModelForm__formLabel {
   display: flex;
   flex-direction: column;
   row-gap: var(--spacing-half);
 }
 
-.changeModelPage__formLabel__title {
+.changeModelForm__formLabel__title {
   font-weight: bold;
   padding: 0 var(--spacing-base);
 }
 
-.changeModelPage__input {
+.changeModelForm__input {
   appearance: none;
   background-color: var(--color-body-background);
   border: 2px solid var(--color-border);
@@ -125,13 +135,13 @@
   }
 }
 
-.changeModelPage__main {
+.changeModelForm__main {
   grid-area: main;
   padding: var(--spacing-2x) var(--spacing-base) var(--spacing-base)
     var(--spacing-base);
 }
 
-.changeModelPage__parameters {
+.changeModelForm__parameters {
   appearance: none;
   border-radius: 30px 20px 40px 20px;
   border: none;
@@ -168,7 +178,7 @@
   }
 }
 
-.changeModelPage__submitButton {
+.changeModelForm__submitButton {
   appearance: none;
   background-color: black;
   border-radius: 20px 30%;

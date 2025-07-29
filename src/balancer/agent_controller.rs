@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::sync::atomic::AtomicI32;
 use std::sync::RwLock;
 
@@ -14,6 +15,7 @@ use crate::agent::jsonrpc::Message as AgentJsonRpcMessage;
 use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
 use crate::agent::jsonrpc::Request as AgentJsonRpcRequest;
 use crate::agent_desired_state::AgentDesiredState;
+use crate::agent_issue::AgentIssue;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller_snapshot::AgentControllerSnapshot;
 use crate::balancer::agent_controller_update_result::AgentControllerUpdateResult;
@@ -35,6 +37,7 @@ pub struct AgentController {
     pub desired_slots_total: AtomicValue<AtomicI32>,
     pub generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
     pub id: String,
+    pub issues: RwLock<BTreeSet<AgentIssue>>,
     pub model_metadata_sender_collection: Data<ModelMetadataSenderCollection>,
     pub model_path: RwLock<Option<String>>,
     pub name: Option<String>,
@@ -76,6 +79,10 @@ impl AgentController {
         .await
     }
 
+    pub fn get_issues(&self) -> BTreeSet<AgentIssue> {
+        self.issues.read().expect("Poisoned lock on issues").clone()
+    }
+
     pub async fn get_model_metadata(&self) -> Result<ReceiveModelMetadataController> {
         let (model_metadata_tx, model_metadata_rx) = mpsc::unbounded_channel();
         let request_id: String = Uuid::new_v4().to_string();
@@ -102,6 +109,12 @@ impl AgentController {
             .clone()
     }
 
+    pub fn set_issues(&self, issues: BTreeSet<AgentIssue>) {
+        let mut locked_issues = self.issues.write().expect("Poisoned lock on issues");
+
+        *locked_issues = issues;
+    }
+
     pub fn set_model_path(&self, model_path: Option<String>) {
         let mut locked_path = self
             .model_path
@@ -124,6 +137,7 @@ impl AgentController {
         &self,
         SlotAggregatedStatusSnapshot {
             desired_slots_total,
+            issues,
             model_path,
             slots_processing,
             slots_total,
@@ -146,6 +160,12 @@ impl AgentController {
 
         self.newest_update_version
             .compare_and_swap(newest_update_version, version);
+
+        if issues != self.get_issues() {
+            changed = true;
+
+            self.set_issues(issues);
+        }
 
         if model_path != self.get_model_path() {
             changed = true;
@@ -186,6 +206,7 @@ impl ProducesSnapshot for AgentController {
         AgentControllerSnapshot {
             desired_slots_total: self.desired_slots_total.get(),
             id: self.id.clone(),
+            issues: self.get_issues(),
             model_path: self
                 .model_path
                 .read()

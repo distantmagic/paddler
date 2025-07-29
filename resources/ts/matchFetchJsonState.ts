@@ -1,6 +1,7 @@
 import { type ReactNode } from "react";
 
 import {
+  type EmptyState,
   type ErrorState,
   type FetchJsonState,
   type LoadingState,
@@ -8,6 +9,7 @@ import {
 } from "./hooks/useFetchJson";
 
 interface Handlers<TResponse> {
+  empty(state: EmptyState): ReactNode;
   error(state: ErrorState): ReactNode;
   loading(state: LoadingState): ReactNode;
   ok(state: SuccessState<TResponse>): ReactNode;
@@ -17,6 +19,10 @@ export function matchFetchJsonState<TResponse>(
   state: FetchJsonState<TResponse>,
   handlers: Handlers<TResponse>,
 ): ReactNode {
+  if (state.empty) {
+    return handlers.empty(state);
+  }
+
   if (state.loading) {
     return handlers.loading(state);
   }
