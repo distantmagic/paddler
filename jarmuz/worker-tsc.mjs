@@ -1,3 +1,3 @@
 import { command } from "jarmuz/job-types";
 
-command("npm exec tsgo");
+command("npm exec tsc");

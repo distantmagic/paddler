@@ -1,3 +1,5 @@
+import { jinja } from "@codemirror/lang-jinja";
+import CodeMirror from "@uiw/react-codemirror";
 import React, { useCallback, useContext, type MouseEvent } from "react";
 
 import {
@@ -40,9 +42,15 @@ export function ModelMetadataFocusedParameter({
           Back to all parameters
         </button>
       </div>
-      <pre className={modelMetadataFocusedParameter__content}>
-        {metadataValue}
-      </pre>
+      <div className={modelMetadataFocusedParameter__content}>
+        <CodeMirror
+          editable={false}
+          extensions={[jinja()]}
+          height="100%"
+          readOnly={true}
+          value={metadataValue}
+        />
+      </div>
     </div>
   );
 }

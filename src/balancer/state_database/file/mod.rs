@@ -55,7 +55,7 @@ impl File {
 
         self.store_schema(&schema)
             .await
-            .context("Failed to store default state after file not found")?;
+            .context("Failed to store default state")?;
 
         Ok(schema)
     }
