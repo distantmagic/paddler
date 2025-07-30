@@ -1,0 +1,66 @@
+.chatTemplateBehavior {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-base) 0;
+  row-gap: var(--spacing-half);
+}
+
+.chatTemplateBehavior__description {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-base) var(--spacing-base) var(--spacing-base) 0;
+  row-gap: var(--spacing-half);
+
+  select {
+    appearance: none;
+    background-color: white;
+    background-image: url("../../icons/arrow_drop_down.svg");
+    background-position: 0 50%;
+    background-repeat: no-repeat;
+    background-size: 24px;
+    border-color: var(--color-border);
+    border-style: solid;
+    border-width: 2px;
+    padding: var(--spacing-quarter) var(--spacing-half) var(--spacing-quarter)
+      24px;
+
+    &:focus {
+      outline: none;
+    }
+  }
+}
+
+.chatTemplateBehavior__option {
+  background-color: lavender;
+  border: 2px solid #c3c3e4;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: auto 1fr;
+}
+
+.chatTemplateBehavior__radio {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  padding: 0 var(--spacing-base);
+
+  input[type="radio"] {
+    background-color: white;
+    border-radius: 50%;
+    border: 2px solid black;
+    height: 12px;
+    width: 12px;
+
+    &:checked {
+      background-image: radial-gradient(circle, black 50%, transparent 50%);
+    }
+  }
+}
+
+.chatTemplateBehavior__selectAlternative {
+  background-image: url("../../icons/subdirectory_arrow_right.svg");
+  background-position: left center;
+  background-repeat: no-repeat;
+  background-size: var(--spacing-base);
+  padding-left: calc(var(--spacing-base) + var(--spacing-half));
+}

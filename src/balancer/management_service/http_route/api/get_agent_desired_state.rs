@@ -14,10 +14,9 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 #[get("/api/v1/agent_desired_state")]
 async fn respond(state_database: web::Data<dyn StateDatabase>) -> Result<impl Responder, Error> {
     let desired_state = state_database
-        .read_desired_state()
+        .read_agent_desired_state()
         .await
-        .map_err(ErrorInternalServerError)?
-        .unwrap_or_default();
+        .map_err(ErrorInternalServerError)?;
 
     Ok(HttpResponse::Ok().json(desired_state))
 }

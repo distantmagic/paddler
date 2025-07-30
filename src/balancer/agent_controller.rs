@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicUsize;
 use std::sync::RwLock;
@@ -41,6 +42,7 @@ pub struct AgentController {
     pub download_total: AtomicValue<AtomicUsize>,
     pub generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
     pub id: String,
+    pub is_state_applied: AtomicValue<AtomicBool>,
     pub issues: RwLock<BTreeSet<AgentIssue>>,
     pub model_metadata_sender_collection: Data<ModelMetadataSenderCollection>,
     pub model_path: RwLock<Option<String>>,
@@ -160,6 +162,7 @@ impl AgentController {
             download_current,
             download_filename,
             download_total,
+            is_state_applied,
             issues,
             model_path,
             slots_processing,
@@ -180,6 +183,7 @@ impl AgentController {
         changed = changed || self.desired_slots_total.set_check(desired_slots_total);
         changed = changed || self.download_current.set_check(download_current);
         changed = changed || self.download_total.set_check(download_total);
+        changed = changed || self.is_state_applied.set_check(is_state_applied);
         changed = changed || self.slots_processing.set_check(slots_processing);
         changed = changed || self.slots_total.set_check(slots_total);
 
@@ -244,6 +248,7 @@ impl ProducesSnapshot for AgentController {
                 .clone(),
             download_total: self.download_total.get(),
             id: self.id.clone(),
+            is_state_applied: self.is_state_applied.get(),
             issues: self.get_issues(),
             model_path: self
                 .model_path

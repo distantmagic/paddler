@@ -213,11 +213,19 @@ impl LlamaCppArbiter {
             Err(err) => {
                 error!("Failed to load chat template: {err}");
 
-                self.slot_aggregated_status_manager
+                if !self
+                    .slot_aggregated_status_manager
                     .slot_aggregated_status
-                    .register_issue(AgentIssue::UnableToFindChatTemplate(
-                        model_path_string.clone(),
-                    ));
+                    .has_issue(&AgentIssue::ModelCannotBeLoaded(model_path_string.clone()))
+                {
+                    // If the model cannot be loaded, that doesn't mean that the chat template
+                    // cannot be loaded.
+                    self.slot_aggregated_status_manager
+                        .slot_aggregated_status
+                        .register_issue(AgentIssue::UnableToFindChatTemplate(
+                            model_path_string.clone(),
+                        ));
+                }
             }
         }
 

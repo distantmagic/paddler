@@ -39,9 +39,9 @@ export function AgentsList({
       <thead>
         <tr>
           <th>Name</th>
-          <th>Issues</th>
           <th>Model</th>
-          <th>Download</th>
+          <th>Issues</th>
+          <th>Status</th>
           <th>Slots usage</th>
           <th>Used/Actual/Desired</th>
         </tr>
@@ -50,6 +50,7 @@ export function AgentsList({
         {agents.map(function ({
           id,
           desired_slots_total,
+          is_state_applied,
           issues,
           model_path,
           name,
@@ -62,13 +63,6 @@ export function AgentsList({
           return (
             <tr key={id}>
               <td>{name}</td>
-              <td>
-                {issues.length > 0 ? (
-                  <AgentIssuesPreviewButton agentName={name} issues={issues} />
-                ) : (
-                  <i>None</i>
-                )}
-              </td>
               <td>
                 {"string" === typeof model_path ? (
                   <div className={agentList__model}>
@@ -89,6 +83,23 @@ export function AgentsList({
                 )}
               </td>
               <td>
+                {issues.length > 0 ? (
+                  <AgentIssuesPreviewButton agentName={name} issues={issues} />
+                ) : (
+                  <i>None</i>
+                )}
+              </td>
+              <td>
+                {!is_state_applied &&
+                  (issues.length > 0 ? (
+                    <>
+                      🙁 <i>Issues; pending changes blocked</i>
+                    </>
+                  ) : (
+                    <>
+                      ⏳ <i>Changes pending</i>
+                    </>
+                  ))}
                 {download_total > 0 && (
                   <DownloadProgress
                     current={download_current}

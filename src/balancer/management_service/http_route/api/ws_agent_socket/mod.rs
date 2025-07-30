@@ -1,6 +1,7 @@
 mod agent_socket_controller_context;
 pub mod jsonrpc;
 
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
@@ -105,6 +106,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                             download_current,
                             download_filename,
                             download_total,
+                            is_state_applied,
                             issues,
                             model_path,
                             slots_processing,
@@ -129,6 +131,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                         .model_metadata_sender_collection
                         .clone(),
                     id: context.agent_id.clone(),
+                    is_state_applied: AtomicValue::<AtomicBool>::new(is_state_applied),
                     issues: RwLock::new(issues),
                     model_path: RwLock::new(model_path),
                     name,
@@ -142,11 +145,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     .register_agent_controller(context.agent_id.clone(), agent_controller.clone())
                     .context("Unable to register agent controller")?;
 
-                let desired_state = context
-                    .state_database
-                    .read_desired_state()
-                    .await?
-                    .unwrap_or_default();
+                let desired_state = context.state_database.read_agent_desired_state().await?;
 
                 agent_controller
                     .set_desired_state(desired_state)

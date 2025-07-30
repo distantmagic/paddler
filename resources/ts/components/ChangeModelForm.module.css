@@ -71,6 +71,25 @@
   }
 }
 
+.changeModelForm__chatTemplate,
+.changeModelForm__parameters {
+  appearance: none;
+  border: none;
+  display: flex;
+  flex-direction: column;
+
+  legend {
+    appearance: none;
+    font-weight: bold;
+    padding: 0 var(--spacing-base);
+  }
+
+  p {
+    margin-bottom: var(--spacing-base);
+    padding: 0 var(--spacing-base);
+  }
+}
+
 .changeModelForm__details {
   background-color: var(--color-note-background);
   border: 2px dashed var(--color-border);
@@ -142,11 +161,6 @@
 }
 
 .changeModelForm__parameters {
-  appearance: none;
-  border-radius: 30px 20px 40px 20px;
-  border: none;
-  display: flex;
-  flex-direction: column;
   position: relative;
   z-index: 1;
 
@@ -164,17 +178,6 @@
     top: var(--spacing-overflow);
     user-select: none;
     z-index: -1;
-  }
-
-  legend {
-    appearance: none;
-    font-weight: bold;
-    padding: 0 var(--spacing-base);
-  }
-
-  p {
-    margin-bottom: var(--spacing-base);
-    padding: 0 var(--spacing-base);
   }
 }
 

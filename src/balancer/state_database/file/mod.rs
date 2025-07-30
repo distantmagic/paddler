@@ -1,3 +1,5 @@
+mod schema;
+
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -8,6 +10,7 @@ use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::RwLock;
 
+use self::schema::Schema;
 use super::StateDatabase;
 use crate::agent_desired_state::AgentDesiredState;
 
@@ -24,17 +27,16 @@ impl File {
         }
     }
 
-    async fn read_desired_state_from_file(&self) -> Result<Option<AgentDesiredState>> {
+    async fn read_schema_from_file(&self) -> Result<Schema> {
         match fs::read_to_string(&self.path).await {
             Ok(content) => {
                 if content.is_empty() {
-                    return Ok(None);
+                    return self.store_default_schema().await;
                 }
 
-                let state: AgentDesiredState = serde_json::from_str(&content)
-                    .context(format!("Unable to parse database file contents: '{}'. Either that is not a valid database file, or this version of Paddler is incompatible with it.", self.path.display()))?;
+                let schema: Schema = serde_json::from_str(&content).context(format!("Unable to parse database file contents: '{}'. Either that is not a valid database file, or this version of Paddler is incompatible with it.", self.path.display()))?;
 
-                Ok(Some(state))
+                Ok(schema)
             }
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
                 warn!(
@@ -42,34 +44,59 @@ impl File {
                     self.path.display()
                 );
 
-                self.store_desired_state(&AgentDesiredState::default())
-                    .await
-                    .context("Failed to store default state after file not found")?;
-
-                Ok(None)
+                self.store_default_schema().await
             }
             Err(err) => Err(err.into()),
         }
+    }
+
+    async fn store_default_schema(&self) -> Result<Schema> {
+        let schema = Schema::default();
+
+        self.store_schema(&schema)
+            .await
+            .context("Failed to store default state after file not found")?;
+
+        Ok(schema)
+    }
+
+    async fn store_schema(&self, schema: &Schema) -> Result<()> {
+        let _lock = self.write_lock.write().await;
+
+        let serialized_schema = serde_json::to_string_pretty(schema)?;
+        let mut file = fs::File::create(&self.path).await?;
+
+        file.write_all(serialized_schema.as_bytes()).await?;
+        file.sync_all().await?;
+
+        Ok(())
     }
 }
 
 #[async_trait]
 impl StateDatabase for File {
-    async fn read_desired_state(&self) -> Result<Option<AgentDesiredState>> {
-        self.read_desired_state_from_file()
+    async fn read_agent_desired_state(&self) -> Result<AgentDesiredState> {
+        Ok(self
+            .read_schema_from_file()
             .await
-            .context("Unable to read state from file")
+            .context("Unable to read state from file")?
+            .agent_desired_state
+            .clone())
     }
 
-    async fn store_desired_state(&self, state: &AgentDesiredState) -> Result<()> {
-        let _lock = self.write_lock.write().await;
+    async fn store_agent_desired_state(
+        &self,
+        agent_desired_state: &AgentDesiredState,
+    ) -> Result<()> {
+        let mut schema = self
+            .read_schema_from_file()
+            .await
+            .context("Unable to read current state from file")?;
 
-        let serialized_state = serde_json::to_string_pretty(state)?;
-        let mut file = fs::File::create(&self.path).await?;
+        schema.agent_desired_state = agent_desired_state.clone();
 
-        file.write_all(serialized_state.as_bytes()).await?;
-        file.sync_all().await?;
-
-        Ok(())
+        self.store_schema(&schema)
+            .await
+            .context("Unable to store desired state to file")
     }
 }

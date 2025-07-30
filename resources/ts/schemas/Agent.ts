@@ -9,6 +9,7 @@ export const AgentSchema = z
     download_filename: z.string().nullable(),
     download_total: z.number(),
     id: z.string(),
+    is_state_applied: z.boolean(),
     issues: z.array(AgentIssueSchema),
     model_path: z.string().nullable(),
     name: z.string().nullable(),

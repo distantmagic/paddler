@@ -12,6 +12,7 @@ pub struct AgentControllerSnapshot {
     pub download_filename: Option<String>,
     pub download_total: usize,
     pub id: String,
+    pub is_state_applied: bool,
     pub issues: BTreeSet<AgentIssue>,
     pub model_path: Option<String>,
     pub name: Option<String>,

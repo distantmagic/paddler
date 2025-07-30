@@ -129,7 +129,7 @@ impl Handler for Balancer {
         };
 
         // Check if state database can read the desired state
-        state_database.read_desired_state().await?;
+        state_database.read_agent_desired_state().await?;
 
         service_manager.add_service(InferenceService::new(
             agent_controller_pool.clone(),

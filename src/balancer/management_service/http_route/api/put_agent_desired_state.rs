@@ -23,7 +23,7 @@ async fn respond(
     let agent_desired_state_inner = agent_desired_state.into_inner();
 
     state_database
-        .store_desired_state(&agent_desired_state_inner)
+        .store_agent_desired_state(&agent_desired_state_inner)
         .await
         .map_err(ErrorInternalServerError)?;
 

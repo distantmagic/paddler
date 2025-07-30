@@ -1,3 +1,4 @@
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicUsize;
 use std::sync::RwLock;
@@ -17,6 +18,7 @@ pub struct SlotAggregatedStatus {
     download_current: AtomicValue<AtomicUsize>,
     download_filename: RwLock<Option<String>>,
     download_total: AtomicValue<AtomicUsize>,
+    is_state_applied: AtomicValue<AtomicBool>,
     issues: DashSet<AgentIssue>,
     model_path: RwLock<Option<String>>,
     slots_processing: AtomicValue<AtomicI32>,
@@ -32,6 +34,7 @@ impl SlotAggregatedStatus {
             download_current: AtomicValue::<AtomicUsize>::new(0),
             download_filename: RwLock::new(None),
             download_total: AtomicValue::<AtomicUsize>::new(0),
+            is_state_applied: AtomicValue::<AtomicBool>::new(true),
             issues: DashSet::new(),
             model_path: RwLock::new(None),
             slots_processing: AtomicValue::<AtomicI32>::new(0),
@@ -45,6 +48,10 @@ impl SlotAggregatedStatus {
         self.slots_total.decrement();
         self.version.increment();
         self.update_notifier.notify_waiters();
+    }
+
+    pub fn get_is_state_applied(&self) -> bool {
+        self.is_state_applied.get()
     }
 
     pub fn has_issue(&self, issue: &AgentIssue) -> bool {
@@ -113,6 +120,12 @@ impl SlotAggregatedStatus {
         self.update_notifier.notify_waiters();
     }
 
+    pub fn set_is_state_applied(&self, is_applied: bool) {
+        self.is_state_applied.set(is_applied);
+        self.version.increment();
+        self.update_notifier.notify_waiters();
+    }
+
     pub fn set_model_path(&self, model_path: Option<String>) {
         let mut path_lock = self.model_path.write().unwrap_or_else(|err| {
             panic!("Lock poisoned when setting model path: {model_path:?}, error: {err:?}")
@@ -153,6 +166,7 @@ impl ProducesSnapshot for SlotAggregatedStatus {
                 .expect("Lock poisoned when getting download filename")
                 .clone(),
             download_total: self.download_total.get(),
+            is_state_applied: self.is_state_applied.get(),
             model_path: self
                 .model_path
                 .read()

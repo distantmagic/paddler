@@ -10,11 +10,13 @@ import { useLocation } from "wouter";
 import { InferenceParametersContext } from "../contexts/InferenceParametersContext";
 import { useAgentDesiredModelUrl } from "../hooks/useAgentDesiredModelUrl";
 import { type AgentDesiredState } from "../schemas/AgentDesiredState";
+import { ChatTemplateBehavior } from "./ChatTemplateBehavior";
 import { InferenceParameterInput } from "./InferenceParameterInput";
 
 import {
   changeModelForm,
   changeModelForm__asideInfo,
+  changeModelForm__chatTemplate,
   changeModelForm__details,
   changeModelForm__form,
   changeModelForm__formControls,
@@ -144,6 +146,10 @@ export function ChangeModelForm({
               value={String(modelUri)}
             />
           </label>
+          <fieldset className={changeModelForm__chatTemplate}>
+            <legend>Chat Template</legend>
+            <ChatTemplateBehavior />
+          </fieldset>
           <fieldset className={changeModelForm__parameters}>
             <legend>Inference Parameters</legend>
             <details className={changeModelForm__details}>
