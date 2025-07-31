@@ -1,4 +1,4 @@
-.dashboardBufferedRequests {
+.bufferedRequests {
   border: 2px solid var(--color-border);
   display: flex;
   flex-direction: column;

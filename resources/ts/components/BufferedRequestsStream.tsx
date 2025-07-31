@@ -2,25 +2,29 @@ import React from "react";
 
 import { useEventSourceUpdates } from "../hooks/useEventSourceUpdates";
 import { matchEventSourceUpdateState } from "../matchEventSourceUpdateState";
-import { AgentsResponseSchema } from "../schemas/AgentsResponse";
-import { AgentList } from "./AgentList";
+import { BufferedRequestsResponseSchema } from "../schemas/BufferedRequestsResponse";
+import { BufferedRequests } from "./BufferedRequests";
 import { FloatingStatus } from "./FloatingStatus";
 
-export function AgentListStream({
+export function BufferedRequestsStream({
+  bufferedRequestTimeoutMilis,
   managementAddr,
+  maxBufferedRequests,
 }: {
+  bufferedRequestTimeoutMilis: number;
   managementAddr: string;
+  maxBufferedRequests: number;
 }) {
   const eventSourceUpdateState = useEventSourceUpdates({
-    schema: AgentsResponseSchema,
-    endpoint: `//${managementAddr}/api/v1/agents/stream`,
+    schema: BufferedRequestsResponseSchema,
+    endpoint: `//${managementAddr}/api/v1/buffered_requests/stream`,
   });
 
   return matchEventSourceUpdateState(eventSourceUpdateState, {
     connected() {
       return (
         <FloatingStatus>
-          Connected to the server, waiting for agents...
+          Connected to the server, waiting for buffered requests update...
         </FloatingStatus>
       );
     },
@@ -31,12 +35,14 @@ export function AgentListStream({
         </FloatingStatus>
       );
     },
-    dataSnapshot({ data: { agents } }) {
-      if (agents.length < 1) {
-        return <FloatingStatus>No agents registered yet.</FloatingStatus>;
-      }
-
-      return <AgentList agents={agents} managementAddr={managementAddr} />;
+    dataSnapshot({ data: { buffered_requests_current } }) {
+      return (
+        <BufferedRequests
+          bufferedRequestTimeoutMilis={bufferedRequestTimeoutMilis}
+          currentBufferedRequests={buffered_requests_current}
+          maxBufferedRequests={maxBufferedRequests}
+        />
+      );
     },
     deserializationError() {
       return (

@@ -1,7 +1,7 @@
 import React from "react";
 
 import { AgentListStream } from "./AgentListStream";
-import { DashboardBufferedRequests } from "./DashboardBufferedRequests";
+import { BufferedRequestsStream } from "./BufferedRequestsStream";
 import { DashboardPageAddAgent } from "./DashboardPageAddAgent";
 import { DashboardPageAddrOverview } from "./DashboardPageAddrOverview";
 
@@ -32,8 +32,9 @@ export function DashboardPage({
           />
         </div>
         <div className={dashboardPage__serviceBlock}>
-          <DashboardBufferedRequests
+          <BufferedRequestsStream
             bufferedRequestTimeoutMilis={bufferedRequestTimeoutMilis}
+            managementAddr={managementAddr}
             maxBufferedRequests={maxBufferedRequests}
           />
         </div>
