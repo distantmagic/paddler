@@ -8,12 +8,12 @@ import { PromptPage } from "./PromptPage";
 import { WorkbenchLayout } from "./WorkbenchLayout";
 
 export function Home({
-  bufferedRequestTimeoutMilis,
+  bufferedRequestTimeoutMillis,
   inferenceAddr,
   managementAddr,
   maxBufferedRequests,
 }: {
-  bufferedRequestTimeoutMilis: number;
+  bufferedRequestTimeoutMillis: number;
   inferenceAddr: string;
   managementAddr: string;
   maxBufferedRequests: number;
@@ -24,7 +24,7 @@ export function Home({
         <Switch>
           <Route path="/">
             <DashboardPage
-              bufferedRequestTimeoutMilis={bufferedRequestTimeoutMilis}
+              bufferedRequestTimeoutMillis={bufferedRequestTimeoutMillis}
               inferenceAddr={inferenceAddr}
               managementAddr={managementAddr}
               maxBufferedRequests={maxBufferedRequests}

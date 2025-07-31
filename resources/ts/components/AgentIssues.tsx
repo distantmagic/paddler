@@ -68,7 +68,7 @@ export function AgentIssues({ issues }: { issues: Array<AgentIssue> }) {
               </p>
               <p>
                 Another possibility is that it was just a temporary issue, like
-                system not having enough memmory to load the model.
+                system not having enough memory to load the model.
               </p>
               <strong>What will Paddler do?</strong>{" "}
               <p>

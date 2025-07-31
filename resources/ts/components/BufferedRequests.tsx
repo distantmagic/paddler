@@ -3,11 +3,11 @@ import React from "react";
 import { bufferedRequests } from "./BufferedRequests.module.css";
 
 export function BufferedRequests({
-  bufferedRequestTimeoutMilis,
+  bufferedRequestTimeoutMillis,
   currentBufferedRequests,
   maxBufferedRequests,
 }: {
-  bufferedRequestTimeoutMilis: number;
+  bufferedRequestTimeoutMillis: number;
   currentBufferedRequests: number;
   maxBufferedRequests: number;
 }) {
@@ -18,7 +18,9 @@ export function BufferedRequests({
       <p>
         {currentBufferedRequests}/{maxBufferedRequests}
       </p>
-      <p>Individual request's timeout: {bufferedRequestTimeoutMilis / 1000}s</p>
+      <p>
+        Individual request's timeout: {bufferedRequestTimeoutMillis / 1000}s
+      </p>
     </div>
   );
 }

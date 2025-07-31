@@ -12,12 +12,12 @@ import {
 } from "./DashboardPage.module.css";
 
 export function DashboardPage({
-  bufferedRequestTimeoutMilis,
+  bufferedRequestTimeoutMillis,
   inferenceAddr,
   managementAddr,
   maxBufferedRequests,
 }: {
-  bufferedRequestTimeoutMilis: number;
+  bufferedRequestTimeoutMillis: number;
   inferenceAddr: string;
   managementAddr: string;
   maxBufferedRequests: number;
@@ -33,7 +33,7 @@ export function DashboardPage({
         </div>
         <div className={dashboardPage__serviceBlock}>
           <BufferedRequestsStream
-            bufferedRequestTimeoutMilis={bufferedRequestTimeoutMilis}
+            bufferedRequestTimeoutMillis={bufferedRequestTimeoutMillis}
             managementAddr={managementAddr}
             maxBufferedRequests={maxBufferedRequests}
           />

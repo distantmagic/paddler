@@ -33,8 +33,8 @@ const root = createRoot(rootNodeElement);
 
 root.render(
   <Home
-    bufferedRequestTimeoutMilis={rootNode.getIntFromDataset(
-      "bufferedRequestTimeoutMilis",
+    bufferedRequestTimeoutMillis={rootNode.getIntFromDataset(
+      "bufferedRequestTimeoutMillis",
     )}
     inferenceAddr={rootNode.getStringFromDataset("inferenceAddr")}
     managementAddr={rootNode.getStringFromDataset("managementAddr")}

@@ -8,11 +8,11 @@ import { BufferedRequests } from "./BufferedRequests";
 import { bufferedRequestsStream__loader } from "./BufferedRequestsStream.module.css";
 
 export function BufferedRequestsStream({
-  bufferedRequestTimeoutMilis,
+  bufferedRequestTimeoutMillis,
   managementAddr,
   maxBufferedRequests,
 }: {
-  bufferedRequestTimeoutMilis: number;
+  bufferedRequestTimeoutMillis: number;
   managementAddr: string;
   maxBufferedRequests: number;
 }) {
@@ -40,7 +40,7 @@ export function BufferedRequestsStream({
     dataSnapshot({ data: { buffered_requests_current } }) {
       return (
         <BufferedRequests
-          bufferedRequestTimeoutMilis={bufferedRequestTimeoutMilis}
+          bufferedRequestTimeoutMillis={bufferedRequestTimeoutMillis}
           currentBufferedRequests={buffered_requests_current}
           maxBufferedRequests={maxBufferedRequests}
         />
