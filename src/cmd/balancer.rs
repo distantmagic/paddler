@@ -27,6 +27,8 @@ use crate::balancer::statsd_service::StatsdService;
 #[cfg(feature = "web_admin_panel")]
 use crate::balancer::web_admin_panel_service::configuration::Configuration as WebAdminPanelServiceConfiguration;
 #[cfg(feature = "web_admin_panel")]
+use crate::balancer::web_admin_panel_service::template_data::TemplateData;
+#[cfg(feature = "web_admin_panel")]
 use crate::balancer::web_admin_panel_service::WebAdminPanelService;
 use crate::service_manager::ServiceManager;
 
@@ -105,8 +107,12 @@ impl Balancer {
         self.web_admin_panel_addr
             .map(|web_admin_panel_addr| WebAdminPanelServiceConfiguration {
                 addr: web_admin_panel_addr,
-                inference_addr: self.inference_addr,
-                management_addr: self.management_addr,
+                template_data: TemplateData {
+                    buffered_request_timeout: self.buffered_request_timeout,
+                    max_buffered_requests: self.max_buffered_requests,
+                    management_addr: self.management_addr,
+                    inference_addr: self.inference_addr,
+                },
             })
     }
 }

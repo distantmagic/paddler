@@ -2,6 +2,7 @@ import React from "react";
 
 import { AgentListStream } from "./AgentListStream";
 import { DashboardBufferedRequests } from "./DashboardBufferedRequests";
+import { DashboardPageAddrOverview } from "./DashboardPageAddrOverview";
 
 import {
   dashboardPage,
@@ -9,20 +10,29 @@ import {
 } from "./DashboardPage.module.css";
 
 export function DashboardPage({
+  bufferedRequestTimeoutMilis,
   inferenceAddr,
   managementAddr,
+  maxBufferedRequests,
 }: {
+  bufferedRequestTimeoutMilis: number;
   inferenceAddr: string;
   managementAddr: string;
+  maxBufferedRequests: number;
 }) {
   return (
     <div className={dashboardPage}>
       <div className={dashboardPage__serviceBlock}>
-        <p>Inference addr: {inferenceAddr}</p>
-        <p>Management addr: {managementAddr}</p>
+        <DashboardPageAddrOverview
+          inferenceAddr={inferenceAddr}
+          managementAddr={managementAddr}
+        />
       </div>
       <div className={dashboardPage__serviceBlock}>
-        <DashboardBufferedRequests />
+        <DashboardBufferedRequests
+          bufferedRequestTimeoutMilis={bufferedRequestTimeoutMilis}
+          maxBufferedRequests={maxBufferedRequests}
+        />
       </div>
       <div className={dashboardPage__serviceBlock}>
         <AgentListStream managementAddr={managementAddr} />

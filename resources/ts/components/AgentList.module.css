@@ -8,9 +8,6 @@
 }
 
 .agentList {
-  --color-arrow: var(--color-border);
-  --height-agent: 92px;
-  --thickness-arrow: 2px;
   --width-border-agent: 2px;
 
   animation: fadeIn 200ms ease-in-out;
@@ -35,14 +32,15 @@
 }
 
 .agentList__agent {
+  align-items: center;
   background-color: linen;
   border: 2px solid var(--color-border);
   column-gap: var(--spacing-base);
   display: grid;
   grid-template-areas: "name model status";
-  grid-template-columns: 1fr 2fr 2fr;
+  grid-template-columns: 2fr 3fr 3fr;
   height: var(--height-agent);
-  padding: var(--spacing-base);
+  padding: 0 var(--spacing-base);
   position: relative;
 
   &::after,
@@ -77,10 +75,17 @@
   }
 }
 
+.agentList__agent.agentList__agentHasIssues {
+  border-color: crimson;
+}
+
 .agentList__agent__name {
   align-items: center;
-  display: flex;
+  display: grid;
   grid-area: name;
+  grid-template-rows: repeat(2, 24px);
+  justify-items: flex-start;
+  row-gap: var(--spacing-half);
 }
 
 .agentList__agent__model {

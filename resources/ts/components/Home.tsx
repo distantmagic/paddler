@@ -8,11 +8,15 @@ import { PromptPage } from "./PromptPage";
 import { WorkbenchLayout } from "./WorkbenchLayout";
 
 export function Home({
+  bufferedRequestTimeoutMilis,
   inferenceAddr,
   managementAddr,
+  maxBufferedRequests,
 }: {
+  bufferedRequestTimeoutMilis: number;
   inferenceAddr: string;
   managementAddr: string;
+  maxBufferedRequests: number;
 }) {
   return (
     <Router>
@@ -20,8 +24,10 @@ export function Home({
         <Switch>
           <Route path="/">
             <DashboardPage
+              bufferedRequestTimeoutMilis={bufferedRequestTimeoutMilis}
               inferenceAddr={inferenceAddr}
               managementAddr={managementAddr}
+              maxBufferedRequests={maxBufferedRequests}
             />
           </Route>
           <Route path="/model">

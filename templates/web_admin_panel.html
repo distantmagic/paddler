@@ -13,8 +13,10 @@
 <body>
     <div
         id="paddler-dashboard"
-        data-inference-addr="{{ web_admin_panel_service_configuration.inference_addr }}"
-        data-management-addr="{{ web_admin_panel_service_configuration.management_addr }}"
+        data-buffered-request-timeout-milis="{{ buffered_request_timeout_milis }}"
+        data-inference-addr="{{ inference_addr }}"
+        data-max-buffered-requests="{{ max_buffered_requests }}"
+        data-management-addr="{{ management_addr }}"
     ></div>
 </body>
 </html>

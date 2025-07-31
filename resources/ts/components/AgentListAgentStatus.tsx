@@ -1,7 +1,6 @@
 import React, { CSSProperties } from "react";
 
 import { type Agent } from "../schemas/Agent";
-import { AgentIssuesPreviewButton } from "./AgentIssuesPreviewButton";
 
 import { agentListAgentStatus__progress } from "./AgentListAgentStatus.module.css";
 
@@ -9,8 +8,6 @@ export function AgentListAgentStatus({
   agent: {
     desired_slots_total,
     is_state_applied,
-    issues,
-    name,
     download_current,
     download_filename,
     download_total,
@@ -56,9 +53,6 @@ export function AgentListAgentStatus({
       <div>
         ⏳ <i>Changes pending</i>
       </div>
-      {issues.length > 0 && (
-        <AgentIssuesPreviewButton agentName={name} issues={issues} />
-      )}
     </div>
   );
 }
