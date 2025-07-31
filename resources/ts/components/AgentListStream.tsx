@@ -5,6 +5,7 @@ import { matchEventSourceUpdateState } from "../matchEventSourceUpdateState";
 import { AgentsResponseSchema } from "../schemas/AgentsResponse";
 import { AgentList } from "./AgentList";
 
+import { agentListStream__placeholder } from "./AgentListStream.module.css";
 import { dashboardSectionStreamLoader } from "./dashboardSectionStreamLoader.module.css";
 
 export function AgentListStream({
@@ -35,7 +36,11 @@ export function AgentListStream({
     },
     dataSnapshot({ data: { agents } }) {
       if (agents.length < 1) {
-        return <div>No agents registered yet.</div>;
+        return (
+          <div className={agentListStream__placeholder}>
+            No agents registered yet.
+          </div>
+        );
       }
 
       return <AgentList agents={agents} managementAddr={managementAddr} />;

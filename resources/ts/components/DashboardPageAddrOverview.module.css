@@ -38,7 +38,10 @@
   }
 }
 
-.dashboardPageAddrOverview__managementAddr {
+.dashboardPageAddrOverview__genericAddr {
   border: 2px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
   padding: var(--spacing-base);
+  row-gap: var(--spacing-half);
 }

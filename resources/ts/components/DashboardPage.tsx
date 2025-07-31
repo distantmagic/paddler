@@ -16,11 +16,17 @@ export function DashboardPage({
   inferenceAddr,
   managementAddr,
   maxBufferedRequests,
+  statsdAddr,
+  statsdPrefix,
+  statsdReportingIntervalMillis,
 }: {
   bufferedRequestTimeoutMillis: number;
   inferenceAddr: string;
   managementAddr: string;
   maxBufferedRequests: number;
+  statsdAddr: string;
+  statsdPrefix: string;
+  statsdReportingIntervalMillis: number;
 }) {
   return (
     <div className={dashboardPage}>
@@ -29,6 +35,9 @@ export function DashboardPage({
           <DashboardPageAddrOverview
             inferenceAddr={inferenceAddr}
             managementAddr={managementAddr}
+            statsdAddr={statsdAddr}
+            statsdPrefix={statsdPrefix}
+            statsdReportingIntervalMillis={statsdReportingIntervalMillis}
           />
         </div>
         <div className={dashboardPage__serviceBlock}>

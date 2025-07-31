@@ -1,3 +1,4 @@
-.agentListStream__loader {
+.agentListStream__placeholder {
+  border: 2px solid var(--color-border);
   padding: var(--spacing-base);
 }

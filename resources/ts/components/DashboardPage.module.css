@@ -3,10 +3,12 @@
   --height-agent: 92px;
   --thickness-arrow: 2px;
 
+  align-items: center;
   display: flex;
   flex-direction: column;
   padding: var(--spacing-2x) var(--spacing-base);
   row-gap: var(--spacing-base);
+  width: 100%;
 }
 
 .dashboardPage__blocks {

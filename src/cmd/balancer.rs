@@ -79,7 +79,7 @@ pub struct Balancer {
     /// Address of the statsd server to report metrics to
     statsd_addr: Option<SocketAddr>,
 
-    #[arg(long, default_value = "paddler")]
+    #[arg(long, default_value = "paddler_")]
     /// Prefix for statsd metrics
     statsd_prefix: String,
 
@@ -112,6 +112,9 @@ impl Balancer {
                     max_buffered_requests: self.max_buffered_requests,
                     management_addr: self.management_addr,
                     inference_addr: self.inference_addr,
+                    statsd_addr: self.statsd_addr,
+                    statsd_prefix: self.statsd_prefix.clone(),
+                    statsd_reporting_interval: self.statsd_reporting_interval,
                 },
             })
     }
