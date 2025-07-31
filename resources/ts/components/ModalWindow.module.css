@@ -17,10 +17,10 @@
   width: 100%;
   z-index: var(--z-index-modal);
 
-  @media screen and (min-width: 1281px) {
+  @media screen and (min-width: 1032px) {
     --max-width-modal-window: 1000px;
   }
-  @media screen and (max-width: 1280px) {
+  @media screen and (max-width: 1032px) {
     --max-width-modal-window: calc(100dvw - var(--spacing-2x));
   }
 }
