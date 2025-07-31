@@ -55,12 +55,9 @@ impl BufferedRequestManager {
         let agent_controller_pool = self.agent_controller_pool.clone();
 
         match timeout(self.buffered_request_timeout, async {
-            println!("Waiting for available agent controller...");
             loop {
                 match agent_controller_pool.take_least_busy_agent_controller() {
                     Some(agent_controller) => {
-                        println!("FINISHED waiting for available agent controller");
-
                         return Ok::<_, anyhow::Error>(BufferedRequestAgentWaitResult::Found(
                             agent_controller,
                         ))

@@ -13,7 +13,7 @@
   align-items: flex-start;
   column-gap: var(--spacing-2x);
   display: grid;
-  grid-template-columns: 1fr 1fr 4fr;
+  grid-template-columns: 1fr 1fr 2fr;
   max-width: 1280px;
   width: 100%;
 }

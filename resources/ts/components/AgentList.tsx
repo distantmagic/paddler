@@ -10,6 +10,7 @@ import {
   agentList,
   agentList__agent,
   agentList__agentHasIssues,
+  agentList__agent__issues,
   agentList__agent__model,
   agentList__agent__name,
   agentList__agent__status,
@@ -34,15 +35,15 @@ export function AgentList({
             })}
             key={id}
           >
-            <div className={agentList__agent__name}>
-              <div>{name}</div>
+            <div className={agentList__agent__issues}>
+              <div className={agentList__agent__name}>{name}</div>
               {issues.length > 0 ? (
                 <div>
                   <AgentIssuesPreviewButton agentName={name} issues={issues} />
                 </div>
               ) : (
                 <div>
-                  👍 <i>No issues</i>
+                  👍 <i>OK</i>
                 </div>
               )}
             </div>
