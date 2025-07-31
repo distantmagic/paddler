@@ -21,7 +21,6 @@
 
 .changeModelForm__asideInfo {
   background-color: var(--color-note-background);
-  border-radius: 20px 50px 20px 20px;
   border: 2px dashed var(--color-border);
   display: flex;
   flex-direction: column;
@@ -29,28 +28,6 @@
   margin-right: var(--spacing-base);
   padding: var(--spacing-2x);
   row-gap: var(--spacing-base);
-
-  code {
-    --size-outline: -12px;
-
-    display: inline-flex;
-    margin: var(--spacing-half) 0;
-    position: relative;
-    word-break: break-all;
-    z-index: 1;
-
-    &:after {
-      background-color: #eeeeeeaa;
-      border-radius: 10px 20%;
-      bottom: var(--size-outline);
-      content: "";
-      left: var(--size-outline);
-      position: absolute;
-      right: var(--size-outline);
-      top: var(--size-outline);
-      z-index: -1;
-    }
-  }
 
   dl {
     display: flex;
@@ -71,17 +48,39 @@
   }
 }
 
+.changeModelForm__chatTemplate,
+.changeModelForm__parameters {
+  appearance: none;
+  border: none;
+  display: flex;
+  flex-direction: column;
+
+  legend {
+    appearance: none;
+    font-weight: bold;
+  }
+}
+
+.changeModelForm__chatTemplate {
+  legend {
+    padding: 0 var(--spacing-base) 0 calc(2 * var(--spacing-base) + 14px);
+  }
+}
+
 .changeModelForm__details {
   background-color: var(--color-note-background);
   border: 2px dashed var(--color-border);
   margin: var(--spacing-base) 0;
+
+  p {
+    margin-bottom: var(--spacing-base);
+  }
 
   > summary {
     align-items: center;
     column-gap: var(--spacing-half);
     cursor: pointer;
     display: flex;
-    flex-direction: row;
     padding: var(--spacing-base);
 
     &::before {
@@ -142,13 +141,13 @@
 }
 
 .changeModelForm__parameters {
-  appearance: none;
-  border-radius: 30px 20px 40px 20px;
-  border: none;
-  display: flex;
-  flex-direction: column;
   position: relative;
   z-index: 1;
+
+  legend,
+  p {
+    padding: 0 var(--spacing-base);
+  }
 
   &::after {
     --spacing-overflow: calc(-1 * var(--spacing-base));
@@ -164,17 +163,6 @@
     top: var(--spacing-overflow);
     user-select: none;
     z-index: -1;
-  }
-
-  legend {
-    appearance: none;
-    font-weight: bold;
-    padding: 0 var(--spacing-base);
-  }
-
-  p {
-    margin-bottom: var(--spacing-base);
-    padding: 0 var(--spacing-base);
   }
 }
 

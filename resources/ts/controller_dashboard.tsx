@@ -6,7 +6,11 @@ import { Home } from "./components/Home";
 class RootNode {
   constructor(private rootNodeElement: HTMLElement) {}
 
-  getFromDataset(key: string): string {
+  getIntFromDataset(key: string): number {
+    return parseInt(this.getStringFromDataset(key), 10);
+  }
+
+  getStringFromDataset(key: string): string {
     const value = this.rootNodeElement.dataset[key];
 
     if (value === undefined) {
@@ -29,7 +33,11 @@ const root = createRoot(rootNodeElement);
 
 root.render(
   <Home
-    inferenceAddr={rootNode.getFromDataset("inferenceAddr")}
-    managementAddr={rootNode.getFromDataset("managementAddr")}
+    bufferedRequestTimeoutMillis={rootNode.getIntFromDataset(
+      "bufferedRequestTimeoutMillis",
+    )}
+    inferenceAddr={rootNode.getStringFromDataset("inferenceAddr")}
+    managementAddr={rootNode.getStringFromDataset("managementAddr")}
+    maxBufferedRequests={rootNode.getIntFromDataset("maxBufferedRequests")}
   />,
 );

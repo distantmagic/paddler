@@ -10,11 +10,13 @@ import { useLocation } from "wouter";
 import { InferenceParametersContext } from "../contexts/InferenceParametersContext";
 import { useAgentDesiredModelUrl } from "../hooks/useAgentDesiredModelUrl";
 import { type AgentDesiredState } from "../schemas/AgentDesiredState";
+import { ChatTemplateBehavior } from "./ChatTemplateBehavior";
 import { InferenceParameterInput } from "./InferenceParameterInput";
 
 import {
   changeModelForm,
   changeModelForm__asideInfo,
+  changeModelForm__chatTemplate,
   changeModelForm__details,
   changeModelForm__form,
   changeModelForm__formControls,
@@ -144,6 +146,10 @@ export function ChangeModelForm({
               value={String(modelUri)}
             />
           </label>
+          <fieldset className={changeModelForm__chatTemplate}>
+            <legend>Chat Template</legend>
+            <ChatTemplateBehavior />
+          </fieldset>
           <fieldset className={changeModelForm__parameters}>
             <legend>Inference Parameters</legend>
             <details className={changeModelForm__details}>
@@ -154,17 +160,13 @@ export function ChangeModelForm({
                 model.
               </p>
               <p>
-                They are model-specific and are usually provided by the model
-                authors.
+                They are usually model-specific and are usually provided by the
+                model authors, although Paddler provides some reasonable
+                defaults.
               </p>
               <p>
                 Experimenting with these settings is worth exploring to optimize
-                performance for your specific needs. The main constraints you'll
-                encounter are memory limits or thermal throttling during
-                extended runs without adequate cooling. But honestly, nothing to
-                lose sleep over - if your system handles intensive workloads
-                like rendering, gaming marathons, or data processing, it'll
-                handle LLMs just fine. 🙂
+                performance for your specific needs.
               </p>
             </details>
             <InferenceParameterInput

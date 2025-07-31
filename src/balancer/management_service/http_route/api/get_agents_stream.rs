@@ -19,8 +19,6 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 async fn respond(
     agent_controller_pool: web::Data<AgentControllerPool>,
 ) -> Result<impl Responder, Error> {
-    let pool = agent_controller_pool.clone();
-
     let event_stream = async_stream::stream! {
         let send_event = |info| {
             match serde_json::to_string(&info) {
@@ -32,14 +30,14 @@ async fn respond(
             }
         };
 
-        if let Some(event) = send_event(pool.make_snapshot()) {
+        if let Some(event) = send_event(agent_controller_pool.make_snapshot()) {
             yield event;
         }
 
         loop {
             tokio::select! {
-                _ = pool.update_notifier.notified() => {
-                    if let Some(event) = send_event(pool.make_snapshot()) {
+                _ = agent_controller_pool.update_notifier.notified() => {
+                    if let Some(event) = send_event(agent_controller_pool.make_snapshot()) {
                         yield event;
                     }
                 },

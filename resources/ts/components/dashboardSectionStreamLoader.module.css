@@ -1,0 +1,11 @@
+.dashboardSectionStreamLoader {
+  --size-background: 48px;
+
+  background-image: url("../../icons/hourglass.svg");
+  background-position: center var(--spacing-base);
+  background-size: var(--size-background);
+  background-repeat: no-repeat;
+  border: 2px solid var(--color-border);
+  padding: calc(var(--spacing-2x) + var(--size-background)) var(--spacing-base)
+    var(--spacing-base) var(--spacing-base);
+}

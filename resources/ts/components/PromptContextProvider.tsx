@@ -7,7 +7,13 @@ import {
 
 export function PromptContextProvider({ children }: { children: ReactNode }) {
   const [currentPrompt, setCurrentPrompt] = useState<string>("");
-  const [submittedPrompt, setSubmittedPrompt] = useState<string | null>(null);
+  const [submittedPrompt, setSubmittedPrompt] = useState<{
+    prompt: string | null;
+    version: number;
+  }>({
+    prompt: null,
+    version: 0,
+  });
 
   useEffect(() => {
     setCurrentPrompt("");
@@ -19,11 +25,25 @@ export function PromptContextProvider({ children }: { children: ReactNode }) {
         currentPrompt,
         isCurrentPromptEmpty: currentPrompt.trim() === "",
         setCurrentPrompt,
-        setSubmittedPrompt,
-        submittedPrompt,
+        setSubmittedPrompt(prompt: string | null) {
+          setSubmittedPrompt(function ({ version }) {
+            return Object.freeze({
+              prompt,
+              version: version + 1,
+            });
+          });
+        },
+        submittedPrompt: submittedPrompt.prompt,
+        version: submittedPrompt.version,
       });
     },
-    [currentPrompt, setCurrentPrompt, setSubmittedPrompt, submittedPrompt],
+    [
+      currentPrompt,
+      setCurrentPrompt,
+      setSubmittedPrompt,
+      submittedPrompt.prompt,
+      submittedPrompt.version,
+    ],
   );
 
   return (

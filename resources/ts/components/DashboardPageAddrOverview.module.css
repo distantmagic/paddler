@@ -1,0 +1,44 @@
+.dashboardPageAddrOverview {
+  display: flex;
+  flex-direction: column;
+  row-gap: var(--spacing-base);
+}
+
+.dashboardPageAddrOverview__inferenceAddr {
+  border: 2px solid var(--color-border);
+  padding: var(--spacing-base);
+  position: relative;
+  row-gap: var(--spacing-base);
+
+  &::after,
+  &::before {
+    content: "";
+    position: absolute;
+  }
+
+  &::before {
+    background-color: var(--color-border);
+    height: 2px;
+    right: 0;
+    top: calc(0.5 * var(--height-agent));
+    transform: translate3d(var(--spacing-2x), -50%, 0);
+    width: var(--spacing-2x);
+  }
+
+  &::after {
+    border-color: transparent transparent transparent var(--color-arrow);
+    border-style: solid;
+    border-width: 5px 0 5px 10px;
+    height: 0px;
+    right: 0;
+    position: absolute;
+    top: calc(0.5 * var(--height-agent));
+    transform: translate3d(calc(var(--spacing-2x) + 2px), -50%, 0);
+    width: 0px;
+  }
+}
+
+.dashboardPageAddrOverview__managementAddr {
+  border: 2px solid var(--color-border);
+  padding: var(--spacing-base);
+}

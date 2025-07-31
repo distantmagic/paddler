@@ -10,9 +10,9 @@ use crate::agent_desired_state::AgentDesiredState;
 
 #[async_trait]
 pub trait StateDatabase: Send + Sync {
-    async fn read_desired_state(&self) -> Result<Option<AgentDesiredState>>;
+    async fn read_agent_desired_state(&self) -> Result<AgentDesiredState>;
 
-    async fn store_desired_state(&self, state: &AgentDesiredState) -> Result<()>;
+    async fn store_agent_desired_state(&self, state: &AgentDesiredState) -> Result<()>;
 }
 
 #[cfg(test)]
@@ -30,11 +30,11 @@ mod tests {
             model: AgentDesiredModel::Local("test_model_path".to_string()),
         };
 
-        db.store_desired_state(&desired_state).await?;
+        db.store_agent_desired_state(&desired_state).await?;
 
-        let read_state = db.read_desired_state().await?;
+        let read_state = db.read_agent_desired_state().await?;
 
-        assert_eq!(read_state.unwrap().model, desired_state.model);
+        assert_eq!(read_state.model, desired_state.model);
 
         Ok(())
     }

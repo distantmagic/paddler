@@ -15,23 +15,32 @@ use crate::sets_desired_state::SetsDesiredState;
 
 pub struct AgentControllerPool {
     pub agents: DashMap<String, Arc<AgentController>>,
-    pub update_notifier: Notify,
+    pub update_notifier: Arc<Notify>,
 }
 
 impl AgentControllerPool {
     pub fn new() -> Self {
         AgentControllerPool {
             agents: DashMap::new(),
-            update_notifier: Notify::new(),
+            update_notifier: Arc::new(Notify::new()),
         }
     }
 
-    pub fn find_least_busy_agent_controller(&self) -> Option<Arc<AgentController>> {
-        self.agents
+    pub fn take_least_busy_agent_controller(&self) -> Option<Arc<AgentController>> {
+        let agent_controller: Option<Arc<AgentController>> = self.agents
             .iter()
             .map(|entry| entry.value().clone())
             .filter(|agent| agent.slots_processing.get() < agent.slots_total.get())
-            .min_by_key(|agent| agent.slots_processing.get())
+            .min_by_key(|agent| agent.slots_processing.get());
+
+        if let Some(agent_controller) = agent_controller {
+            agent_controller.slots_processing.increment();
+            self.update_notifier.notify_waiters();
+
+            return Some(agent_controller);
+        }
+
+        None
     }
 
     pub fn get_agent_controller(&self, agent_id: &str) -> Option<Arc<AgentController>> {

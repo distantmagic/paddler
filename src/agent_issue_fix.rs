@@ -2,6 +2,8 @@ use crate::agent_issue::AgentIssue;
 
 pub enum AgentIssueFix {
     HuggingFaceDownloadedModel,
+    HuggingFaceStartedDownloading,
+    ModelChatTemplateIsLoaded,
     ModelStateIsReconciled,
     ModelFileExists,
     ModelIsLoaded,
@@ -12,14 +14,22 @@ impl AgentIssueFix {
         match issue {
             AgentIssue::HuggingFaceCannotAcquireLock(_) => matches!(
                 self,
-                AgentIssueFix::HuggingFaceDownloadedModel | AgentIssueFix::ModelStateIsReconciled
+                AgentIssueFix::HuggingFaceDownloadedModel
+                    | AgentIssueFix::HuggingFaceStartedDownloading
+                    | AgentIssueFix::ModelStateIsReconciled
             ),
             AgentIssue::HuggingFaceModelDoesNotExist(_) => matches!(
                 self,
-                AgentIssueFix::HuggingFaceDownloadedModel | AgentIssueFix::ModelStateIsReconciled
+                AgentIssueFix::HuggingFaceDownloadedModel
+                    | AgentIssueFix::HuggingFaceStartedDownloading
+                    | AgentIssueFix::ModelStateIsReconciled
             ),
             AgentIssue::ModelCannotBeLoaded(_) => matches!(self, AgentIssueFix::ModelIsLoaded),
             AgentIssue::ModelFileDoesNotExist(_) => matches!(self, AgentIssueFix::ModelFileExists),
+            AgentIssue::UnableToFindChatTemplate(_) => matches!(
+                self,
+                AgentIssueFix::ModelChatTemplateIsLoaded | AgentIssueFix::ModelStateIsReconciled
+            ),
         }
     }
 }

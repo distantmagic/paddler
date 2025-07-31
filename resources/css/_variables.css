@@ -6,9 +6,11 @@
   --color-highlight-1: #ffff55;
   --color-highlight-2: antiquewhite;
   --color-note-background: #ffffdd;
+  --color-scrollbar: #111;
+  --color-scrollbar-hover: #333;
   --duration-transition-hover: 100ms;
-  --font-family-body: "Noto Sans", sans-serif;
-  --font-family-monospace: "Noto Sans Mono", monospace;
+  --font-family-sans-serif: "Noto Sans", sans-serif;
+  --font-family-monospace: "JetBrains Mono", monospace;
   --font-size-base: 14px;
   --font-size-l1: calc(1.5 * var(--font-size-base));
   --font-size-l2: calc(1.5 * var(--font-size-l1));
@@ -20,6 +22,8 @@
   --spacing-base: 16px;
   --spacing-half: calc(0.5 * var(--spacing-base));
   --spacing-quarter: calc(0.25 * var(--spacing-base));
+  --width-scrollbar: 8px;
+
   --z-index-workbench-content: 1;
   --z-index-workbench-header: 2;
   --z-index-modal: 3;

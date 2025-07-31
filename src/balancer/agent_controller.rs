@@ -1,5 +1,7 @@
 use std::collections::BTreeSet;
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
+use std::sync::atomic::AtomicUsize;
 use std::sync::RwLock;
 
 use actix_web::web::Data;
@@ -35,8 +37,12 @@ pub struct AgentController {
     pub agent_message_tx: mpsc::UnboundedSender<AgentJsonRpcMessage>,
     pub connection_close_rx: broadcast::Receiver<()>,
     pub desired_slots_total: AtomicValue<AtomicI32>,
+    pub download_current: AtomicValue<AtomicUsize>,
+    pub download_filename: RwLock<Option<String>>,
+    pub download_total: AtomicValue<AtomicUsize>,
     pub generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
     pub id: String,
+    pub is_state_applied: AtomicValue<AtomicBool>,
     pub issues: RwLock<BTreeSet<AgentIssue>>,
     pub model_metadata_sender_collection: Data<ModelMetadataSenderCollection>,
     pub model_path: RwLock<Option<String>>,
@@ -79,6 +85,13 @@ impl AgentController {
         .await
     }
 
+    pub fn get_download_filename(&self) -> Option<String> {
+        self.download_filename
+            .read()
+            .expect("Poisoned lock on download filename")
+            .clone()
+    }
+
     pub fn get_issues(&self) -> BTreeSet<AgentIssue> {
         self.issues.read().expect("Poisoned lock on issues").clone()
     }
@@ -109,6 +122,15 @@ impl AgentController {
             .clone()
     }
 
+    pub fn set_download_filename(&self, filename: Option<String>) {
+        let mut locked_filename = self
+            .download_filename
+            .write()
+            .expect("Poisoned lock on download filename");
+
+        *locked_filename = filename;
+    }
+
     pub fn set_issues(&self, issues: BTreeSet<AgentIssue>) {
         let mut locked_issues = self.issues.write().expect("Poisoned lock on issues");
 
@@ -137,6 +159,10 @@ impl AgentController {
         &self,
         SlotAggregatedStatusSnapshot {
             desired_slots_total,
+            download_current,
+            download_filename,
+            download_total,
+            is_state_applied,
             issues,
             model_path,
             slots_processing,
@@ -155,11 +181,20 @@ impl AgentController {
         let mut changed = false;
 
         changed = changed || self.desired_slots_total.set_check(desired_slots_total);
+        changed = changed || self.download_current.set_check(download_current);
+        changed = changed || self.download_total.set_check(download_total);
+        changed = changed || self.is_state_applied.set_check(is_state_applied);
         changed = changed || self.slots_processing.set_check(slots_processing);
         changed = changed || self.slots_total.set_check(slots_total);
 
         self.newest_update_version
             .compare_and_swap(newest_update_version, version);
+
+        if download_filename != self.get_download_filename() {
+            changed = true;
+
+            self.set_download_filename(download_filename);
+        }
 
         if issues != self.get_issues() {
             changed = true;
@@ -205,7 +240,15 @@ impl ProducesSnapshot for AgentController {
     fn make_snapshot(&self) -> Self::Snapshot {
         AgentControllerSnapshot {
             desired_slots_total: self.desired_slots_total.get(),
+            download_current: self.download_current.get(),
+            download_filename: self
+                .download_filename
+                .read()
+                .expect("Poisoned lock on download filename")
+                .clone(),
+            download_total: self.download_total.get(),
             id: self.id.clone(),
+            is_state_applied: self.is_state_applied.get(),
             issues: self.get_issues(),
             model_path: self
                 .model_path

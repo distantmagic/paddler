@@ -37,7 +37,6 @@ pub struct LlamaCppArbiterService {
     continue_conversation_request_rx: mpsc::UnboundedReceiver<ContinueConversationRequest>,
     desired_slots_total: i32,
     generate_tokens_request_rx: mpsc::UnboundedReceiver<GenerateTokensRequest>,
-    is_state_applied: bool,
     llamacpp_arbiter_controller: Option<LlamaCppArbiterController>,
     model_metadata_holder: Arc<ModelMetadataHolder>,
     slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
@@ -60,7 +59,6 @@ impl LlamaCppArbiterService {
             continue_conversation_request_rx,
             desired_slots_total,
             generate_tokens_request_rx,
-            is_state_applied: true,
             llamacpp_arbiter_controller: None,
             model_metadata_holder,
             slot_aggregated_status_manager,
@@ -118,7 +116,9 @@ impl LlamaCppArbiterService {
             info!("Reconciled state change applied successfully");
         }
 
-        self.is_state_applied = true;
+        self.slot_aggregated_status_manager
+            .slot_aggregated_status
+            .set_is_state_applied(true);
 
         Ok(())
     }
@@ -176,11 +176,11 @@ impl Service for LlamaCppArbiterService {
                 _ = shutdown.recv() => break Ok(()),
                 _ = reconciled_state.changed() => {
                     self.agent_applicable_state = reconciled_state.borrow_and_update().clone();
-                    self.is_state_applied = false;
+                    self.slot_aggregated_status_manager.slot_aggregated_status.set_is_state_applied(false);
                     self.try_to_apply_state().await;
                 }
                 _ = ticker.tick() => {
-                    if !self.is_state_applied {
+                    if !self.slot_aggregated_status_manager.slot_aggregated_status.get_is_state_applied() {
                         self.try_to_apply_state().await;
                     }
                 }

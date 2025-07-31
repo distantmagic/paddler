@@ -11,6 +11,28 @@
   height: 100%;
   overflow-y: auto;
   z-index: var(--z-index-workbench-content);
+
+  code {
+    --size-outline: -12px;
+
+    display: inline-flex;
+    margin: var(--spacing-half) 0;
+    position: relative;
+    word-break: break-all;
+    z-index: 1;
+
+    &:after {
+      background-color: #eeeeeeaa;
+      border-radius: 10px 20%;
+      bottom: var(--size-outline);
+      content: "";
+      left: var(--size-outline);
+      position: absolute;
+      right: var(--size-outline);
+      top: var(--size-outline);
+      z-index: -1;
+    }
+  }
 }
 
 .workbench__header {

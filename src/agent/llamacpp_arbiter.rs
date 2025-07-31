@@ -56,6 +56,21 @@ impl LlamaCppArbiter {
     }
 
     pub async fn spawn(&self) -> Result<LlamaCppArbiterController> {
+        let model_path_string = self.model_path.display().to_string();
+
+        if self
+            .slot_aggregated_status_manager
+            .slot_aggregated_status
+            .has_issue(&AgentIssue::UnableToFindChatTemplate(
+                model_path_string.clone(),
+            ))
+        {
+            return Err(anyhow!(
+                "Unable to establish chat template for model at path: {model_path_string}"
+            ));
+        }
+
+        let (chat_template_loaded_tx, chat_template_loaded_rx) = oneshot::channel::<()>();
         let (llamacpp_slot_addr_tx, llamacpp_slot_addr_rx) = oneshot::channel();
         let (model_loaded_tx, model_loaded_rx) = oneshot::channel::<()>();
         let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
@@ -65,6 +80,7 @@ impl LlamaCppArbiter {
         let inference_parameters = self.inference_parameters.clone();
         let model_metadata_holder = self.model_metadata_holder.clone();
         let model_path = self.model_path.clone();
+        let model_path_string_clone = model_path_string.clone();
         let slot_aggregated_status_manager = self.slot_aggregated_status_manager.clone();
 
         let sync_arbiter_thread_handle = thread::spawn(move || -> Result<()> {
@@ -112,9 +128,20 @@ impl LlamaCppArbiter {
                 ))?
                 .to_string()?;
 
+            if chat_template_loaded_tx.send(()).is_err() {
+                let message = format!(
+                    "Failed to send chat template loaded signal for model at path: {}",
+                    model_path.display()
+                );
+
+                error!("{message}");
+
+                return Err(anyhow!(message));
+            }
+
             slot_aggregated_status_manager
                 .slot_aggregated_status
-                .set_model_path(Some(model_path.display().to_string()));
+                .set_model_path(Some(model_path_string_clone));
 
             let slot_index = Arc::new(AtomicU32::new(0));
             let system = System::new();
@@ -170,9 +197,35 @@ impl LlamaCppArbiter {
 
                 self.slot_aggregated_status_manager
                     .slot_aggregated_status
-                    .register_issue(AgentIssue::ModelCannotBeLoaded(
-                        self.model_path.display().to_string(),
-                    ));
+                    .register_issue(AgentIssue::ModelCannotBeLoaded(model_path_string.clone()));
+            }
+        }
+
+        match chat_template_loaded_rx
+            .await
+            .context("Failed to receive chat template loaded signal")
+        {
+            Ok(()) => {
+                self.slot_aggregated_status_manager
+                    .slot_aggregated_status
+                    .register_fix(AgentIssueFix::ModelChatTemplateIsLoaded);
+            }
+            Err(err) => {
+                error!("Failed to load chat template: {err}");
+
+                if !self
+                    .slot_aggregated_status_manager
+                    .slot_aggregated_status
+                    .has_issue(&AgentIssue::ModelCannotBeLoaded(model_path_string.clone()))
+                {
+                    // If the model cannot be loaded, that doesn't mean that the chat template
+                    // cannot be loaded.
+                    self.slot_aggregated_status_manager
+                        .slot_aggregated_status
+                        .register_issue(AgentIssue::UnableToFindChatTemplate(
+                            model_path_string.clone(),
+                        ));
+                }
             }
         }
 

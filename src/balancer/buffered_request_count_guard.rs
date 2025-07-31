@@ -1,22 +1,21 @@
-use std::sync::atomic::AtomicI32;
 use std::sync::Arc;
 
-use crate::atomic_value::AtomicValue;
+use crate::balancer::buffered_request_counter::BufferedRequestCounter;
 
 pub struct BufferedRequestCountGuard {
-    buffered_requests_count: Arc<AtomicValue<AtomicI32>>,
+    buffered_requests_counter: Arc<BufferedRequestCounter>,
 }
 
 impl BufferedRequestCountGuard {
-    pub fn new(buffered_requests_count: Arc<AtomicValue<AtomicI32>>) -> Self {
+    pub fn new(buffered_requests_counter: Arc<BufferedRequestCounter>) -> Self {
         BufferedRequestCountGuard {
-            buffered_requests_count,
+            buffered_requests_counter,
         }
     }
 }
 
 impl Drop for BufferedRequestCountGuard {
     fn drop(&mut self) {
-        self.buffered_requests_count.decrement();
+        self.buffered_requests_counter.decrement();
     }
 }

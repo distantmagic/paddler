@@ -4,6 +4,7 @@ import {
   ModelMetadataContext,
   type FocusedMetadataParameter,
 } from "../contexts/ModelMetadataContext";
+import { CodeEditor } from "./CodeEditor";
 
 import iconArrowBack from "../../icons/arrow_back.svg";
 import {
@@ -40,9 +41,9 @@ export function ModelMetadataFocusedParameter({
           Back to all parameters
         </button>
       </div>
-      <pre className={modelMetadataFocusedParameter__content}>
-        {metadataValue}
-      </pre>
+      <div className={modelMetadataFocusedParameter__content}>
+        <CodeEditor editable={false} value={metadataValue} />
+      </div>
     </div>
   );
 }

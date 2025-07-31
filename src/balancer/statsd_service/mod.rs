@@ -43,7 +43,7 @@ impl StatsdService {
             slots_processing,
             slots_total,
         } = self.agent_controller_pool.total_slots();
-        let requests_buffered = self.buffered_request_manager.buffered_requests_count.get();
+        let requests_buffered = self.buffered_request_manager.buffered_request_counter.get();
 
         client.gauge("slots_processing", slots_processing as u64)?;
         client.gauge("slots_total", slots_total as u64)?;

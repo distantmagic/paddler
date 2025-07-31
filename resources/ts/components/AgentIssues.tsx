@@ -66,10 +66,14 @@ export function AgentIssues({ issues }: { issues: Array<AgentIssue> }) {
                 Paddler, the file is corrupted, or the file is not a valid
                 model.
               </p>
+              <p>
+                Another possibility is that it was just a temporary issue, like
+                system not having enough memory to load the model.
+              </p>
               <strong>What will Paddler do?</strong>{" "}
               <p>
-                Paddler will continue to try to load the model every few seconds
-                until it is available.
+                The issue can be temporary, so Paddler will continue to try to
+                load the model every few seconds.
               </p>
               <strong>What can you do?</strong>{" "}
               <p>
@@ -99,6 +103,36 @@ export function AgentIssues({ issues }: { issues: Array<AgentIssue> }) {
                 Either ensure that the file is available to the agent at a given
                 path, or <Link href="/model">change the model parameters</Link>{" "}
                 to use a different model file.
+              </p>
+            </li>
+          );
+        }
+
+        if ("UnableToFindChatTemplate" in issue) {
+          return (
+            <li className={agentIssues__issue} key={index}>
+              <strong>
+                Unable to find chat template: {issue.UnableToFindChatTemplate}
+              </strong>
+              <strong>What will Paddler do?</strong>{" "}
+              <p>
+                Paddler will not be able to use the chat template, but it will
+                continue to run. It will not try to load the model again until
+                you provide a chat template to use.
+              </p>
+              <strong>What can you do?</strong>{" "}
+              <p>You need to provide a chat template for the model to use.</p>
+              <p>
+                Chat templates are extremely important for the model to work
+                correctly, but sometimes they are not included in the model file
+                itself (especially in the older GGUF models), and need to be
+                provided separately.
+              </p>
+              <strong>Where can I find chat templates?</strong>{" "}
+              <p>
+                Usually they are provided by the model author, and they can be
+                found in the model's README file on HuggingFace, or in the
+                model's documentation.
               </p>
             </li>
           );

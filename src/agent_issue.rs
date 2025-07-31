@@ -7,4 +7,5 @@ pub enum AgentIssue {
     HuggingFaceModelDoesNotExist(String),
     ModelCannotBeLoaded(String),
     ModelFileDoesNotExist(String),
+    UnableToFindChatTemplate(String),
 }

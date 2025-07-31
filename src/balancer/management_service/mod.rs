@@ -97,6 +97,8 @@ impl Service for ManagementService {
                 .configure(http_route::api::get_agent_desired_state::register)
                 .configure(http_route::api::get_agents::register)
                 .configure(http_route::api::get_agents_stream::register)
+                .configure(http_route::api::get_buffered_requests::register)
+                .configure(http_route::api::get_buffered_requests_stream::register)
                 .configure(http_route::api::get_model_metadata::register)
                 .configure(http_route::api::put_agent_desired_state::register)
                 .configure(http_route::api::ws_agent_socket::register)

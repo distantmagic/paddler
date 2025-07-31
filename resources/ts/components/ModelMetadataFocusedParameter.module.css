@@ -1,7 +1,11 @@
 .modelMetadataFocusedParameter,
 .modelMetadataFocusedParameter__content {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  height: 100%;
+}
+
+.modelMetadataFocusedParameter {
+  grid-template-rows: auto 1fr;
 }
 
 .modelMetadataFocusedParameter__backButton {
@@ -27,8 +31,4 @@
   padding: var(--spacing-half);
   position: sticky;
   top: 0;
-}
-
-.modelMetadataFocusedParameter__content {
-  padding: var(--spacing-base);
 }

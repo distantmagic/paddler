@@ -24,7 +24,7 @@ async fn respond(
         slots_processing,
         slots_total,
     } = agent_controller_pool.total_slots();
-    let buffered_requests_count = buffered_request_manager.buffered_requests_count.get();
+    let buffered_requests_count = buffered_request_manager.buffered_request_counter.get();
 
     let metrics_response = formatdoc! {"
         # HELP paddler_slots_processing Number of processing slots

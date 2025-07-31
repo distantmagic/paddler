@@ -1,0 +1,22 @@
+.codeEditor {
+  display: grid;
+
+  :global(.cm-gutters) {
+    column-gap: 4px;
+    padding: 0 4px;
+  }
+
+  :global(.cm-lineNumbers) :global(.cm-gutterElement) {
+    align-items: center;
+    display: flex;
+    justify-content: center;
+  }
+
+  :global(.cm-foldGutter) :global(.cm-gutterElement) {
+    padding: 0 var(--spacing-half);
+  }
+
+  :global(.cm-line) {
+    padding: 2px var(--spacing-half);
+  }
+}

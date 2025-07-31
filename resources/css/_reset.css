@@ -24,8 +24,12 @@ a {
   color: inherit;
   text-decoration-line: underline;
   text-decoration-style: solid;
-  text-decoration-thickness: 2px;
+  text-decoration-thickness: 1px;
   text-underline-offset: 2px;
+}
+
+abbr {
+  cursor: help;
 }
 
 dd,
@@ -102,4 +106,21 @@ canvas {
 ::selection {
   color: white;
   background-color: black;
+}
+
+::-webkit-scrollbar {
+  height: var(--width-scrollbar);
+  width: var(--width-scrollbar);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-scrollbar-hover);
 }

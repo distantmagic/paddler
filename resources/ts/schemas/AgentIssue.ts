@@ -13,6 +13,9 @@ export const AgentIssueSchema = z.union([
   z.object({
     ModelFileDoesNotExist: z.string(),
   }),
+  z.object({
+    UnableToFindChatTemplate: z.string(),
+  }),
 ]);
 
 export type AgentIssue = z.infer<typeof AgentIssueSchema>;

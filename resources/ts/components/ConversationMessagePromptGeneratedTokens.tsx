@@ -25,7 +25,7 @@ export const ConversationMessagePromptGeneratedTokens = memo(
   }: {
     webSocket: WebSocket;
   }) {
-    const { submittedPrompt } = useContext(PromptContext);
+    const { submittedPrompt, version } = useContext(PromptContext);
     const [message, setMessage] = useState<Message>(defaultMessage);
 
     const inferenceSocketClient = useMemo(
@@ -99,7 +99,7 @@ export const ConversationMessagePromptGeneratedTokens = memo(
           subscription.unsubscribe();
         };
       },
-      [inferenceSocketClient, setMessage, submittedPrompt],
+      [inferenceSocketClient, setMessage, submittedPrompt, version],
     );
 
     if (message.isEmpty) {

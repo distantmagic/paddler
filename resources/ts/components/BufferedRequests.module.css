@@ -1,0 +1,11 @@
+.bufferedRequests {
+  border: 2px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-base);
+  row-gap: var(--spacing-half);
+
+  progress {
+    width: 100%;
+  }
+}

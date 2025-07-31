@@ -1,11 +1,9 @@
 .modalWindowBackdrop {
   --color-modal-window-background: var(--color-body-background);
   --height-modal-window-titlebar: 42px;
-  --max-height-modal-window: calc(100dvh - 2 * var(--spacing-base));
-  --max-width-modal-window: 800px;
+  --max-height-modal-window: calc(100dvh - var(--spacing-2x));
 
   align-items: center;
-  backdrop-filter: brightness(0.5);
   bottom: 0;
   display: grid;
   height: 100%;
@@ -18,14 +16,18 @@
   top: 0;
   width: 100%;
   z-index: var(--z-index-modal);
-}
 
-.modalWindowBackdrop ~ .modalWindowBackdrop {
-  --max-height-modal-window: calc(100dvh - 2 * var(--spacing-2x));
-  --max-width-modal-window: calc(800px - 2 * var(--spacing-base));
+  @media screen and (min-width: 1032px) {
+    --max-width-modal-window: 1000px;
+  }
+  @media screen and (max-width: 1032px) {
+    --max-width-modal-window: calc(100dvw - var(--spacing-2x));
+  }
 }
 
 .modalWindow {
+  border: 2px solid var(--color-border);
+  box-shadow: var(--spacing-half) var(--spacing-half) 0 #00000055;
   display: grid;
   grid-template-rows: auto 1fr;
   height: 100%;
@@ -61,6 +63,7 @@
 .modalWindow__titleBar {
   align-items: center;
   background-color: var(--color-highlight-2);
+  border-bottom: 2px solid var(--color-border);
   display: grid;
   grid-template-columns: 1fr auto;
   height: var(--height-modal-window-titlebar);

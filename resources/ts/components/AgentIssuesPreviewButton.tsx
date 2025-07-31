@@ -35,7 +35,7 @@ export function AgentIssuesPreviewButton({
     <>
       <button className={agentIssuesPreviewButton} onClick={onClick}>
         <NotificationCount count={issues.length} />
-        View details
+        Issues
       </button>
       {isDetailsVisible && (
         <ModalWindow onClose={onClose} title={`${agentName} / Issues`}>

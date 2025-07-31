@@ -1,0 +1,25 @@
+.dashboardPage {
+  --color-arrow: var(--color-border);
+  --height-agent: 92px;
+  --thickness-arrow: 2px;
+
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-2x) var(--spacing-base);
+  row-gap: var(--spacing-base);
+}
+
+.dashboardPage__blocks {
+  align-items: flex-start;
+  column-gap: var(--spacing-2x);
+  display: grid;
+  grid-template-columns: 1fr 1fr 2fr;
+  max-width: 1280px;
+  width: 100%;
+}
+
+.dashboardPage__serviceBlock {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}

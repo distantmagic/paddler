@@ -27,12 +27,14 @@ use crate::balancer::statsd_service::StatsdService;
 #[cfg(feature = "web_admin_panel")]
 use crate::balancer::web_admin_panel_service::configuration::Configuration as WebAdminPanelServiceConfiguration;
 #[cfg(feature = "web_admin_panel")]
+use crate::balancer::web_admin_panel_service::template_data::TemplateData;
+#[cfg(feature = "web_admin_panel")]
 use crate::balancer::web_admin_panel_service::WebAdminPanelService;
 use crate::service_manager::ServiceManager;
 
 #[derive(Parser)]
 pub struct Balancer {
-    #[arg(long, default_value = "10000", value_parser = parse_duration)]
+    #[arg(long, default_value = "20000", value_parser = parse_duration)]
     /// The request timeout (in milliseconds). For all requests that a timely response from an
     /// upstream isn't received for, the 504 (Gateway Timeout) error is issued.
     buffered_request_timeout: Duration,
@@ -41,7 +43,7 @@ pub struct Balancer {
     /// Address of the inference server
     inference_addr: SocketAddr,
 
-    #[arg(long, default_value = "10000", value_parser = parse_duration)]
+    #[arg(long, default_value = "5000", value_parser = parse_duration)]
     /// The timeout (in milliseconds) for generating a single token.
     inference_token_timeout: Duration,
 
@@ -105,8 +107,12 @@ impl Balancer {
         self.web_admin_panel_addr
             .map(|web_admin_panel_addr| WebAdminPanelServiceConfiguration {
                 addr: web_admin_panel_addr,
-                inference_addr: self.inference_addr,
-                management_addr: self.management_addr,
+                template_data: TemplateData {
+                    buffered_request_timeout: self.buffered_request_timeout,
+                    max_buffered_requests: self.max_buffered_requests,
+                    management_addr: self.management_addr,
+                    inference_addr: self.inference_addr,
+                },
             })
     }
 }
@@ -129,7 +135,7 @@ impl Handler for Balancer {
         };
 
         // Check if state database can read the desired state
-        state_database.read_desired_state().await?;
+        state_database.read_agent_desired_state().await?;
 
         service_manager.add_service(InferenceService::new(
             agent_controller_pool.clone(),
