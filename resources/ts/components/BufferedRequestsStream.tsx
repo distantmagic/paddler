@@ -4,7 +4,8 @@ import { useEventSourceUpdates } from "../hooks/useEventSourceUpdates";
 import { matchEventSourceUpdateState } from "../matchEventSourceUpdateState";
 import { BufferedRequestsResponseSchema } from "../schemas/BufferedRequestsResponse";
 import { BufferedRequests } from "./BufferedRequests";
-import { FloatingStatus } from "./FloatingStatus";
+
+import { bufferedRequestsStream__loader } from "./BufferedRequestsStream.module.css";
 
 export function BufferedRequestsStream({
   bufferedRequestTimeoutMilis,
@@ -23,16 +24,17 @@ export function BufferedRequestsStream({
   return matchEventSourceUpdateState(eventSourceUpdateState, {
     connected() {
       return (
-        <FloatingStatus>
+        <div className={bufferedRequestsStream__loader}>
           Connected to the server, waiting for buffered requests update...
-        </FloatingStatus>
+        </div>
       );
     },
     connectionError() {
       return (
-        <FloatingStatus>
-          Cannot connect to the server. Will try again in a moment...
-        </FloatingStatus>
+        <div className={bufferedRequestsStream__loader}>
+          Cannot connect to the server to get the buffered requests updates
+          stream. Will try to reconnect in a few seconds...
+        </div>
       );
     },
     dataSnapshot({ data: { buffered_requests_current } }) {
@@ -46,13 +48,17 @@ export function BufferedRequestsStream({
     },
     deserializationError() {
       return (
-        <FloatingStatus>
-          Error deserializing data from the server
-        </FloatingStatus>
+        <div className={bufferedRequestsStream__loader}>
+          Error deserializing buffered requests data from the server.
+        </div>
       );
     },
     initial() {
-      return <FloatingStatus>Connecting to the server...</FloatingStatus>;
+      return (
+        <div className={bufferedRequestsStream__loader}>
+          Connecting to the server...
+        </div>
+      );
     },
   });
 }

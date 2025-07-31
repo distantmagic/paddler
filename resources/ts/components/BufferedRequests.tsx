@@ -18,7 +18,7 @@ export function BufferedRequests({
       <p>
         {currentBufferedRequests}/{maxBufferedRequests}
       </p>
-      <p>Individual request's timeout: {bufferedRequestTimeoutMilis} ms</p>
+      <p>Individual request's timeout: {bufferedRequestTimeoutMilis / 1000}s</p>
     </div>
   );
 }

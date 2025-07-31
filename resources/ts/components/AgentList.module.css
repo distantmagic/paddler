@@ -24,6 +24,7 @@
         calc(0.5 * var(--thickness-arrow))
     );
     left: calc(-1 * var(--spacing-base));
+    pointer-events: none;
     position: absolute;
     top: calc(var(--width-border-agent) + 0.5 * var(--height-agent));
     transform: translate3d(-100%, 0, 0);
@@ -46,6 +47,7 @@
   &::after,
   &::before {
     content: "";
+    pointer-events: none;
   }
 
   &::before {
