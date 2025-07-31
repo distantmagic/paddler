@@ -6,6 +6,7 @@ export type PromptContextValue = {
   setCurrentPrompt(this: void, prompt: string): void;
   setSubmittedPrompt(this: void, prompt: null | string): void;
   submittedPrompt: null | string;
+  version: number;
 };
 
 export const PromptContext = createContext<PromptContextValue>({
@@ -22,6 +23,9 @@ export const PromptContext = createContext<PromptContextValue>({
     throw new Error("PromptContext not provided");
   },
   setSubmittedPrompt(): never {
+    throw new Error("PromptContext not provided");
+  },
+  get version(): never {
     throw new Error("PromptContext not provided");
   },
 });

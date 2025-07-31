@@ -28,6 +28,10 @@ a {
   text-underline-offset: 2px;
 }
 
+abbr {
+  cursor: help;
+}
+
 dd,
 dl {
   margin: 0;
@@ -102,4 +106,21 @@ canvas {
 ::selection {
   color: white;
   background-color: black;
+}
+
+::-webkit-scrollbar {
+  height: var(--width-scrollbar);
+  width: var(--width-scrollbar);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-scrollbar-hover);
 }

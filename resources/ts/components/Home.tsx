@@ -19,7 +19,10 @@ export function Home({
       <WorkbenchLayout>
         <Switch>
           <Route path="/">
-            <AgentListPage managementAddr={managementAddr} />
+            <AgentListPage
+              inferenceAddr={inferenceAddr}
+              managementAddr={managementAddr}
+            />
           </Route>
           <Route path="/model">
             <ChangeModelPage managementAddr={managementAddr} />

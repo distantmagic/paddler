@@ -1,15 +1,26 @@
 .chatTemplateBehavior {
-  display: flex;
-  flex-direction: column;
-  padding: var(--spacing-base) 0;
-  row-gap: var(--spacing-half);
-}
+  --spacing-with-radio-offset: calc(2 * var(--spacing-base) + 14px);
 
-.chatTemplateBehavior__description {
   display: flex;
   flex-direction: column;
-  padding: var(--spacing-base) var(--spacing-base) var(--spacing-base) 0;
+  margin-top: var(--spacing-base);
   row-gap: var(--spacing-half);
+
+  > p {
+    padding: 0 var(--spacing-base) 0 var(--spacing-with-radio-offset);
+  }
+
+  input[type="radio"] {
+    background-color: white;
+    border-radius: 50%;
+    border: 2px solid black;
+    height: 12px;
+    width: 12px;
+
+    &:checked {
+      background-image: radial-gradient(circle, black 50%, transparent 50%);
+    }
+  }
 
   select {
     appearance: none;
@@ -30,6 +41,13 @@
   }
 }
 
+.chatTemplateBehavior__description {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-base) var(--spacing-base) var(--spacing-base) 0;
+  row-gap: var(--spacing-half);
+}
+
 .chatTemplateBehavior__option {
   background-color: lavender;
   border: 2px solid #c3c3e4;
@@ -38,29 +56,16 @@
   grid-template-columns: auto 1fr;
 }
 
+.chatTemplateBehavior__optionList {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-half) 0;
+  row-gap: var(--spacing-half);
+}
+
 .chatTemplateBehavior__radio {
   align-items: center;
   display: flex;
   justify-content: center;
   padding: 0 var(--spacing-base);
-
-  input[type="radio"] {
-    background-color: white;
-    border-radius: 50%;
-    border: 2px solid black;
-    height: 12px;
-    width: 12px;
-
-    &:checked {
-      background-image: radial-gradient(circle, black 50%, transparent 50%);
-    }
-  }
-}
-
-.chatTemplateBehavior__selectAlternative {
-  background-image: url("../../icons/subdirectory_arrow_right.svg");
-  background-position: left center;
-  background-repeat: no-repeat;
-  background-size: var(--spacing-base);
-  padding-left: calc(var(--spacing-base) + var(--spacing-half));
 }

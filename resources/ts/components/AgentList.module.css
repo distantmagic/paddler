@@ -7,65 +7,86 @@
   }
 }
 
-.agentsTable {
-  animation: fadeIn 200ms ease-in-out;
-  border-collapse: collapse;
-
-  td,
-  th {
-    border-bottom: 1px solid #ccc;
-    padding: var(--spacing-base);
-
-    p + p {
-      margin-top: var(--spacing-half);
-    }
-  }
-
-  th {
-    background-color: #f8f8f8;
-    text-align: left;
-  }
-}
-
 .agentList {
-  min-width: 100px;
-  padding: 0;
-  position: relative;
-}
+  --color-arrow: var(--color-border);
+  --height-agent: 92px;
+  --thickness-arrow: 2px;
+  --width-border-agent: 2px;
 
-.agentList__model {
-  align-items: center;
-  column-gap: var(--spacing-base);
+  animation: fadeIn 200ms ease-in-out;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
+  position: relative;
+  row-gap: var(--spacing-base);
+
+  &::before {
+    background-color: var(--color-arrow);
+    content: "";
+    height: calc(
+      var(--width-border-agent) + 100% - var(--height-agent) -
+        calc(0.5 * var(--thickness-arrow))
+    );
+    left: calc(-1 * var(--spacing-base));
+    position: absolute;
+    top: calc(var(--width-border-agent) + 0.5 * var(--height-agent));
+    transform: translate3d(-100%, 0, 0);
+    width: var(--thickness-arrow);
+  }
 }
 
-.agentList__progress {
-  background-image: linear-gradient(
-    to right,
-    #0000ff,
-    #0080ff,
-    #00ffff,
-    #80ff80,
-    #ffff00,
-    #ff8000,
-    #ff0000
-  );
-  bottom: var(--spacing-half);
-  left: var(--spacing-half);
-  position: absolute;
-  right: var(--spacing-half);
-  top: var(--spacing-half);
+.agentList__agent {
+  background-color: linen;
+  border: 2px solid var(--color-border);
+  column-gap: var(--spacing-base);
+  display: grid;
+  grid-template-areas: "name model status";
+  grid-template-columns: 1fr 2fr 2fr;
+  height: var(--height-agent);
+  padding: var(--spacing-base);
+  position: relative;
 
-  &:after {
-    /* mask the progress bar to show the agent's state */
-    background-color: var(--color-body-background);
+  &::after,
+  &::before {
     content: "";
-    display: block;
-    height: 100%;
-    position: absolute;
-    right: 0;
-    transition: width 1s;
-    width: var(--slots-usage);
   }
+
+  &::before {
+    background-color: var(--color-arrow);
+    height: var(--thickness-arrow);
+    left: -6px;
+    position: absolute;
+    top: calc(0.5 * var(--height-agent));
+    transform: translate3d(-100%, -50%, 0);
+    width: calc(var(--spacing-base) - 4px);
+  }
+
+  &:first-of-type::before {
+    width: calc(var(--spacing-2x) - 4px);
+  }
+
+  &::after {
+    border-color: transparent transparent transparent var(--color-arrow);
+    border-style: solid;
+    border-width: 5px 0 5px 10px;
+    height: 0px;
+    left: -2px;
+    position: absolute;
+    top: calc(0.5 * var(--height-agent));
+    transform: translate3d(-100%, -50%, 0);
+    width: 0px;
+  }
+}
+
+.agentList__agent__name {
+  align-items: center;
+  display: flex;
+  grid-area: name;
+}
+
+.agentList__agent__model {
+  grid-area: model;
+}
+
+.agentList__agent__status {
+  grid-area: status;
 }

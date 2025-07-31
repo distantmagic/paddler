@@ -16,6 +16,12 @@ basic(async function ({ resetConsole }) {
             ignoreProperties: ["composes", "compose-with"],
           },
         ],
+        "selector-pseudo-class-no-unknown": [
+          true,
+          {
+            ignorePseudoClasses: ["global", "local"],
+          },
+        ],
       },
     },
     files: "resources/**/*.css",

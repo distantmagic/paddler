@@ -1,11 +1,10 @@
-import { jinja } from "@codemirror/lang-jinja";
-import CodeMirror from "@uiw/react-codemirror";
 import React, { useCallback, useContext, type MouseEvent } from "react";
 
 import {
   ModelMetadataContext,
   type FocusedMetadataParameter,
 } from "../contexts/ModelMetadataContext";
+import { CodeEditor } from "./CodeEditor";
 
 import iconArrowBack from "../../icons/arrow_back.svg";
 import {
@@ -43,13 +42,7 @@ export function ModelMetadataFocusedParameter({
         </button>
       </div>
       <div className={modelMetadataFocusedParameter__content}>
-        <CodeMirror
-          editable={false}
-          extensions={[jinja()]}
-          height="100%"
-          readOnly={true}
-          value={metadataValue}
-        />
+        <CodeEditor editable={false} value={metadataValue} />
       </div>
     </div>
   );

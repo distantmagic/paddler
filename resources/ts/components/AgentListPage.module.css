@@ -1,6 +1,14 @@
 .agentListPage {
-  display: flex;
-  flex-direction: column;
+  align-items: flex-start;
+  column-gap: var(--spacing-2x);
+  display: grid;
+  grid-template-columns: 1fr 1fr 4fr;
   padding: var(--spacing-2x) var(--spacing-base);
   width: 100%;
+}
+
+.agentListPage__serviceBlock {
+  display: flex;
+  flex-direction: column;
+  position: relative;
 }

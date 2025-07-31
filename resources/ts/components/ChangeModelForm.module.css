@@ -21,7 +21,6 @@
 
 .changeModelForm__asideInfo {
   background-color: var(--color-note-background);
-  border-radius: 20px 50px 20px 20px;
   border: 2px dashed var(--color-border);
   display: flex;
   flex-direction: column;
@@ -81,12 +80,12 @@
   legend {
     appearance: none;
     font-weight: bold;
-    padding: 0 var(--spacing-base);
   }
+}
 
-  p {
-    margin-bottom: var(--spacing-base);
-    padding: 0 var(--spacing-base);
+.changeModelForm__chatTemplate {
+  legend {
+    padding: 0 var(--spacing-base) 0 calc(2 * var(--spacing-base) + 14px);
   }
 }
 
@@ -95,12 +94,15 @@
   border: 2px dashed var(--color-border);
   margin: var(--spacing-base) 0;
 
+  p {
+    margin-bottom: var(--spacing-base);
+  }
+
   > summary {
     align-items: center;
     column-gap: var(--spacing-half);
     cursor: pointer;
     display: flex;
-    flex-direction: row;
     padding: var(--spacing-base);
 
     &::before {
@@ -163,6 +165,11 @@
 .changeModelForm__parameters {
   position: relative;
   z-index: 1;
+
+  legend,
+  p {
+    padding: 0 var(--spacing-base);
+  }
 
   &::after {
     --spacing-overflow: calc(-1 * var(--spacing-base));

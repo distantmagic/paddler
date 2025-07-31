@@ -2,10 +2,10 @@
   align-items: center;
   appearance: none;
   background-color: var(--color-button-background, var(--color-highlight-2));
+  border: 1px solid var(--color-border);
   color: var(--color-button-text, var(--color-body-font));
   column-gap: var(--spacing-half);
   display: inline-flex;
-  border: var(--border-button, none);
   font-size: var(--font-size-small);
   border-radius: 10px 20% 10px 30%;
   padding: 4px 8px;

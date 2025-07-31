@@ -160,17 +160,13 @@ export function ChangeModelForm({
                 model.
               </p>
               <p>
-                They are model-specific and are usually provided by the model
-                authors.
+                They are usually model-specific and are usually provided by the
+                model authors, although Paddler provides some reasonable
+                defaults.
               </p>
               <p>
                 Experimenting with these settings is worth exploring to optimize
-                performance for your specific needs. The main constraints you'll
-                encounter are memory limits or thermal throttling during
-                extended runs without adequate cooling. But honestly, nothing to
-                lose sleep over - if your system handles intensive workloads
-                like rendering, gaming marathons, or data processing, it'll
-                handle LLMs just fine. 🙂
+                performance for your specific needs.
               </p>
             </details>
             <InferenceParameterInput

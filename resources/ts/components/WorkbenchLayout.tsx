@@ -33,6 +33,9 @@ export function WorkbenchLayout({ children }: { children: ReactNode }) {
           <Link className={activeClassName} href="/model">
             Model
           </Link>
+          <Link className={activeClassName} href="/chat-templates">
+            Chat Templates
+          </Link>
           <Link className={activeClassName} href="/prompt">
             Prompt
           </Link>

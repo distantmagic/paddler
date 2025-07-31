@@ -36,11 +36,17 @@ impl BufferedRequestManager {
             return Ok(BufferedRequestAgentWaitResult::BufferOverflow);
         }
 
+        // Do a quick check before getting into the coroutines
+        if let Some(agent_controller) = self.agent_controller_pool.find_least_busy_agent_controller() {
+            return Ok(BufferedRequestAgentWaitResult::Found(
+                agent_controller,
+            ));
+        }
+
         self.buffered_requests_count.increment();
 
+        let _buffered_request_count_guard = BufferedRequestCountGuard::new(self.buffered_requests_count.clone());
         let agent_controller_pool = self.agent_controller_pool.clone();
-        let _buffered_request_count_guard =
-            BufferedRequestCountGuard::new(self.buffered_requests_count.clone());
 
         match timeout(self.buffered_request_timeout, async {
             loop {
