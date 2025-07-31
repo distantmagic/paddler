@@ -12,7 +12,7 @@ import {
   agentList__agent__status,
 } from "./AgentList.module.css";
 
-export function AgentsList({
+export function AgentList({
   agents,
   managementAddr,
 }: {

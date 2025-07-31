@@ -1,4 +1,4 @@
-.agentListPage {
+.dashboardPage {
   align-items: flex-start;
   column-gap: var(--spacing-2x);
   display: grid;
@@ -7,7 +7,7 @@
   width: 100%;
 }
 
-.agentListPage__serviceBlock {
+.dashboardPage__serviceBlock {
   display: flex;
   flex-direction: column;
   position: relative;

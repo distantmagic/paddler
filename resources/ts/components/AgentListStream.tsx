@@ -3,7 +3,7 @@ import React from "react";
 import { useEventSourceUpdates } from "../hooks/useEventSourceUpdates";
 import { matchEventSourceUpdateState } from "../matchEventSourceUpdateState";
 import { AgentsResponseSchema } from "../schemas/AgentsResponse";
-import { AgentsList } from "./AgentsList";
+import { AgentList } from "./AgentList";
 import { FloatingStatus } from "./FloatingStatus";
 
 export function AgentListStream({
@@ -36,9 +36,7 @@ export function AgentListStream({
         return <FloatingStatus>No agents registered yet.</FloatingStatus>;
       }
 
-      return (
-        <AgentsList agents={data.agents} managementAddr={managementAddr} />
-      );
+      return <AgentList agents={data.agents} managementAddr={managementAddr} />;
     },
     deserializationError() {
       return (

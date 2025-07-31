@@ -1,8 +1,8 @@
 import React from "react";
 import { Route, Router, Switch } from "wouter";
 
-import { AgentListPage } from "./AgentListPage";
 import { ChangeModelPage } from "./ChangeModelPage";
+import { DashboardPage } from "./DashboardPage";
 import { PromptContextProvider } from "./PromptContextProvider";
 import { PromptPage } from "./PromptPage";
 import { WorkbenchLayout } from "./WorkbenchLayout";
@@ -19,7 +19,7 @@ export function Home({
       <WorkbenchLayout>
         <Switch>
           <Route path="/">
-            <AgentListPage
+            <DashboardPage
               inferenceAddr={inferenceAddr}
               managementAddr={managementAddr}
             />
