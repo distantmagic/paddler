@@ -1,11 +1,24 @@
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .dashboardSectionStreamLoader {
   --size-background: 48px;
 
+  animation: fadeIn 200ms ease-in-out;
+  animation-delay: 200ms;
+  animation-fill-mode: forwards;
   background-image: url("../../icons/hourglass.svg");
   background-position: center var(--spacing-base);
   background-size: var(--size-background);
   background-repeat: no-repeat;
   border: 2px solid var(--color-border);
+  opacity: 0;
   padding: calc(var(--spacing-2x) + var(--size-background)) var(--spacing-base)
     var(--spacing-base) var(--spacing-base);
 }
