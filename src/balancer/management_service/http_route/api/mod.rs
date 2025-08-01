@@ -1,3 +1,4 @@
+pub mod delete_chat_template;
 pub mod get_agent_desired_state;
 pub mod get_agents;
 pub mod get_agents_stream;

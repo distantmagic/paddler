@@ -95,6 +95,7 @@ impl Service for ManagementService {
                 .app_data(model_metadata_sender_collection.clone())
                 .app_data(state_database.clone())
                 .configure(common_http_route::get_health::register)
+                .configure(http_route::api::delete_chat_template::register)
                 .configure(http_route::api::get_agent_desired_state::register)
                 .configure(http_route::api::get_agents::register)
                 .configure(http_route::api::get_agents_stream::register)

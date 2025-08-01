@@ -1,4 +1,3 @@
-use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -6,5 +5,4 @@ use serde::Serialize;
 pub struct ChatTemplateHead {
     pub id: String,
     pub name: String,
-    pub updated_at: DateTime<Utc>,
 }

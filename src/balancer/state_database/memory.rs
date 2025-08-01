@@ -29,6 +29,14 @@ impl Memory {
 
 #[async_trait]
 impl StateDatabase for Memory {
+    async fn delete_chat_template(&self, id: String) -> Result<()> {
+        if self.chat_templates.remove(&id).is_some() {
+            self.update_notifier.notify_waiters();
+        }
+
+        Ok(())
+    }
+
     fn get_update_notifier(&self) -> Arc<Notify> {
         self.update_notifier.clone()
     }

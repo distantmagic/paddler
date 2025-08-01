@@ -48,6 +48,7 @@ rust-embed = { version = "8.7.2", optional = true, features = ["interpolate-fold
 minijinja = { version = "2.11.0", features = ["builtins", "json", "loader"] }
 shellexpand = "3.1.1"
 chrono = { version = "0.4.41", features = ["serde"] }
+validator = { version = "0.20.0", features = ["derive"] }
 
 [features]
 web_admin_panel = ["dep:askama", "dep:esbuild-metafile", "dep:mime_guess", "dep:rust-embed"]

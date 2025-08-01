@@ -15,6 +15,8 @@ use crate::agent_desired_state::AgentDesiredState;
 
 #[async_trait]
 pub trait StateDatabase: Send + Sync {
+    async fn delete_chat_template(&self, id: String) -> Result<()>;
+
     fn get_update_notifier(&self) -> Arc<Notify>;
 
     async fn list_chat_template_heads(&self) -> Result<Vec<ChatTemplateHead>>;
@@ -32,7 +34,6 @@ pub trait StateDatabase: Send + Sync {
 mod tests {
     use anyhow::Result;
     use tempfile::NamedTempFile;
-    use chrono::Utc;
 
     use super::*;
     use crate::agent_desired_model::AgentDesiredModel;
@@ -43,7 +44,6 @@ mod tests {
             content: "test_content".to_string(),
             id: "test_id".to_string(),
             name: "test_name".to_string(),
-            updated_at: Utc::now(),
         };
 
         db.store_chat_template(&chat_template).await?;
@@ -58,6 +58,12 @@ mod tests {
 
         assert_eq!(template_heads[0].id, chat_template.id);
         assert_eq!(template_heads[0].name, chat_template.name);
+
+        db.delete_chat_template("test_id".to_string()).await?;
+
+        let read_template_after_delete = db.read_chat_template("test_id".to_string()).await?;
+
+        assert!(read_template_after_delete.is_none());
 
         Ok(())
     }

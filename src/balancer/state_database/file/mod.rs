@@ -97,6 +97,12 @@ impl File {
 
 #[async_trait]
 impl StateDatabase for File {
+    async fn delete_chat_template(&self, id: String) -> Result<()> {
+        self.update_schema(|schema| {
+            schema.chat_templates.remove(&id);
+        }).await
+    }
+
     fn get_update_notifier(&self) -> Arc<Notify> {
         self.update_notifier.clone()
     }

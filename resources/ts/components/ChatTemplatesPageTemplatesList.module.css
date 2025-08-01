@@ -13,12 +13,9 @@
   flex-direction: column;
 }
 
-.chatTemplatesPageTemplatesList__button:not(:last-of-type) {
-  border-bottom: 1px solid var(--color-border);
-}
-
-.chatTemplatesPageTemplatesList__createTemplate {
+.chatTemplatesPageTemplatesList__button {
   align-items: center;
+  border-bottom: 1px solid var(--color-border);
   column-gap: var(--spacing-base);
   display: grid;
   grid-template-columns: 24px 1fr;
@@ -30,6 +27,6 @@
   }
 }
 
-.chatTemplatesPageTemplatesList__createTemplate.chatTemplatesPageTemplatesList__createTemplateActive {
+.chatTemplatesPageTemplatesList__button.chatTemplatesPageTemplatesList__buttonActive {
   background-color: var(--color-highlight-1);
 }

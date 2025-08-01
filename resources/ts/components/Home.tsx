@@ -43,7 +43,7 @@ export function Home({
           <Route path="/model">
             <ChangeModelPage managementAddr={managementAddr} />
           </Route>
-          <Route path="/chat-templates">
+          <Route path="/chat-templates" nest>
             <ChatTemplatesPage managementAddr={managementAddr} />
           </Route>
           <Route path="/prompt">

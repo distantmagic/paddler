@@ -1,3 +1,12 @@
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .chatTemplatesPage {
   display: grid;
   grid-template-areas:
@@ -6,7 +15,15 @@
   grid-template-columns: 320px 1fr;
   grid-template-rows: 80px 1fr;
   height: calc(100dvh - var(--height-workbench-header));
+  padding: var(--spacing-base);
   width: 100%;
+}
+
+.chatTemplatesPage__editor,
+.chatTemplatesPage__templates,
+.chatTemplatesPage__toolbar {
+  border-color: var(--color-border);
+  border-style: solid;
 }
 
 .chatTemplatesPage__editor,
@@ -14,16 +31,23 @@
   overflow-y: auto;
 }
 
+.chatTemplatesPage__editor,
+.chatTemplatesPage__toolbar {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
 .chatTemplatesPage__editor {
+  border-width: 0 2px 2px 0;
   grid-area: editor;
 }
 
 .chatTemplatesPage__templates {
+  border-width: 2px;
   grid-area: templates;
 }
 
 .chatTemplatesPage__toolbar {
   background-color: #f5f5f5;
-  border-bottom: 1px solid #ddd;
+  border-width: 2px 2px 2px 0;
   grid-area: toolbar;
 }
