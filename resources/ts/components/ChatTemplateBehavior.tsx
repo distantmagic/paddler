@@ -1,14 +1,29 @@
+import clsx from "clsx";
 import React from "react";
+
+import { type StreamState } from "../hooks/useEventSourceUpdates";
+import { ChatTemplateHeadsResponseSchema } from "../schemas/ChatTemplateHeadsResponse";
 
 import {
   chatTemplateBehavior,
   chatTemplateBehavior__description,
   chatTemplateBehavior__option,
+  chatTemplateBehavior__optionDisabled,
   chatTemplateBehavior__optionList,
   chatTemplateBehavior__radio,
 } from "./ChatTemplateBehavior.module.css";
 
-export function ChatTemplateBehavior() {
+export function ChatTemplateBehavior({
+  chatTemplateStreamUpdateState,
+}: {
+  chatTemplateStreamUpdateState: StreamState<
+    typeof ChatTemplateHeadsResponseSchema
+  >;
+}) {
+  const chatTemplateHeads =
+    chatTemplateStreamUpdateState.data?.chat_template_heads;
+  const chatTemplatesExist = chatTemplateHeads && chatTemplateHeads.length > 0;
+
   return (
     <div className={chatTemplateBehavior}>
       <p>How should Paddler obtain the chat template?</p>
@@ -34,9 +49,14 @@ export function ChatTemplateBehavior() {
             </p>
           </div>
         </label>
-        <label className={chatTemplateBehavior__option}>
+        <label
+          className={clsx(chatTemplateBehavior__option, {
+            [chatTemplateBehavior__optionDisabled]: !chatTemplatesExist,
+          })}
+        >
           <div className={chatTemplateBehavior__radio}>
             <input
+              disabled={!chatTemplatesExist}
               type="radio"
               name="chat_template_behavior"
               required
@@ -47,9 +67,18 @@ export function ChatTemplateBehavior() {
             <p>
               <strong>Use: </strong>
               <select>
-                <optgroup label="Built-in template">
-                  <option value="chatml">ChatML template</option>
-                </optgroup>
+                {chatTemplateStreamUpdateState.data?.chat_template_heads.map(
+                  function (chat_template_head) {
+                    return (
+                      <option
+                        key={chat_template_head.id}
+                        value={chat_template_head.id}
+                      >
+                        {chat_template_head.name}
+                      </option>
+                    );
+                  },
+                )}
               </select>
             </p>
             <p>

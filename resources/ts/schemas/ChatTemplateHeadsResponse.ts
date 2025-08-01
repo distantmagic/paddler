@@ -8,4 +8,6 @@ export const ChatTemplateHeadsResponseSchema = z
   })
   .strict();
 
-export type ChatTemplateHeads = z.infer<typeof ChatTemplateHeadsResponseSchema>;
+export type ChatTemplateHeadsResponse = z.infer<
+  typeof ChatTemplateHeadsResponseSchema
+>;

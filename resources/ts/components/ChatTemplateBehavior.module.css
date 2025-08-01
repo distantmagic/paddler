@@ -56,6 +56,11 @@
   grid-template-columns: auto 1fr;
 }
 
+.chatTemplateBehavior__optionDisabled {
+  cursor: not-allowed;
+  filter: grayscale(100%);
+}
+
 .chatTemplateBehavior__optionList {
   display: flex;
   flex-direction: column;

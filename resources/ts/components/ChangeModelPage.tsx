@@ -1,8 +1,10 @@
 import React from "react";
 
 import { useAgentDesiredState } from "../hooks/useAgentDesiredState";
+import { useEventSourceUpdates } from "../hooks/useEventSourceUpdates";
 import { matchFetchJsonState } from "../matchFetchJsonState";
 import { type AgentDesiredModel } from "../schemas/AgentDesiredModel";
+import { ChatTemplateHeadsResponseSchema } from "../schemas/ChatTemplateHeadsResponse";
 import { ChangeModelForm } from "./ChangeModelForm";
 import { FloatingStatus } from "./FloatingStatus";
 import { InferenceParametersContextProvider } from "./InferenceParametersContextProvider";
@@ -31,6 +33,10 @@ export function ChangeModelPage({
   managementAddr: string;
 }) {
   const loadingState = useAgentDesiredState({ managementAddr });
+  const eventSourceUpdateState = useEventSourceUpdates({
+    schema: ChatTemplateHeadsResponseSchema,
+    endpoint: `//${managementAddr}/api/v1/chat_template_heads/stream`,
+  });
 
   return matchFetchJsonState(loadingState, {
     empty() {
@@ -52,6 +58,7 @@ export function ChangeModelPage({
           defaultInferenceParameters={inference_parameters}
         >
           <ChangeModelForm
+            chatTemplateStreamUpdateState={eventSourceUpdateState}
             defaultModelUri={modelSchemaToUrl(model)}
             managementAddr={managementAddr}
           />

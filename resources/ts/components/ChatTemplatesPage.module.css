@@ -15,6 +15,7 @@
   grid-template-columns: 320px 1fr;
   grid-template-rows: 80px 1fr;
   height: calc(100dvh - var(--height-workbench-header));
+  max-width: var(--max-width-workbench-content);
   padding: var(--spacing-base);
   width: 100%;
 }
