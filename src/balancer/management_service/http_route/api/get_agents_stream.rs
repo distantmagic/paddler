@@ -30,18 +30,12 @@ async fn respond(
             }
         };
 
-        if let Some(event) = send_event(agent_controller_pool.make_snapshot()) {
-            yield event;
-        }
-
         loop {
-            tokio::select! {
-                _ = agent_controller_pool.update_notifier.notified() => {
-                    if let Some(event) = send_event(agent_controller_pool.make_snapshot()) {
-                        yield event;
-                    }
-                },
+            if let Some(event) = send_event(agent_controller_pool.make_snapshot()) {
+                yield event;
             }
+
+            agent_controller_pool.update_notifier.notified().await;
         }
     };
 

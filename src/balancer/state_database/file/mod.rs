@@ -1,5 +1,6 @@
 mod schema;
 
+use std::sync::Arc;
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -9,13 +10,17 @@ use log::warn;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::RwLock;
+use tokio::sync::Notify;
 
+use crate::chat_template_head::ChatTemplateHead;
 use self::schema::Schema;
 use super::StateDatabase;
 use crate::agent_desired_state::AgentDesiredState;
+use crate::chat_template::ChatTemplate;
 
 pub struct File {
     path: PathBuf,
+    update_notifier: Arc<Notify>,
     write_lock: RwLock<()>,
 }
 
@@ -23,6 +28,7 @@ impl File {
     pub fn new(path: PathBuf) -> Self {
         File {
             path,
+            update_notifier: Arc::new(Notify::new()),
             write_lock: RwLock::new(()),
         }
     }
@@ -69,12 +75,53 @@ impl File {
         file.write_all(serialized_schema.as_bytes()).await?;
         file.sync_all().await?;
 
+        self.update_notifier.notify_waiters();
+
         Ok(())
+    }
+
+    async fn update_schema<TFunction>(&self, modifier: TFunction) -> Result<()>
+    where
+        TFunction: FnOnce(&mut Schema),
+    {
+        let mut schema = self
+            .read_schema_from_file()
+            .await
+            .context("Unable to read current state from file")?;
+
+        modifier(&mut schema);
+
+        self.store_schema(&schema).await
     }
 }
 
 #[async_trait]
 impl StateDatabase for File {
+    fn get_update_notifier(&self) -> Arc<Notify> {
+        self.update_notifier.clone()
+    }
+
+    async fn list_chat_template_heads(&self) -> Result<Vec<ChatTemplateHead>> {
+        Ok(self
+            .read_schema_from_file()
+            .await
+            .context("Unable to read chat templates from file")?
+            .chat_templates
+            .values()
+            .map(|template| template.to_head())
+            .collect())
+    }
+
+    async fn read_chat_template(&self, id: String) -> Result<Option<ChatTemplate>> {
+        Ok(self
+            .read_schema_from_file()
+            .await
+            .context("Unable to read chat template from file")?
+            .chat_templates
+            .get(&id)
+            .cloned())
+    }
+
     async fn read_agent_desired_state(&self) -> Result<AgentDesiredState> {
         Ok(self
             .read_schema_from_file()
@@ -84,19 +131,15 @@ impl StateDatabase for File {
             .clone())
     }
 
-    async fn store_agent_desired_state(
-        &self,
-        agent_desired_state: &AgentDesiredState,
-    ) -> Result<()> {
-        let mut schema = self
-            .read_schema_from_file()
-            .await
-            .context("Unable to read current state from file")?;
+    async fn store_agent_desired_state(&self, agent_desired_state: &AgentDesiredState) -> Result<()> {
+        self.update_schema(|schema| {
+            schema.agent_desired_state = agent_desired_state.clone();
+        }).await
+    }
 
-        schema.agent_desired_state = agent_desired_state.clone();
-
-        self.store_schema(&schema)
-            .await
-            .context("Unable to store desired state to file")
+    async fn store_chat_template(&self, chat_template: &ChatTemplate) -> Result<()> {
+        self.update_schema(|schema| {
+            schema.chat_templates.insert(chat_template.id.clone(), chat_template.clone());
+        }).await
     }
 }

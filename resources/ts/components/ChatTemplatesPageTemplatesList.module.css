@@ -1,0 +1,35 @@
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.chatTemplatesPageTemplatesList {
+  animation: fadeIn 200ms ease-in-out;
+  display: flex;
+  flex-direction: column;
+}
+
+.chatTemplatesPageTemplatesList__button:not(:last-of-type) {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.chatTemplatesPageTemplatesList__createTemplate {
+  align-items: center;
+  column-gap: var(--spacing-base);
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  padding: var(--spacing-base);
+
+  svg {
+    height: 24px;
+    width: 24px;
+  }
+}
+
+.chatTemplatesPageTemplatesList__createTemplate.chatTemplatesPageTemplatesList__createTemplateActive {
+  background-color: var(--color-highlight-1);
+}

@@ -53,6 +53,7 @@ mod tests {
         let desired_state = AgentDesiredState {
             inference_parameters: InferenceParameters::default(),
             model: AgentDesiredModel::Local("test_model_path".to_string()),
+            override_chat_template: None,
         };
 
         queue.register_change_request(desired_state.clone()).await?;

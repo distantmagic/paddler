@@ -58,6 +58,7 @@ export function ChangeModelForm({
       return Object.freeze({
         inference_parameters: parameters,
         model: agentDesiredModelState.agentDesiredModel,
+        override_chat_template: null,
       });
     },
     [agentDesiredModelState, parameters],

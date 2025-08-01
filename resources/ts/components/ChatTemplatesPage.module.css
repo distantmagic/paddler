@@ -1,0 +1,29 @@
+.chatTemplatesPage {
+  display: grid;
+  grid-template-areas:
+    "templates toolbar"
+    "templates editor";
+  grid-template-columns: 320px 1fr;
+  grid-template-rows: 80px 1fr;
+  height: calc(100dvh - var(--height-workbench-header));
+  width: 100%;
+}
+
+.chatTemplatesPage__editor,
+.chatTemplatesPage__templates {
+  overflow-y: auto;
+}
+
+.chatTemplatesPage__editor {
+  grid-area: editor;
+}
+
+.chatTemplatesPage__templates {
+  grid-area: templates;
+}
+
+.chatTemplatesPage__toolbar {
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+  grid-area: toolbar;
+}

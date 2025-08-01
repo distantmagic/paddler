@@ -1,0 +1,18 @@
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.chatTemplatesPageTemplatesStream__loader {
+  animation: fadeIn 200ms ease-in-out;
+  animation-delay: 200ms;
+  animation-fill-mode: forwards;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  padding: var(--spacing-base);
+}

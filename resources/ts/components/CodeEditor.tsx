@@ -22,8 +22,7 @@ export function CodeEditor({
       <CodeMirror
         editable={editable}
         extensions={[jinja()]}
-        height="100%"
-        readOnly={true}
+        readOnly={!editable}
         value={value}
       />
     </div>

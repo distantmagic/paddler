@@ -8,17 +8,18 @@ use actix_web::Responder;
 use actix_web_lab::sse;
 use log::error;
 
-use crate::balancer::buffered_request_manager::BufferedRequestManager;
-use crate::produces_snapshot::ProducesSnapshot as _;
+use crate::balancer::management_service::http_response::chat_template_heads::ChatTemplateHeads;
+use crate::balancer::state_database::StateDatabase;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
 }
 
-#[get("/api/v1/buffered_requests/stream")]
+#[get("/api/v1/chat_template_heads/stream")]
 async fn respond(
-    buffered_request_manager: web::Data<BufferedRequestManager>,
+    state_database: web::Data<dyn StateDatabase>,
 ) -> Result<impl Responder, Error> {
+    let update_notifier = state_database.get_update_notifier();
     let event_stream = async_stream::stream! {
         let send_event = |info| {
             match serde_json::to_string(&info) {
@@ -31,11 +32,20 @@ async fn respond(
         };
 
         loop {
-            if let Some(event) = send_event(buffered_request_manager.make_snapshot()) {
-                yield event;
-            }
+            match state_database.list_chat_template_heads().await {
+                Ok(info) => {
+                    if let Some(event) = send_event(ChatTemplateHeads {
+                        chat_template_heads: info,
+                    }) {
+                        yield event;
+                    }
+                },
+                Err(err) => {
+                    error!("Failed to list chat template heads: {err}");
+                }
+            };
 
-            buffered_request_manager.update_notifier.notified().await;
+            update_notifier.notified().await;
         }
     };
 

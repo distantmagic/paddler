@@ -2,6 +2,7 @@ import React from "react";
 import { Route, Router, Switch } from "wouter";
 
 import { ChangeModelPage } from "./ChangeModelPage";
+import { ChatTemplatesPage } from "./ChatTemplatesPage";
 import { DashboardPage } from "./DashboardPage";
 import { PromptContextProvider } from "./PromptContextProvider";
 import { PromptPage } from "./PromptPage";
@@ -41,6 +42,9 @@ export function Home({
           </Route>
           <Route path="/model">
             <ChangeModelPage managementAddr={managementAddr} />
+          </Route>
+          <Route path="/chat-templates">
+            <ChatTemplatesPage managementAddr={managementAddr} />
           </Route>
           <Route path="/prompt">
             <PromptContextProvider>

@@ -76,6 +76,7 @@ impl LlamaCppArbiterService {
         if let Some(AgentApplicableState {
             inference_parameters,
             model_path,
+            override_chat_template,
         }) = self.agent_applicable_state.clone()
         {
             self.slot_aggregated_status_manager.reset();
@@ -104,6 +105,7 @@ impl LlamaCppArbiterService {
                         inference_parameters,
                         self.model_metadata_holder.clone(),
                         model_path,
+                        override_chat_template,
                         self.slot_aggregated_status_manager.clone(),
                     )
                     .spawn()

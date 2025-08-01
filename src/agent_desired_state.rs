@@ -7,6 +7,7 @@ use serde::Serialize;
 
 use crate::agent_applicable_state::AgentApplicableState;
 use crate::agent_desired_model::AgentDesiredModel;
+use crate::chat_template::ChatTemplate;
 use crate::converts_to_applicable_state::ConvertsToApplicableState;
 use crate::inference_parameters::InferenceParameters;
 use crate::slot_aggregated_status::SlotAggregatedStatus;
@@ -15,6 +16,7 @@ use crate::slot_aggregated_status::SlotAggregatedStatus;
 pub struct AgentDesiredState {
     pub inference_parameters: InferenceParameters,
     pub model: AgentDesiredModel,
+    pub override_chat_template: Option<ChatTemplate>,
 }
 
 #[async_trait]
@@ -31,6 +33,7 @@ impl ConvertsToApplicableState for AgentDesiredState {
                 .model
                 .to_applicable_state(slot_aggregated_status)
                 .await?,
+            override_chat_template: None,
         }))
     }
 }
