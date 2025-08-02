@@ -24,6 +24,7 @@ pub struct SlotAggregatedStatus {
     slots_processing: AtomicValue<AtomicI32>,
     slots_total: AtomicValue<AtomicI32>,
     pub update_notifier: Notify,
+    uses_chat_template_override: AtomicValue<AtomicBool>,
     version: AtomicValue<AtomicI32>,
 }
 
@@ -40,6 +41,7 @@ impl SlotAggregatedStatus {
             slots_processing: AtomicValue::<AtomicI32>::new(0),
             slots_total: AtomicValue::<AtomicI32>::new(0),
             update_notifier: Notify::new(),
+            uses_chat_template_override: AtomicValue::<AtomicBool>::new(false),
             version: AtomicValue::<AtomicI32>::new(0),
         }
     }
@@ -136,6 +138,12 @@ impl SlotAggregatedStatus {
         self.version.increment();
         self.update_notifier.notify_waiters();
     }
+
+    pub fn set_uses_chat_template_override(&self, uses: bool) {
+        self.uses_chat_template_override.set(uses);
+        self.version.increment();
+        self.update_notifier.notify_waiters();
+    }
 }
 
 impl DispensesSlots for SlotAggregatedStatus {
@@ -174,6 +182,7 @@ impl ProducesSnapshot for SlotAggregatedStatus {
                 .clone(),
             slots_processing: self.slots_processing.get(),
             slots_total: self.slots_total.get(),
+            uses_chat_template_override: self.uses_chat_template_override.get(),
             version: self.version.get(),
         }
     }

@@ -8,7 +8,6 @@
   grid-template-columns: 1fr 2fr;
   padding: var(--spacing-base);
   row-gap: var(--spacing-half);
-  word-break: break-all;
 }
 
 .conversationMessage__author {

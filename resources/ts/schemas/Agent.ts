@@ -15,6 +15,7 @@ export const AgentSchema = z
     name: z.string().nullable(),
     slots_processing: z.number(),
     slots_total: z.number(),
+    uses_chat_template_override: z.boolean(),
   })
   .strict();
 

@@ -1,0 +1,5 @@
+.modelChatTemplateOverridePreviewButton {
+  composes: modelDetailsPreviewButton from "./modelDetailsPreviewButton.module.css";
+
+  --color-button-background: lavender;
+}

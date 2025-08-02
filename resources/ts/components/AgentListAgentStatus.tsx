@@ -2,10 +2,7 @@ import React, { CSSProperties } from "react";
 
 import { type Agent } from "../schemas/Agent";
 
-import {
-  agentListAgentStatus__pendingChanges,
-  agentListAgentStatus__progress,
-} from "./AgentListAgentStatus.module.css";
+import { agentListAgentStatus__progress } from "./AgentListAgentStatus.module.css";
 
 export function AgentListAgentStatus({
   agent: {
@@ -53,8 +50,8 @@ export function AgentListAgentStatus({
 
   return (
     <div className={agentListAgentStatus__progress}>
-      <div className={agentListAgentStatus__pendingChanges}>
-        ⏳ <i>Changes pending</i>
+      <div>
+        ⏳ <i>Pending</i>
       </div>
     </div>
   );

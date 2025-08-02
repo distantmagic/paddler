@@ -111,6 +111,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                             model_path,
                             slots_processing,
                             slots_total,
+                            uses_chat_template_override,
                             version,
                         },
                 }),
@@ -133,6 +134,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     newest_update_version: AtomicValue::<AtomicI32>::new(version),
                     slots_processing: AtomicValue::<AtomicI32>::new(slots_processing),
                     slots_total: AtomicValue::<AtomicI32>::new(slots_total),
+                    uses_chat_template_override: AtomicValue::<AtomicBool>::new(uses_chat_template_override),
                 });
 
                 context

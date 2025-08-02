@@ -50,6 +50,7 @@ pub struct AgentController {
     pub newest_update_version: AtomicValue<AtomicI32>,
     pub slots_processing: AtomicValue<AtomicI32>,
     pub slots_total: AtomicValue<AtomicI32>,
+    pub uses_chat_template_override: AtomicValue<AtomicBool>,
 }
 
 impl AgentController {
@@ -167,6 +168,7 @@ impl AgentController {
             model_path,
             slots_processing,
             slots_total,
+            uses_chat_template_override,
             version,
         }: SlotAggregatedStatusSnapshot,
     ) -> AgentControllerUpdateResult {
@@ -186,6 +188,7 @@ impl AgentController {
         changed = changed || self.is_state_applied.set_check(is_state_applied);
         changed = changed || self.slots_processing.set_check(slots_processing);
         changed = changed || self.slots_total.set_check(slots_total);
+        changed = changed || self.uses_chat_template_override.set_check(uses_chat_template_override);
 
         self.newest_update_version
             .compare_and_swap(newest_update_version, version);
@@ -258,6 +261,7 @@ impl ProducesSnapshot for AgentController {
             name: self.name.clone(),
             slots_processing: self.slots_processing.get(),
             slots_total: self.slots_total.get(),
+            uses_chat_template_override: self.uses_chat_template_override.get(),
         }
     }
 }

@@ -51,6 +51,11 @@ impl ReconciliationService {
         };
 
         self.is_converted_to_applicable_state = true;
+        self.slot_aggregated_status.set_uses_chat_template_override(if let Some(applicable_state) = &applicable_state {
+            applicable_state.chat_template_override.is_some()
+        } else {
+            false
+        });
         self.slot_aggregated_status.register_fix(AgentIssueFix::ModelStateIsReconciled);
         self.agent_applicable_state_holder.set_applicable_state(applicable_state)
     }

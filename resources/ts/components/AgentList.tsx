@@ -4,17 +4,36 @@ import React from "react";
 import { type Agent } from "../schemas/Agent";
 import { AgentIssuesPreviewButton } from "./AgentIssuesPreviewButton";
 import { AgentListAgentStatus } from "./AgentListAgentStatus";
-import { AgentListModel } from "./AgentListModel";
+import { ModelChatTemplateOverridePreviewButton } from "./ModelChatTemplateOverridePreviewButton";
+import { ModelMetadataPreviewButton } from "./ModelMetadataPreviewButton";
 
 import {
   agentList,
   agentList__agent,
   agentList__agentHasIssues,
   agentList__agent__issues,
+  agentList__agent__issues__list,
+  agentList__agent__metadata,
   agentList__agent__model,
+  agentList__agent__model__name,
   agentList__agent__name,
   agentList__agent__status,
 } from "./AgentList.module.css";
+
+function displayLastPathPart(path: string | null): string {
+  if (!path) {
+    return "";
+  }
+
+  const parts = path.split("/");
+  const last = parts.pop();
+
+  if (!last) {
+    return "";
+  }
+
+  return last;
+}
 
 export function AgentList({
   agents,
@@ -26,7 +45,8 @@ export function AgentList({
   return (
     <div className={agentList}>
       {agents.map(function (agent: Agent) {
-        const { id, issues, name, model_path } = agent;
+        const { id, issues, name, model_path, uses_chat_template_override } =
+          agent;
 
         return (
           <div
@@ -38,22 +58,36 @@ export function AgentList({
             <div className={agentList__agent__issues}>
               <div className={agentList__agent__name}>{name}</div>
               {issues.length > 0 ? (
-                <div>
+                <div className={agentList__agent__issues__list}>
                   <AgentIssuesPreviewButton agentName={name} issues={issues} />
                 </div>
               ) : (
-                <div>
+                <div className={agentList__agent__issues__list}>
                   👍 <i>OK</i>
                 </div>
               )}
             </div>
-            <div className={agentList__agent__model}>
-              <AgentListModel
+            <div className={agentList__agent__metadata}>
+              <ModelMetadataPreviewButton
                 agentId={id}
                 agentName={name}
                 managementAddr={managementAddr}
-                model_path={model_path}
               />
+              {uses_chat_template_override && (
+                <ModelChatTemplateOverridePreviewButton />
+              )}
+            </div>
+            <div className={agentList__agent__model}>
+              {"string" === typeof model_path ? (
+                <abbr
+                  className={agentList__agent__model__name}
+                  title={model_path}
+                >
+                  {displayLastPathPart(model_path)}
+                </abbr>
+              ) : (
+                <i>No model loaded</i>
+              )}
             </div>
             <div className={agentList__agent__status}>
               <AgentListAgentStatus agent={agent} />

@@ -18,4 +18,5 @@ pub struct AgentControllerSnapshot {
     pub name: Option<String>,
     pub slots_processing: i32,
     pub slots_total: i32,
+    pub uses_chat_template_override: bool,
 }
