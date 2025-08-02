@@ -1,18 +1,50 @@
-import React, { useCallback, type MouseEvent } from "react";
+import React, { useCallback, useState, type MouseEvent } from "react";
+
+import { type Agent } from "../schemas/Agent";
+import { ChatTemplateOverrideLoader } from "./ChatTemplateOverrideLoader";
 
 import { modelChatTemplateOverridePreviewButton } from "./ModelChatTemplateOverridePreviewButton.module.css";
 
-export function ModelChatTemplateOverridePreviewButton() {
-  const onClick = useCallback(function (evt: MouseEvent<HTMLButtonElement>) {
-    evt.preventDefault();
-  }, []);
+export function ModelChatTemplateOverridePreviewButton({
+  agent,
+  managementAddr,
+}: {
+  agent: Agent;
+  managementAddr: string;
+}) {
+  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+
+  const onClick = useCallback(
+    function (evt: MouseEvent<HTMLButtonElement>) {
+      evt.preventDefault();
+
+      setIsPreviewVisible(true);
+    },
+    [setIsPreviewVisible],
+  );
+
+  const onClose = useCallback(
+    function () {
+      setIsPreviewVisible(false);
+    },
+    [setIsPreviewVisible],
+  );
 
   return (
-    <button
-      className={modelChatTemplateOverridePreviewButton}
-      onClick={onClick}
-    >
-      Custom chat template
-    </button>
+    <>
+      <button
+        className={modelChatTemplateOverridePreviewButton}
+        onClick={onClick}
+      >
+        Custom chat template
+      </button>
+      {isPreviewVisible && (
+        <ChatTemplateOverrideLoader
+          agent={agent}
+          managementAddr={managementAddr}
+          onClose={onClose}
+        />
+      )}
+    </>
   );
 }

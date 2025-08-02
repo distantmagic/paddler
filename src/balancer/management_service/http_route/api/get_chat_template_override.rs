@@ -1,19 +1,41 @@
-use actix_web::get;
-use actix_web::web;
 use actix_web::Error;
 use actix_web::HttpResponse;
-use actix_web::Responder;
+use actix_web::get;
+use actix_web::web;
+use async_trait::async_trait;
 use serde::Deserialize;
-use tokio::time::sleep;
-use tokio::time::Duration;
+use std::sync::Arc;
 
+use crate::balancer::agent_controller::AgentController;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
-use crate::balancer::management_service::http_response::chat_template_override::ChatTemplateOverride;
-
-const TIMEOUT: Duration = Duration::from_secs(3);
+use crate::balancer::controls_manages_senders_endpoint::ControlsManagesSendersEndpoint;
+use crate::balancer::manages_senders_controller::ManagesSendersController;
+use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
+}
+
+struct GetChatTemplateOverrideController {
+    agent_controller_pool: web::Data<AgentControllerPool>,
+    agent_id: String,
+}
+
+#[async_trait]
+impl ControlsManagesSendersEndpoint for GetChatTemplateOverrideController {
+    type SenderCollection = ChatTemplateOverrideSenderCollection;
+
+    fn get_agent_controller_pool(&self) -> web::Data<AgentControllerPool> {
+        self.agent_controller_pool.clone()
+    }
+
+    fn get_agent_id(&self) -> String {
+        self.agent_id.clone()
+    }
+
+    async fn get_manages_senders_controller(&self, agent_controller: Arc<AgentController>) -> anyhow::Result<ManagesSendersController<Self::SenderCollection>> {
+        agent_controller.get_chat_template_override().await
+    }
 }
 
 #[derive(Deserialize)]
@@ -25,29 +47,11 @@ struct PathParams {
 async fn respond(
     agent_controller_pool: web::Data<AgentControllerPool>,
     params: web::Path<PathParams>,
-) -> Result<impl Responder, Error> {
-    let agent_controller = match agent_controller_pool.get_agent_controller(&params.agent_id) {
-        Some(agent_controller) => agent_controller,
-        None => {
-            return Ok(HttpResponse::NotFound().finish());
-        }
+) -> Result<HttpResponse, Error> {
+    let controller = GetChatTemplateOverrideController {
+        agent_controller_pool,
+        agent_id: params.agent_id.clone(),
     };
 
-    let mut connection_close_rx = agent_controller.connection_close_rx.resubscribe();
-
-    match agent_controller.get_chat_template_override().await {
-        Ok(mut receive_chat_template_override_controller) => {
-            tokio::select! {
-                _ = connection_close_rx.recv() => Ok(HttpResponse::BadGateway().finish()),
-                _ = sleep(TIMEOUT) => Ok(HttpResponse::GatewayTimeout().finish()),
-                chat_template_override = receive_chat_template_override_controller.response_rx.recv() => match chat_template_override {
-                    Some(chat_template_override) => Ok(HttpResponse::Ok().json(ChatTemplateOverride {
-                        chat_template_override,
-                    })),
-                    None => Ok(HttpResponse::NotFound().finish()),
-                },
-            }
-        }
-        Err(err) => Ok(HttpResponse::InternalServerError().body(format!("{err}"))),
-    }
+    controller.respond().await
 }

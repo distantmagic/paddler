@@ -81,9 +81,9 @@ impl File {
         Ok(())
     }
 
-    async fn update_schema<TFunction>(&self, modifier: TFunction) -> Result<()>
+    async fn update_schema<TModifier>(&self, modifier: TModifier) -> Result<()>
     where
-        TFunction: FnOnce(&mut Schema),
+        TModifier: FnOnce(&mut Schema),
     {
         let mut schema = self
             .read_schema_from_file()

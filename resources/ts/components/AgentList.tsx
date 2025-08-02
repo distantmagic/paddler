@@ -83,7 +83,10 @@ export function AgentList({
                 managementAddr={managementAddr}
               />
               {uses_chat_template_override && (
-                <ModelChatTemplateOverridePreviewButton />
+                <ModelChatTemplateOverridePreviewButton
+                  agent={agent}
+                  managementAddr={managementAddr}
+                />
               )}
             </div>
             {download_total > 0 ? (

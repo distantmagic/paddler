@@ -1,11 +1,10 @@
 import React from "react";
 
-import { useModelMetadata } from "../hooks/useModelMetadata";
+import { useChatTemplateOverride } from "../hooks/useChatTemplateOverride";
 import { matchFetchJsonState } from "../matchFetchJsonState";
 import { type Agent } from "../schemas/Agent";
+import { CodeEditor } from "./CodeEditor";
 import { ModalWindow } from "./ModalWindow";
-import { ModelMetadata } from "./ModelMetadata";
-import { ModelMetadataContextProvider } from "./ModelMetadataContextProvider";
 
 import iconHourglass from "../../icons/hourglass.svg";
 import {
@@ -13,7 +12,7 @@ import {
   modalWindowLoader__spinner,
 } from "./modalWindowLoader.module.css";
 
-export function ModelMetadataLoader({
+export function ChatTemplateOverrideLoader({
   agent,
   managementAddr,
   onClose,
@@ -23,7 +22,7 @@ export function ModelMetadataLoader({
   onClose(this: void): void;
 }) {
   const { id, name } = agent;
-  const loadingState = useModelMetadata({
+  const loadingState = useChatTemplateOverride({
     agentId: id,
     managementAddr,
   });
@@ -33,8 +32,11 @@ export function ModelMetadataLoader({
       {matchFetchJsonState(loadingState, {
         empty() {
           return (
-            <ModalWindow onClose={onClose} title={`${name} / No Model`}>
-              <span>No model loaded</span>
+            <ModalWindow
+              onClose={onClose}
+              title={`${name} / No Chat Template Override`}
+            >
+              <span>No custom chat template</span>
             </ModalWindow>
           );
         },
@@ -50,7 +52,7 @@ export function ModelMetadataLoader({
             <ModalWindow onClose={onClose} title={`${name} / Loading`}>
               <div className={modalWindowLoader__spinner}>
                 <img src={iconHourglass} alt="Loading..." />
-                <span>Loading model metadata...</span>
+                <span>Loading custom chat template...</span>
               </div>
             </ModalWindow>
           );
@@ -59,15 +61,18 @@ export function ModelMetadataLoader({
           if (!response) {
             return (
               <ModalWindow onClose={onClose} title={`${name}`}>
-                <span>No model loaded</span>
+                <span>No custom chat template loaded</span>
               </ModalWindow>
             );
           }
 
           return (
-            <ModelMetadataContextProvider metadata={response.metadata}>
-              <ModelMetadata agent={agent} onClose={onClose} />
-            </ModelMetadataContextProvider>
+            <ModalWindow
+              onClose={onClose}
+              title={`${name} / Custom Chat Template`}
+            >
+              <CodeEditor editable={false} value={response.content} />
+            </ModalWindow>
           );
         },
       })}

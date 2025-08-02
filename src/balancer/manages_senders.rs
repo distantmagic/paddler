@@ -1,5 +1,6 @@
 use anyhow::anyhow;
 use async_trait::async_trait;
+use serde::Serialize;
 use log::warn;
 use anyhow::Result;
 use dashmap::DashMap;
@@ -7,7 +8,7 @@ use tokio::sync::mpsc;
 
 #[async_trait]
 pub trait ManagesSenders {
-    type Value: Send + Sync + 'static;
+    type Value: Send + Serialize + Sync + 'static;
 
     fn get_sender_collection(&self) -> &DashMap<String, mpsc::UnboundedSender<Self::Value>>;
 

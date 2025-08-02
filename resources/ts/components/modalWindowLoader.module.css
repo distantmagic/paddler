@@ -1,8 +1,8 @@
-.modelMetadataLoader {
+.modalWindowLoader {
   height: 100%;
 }
 
-.modelMetadataLoader__spinner {
+.modalWindowLoader__spinner {
   align-items: center;
   display: flex;
   flex-direction: column;

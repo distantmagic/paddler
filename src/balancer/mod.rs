@@ -1,3 +1,4 @@
+pub mod controls_manages_senders_endpoint;
 pub mod agent_controller;
 pub mod manages_senders_controller;
 pub mod chat_template_override_sender_collection;
