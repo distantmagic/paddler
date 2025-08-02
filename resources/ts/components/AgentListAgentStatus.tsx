@@ -8,9 +8,6 @@ export function AgentListAgentStatus({
   agent: {
     desired_slots_total,
     is_state_applied,
-    download_current,
-    download_filename,
-    download_total,
     slots_processing,
     slots_total,
   },
@@ -35,15 +32,6 @@ export function AgentListAgentStatus({
         <abbr title="Slots processing / total / desired total">
           {slots_processing}/{slots_total}/{desired_slots_total}
         </abbr>
-      </div>
-    );
-  }
-
-  if (download_total > 0) {
-    return (
-      <div className={agentListAgentStatus__progress}>
-        <progress max={download_total} value={download_current} />
-        <div>Downloading: {download_filename}</div>
       </div>
     );
   }

@@ -84,6 +84,24 @@
   border-color: crimson;
 }
 
+.agentList__agent__download {
+  align-items: center;
+  align-self: flex-end;
+  display: flex;
+  flex-direction: row;
+  gap: var(--spacing-half);
+  grid-area: model;
+
+  img {
+    height: 1em;
+    width: 1em;
+  }
+
+  progress {
+    width: 100%;
+  }
+}
+
 .agentList__agent__issues {
   display: grid;
   grid-area: issues;
