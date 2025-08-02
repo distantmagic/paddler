@@ -11,6 +11,7 @@ use tokio::sync::broadcast;
 use super::handler::Handler;
 use super::parse_duration;
 use super::parse_socket_addr;
+use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
@@ -128,6 +129,7 @@ impl Handler for Balancer {
         let (balancer_desired_state_tx, balancer_desired_state_rx) = broadcast::channel(100);
 
         let agent_controller_pool = Arc::new(AgentControllerPool::new());
+        let balancer_applicable_state_holder = Arc::new(BalancerApplicableStateHolder::new());
         let buffered_request_manager = Arc::new(BufferedRequestManager::new(
             agent_controller_pool.clone(),
             self.buffered_request_timeout,
@@ -159,6 +161,7 @@ impl Handler for Balancer {
 
         service_manager.add_service(ManagementService::new(
             agent_controller_pool.clone(),
+            balancer_applicable_state_holder.clone(),
             buffered_request_manager.clone(),
             self.get_management_service_configuration(),
             generate_tokens_sender_collection.clone(),
@@ -170,6 +173,7 @@ impl Handler for Balancer {
 
         service_manager.add_service(ReconciliationService::new(
             agent_controller_pool.clone(),
+            balancer_applicable_state_holder,
             state_database.read_balancer_desired_state().await?,
             balancer_desired_state_rx,
         )?);

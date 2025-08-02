@@ -28,6 +28,7 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
 use self::agent_socket_controller_context::AgentSocketControllerContext;
+use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use self::jsonrpc::notification_params::RegisterAgentParams;
 use self::jsonrpc::notification_params::UpdateAgentStatusParams;
 use self::jsonrpc::Message as ManagementJsonRpcMessage;
@@ -42,7 +43,7 @@ use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::agent_controller_update_result::AgentControllerUpdateResult;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
-use crate::balancer::state_database::StateDatabase;
+use crate::sets_desired_state::SetsDesiredState as _;
 use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::jsonrpc::ResponseEnvelope;
@@ -56,9 +57,9 @@ pub fn register(cfg: &mut ServiceConfig) {
 struct AgentSocketController {
     agent_controller_pool: Data<AgentControllerPool>,
     agent_id: String,
+    balancer_applicable_state_holder: Data<BalancerApplicableStateHolder>,
     generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
     model_metadata_sender_collection: Data<ModelMetadataSenderCollection>,
-    state_database: Data<dyn StateDatabase>,
 }
 
 #[async_trait]
@@ -71,9 +72,9 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
         AgentSocketControllerContext {
             agent_controller_pool: self.agent_controller_pool.clone(),
             agent_id: self.agent_id.clone(),
+            balancer_applicable_state_holder: self.balancer_applicable_state_holder.clone(),
             generate_tokens_sender_collection: self.generate_tokens_sender_collection.clone(),
             model_metadata_sender_collection: self.model_metadata_sender_collection.clone(),
-            state_database: self.state_database.clone(),
         }
     }
 
@@ -139,12 +140,12 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     .register_agent_controller(context.agent_id.clone(), agent_controller.clone())
                     .context("Unable to register agent controller")?;
 
-                // let desired_state = context.state_database.read_agent_desired_state().await?;
-                //
-                // agent_controller
-                //     .set_desired_state(desired_state)
-                //     .await
-                //     .context("Unable to set desired state")?;
+                if let Some(desired_state) = context.balancer_applicable_state_holder.get_agent_desired_state() {
+                    agent_controller
+                        .set_desired_state(desired_state)
+                        .await
+                        .context("Unable to set desired state")?;
+                }
 
                 info!("Registered agent: {}", context.agent_id);
 
@@ -266,19 +267,19 @@ struct PathParams {
 #[get("/api/v1/agent_socket/{agent_id}")]
 async fn respond(
     agent_controller_pool: Data<AgentControllerPool>,
+    balancer_applicable_state_holder: Data<BalancerApplicableStateHolder>,
     generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
     model_metadata_sender_collection: Data<ModelMetadataSenderCollection>,
-    state_database: Data<dyn StateDatabase>,
     path_params: Path<PathParams>,
     payload: Payload,
     req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
     let agent_socket_controller = AgentSocketController {
         agent_controller_pool,
+        balancer_applicable_state_holder,
         agent_id: path_params.agent_id.clone(),
         generate_tokens_sender_collection,
         model_metadata_sender_collection,
-        state_database,
     };
 
     agent_socket_controller.respond(payload, req)

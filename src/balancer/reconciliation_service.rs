@@ -8,15 +8,16 @@ use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
+use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::converts_to_applicable_state::ConvertsToApplicableState as _;
 use crate::service::Service;
 use crate::balancer_desired_state::BalancerDesiredState;
-use crate::balancer_applicable_state::BalancerApplicableState;
 use crate::sets_desired_state::SetsDesiredState as _;
 
 pub struct ReconciliationService {
     agent_controller_pool: Arc<AgentControllerPool>,
+    balancer_applicable_state_holder: Arc<BalancerApplicableStateHolder>,
     balancer_desired_state: BalancerDesiredState,
     balancer_desired_state_rx: broadcast::Receiver<BalancerDesiredState>,
     is_converted_to_applicable_state: bool,
@@ -25,11 +26,13 @@ pub struct ReconciliationService {
 impl ReconciliationService {
     pub fn new(
         agent_controller_pool: Arc<AgentControllerPool>,
+        balancer_applicable_state_holder: Arc<BalancerApplicableStateHolder>,
         balancer_desired_state: BalancerDesiredState,
         balancer_desired_state_rx: broadcast::Receiver<BalancerDesiredState>,
     ) -> Result<Self> {
         Ok(ReconciliationService {
             agent_controller_pool,
+            balancer_applicable_state_holder,
             balancer_desired_state,
             balancer_desired_state_rx,
             is_converted_to_applicable_state: false,
@@ -37,10 +40,9 @@ impl ReconciliationService {
     }
 
     pub async fn convert_to_applicable_state(&mut self) -> Result<()> {
-        if let Some(BalancerApplicableState{
-            agent_desired_state,
-        }) = self.balancer_desired_state.to_applicable_state(()).await? {
-            self.agent_controller_pool.set_desired_state(agent_desired_state).await?;
+        if let Some(balancer_applicable_state) = self.balancer_desired_state.to_applicable_state(()).await? {
+            self.agent_controller_pool.set_desired_state(balancer_applicable_state.agent_desired_state.clone()).await?;
+            self.balancer_applicable_state_holder.set_applicable_state(Some(balancer_applicable_state));
         }
 
         self.is_converted_to_applicable_state = true;
