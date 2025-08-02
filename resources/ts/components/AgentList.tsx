@@ -79,8 +79,7 @@ export function AgentList({
             </div>
             <div className={agentList__agent__metadata}>
               <ModelMetadataPreviewButton
-                agentId={id}
-                agentName={name}
+                agent={agent}
                 managementAddr={managementAddr}
               />
               {uses_chat_template_override && (

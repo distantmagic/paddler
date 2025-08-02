@@ -2,6 +2,7 @@ import React from "react";
 
 import { useModelMetadata } from "../hooks/useModelMetadata";
 import { matchFetchJsonState } from "../matchFetchJsonState";
+import { type Agent } from "../schemas/Agent";
 import { ModalWindow } from "./ModalWindow";
 import { ModelMetadata } from "./ModelMetadata";
 import { ModelMetadataContextProvider } from "./ModelMetadataContextProvider";
@@ -13,18 +14,17 @@ import {
 } from "./ModelMetadataLoader.module.css";
 
 export function ModelMetadataLoader({
-  agentId,
-  agentName,
+  agent,
   managementAddr,
   onClose,
 }: {
-  agentId: string;
-  agentName: null | string;
+  agent: Agent;
   managementAddr: string;
   onClose(this: void): void;
 }) {
+  const { id, name } = agent;
   const loadingState = useModelMetadata({
-    agentId,
+    agentId: id,
     managementAddr,
   });
 
@@ -33,21 +33,21 @@ export function ModelMetadataLoader({
       {matchFetchJsonState(loadingState, {
         empty() {
           return (
-            <ModalWindow onClose={onClose} title={`${agentName} / No Model`}>
+            <ModalWindow onClose={onClose} title={`${name} / No Model`}>
               <span>No model loaded</span>
             </ModalWindow>
           );
         },
         error({ error }) {
           return (
-            <ModalWindow onClose={onClose} title={`${agentName} / Error`}>
+            <ModalWindow onClose={onClose} title={`${name} / Error`}>
               <span>Error: {error}</span>
             </ModalWindow>
           );
         },
         loading() {
           return (
-            <ModalWindow onClose={onClose} title={`${agentName} / Loading`}>
+            <ModalWindow onClose={onClose} title={`${name} / Loading`}>
               <div className={modelMetadataLoader__spinner}>
                 <img src={iconHourglass} alt="Loading..." />
                 <span>Loading model metadata...</span>
@@ -58,7 +58,7 @@ export function ModelMetadataLoader({
         ok({ response }) {
           if (!response) {
             return (
-              <ModalWindow onClose={onClose} title={`${agentName}`}>
+              <ModalWindow onClose={onClose} title={`${name}`}>
                 <span>No model loaded</span>
               </ModalWindow>
             );
@@ -66,7 +66,7 @@ export function ModelMetadataLoader({
 
           return (
             <ModelMetadataContextProvider metadata={response.metadata}>
-              <ModelMetadata agentName={agentName} onClose={onClose} />
+              <ModelMetadata agent={agent} onClose={onClose} />
             </ModelMetadataContextProvider>
           );
         },
