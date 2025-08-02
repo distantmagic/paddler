@@ -138,7 +138,7 @@ export function ChangeModelForm({
               If you want all the agents to use the same model, you need to
               ensure that the file is present in the same path on all agents.
             </p>
-            <code>file:///path/to/your/model.gguf</code>
+            <code>agent:///path/to/your/model.gguf</code>
           </dd>
         </dl>
       </aside>
@@ -221,7 +221,9 @@ export function ChangeModelForm({
             />
           </fieldset>
           <div className={changeModelForm__formControls}>
-            <button className={changeModelForm__submitButton}>Submit</button>
+            <button className={changeModelForm__submitButton}>
+              Apply changes
+            </button>
           </div>
         </form>
       </main>

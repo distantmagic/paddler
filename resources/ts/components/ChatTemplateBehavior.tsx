@@ -1,6 +1,7 @@
 import React, { useCallback, useContext, type ChangeEvent } from "react";
 
 import { ChatTemplateContext } from "../contexts/ChatTemplateContext";
+import { ChatTemplateEditButton } from "./ChatTemplateEditButton";
 
 import {
   chatTemplateBehavior,
@@ -79,6 +80,7 @@ export function ChatTemplateBehavior() {
               Only use this option if you know the model does not come with a
               chat template, or you want to modify it to suit your needs.
             </p>
+            <ChatTemplateEditButton />
           </div>
         </label>
       </div>

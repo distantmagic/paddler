@@ -8,6 +8,7 @@ export type ChatTemplateContextValue = {
     this: void,
     chatTemplateOverride: null | ChatTemplate,
   ): void;
+  setChatTemplateOverrideContent(this: void, content: string): void;
   setUseChatTemplateOverride(
     this: void,
     useChatTemplateOverride: boolean,
@@ -23,6 +24,9 @@ export const ChatTemplateContext = createContext<ChatTemplateContextValue>({
     throw new Error("ChatTemplateContext not provided");
   },
   setChatTemplateOverride(): void {
+    throw new Error("ChatTemplateContext not provided");
+  },
+  setChatTemplateOverrideContent(): void {
     throw new Error("ChatTemplateContext not provided");
   },
   setUseChatTemplateOverride(): void {

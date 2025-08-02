@@ -16,10 +16,6 @@
   justify-content: center;
   padding: var(--spacing-half);
 
-  &:disabled {
-    filter: opacity(0.5);
-  }
-
   img {
     height: 16px;
     width: 16px;

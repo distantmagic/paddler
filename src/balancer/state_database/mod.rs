@@ -29,7 +29,7 @@ mod tests {
         let desired_state = BalancerDesiredState {
             chat_template_override: None,
             inference_parameters: InferenceParameters::default(),
-            model: AgentDesiredModel::Local("test_model_path".to_string()),
+            model: AgentDesiredModel::LocalToAgent("test_model_path".to_string()),
             use_chat_template_override: false,
         };
 

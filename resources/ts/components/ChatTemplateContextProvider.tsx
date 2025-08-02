@@ -1,4 +1,4 @@
-import React, { useMemo, useState, type ReactNode } from "react";
+import React, { useCallback, useMemo, useState, type ReactNode } from "react";
 
 import {
   ChatTemplateContext,
@@ -20,18 +20,31 @@ export function ChatTemplateContextProvider({
   const [useChatTemplateOverride, setUseChatTemplateOverride] =
     useState<boolean>(defaultUseChatTemplateOverride);
 
+  const setChatTemplateOverrideContent = useCallback(
+    function (content: string) {
+      setChatTemplateOverride(function () {
+        return {
+          content,
+        };
+      });
+    },
+    [setChatTemplateOverride],
+  );
+
   const value = useMemo<ChatTemplateContextValue>(
     function () {
       return Object.freeze({
         chatTemplateOverride,
         setChatTemplateOverride,
-        useChatTemplateOverride,
+        setChatTemplateOverrideContent,
         setUseChatTemplateOverride,
+        useChatTemplateOverride,
       });
     },
     [
       chatTemplateOverride,
       setChatTemplateOverride,
+      setChatTemplateOverrideContent,
       setUseChatTemplateOverride,
       useChatTemplateOverride,
     ],

@@ -19,8 +19,8 @@ function modelSchemaToUrl(model: AgentDesiredModel): string {
     return `https://huggingface.co/${HuggingFace.repo_id}/blob/${HuggingFace.revision}/${HuggingFace.filename}`;
   }
 
-  if ("Local" in model) {
-    return `file://${model.Local}`;
+  if ("LocalToAgent" in model) {
+    return `agent://${model.LocalToAgent}`;
   }
 
   throw new Error(`Unsupported model schema: ${JSON.stringify(model)}`);
