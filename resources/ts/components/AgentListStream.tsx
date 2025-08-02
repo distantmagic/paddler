@@ -29,8 +29,8 @@ export function AgentListStream({
     connectionError() {
       return (
         <div className={dashboardSectionStreamLoader}>
-          Connecting to the server to get agents updates. Will try to reconnect
-          in a few seconds...
+          Cannot connect to the server to get agents updates. Will try to
+          reconnect in a few seconds...
         </div>
       );
     },

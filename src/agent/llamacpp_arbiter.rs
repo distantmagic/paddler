@@ -30,31 +30,31 @@ use crate::chat_template::ChatTemplate;
 
 pub struct LlamaCppArbiter {
     agent_name: Option<String>,
+    chat_template_override: Option<ChatTemplate>,
     desired_slots_total: i32,
     inference_parameters: InferenceParameters,
     model_metadata_holder: Arc<ModelMetadataHolder>,
     model_path: PathBuf,
-    override_chat_template: Option<ChatTemplate>,
     slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
 }
 
 impl LlamaCppArbiter {
     pub fn new(
         agent_name: Option<String>,
+        chat_template_override: Option<ChatTemplate>,
         desired_slots_total: i32,
         inference_parameters: InferenceParameters,
         model_metadata_holder: Arc<ModelMetadataHolder>,
         model_path: PathBuf,
-        override_chat_template: Option<ChatTemplate>,
         slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
     ) -> Self {
         Self {
             agent_name,
+            chat_template_override,
             desired_slots_total,
             inference_parameters,
             model_metadata_holder,
             model_path,
-            override_chat_template,
             slot_aggregated_status_manager,
         }
     }
@@ -85,7 +85,7 @@ impl LlamaCppArbiter {
         let model_metadata_holder = self.model_metadata_holder.clone();
         let model_path = self.model_path.clone();
         let model_path_string_clone = model_path_string.clone();
-        let override_chat_template = self.override_chat_template.clone();
+        let chat_template_override = self.chat_template_override.clone();
         let slot_aggregated_status_manager = self.slot_aggregated_status_manager.clone();
 
         let sync_arbiter_thread_handle = thread::spawn(move || -> Result<()> {
@@ -121,7 +121,7 @@ impl LlamaCppArbiter {
 
             model_metadata_holder.set_model_metadata(model_metadata);
 
-            let llama_chat_template_string = match override_chat_template {
+            let llama_chat_template_string = match chat_template_override {
                 Some(chat_template) => chat_template.content,
                 None => model
                     .chat_template(None)
@@ -263,13 +263,13 @@ mod tests {
     #[actix_web::test]
     async fn test_llamacpp_arbiter_spawn() -> Result<()> {
         let desired_state = AgentDesiredState {
+            chat_template_override: None,
             inference_parameters: InferenceParameters::default(),
             model: AgentDesiredModel::HuggingFace(HuggingFaceModelReference {
                 filename: "Qwen3-0.6B-Q8_0.gguf".to_string(),
                 repo_id: "Qwen/Qwen3-0.6B-GGUF".to_string(),
                 revision: "main".to_string(),
             }),
-            override_chat_template: None,
         };
         let slot_aggregated_status_manager =
             Arc::new(SlotAggregatedStatusManager::new(SLOTS_TOTAL));
@@ -281,11 +281,11 @@ mod tests {
 
         let llamacpp_arbiter = LlamaCppArbiter::new(
             Some("test_agent".to_string()),
+            None,
             SLOTS_TOTAL,
             applicable_state.inference_parameters,
             Arc::new(ModelMetadataHolder::new()),
             applicable_state.model_path.expect("Model path is required"),
-            None,
             slot_aggregated_status_manager,
         );
         let controller = llamacpp_arbiter.spawn().await?;

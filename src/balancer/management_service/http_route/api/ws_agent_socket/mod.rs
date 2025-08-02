@@ -46,7 +46,6 @@ use crate::balancer::state_database::StateDatabase;
 use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::jsonrpc::ResponseEnvelope;
-use crate::sets_desired_state::SetsDesiredState as _;
 use crate::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 use crate::websocket_session_controller::WebSocketSessionController;
 
@@ -115,8 +114,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                         },
                 }),
             ) => {
-                let (agent_message_tx, mut agent_message_rx) =
-                    mpsc::unbounded_channel::<AgentJsonRpcMessage>();
+                let (agent_message_tx, mut agent_message_rx) = mpsc::unbounded_channel::<AgentJsonRpcMessage>();
                 let agent_controller = Arc::new(AgentController {
                     agent_message_tx,
                     connection_close_rx: connection_close_tx.subscribe(),
@@ -124,12 +122,8 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     download_current: AtomicValue::<AtomicUsize>::new(download_current),
                     download_filename: RwLock::new(download_filename),
                     download_total: AtomicValue::<AtomicUsize>::new(download_total),
-                    generate_tokens_sender_collection: context
-                        .generate_tokens_sender_collection
-                        .clone(),
-                    model_metadata_sender_collection: context
-                        .model_metadata_sender_collection
-                        .clone(),
+                    generate_tokens_sender_collection: context.generate_tokens_sender_collection.clone(),
+                    model_metadata_sender_collection: context.model_metadata_sender_collection.clone(),
                     id: context.agent_id.clone(),
                     is_state_applied: AtomicValue::<AtomicBool>::new(is_state_applied),
                     issues: RwLock::new(issues),
@@ -145,12 +139,12 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     .register_agent_controller(context.agent_id.clone(), agent_controller.clone())
                     .context("Unable to register agent controller")?;
 
-                let desired_state = context.state_database.read_agent_desired_state().await?;
-
-                agent_controller
-                    .set_desired_state(desired_state)
-                    .await
-                    .context("Unable to set desired state")?;
+                // let desired_state = context.state_database.read_agent_desired_state().await?;
+                //
+                // agent_controller
+                //     .set_desired_state(desired_state)
+                //     .await
+                //     .context("Unable to set desired state")?;
 
                 info!("Registered agent: {}", context.agent_id);
 

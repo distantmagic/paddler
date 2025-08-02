@@ -1,9 +1,10 @@
 import React from "react";
 
-import { useAgentDesiredState } from "../hooks/useAgentDesiredState";
+import { useBalancerDesiredState } from "../hooks/useBalancerDesiredState";
 import { matchFetchJsonState } from "../matchFetchJsonState";
 import { type AgentDesiredModel } from "../schemas/AgentDesiredModel";
 import { ChangeModelForm } from "./ChangeModelForm";
+import { ChatTemplateContextProvider } from "./ChatTemplateContextProvider";
 import { FloatingStatus } from "./FloatingStatus";
 import { InferenceParametersContextProvider } from "./InferenceParametersContextProvider";
 
@@ -30,7 +31,7 @@ export function ChangeModelPage({
 }: {
   managementAddr: string;
 }) {
-  const loadingState = useAgentDesiredState({ managementAddr });
+  const loadingState = useBalancerDesiredState({ managementAddr });
 
   return matchFetchJsonState(loadingState, {
     empty() {
@@ -46,16 +47,28 @@ export function ChangeModelPage({
     loading() {
       return <FloatingStatus>Loading desired state...</FloatingStatus>;
     },
-    ok({ response: { inference_parameters, model } }) {
+    ok({
+      response: {
+        chat_template_override,
+        inference_parameters,
+        model,
+        use_chat_template_override,
+      },
+    }) {
       return (
-        <InferenceParametersContextProvider
-          defaultInferenceParameters={inference_parameters}
+        <ChatTemplateContextProvider
+          defaultChatTemplateOverride={chat_template_override}
+          defaultUseChatTemplateOverride={use_chat_template_override}
         >
-          <ChangeModelForm
-            defaultModelUri={modelSchemaToUrl(model)}
-            managementAddr={managementAddr}
-          />
-        </InferenceParametersContextProvider>
+          <InferenceParametersContextProvider
+            defaultInferenceParameters={inference_parameters}
+          >
+            <ChangeModelForm
+              defaultModelUri={modelSchemaToUrl(model)}
+              managementAddr={managementAddr}
+            />
+          </InferenceParametersContextProvider>
+        </ChatTemplateContextProvider>
       );
     },
   });

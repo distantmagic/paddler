@@ -15,9 +15,12 @@ export function PromptContextProvider({ children }: { children: ReactNode }) {
     version: 0,
   });
 
-  useEffect(() => {
-    setCurrentPrompt("");
-  }, [submittedPrompt, setCurrentPrompt]);
+  useEffect(
+    function () {
+      setCurrentPrompt("");
+    },
+    [submittedPrompt, setCurrentPrompt],
+  );
 
   const value = useMemo<PromptContextValue>(
     function () {

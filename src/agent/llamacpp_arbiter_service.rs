@@ -17,6 +17,7 @@ use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
+use crate::holds_applicable_state::HoldsApplicableState as _;
 use crate::agent::continue_conversation_request::ContinueConversationRequest;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
 use crate::agent::llamacpp_arbiter::LlamaCppArbiter;
@@ -74,9 +75,9 @@ impl LlamaCppArbiterService {
         }
 
         if let Some(AgentApplicableState {
+            chat_template_override,
             inference_parameters,
             model_path,
-            override_chat_template,
         }) = self.agent_applicable_state.clone()
         {
             self.slot_aggregated_status_manager.reset();
@@ -101,11 +102,11 @@ impl LlamaCppArbiterService {
                 self.llamacpp_arbiter_controller = Some(
                     LlamaCppArbiter::new(
                         self.agent_name.clone(),
+                        chat_template_override,
                         self.desired_slots_total,
                         inference_parameters,
                         self.model_metadata_holder.clone(),
                         model_path,
-                        override_chat_template,
                         self.slot_aggregated_status_manager.clone(),
                     )
                     .spawn()
@@ -176,15 +177,15 @@ impl Service for LlamaCppArbiterService {
         loop {
             tokio::select! {
                 _ = shutdown.recv() => break Ok(()),
-                _ = reconciled_state.changed() => {
-                    self.agent_applicable_state = reconciled_state.borrow_and_update().clone();
-                    self.slot_aggregated_status_manager.slot_aggregated_status.set_is_state_applied(false);
-                    self.try_to_apply_state().await;
-                }
                 _ = ticker.tick() => {
                     if !self.slot_aggregated_status_manager.slot_aggregated_status.get_is_state_applied() {
                         self.try_to_apply_state().await;
                     }
+                }
+                _ = reconciled_state.changed() => {
+                    self.agent_applicable_state = reconciled_state.borrow_and_update().clone();
+                    self.slot_aggregated_status_manager.slot_aggregated_status.set_is_state_applied(false);
+                    self.try_to_apply_state().await;
                 }
                 continue_conversation_request = self.continue_conversation_request_rx.recv() => {
                     match continue_conversation_request {

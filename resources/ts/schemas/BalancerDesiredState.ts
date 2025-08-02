@@ -4,12 +4,13 @@ import { AgentDesiredModelSchema } from "./AgentDesiredModel";
 import { ChatTemplateSchema } from "./ChatTemplate";
 import { InferenceParametersSchema } from "./InferenceParameters";
 
-export const AgentDesiredStateSchema = z
+export const BalancerDesiredStateSchema = z
   .object({
+    chat_template_override: ChatTemplateSchema.nullable(),
     inference_parameters: InferenceParametersSchema,
     model: AgentDesiredModelSchema,
-    override_chat_template: ChatTemplateSchema.nullable(),
+    use_chat_template_override: z.boolean(),
   })
   .strict();
 
-export type AgentDesiredState = z.infer<typeof AgentDesiredStateSchema>;
+export type BalancerDesiredState = z.infer<typeof BalancerDesiredStateSchema>;

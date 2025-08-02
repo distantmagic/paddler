@@ -35,10 +35,11 @@ pub enum AgentDesiredModel {
 #[async_trait]
 impl ConvertsToApplicableState for AgentDesiredModel {
     type ApplicableState = PathBuf;
+    type Context = Arc<SlotAggregatedStatus>;
 
     async fn to_applicable_state(
         &self,
-        slot_aggregated_status: Arc<SlotAggregatedStatus>,
+        slot_aggregated_status: Self::Context,
     ) -> Result<Option<Self::ApplicableState>> {
         Ok(match self {
             AgentDesiredModel::HuggingFace(HuggingFaceModelReference {

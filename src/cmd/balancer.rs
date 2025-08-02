@@ -6,6 +6,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use clap::Parser;
 use tokio::sync::oneshot;
+use tokio::sync::broadcast;
 
 use super::handler::Handler;
 use super::parse_duration;
@@ -30,6 +31,7 @@ use crate::balancer::web_admin_panel_service::configuration::Configuration as We
 use crate::balancer::web_admin_panel_service::template_data::TemplateData;
 #[cfg(feature = "web_admin_panel")]
 use crate::balancer::web_admin_panel_service::WebAdminPanelService;
+use crate::balancer::reconciliation_service::ReconciliationService;
 use crate::service_manager::ServiceManager;
 
 #[derive(Parser)]
@@ -123,6 +125,8 @@ impl Balancer {
 #[async_trait]
 impl Handler for Balancer {
     async fn handle(&self, shutdown_rx: oneshot::Receiver<()>) -> Result<()> {
+        let (balancer_desired_state_tx, balancer_desired_state_rx) = broadcast::channel(100);
+
         let agent_controller_pool = Arc::new(AgentControllerPool::new());
         let buffered_request_manager = Arc::new(BufferedRequestManager::new(
             agent_controller_pool.clone(),
@@ -133,12 +137,12 @@ impl Handler for Balancer {
         let model_metadata_sender_collection = Arc::new(ModelMetadataSenderCollection::new());
         let mut service_manager = ServiceManager::new();
         let state_database: Arc<dyn StateDatabase> = match &self.state_database {
-            StateDatabaseType::File(path) => Arc::new(File::new(path.to_owned())),
-            StateDatabaseType::Memory => Arc::new(Memory::new()),
+            StateDatabaseType::File(path) => Arc::new(File::new(
+                balancer_desired_state_tx.clone(),
+                path.to_owned(),
+            )),
+            StateDatabaseType::Memory => Arc::new(Memory::new(balancer_desired_state_tx.clone())),
         };
-
-        // Check if state database can read the desired state
-        state_database.read_agent_desired_state().await?;
 
         service_manager.add_service(InferenceService::new(
             agent_controller_pool.clone(),
@@ -159,10 +163,16 @@ impl Handler for Balancer {
             self.get_management_service_configuration(),
             generate_tokens_sender_collection.clone(),
             model_metadata_sender_collection,
-            state_database,
+            state_database.clone(),
             #[cfg(feature = "web_admin_panel")]
             self.get_web_admin_panel_service_configuration(),
         ));
+
+        service_manager.add_service(ReconciliationService::new(
+            agent_controller_pool.clone(),
+            state_database.read_balancer_desired_state().await?,
+            balancer_desired_state_rx,
+        )?);
 
         if let Some(statsd_addr) = self.statsd_addr {
             service_manager.add_service(StatsdService::new(

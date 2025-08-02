@@ -7,9 +7,10 @@ import React, {
 } from "react";
 import { useLocation } from "wouter";
 
+import { ChatTemplateContext } from "../contexts/ChatTemplateContext";
 import { InferenceParametersContext } from "../contexts/InferenceParametersContext";
 import { useAgentDesiredModelUrl } from "../hooks/useAgentDesiredModelUrl";
-import { type AgentDesiredState } from "../schemas/AgentDesiredState";
+import { type BalancerDesiredState } from "../schemas/BalancerDesiredState";
 import { ChatTemplateBehavior } from "./ChatTemplateBehavior";
 import { InferenceParameterInput } from "./InferenceParameterInput";
 
@@ -36,6 +37,8 @@ export function ChangeModelForm({
   managementAddr: string;
 }) {
   const [, navigate] = useLocation();
+  const { chatTemplateOverride, useChatTemplateOverride } =
+    useContext(ChatTemplateContext);
   const { parameters } = useContext(InferenceParametersContext);
   const { agentDesiredModelState, modelUri, setModelUri } =
     useAgentDesiredModelUrl({
@@ -49,35 +52,41 @@ export function ChangeModelForm({
     [setModelUri],
   );
 
-  const agentDesiredState: null | AgentDesiredState = useMemo(
+  const balancerDesiredState: null | BalancerDesiredState = useMemo(
     function () {
       if (!agentDesiredModelState.ok) {
         return null;
       }
 
       return Object.freeze({
+        chat_template_override: chatTemplateOverride,
         inference_parameters: parameters,
         model: agentDesiredModelState.agentDesiredModel,
-        override_chat_template: null,
+        use_chat_template_override: useChatTemplateOverride,
       });
     },
-    [agentDesiredModelState, parameters],
+    [
+      agentDesiredModelState,
+      chatTemplateOverride,
+      parameters,
+      useChatTemplateOverride,
+    ],
   );
 
   const onSubmit = useCallback(
     function (evt: FormEvent<HTMLFormElement>) {
       evt.preventDefault();
 
-      if (!agentDesiredState) {
+      if (!balancerDesiredState) {
         return;
       }
 
-      fetch(`//${managementAddr}/api/v1/agent_desired_state`, {
+      fetch(`//${managementAddr}/api/v1/balancer_desired_state`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(agentDesiredState),
+        body: JSON.stringify(balancerDesiredState),
       })
         .then(function (response) {
           if (response.ok) {
@@ -92,7 +101,7 @@ export function ChangeModelForm({
           console.error("Error updating agent desired state:", error);
         });
     },
-    [managementAddr, navigate, agentDesiredState],
+    [managementAddr, navigate, balancerDesiredState],
   );
 
   return (

@@ -1,0 +1,85 @@
+use std::sync::Arc;
+
+use anyhow::Result;
+use async_trait::async_trait;
+use log::error;
+use tokio::sync::broadcast;
+use tokio::time::interval;
+use tokio::time::Duration;
+use tokio::time::MissedTickBehavior;
+
+use crate::balancer::agent_controller_pool::AgentControllerPool;
+use crate::converts_to_applicable_state::ConvertsToApplicableState as _;
+use crate::service::Service;
+use crate::balancer_desired_state::BalancerDesiredState;
+use crate::balancer_applicable_state::BalancerApplicableState;
+use crate::sets_desired_state::SetsDesiredState as _;
+
+pub struct ReconciliationService {
+    agent_controller_pool: Arc<AgentControllerPool>,
+    balancer_desired_state: BalancerDesiredState,
+    balancer_desired_state_rx: broadcast::Receiver<BalancerDesiredState>,
+    is_converted_to_applicable_state: bool,
+}
+
+impl ReconciliationService {
+    pub fn new(
+        agent_controller_pool: Arc<AgentControllerPool>,
+        balancer_desired_state: BalancerDesiredState,
+        balancer_desired_state_rx: broadcast::Receiver<BalancerDesiredState>,
+    ) -> Result<Self> {
+        Ok(ReconciliationService {
+            agent_controller_pool,
+            balancer_desired_state,
+            balancer_desired_state_rx,
+            is_converted_to_applicable_state: false,
+        })
+    }
+
+    pub async fn convert_to_applicable_state(&mut self) -> Result<()> {
+        if let Some(BalancerApplicableState{
+            agent_desired_state,
+        }) = self.balancer_desired_state.to_applicable_state(()).await? {
+            self.agent_controller_pool.set_desired_state(agent_desired_state).await?;
+        }
+
+        self.is_converted_to_applicable_state = true;
+
+        Ok(())
+    }
+
+    pub async fn try_convert_to_applicable_state(&mut self) {
+        if let Err(err) = self.convert_to_applicable_state().await {
+            error!("Failed to convert to applicable state: {err}");
+        }
+    }
+}
+
+#[async_trait]
+impl Service for ReconciliationService {
+    fn name(&self) -> &'static str {
+        "balancer::reconciliation_service"
+    }
+
+    async fn run(&mut self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
+        let mut ticker = interval(Duration::from_secs(1));
+
+        ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
+
+        loop {
+            tokio::select! {
+                _ = shutdown.recv() => break Ok(()),
+                _ = ticker.tick() => {
+                    if !self.is_converted_to_applicable_state {
+                        self.try_convert_to_applicable_state().await;
+                    }
+                },
+                balancer_desired_state = self.balancer_desired_state_rx.recv() => {
+                    self.is_converted_to_applicable_state = false;
+                    self.balancer_desired_state = balancer_desired_state?;
+                    self.try_convert_to_applicable_state().await;
+                }
+            }
+        }
+    }
+}

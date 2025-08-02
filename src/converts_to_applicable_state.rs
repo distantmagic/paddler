@@ -1,16 +1,13 @@
-use std::sync::Arc;
-
 use anyhow::Result;
 use async_trait::async_trait;
-
-use crate::slot_aggregated_status::SlotAggregatedStatus;
 
 #[async_trait]
 pub trait ConvertsToApplicableState {
     type ApplicableState;
+    type Context;
 
     async fn to_applicable_state(
         &self,
-        slot_aggregated_status: Arc<SlotAggregatedStatus>,
+        context: Self::Context,
     ) -> Result<Option<Self::ApplicableState>>;
 }

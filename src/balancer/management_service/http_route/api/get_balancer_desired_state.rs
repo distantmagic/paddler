@@ -11,10 +11,10 @@ pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
 }
 
-#[get("/api/v1/agent_desired_state")]
+#[get("/api/v1/balancer_desired_state")]
 async fn respond(state_database: web::Data<dyn StateDatabase>) -> Result<impl Responder, Error> {
     let desired_state = state_database
-        .read_agent_desired_state()
+        .read_balancer_desired_state()
         .await
         .map_err(ErrorInternalServerError)?;
 

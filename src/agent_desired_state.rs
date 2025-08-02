@@ -14,26 +14,27 @@ use crate::slot_aggregated_status::SlotAggregatedStatus;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct AgentDesiredState {
+    pub chat_template_override: Option<ChatTemplate>,
     pub inference_parameters: InferenceParameters,
     pub model: AgentDesiredModel,
-    pub override_chat_template: Option<ChatTemplate>,
 }
 
 #[async_trait]
 impl ConvertsToApplicableState for AgentDesiredState {
     type ApplicableState = AgentApplicableState;
+    type Context = Arc<SlotAggregatedStatus>;
 
     async fn to_applicable_state(
         &self,
-        slot_aggregated_status: Arc<SlotAggregatedStatus>,
+        slot_aggregated_status: Self::Context,
     ) -> Result<Option<Self::ApplicableState>> {
         Ok(Some(AgentApplicableState {
+            chat_template_override: self.chat_template_override.clone(),
             inference_parameters: self.inference_parameters.clone(),
             model_path: self
                 .model
                 .to_applicable_state(slot_aggregated_status)
                 .await?,
-            override_chat_template: None,
         }))
     }
 }
