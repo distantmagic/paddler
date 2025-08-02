@@ -1,29 +1,14 @@
-import clsx from "clsx";
 import React from "react";
-
-import { type StreamState } from "../hooks/useEventSourceUpdates";
-import { ChatTemplateHeadsResponseSchema } from "../schemas/ChatTemplateHeadsResponse";
 
 import {
   chatTemplateBehavior,
   chatTemplateBehavior__description,
   chatTemplateBehavior__option,
-  chatTemplateBehavior__optionDisabled,
   chatTemplateBehavior__optionList,
   chatTemplateBehavior__radio,
 } from "./ChatTemplateBehavior.module.css";
 
-export function ChatTemplateBehavior({
-  chatTemplateStreamUpdateState,
-}: {
-  chatTemplateStreamUpdateState: StreamState<
-    typeof ChatTemplateHeadsResponseSchema
-  >;
-}) {
-  const chatTemplateHeads =
-    chatTemplateStreamUpdateState.data?.chat_template_heads;
-  const chatTemplatesExist = chatTemplateHeads && chatTemplateHeads.length > 0;
-
+export function ChatTemplateBehavior() {
   return (
     <div className={chatTemplateBehavior}>
       <p>How should Paddler obtain the chat template?</p>
@@ -49,14 +34,9 @@ export function ChatTemplateBehavior({
             </p>
           </div>
         </label>
-        <label
-          className={clsx(chatTemplateBehavior__option, {
-            [chatTemplateBehavior__optionDisabled]: !chatTemplatesExist,
-          })}
-        >
+        <label className={chatTemplateBehavior__option}>
           <div className={chatTemplateBehavior__radio}>
             <input
-              disabled={!chatTemplatesExist}
               type="radio"
               name="chat_template_behavior"
               required
@@ -66,20 +46,7 @@ export function ChatTemplateBehavior({
           <div className={chatTemplateBehavior__description}>
             <p>
               <strong>Use: </strong>
-              <select>
-                {chatTemplateStreamUpdateState.data?.chat_template_heads.map(
-                  function (chat_template_head) {
-                    return (
-                      <option
-                        key={chat_template_head.id}
-                        value={chat_template_head.id}
-                      >
-                        {chat_template_head.name}
-                      </option>
-                    );
-                  },
-                )}
-              </select>
+              <select></select>
             </p>
             <p>
               Only use this option if you know the model does not come with a

@@ -9,9 +9,7 @@ import { useLocation } from "wouter";
 
 import { InferenceParametersContext } from "../contexts/InferenceParametersContext";
 import { useAgentDesiredModelUrl } from "../hooks/useAgentDesiredModelUrl";
-import { type StreamState } from "../hooks/useEventSourceUpdates";
 import { type AgentDesiredState } from "../schemas/AgentDesiredState";
-import { ChatTemplateHeadsResponseSchema } from "../schemas/ChatTemplateHeadsResponse";
 import { ChatTemplateBehavior } from "./ChatTemplateBehavior";
 import { InferenceParameterInput } from "./InferenceParameterInput";
 
@@ -31,13 +29,9 @@ import {
 } from "./ChangeModelForm.module.css";
 
 export function ChangeModelForm({
-  chatTemplateStreamUpdateState,
   defaultModelUri,
   managementAddr,
 }: {
-  chatTemplateStreamUpdateState: StreamState<
-    typeof ChatTemplateHeadsResponseSchema
-  >;
   defaultModelUri: null | string;
   managementAddr: string;
 }) {
@@ -155,9 +149,7 @@ export function ChangeModelForm({
           </label>
           <fieldset className={changeModelForm__chatTemplate}>
             <legend>Chat Template</legend>
-            <ChatTemplateBehavior
-              chatTemplateStreamUpdateState={chatTemplateStreamUpdateState}
-            />
+            <ChatTemplateBehavior />
           </fieldset>
           <fieldset className={changeModelForm__parameters}>
             <legend>Inference Parameters</legend>

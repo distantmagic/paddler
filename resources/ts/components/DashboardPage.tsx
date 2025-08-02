@@ -31,6 +31,11 @@ export function DashboardPage({
   return (
     <div className={dashboardPage}>
       <div className={dashboardPage__blocks}>
+        <div className={dashboardPage__serviceBlock}></div>
+        <div className={dashboardPage__serviceBlock}></div>
+        <div className={dashboardPage__serviceBlock}></div>
+      </div>
+      <div className={dashboardPage__blocks}>
         <div className={dashboardPage__serviceBlock}>
           <DashboardPageAddrOverview
             inferenceAddr={inferenceAddr}

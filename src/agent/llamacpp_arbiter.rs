@@ -263,18 +263,19 @@ mod tests {
     #[actix_web::test]
     async fn test_llamacpp_arbiter_spawn() -> Result<()> {
         let desired_state = AgentDesiredState {
+            inference_parameters: InferenceParameters::default(),
             model: AgentDesiredModel::HuggingFace(HuggingFaceModelReference {
                 filename: "Qwen3-0.6B-Q8_0.gguf".to_string(),
                 repo_id: "Qwen/Qwen3-0.6B-GGUF".to_string(),
                 revision: "main".to_string(),
             }),
-            inference_parameters: InferenceParameters::default(),
+            override_chat_template: None,
         };
         let slot_aggregated_status_manager =
             Arc::new(SlotAggregatedStatusManager::new(SLOTS_TOTAL));
 
         let applicable_state = desired_state
-            .to_applicable_state()
+            .to_applicable_state(slot_aggregated_status_manager.slot_aggregated_status.clone())
             .await?
             .expect("Failed to convert to applicable state");
 
@@ -284,6 +285,7 @@ mod tests {
             applicable_state.inference_parameters,
             Arc::new(ModelMetadataHolder::new()),
             applicable_state.model_path.expect("Model path is required"),
+            None,
             slot_aggregated_status_manager,
         );
         let controller = llamacpp_arbiter.spawn().await?;

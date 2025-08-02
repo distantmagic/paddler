@@ -7,7 +7,6 @@ mod agent_issue;
 mod agent_issue_fix;
 mod atomic_value;
 mod chat_template;
-mod chat_template_head;
 mod balancer;
 mod cmd;
 mod controls_websocket_endpoint;

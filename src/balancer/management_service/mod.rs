@@ -1,6 +1,5 @@
 pub mod configuration;
 pub mod http_route;
-pub mod http_response;
 
 use std::sync::Arc;
 
@@ -95,18 +94,13 @@ impl Service for ManagementService {
                 .app_data(model_metadata_sender_collection.clone())
                 .app_data(state_database.clone())
                 .configure(common_http_route::get_health::register)
-                .configure(http_route::api::delete_chat_template::register)
                 .configure(http_route::api::get_agent_desired_state::register)
                 .configure(http_route::api::get_agents::register)
                 .configure(http_route::api::get_agents_stream::register)
                 .configure(http_route::api::get_buffered_requests::register)
                 .configure(http_route::api::get_buffered_requests_stream::register)
-                .configure(http_route::api::get_chat_template::register)
-                .configure(http_route::api::get_chat_template_heads::register)
-                .configure(http_route::api::get_chat_template_heads_stream::register)
                 .configure(http_route::api::get_model_metadata::register)
                 .configure(http_route::api::put_agent_desired_state::register)
-                .configure(http_route::api::put_chat_template::register)
                 .configure(http_route::api::ws_agent_socket::register)
                 .configure(http_route::get_metrics::register)
         })

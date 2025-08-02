@@ -1,33 +1,18 @@
 mod file;
 mod memory;
 
-use std::sync::Arc;
-
 use anyhow::Result;
 use async_trait::async_trait;
-use tokio::sync::Notify;
 
 pub use self::file::File;
 pub use self::memory::Memory;
-use crate::chat_template::ChatTemplate;
-use crate::chat_template_head::ChatTemplateHead;
 use crate::agent_desired_state::AgentDesiredState;
 
 #[async_trait]
 pub trait StateDatabase: Send + Sync {
-    async fn delete_chat_template(&self, id: String) -> Result<()>;
-
-    fn get_update_notifier(&self) -> Arc<Notify>;
-
-    async fn list_chat_template_heads(&self) -> Result<Vec<ChatTemplateHead>>;
-
     async fn read_agent_desired_state(&self) -> Result<AgentDesiredState>;
 
-    async fn read_chat_template(&self, id: String) -> Result<Option<ChatTemplate>>;
-
     async fn store_agent_desired_state(&self, state: &AgentDesiredState) -> Result<()>;
-
-    async fn store_chat_template(&self, chat_template: &ChatTemplate) -> Result<()>;
 }
 
 #[cfg(test)]
@@ -38,35 +23,6 @@ mod tests {
     use super::*;
     use crate::agent_desired_model::AgentDesiredModel;
     use crate::inference_parameters::InferenceParameters;
-
-    async fn subtest_store_chat_template<TDatabase: StateDatabase>(db: &TDatabase) -> Result<()> {
-        let chat_template = ChatTemplate {
-            content: "test_content".to_string(),
-            id: "test_id".to_string(),
-            name: "test_name".to_string(),
-        };
-
-        db.store_chat_template(&chat_template).await?;
-
-        let read_template = db.read_chat_template("test_id".to_string()).await?.expect("Chat template should be found");
-
-        assert_eq!(read_template.content, chat_template.content);
-
-        let template_heads = db.list_chat_template_heads().await?;
-
-        assert_eq!(template_heads.len(), 1);
-
-        assert_eq!(template_heads[0].id, chat_template.id);
-        assert_eq!(template_heads[0].name, chat_template.name);
-
-        db.delete_chat_template("test_id".to_string()).await?;
-
-        let read_template_after_delete = db.read_chat_template("test_id".to_string()).await?;
-
-        assert!(read_template_after_delete.is_none());
-
-        Ok(())
-    }
 
     async fn subtest_store_desired_state<TDatabase: StateDatabase>(db: &TDatabase) -> Result<()> {
         let desired_state = AgentDesiredState {
@@ -90,7 +46,6 @@ mod tests {
         let db = File::new(tempfile.path().to_path_buf());
 
         subtest_store_desired_state(&db).await?;
-        subtest_store_chat_template(&db).await?;
 
         Ok(())
     }
@@ -100,7 +55,6 @@ mod tests {
         let db = Memory::new();
 
         subtest_store_desired_state(&db).await?;
-        subtest_store_chat_template(&db).await?;
 
         Ok(())
     }
