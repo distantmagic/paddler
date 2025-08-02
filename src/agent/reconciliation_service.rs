@@ -9,7 +9,6 @@ use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
-use crate::holds_applicable_state::HoldsApplicableState as _;
 use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
 use crate::agent_desired_state::AgentDesiredState;
 use crate::agent_issue_fix::AgentIssueFix;
@@ -57,7 +56,7 @@ impl ReconciliationService {
             false
         });
         self.slot_aggregated_status.register_fix(AgentIssueFix::ModelStateIsReconciled);
-        self.agent_applicable_state_holder.set_applicable_state(applicable_state)
+        self.agent_applicable_state_holder.set_agent_applicable_state(applicable_state)
     }
 
     pub async fn try_convert_to_applicable_state(&mut self) {

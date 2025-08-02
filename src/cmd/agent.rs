@@ -60,6 +60,7 @@ impl Handler for Agent {
         );
 
         service_manager.add_service(ManagementSocketClientService::new(
+            agent_applicable_state_holder.clone(),
             agent_desired_state_tx,
             continue_conversation_request_tx,
             generate_tokens_request_tx,

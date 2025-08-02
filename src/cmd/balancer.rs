@@ -23,6 +23,7 @@ use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollec
 use crate::balancer::state_database::File;
 use crate::balancer::state_database::Memory;
 use crate::balancer::state_database::StateDatabase;
+use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
 use crate::balancer::state_database_type::StateDatabaseType;
 use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
 use crate::balancer::statsd_service::StatsdService;
@@ -135,6 +136,7 @@ impl Handler for Balancer {
             self.buffered_request_timeout,
             self.max_buffered_requests,
         ));
+        let chat_template_override_sender_collection = Arc::new(ChatTemplateOverrideSenderCollection::new());
         let generate_tokens_sender_collection = Arc::new(GenerateTokensSenderCollection::new());
         let model_metadata_sender_collection = Arc::new(ModelMetadataSenderCollection::new());
         let mut service_manager = ServiceManager::new();
@@ -159,17 +161,18 @@ impl Handler for Balancer {
             self.get_web_admin_panel_service_configuration(),
         ));
 
-        service_manager.add_service(ManagementService::new(
-            agent_controller_pool.clone(),
-            balancer_applicable_state_holder.clone(),
-            buffered_request_manager.clone(),
-            self.get_management_service_configuration(),
-            generate_tokens_sender_collection.clone(),
+        service_manager.add_service(ManagementService {
+            agent_controller_pool: agent_controller_pool.clone(),
+            balancer_applicable_state_holder: balancer_applicable_state_holder.clone(),
+            buffered_request_manager: buffered_request_manager.clone(),
+            chat_template_override_sender_collection,
+            configuration: self.get_management_service_configuration(),
+            generate_tokens_sender_collection: generate_tokens_sender_collection.clone(),
             model_metadata_sender_collection,
-            state_database.clone(),
+            state_database: state_database.clone(),
             #[cfg(feature = "web_admin_panel")]
-            self.get_web_admin_panel_service_configuration(),
-        ));
+            web_admin_panel_service_configuration: self.get_web_admin_panel_service_configuration(),
+        });
 
         service_manager.add_service(ReconciliationService::new(
             agent_controller_pool.clone(),

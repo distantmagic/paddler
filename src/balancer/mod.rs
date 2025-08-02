@@ -1,4 +1,7 @@
 pub mod agent_controller;
+pub mod manages_senders_controller;
+pub mod chat_template_override_sender_collection;
+pub mod manages_senders;
 pub mod agent_controller_pool;
 pub mod buffered_request_manager_snapshot;
 pub mod agent_controller_pool_snapshot;
@@ -15,7 +18,6 @@ pub mod http_route;
 pub mod inference_service;
 pub mod management_service;
 pub mod model_metadata_sender_collection;
-pub mod receive_model_metadata_controller;
 pub mod receive_tokens_controller;
 #[cfg(feature = "web_admin_panel")]
 pub mod response;

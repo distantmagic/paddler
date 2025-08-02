@@ -1,6 +1,5 @@
 mod agent;
 mod balancer_applicable_state_holder;
-mod holds_applicable_state;
 mod agent_applicable_state;
 mod agent_applicable_state_holder;
 mod agent_desired_model;

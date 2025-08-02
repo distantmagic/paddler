@@ -17,7 +17,6 @@ use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
-use crate::holds_applicable_state::HoldsApplicableState as _;
 use crate::agent::continue_conversation_request::ContinueConversationRequest;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
 use crate::agent::llamacpp_arbiter::LlamaCppArbiter;

@@ -27,6 +27,7 @@ use crate::agent::jsonrpc::Message as JsonRpcMessage;
 use crate::agent::jsonrpc::Notification as JsonRpcNotification;
 use crate::agent::jsonrpc::Request as JsonRpcRequest;
 use crate::agent::jsonrpc::Response as JsonRpcResponse;
+use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
 use crate::agent::receive_tokens_stopper_drop_guard::ReceiveTokensStopperDropGuard;
 use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
@@ -48,6 +49,7 @@ use crate::service::Service;
 use crate::agent::model_metadata_holder::ModelMetadataHolder;
 
 pub struct ManagementSocketClientService {
+    agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
     agent_desired_state_tx: mpsc::UnboundedSender<AgentDesiredState>,
     continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
     generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
@@ -59,7 +61,9 @@ pub struct ManagementSocketClientService {
 }
 
 impl ManagementSocketClientService {
+    #[expect(clippy::too_many_arguments)]
     pub fn new(
+        agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
         agent_desired_state_tx: mpsc::UnboundedSender<AgentDesiredState>,
         continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
         generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
@@ -71,6 +75,7 @@ impl ManagementSocketClientService {
         let agent_id = Uuid::new_v4();
 
         Ok(ManagementSocketClientService {
+            agent_applicable_state_holder,
             agent_desired_state_tx,
             continue_conversation_request_tx,
             generate_tokens_request_tx,
@@ -137,6 +142,7 @@ impl ManagementSocketClientService {
 
     #[expect(clippy::too_many_arguments)]
     async fn handle_deserialized_message(
+        agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
         agent_desired_state_tx: mpsc::UnboundedSender<AgentDesiredState>,
         connection_close_tx: broadcast::Sender<()>,
         continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
@@ -216,6 +222,21 @@ impl ManagementSocketClientService {
             }
             JsonRpcMessage::Request(RequestEnvelope {
                 id,
+                request: JsonRpcRequest::GetChatTemplateOverride,
+            }) => Ok(
+                message_tx.send(ManagementJsonRpcMessage::Response(ResponseEnvelope {
+                    request_id: id.clone(),
+                    response: JsonRpcResponse::ChatTemplateOverride(
+                        if let Some(agent_applicable_state) =  agent_applicable_state_holder.get_agent_applicable_state() {
+                            agent_applicable_state.chat_template_override.clone()
+                        } else {
+                            None
+                        }
+                    ),
+                }))?,
+            ),
+            JsonRpcMessage::Request(RequestEnvelope {
+                id,
                 request: JsonRpcRequest::GetModelMetadata,
             }) => Ok(
                 message_tx.send(ManagementJsonRpcMessage::Response(ResponseEnvelope {
@@ -230,6 +251,7 @@ impl ManagementSocketClientService {
 
     #[expect(clippy::too_many_arguments)]
     async fn handle_incoming_message(
+        agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
         agent_desired_state_tx: mpsc::UnboundedSender<AgentDesiredState>,
         connection_close_tx: broadcast::Sender<()>,
         continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
@@ -252,6 +274,7 @@ impl ManagementSocketClientService {
                             info!("Connection close signal received, shutting down");
                         }
                         result = Self::handle_deserialized_message(
+                            agent_applicable_state_holder,
                             agent_desired_state_tx,
                             connection_close_tx,
                             continue_conversation_request_tx,
@@ -415,6 +438,7 @@ impl ManagementSocketClientService {
                     let should_close = match msg {
                         Some(Ok(msg)) => {
                             if let Err(err) = Self::handle_incoming_message(
+                                    self.agent_applicable_state_holder.clone(),
                                     self.agent_desired_state_tx.clone(),
                                     connection_close_tx.clone(),
                                     self.continue_conversation_request_tx.clone(),
