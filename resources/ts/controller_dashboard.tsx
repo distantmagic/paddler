@@ -39,5 +39,10 @@ root.render(
     inferenceAddr={rootNode.getStringFromDataset("inferenceAddr")}
     managementAddr={rootNode.getStringFromDataset("managementAddr")}
     maxBufferedRequests={rootNode.getIntFromDataset("maxBufferedRequests")}
+    statsdAddr={rootNode.getStringFromDataset("statsdAddr")}
+    statsdPrefix={rootNode.getStringFromDataset("statsdPrefix")}
+    statsdReportingIntervalMillis={rootNode.getIntFromDataset(
+      "statsdReportingIntervalMillis",
+    )}
   />,
 );

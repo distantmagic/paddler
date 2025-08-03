@@ -1,9 +1,13 @@
 .agentListAgentStatus__progress {
   align-items: center;
   display: grid;
-  grid-template-rows: repeat(2, 24px);
+  gap: var(--spacing-half);
+  grid-template-columns: 1fr auto;
   justify-items: flex-start;
-  row-gap: var(--spacing-half);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
 
   progress {
     width: 100%;

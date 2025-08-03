@@ -1,18 +1,41 @@
 use actix_web::get;
+use std::sync::Arc;
 use actix_web::web;
 use actix_web::Error;
+use async_trait::async_trait;
 use actix_web::HttpResponse;
-use actix_web::Responder;
 use serde::Deserialize;
-use tokio::time::sleep;
-use tokio::time::Duration;
 
+use crate::balancer::agent_controller::AgentController;
+use crate::balancer::controls_manages_senders_endpoint::ControlsManagesSendersEndpoint;
+use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
-
-const TIMEOUT: Duration = Duration::from_secs(3);
+use crate::balancer::manages_senders_controller::ManagesSendersController;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
+}
+
+struct GetModelMetadataController {
+    agent_controller_pool: web::Data<AgentControllerPool>,
+    agent_id: String,
+}
+
+#[async_trait]
+impl ControlsManagesSendersEndpoint for GetModelMetadataController {
+    type SenderCollection = ModelMetadataSenderCollection;
+
+    fn get_agent_controller_pool(&self) -> web::Data<AgentControllerPool> {
+        self.agent_controller_pool.clone()
+    }
+
+    fn get_agent_id(&self) -> String {
+        self.agent_id.clone()
+    }
+
+    async fn get_manages_senders_controller(&self, agent_controller: Arc<AgentController>) -> anyhow::Result<ManagesSendersController<Self::SenderCollection>> {
+        agent_controller.get_model_metadata().await
+    }
 }
 
 #[derive(Deserialize)]
@@ -24,27 +47,11 @@ struct PathParams {
 async fn respond(
     agent_controller_pool: web::Data<AgentControllerPool>,
     params: web::Path<PathParams>,
-) -> Result<impl Responder, Error> {
-    let agent_controller = match agent_controller_pool.get_agent_controller(&params.agent_id) {
-        Some(agent_controller) => agent_controller,
-        None => {
-            return Ok(HttpResponse::NotFound().finish());
-        }
+) -> Result<HttpResponse, Error> {
+    let controller = GetModelMetadataController {
+        agent_controller_pool,
+        agent_id: params.agent_id.clone(),
     };
 
-    let mut connection_close_rx = agent_controller.connection_close_rx.resubscribe();
-
-    match agent_controller.get_model_metadata().await {
-        Ok(mut receive_model_metadata_controller) => {
-            tokio::select! {
-                _ = connection_close_rx.recv() => Ok(HttpResponse::BadGateway().finish()),
-                _ = sleep(TIMEOUT) => Ok(HttpResponse::GatewayTimeout().finish()),
-                model_metadata = receive_model_metadata_controller.model_metadata_rx.recv() => match model_metadata {
-                    Some(metadata) => Ok(HttpResponse::Ok().json(metadata)),
-                    None => Ok(HttpResponse::NotFound().finish()),
-                },
-            }
-        }
-        Err(err) => Ok(HttpResponse::InternalServerError().body(format!("{err}"))),
-    }
+    controller.respond().await
 }

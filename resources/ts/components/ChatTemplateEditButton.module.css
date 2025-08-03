@@ -1,0 +1,55 @@
+.chatTemplateEditButton {
+  align-self: flex-start;
+  appearance: none;
+  background-color: #c3c3e4;
+  border-radius: 20px 30%;
+  border: none;
+  padding: var(--spacing-half) var(--spacing-base);
+  transition-duration: var(--duration-transition-hover);
+  transition-property: background-color, border-radius, color;
+
+  &:disabled {
+    background-color: #dfdff4;
+    color: #aaa;
+    filter: none;
+  }
+
+  &:not(:disabled):hover {
+    border-radius: 30% 20px;
+  }
+}
+
+.chatTemplateEditButton__modal,
+.chatTemplateEditButton__modal__content {
+  display: grid;
+  height: 100%;
+}
+
+.chatTemplateEditButton__modal {
+  grid-template-rows: auto 1fr;
+}
+
+.chatTemplateEditButton__modal__toolbar {
+  background-color: var(--color-modal-window-background);
+  border-bottom: 2px solid var(--color-border);
+  padding: var(--spacing-half);
+  position: sticky;
+  top: 0;
+}
+
+.chatTemplateEditButton__modal__toolbarButton {
+  align-items: center;
+  appearance: none;
+  background-color: transparent;
+  border: none;
+  column-gap: var(--spacing-base);
+  display: flex;
+  flex-direction: row;
+  padding: var(--spacing-half);
+  text-decoration: underline;
+
+  img {
+    height: 1em;
+    width: 1em;
+  }
+}

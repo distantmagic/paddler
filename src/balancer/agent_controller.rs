@@ -18,12 +18,13 @@ use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
 use crate::agent::jsonrpc::Request as AgentJsonRpcRequest;
 use crate::agent_desired_state::AgentDesiredState;
 use crate::agent_issue::AgentIssue;
+use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller_snapshot::AgentControllerSnapshot;
 use crate::balancer::agent_controller_update_result::AgentControllerUpdateResult;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
-use crate::balancer::receive_model_metadata_controller::ReceiveModelMetadataController;
+use crate::balancer::manages_senders_controller::ManagesSendersController;
 use crate::balancer::receive_tokens_controller::ReceiveTokensController;
 use crate::jsonrpc::RequestEnvelope;
 use crate::produces_snapshot::ProducesSnapshot;
@@ -35,6 +36,7 @@ use crate::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 
 pub struct AgentController {
     pub agent_message_tx: mpsc::UnboundedSender<AgentJsonRpcMessage>,
+    pub chat_template_override_sender_collection: Data<ChatTemplateOverrideSenderCollection>,
     pub connection_close_rx: broadcast::Receiver<()>,
     pub desired_slots_total: AtomicValue<AtomicI32>,
     pub download_current: AtomicValue<AtomicUsize>,
@@ -50,6 +52,7 @@ pub struct AgentController {
     pub newest_update_version: AtomicValue<AtomicI32>,
     pub slots_processing: AtomicValue<AtomicI32>,
     pub slots_total: AtomicValue<AtomicI32>,
+    pub uses_chat_template_override: AtomicValue<AtomicBool>,
 }
 
 impl AgentController {
@@ -85,6 +88,21 @@ impl AgentController {
         .await
     }
 
+    pub async fn get_chat_template_override(&self) -> Result<ManagesSendersController<ChatTemplateOverrideSenderCollection>> {
+        let request_id: String = Uuid::new_v4().to_string();
+
+        self.send_rpc_message(AgentJsonRpcMessage::Request(RequestEnvelope {
+            id: request_id.clone(),
+            request: AgentJsonRpcRequest::GetChatTemplateOverride,
+        }))
+        .await?;
+
+        ManagesSendersController::from_request_id(
+            request_id,
+            self.chat_template_override_sender_collection.clone(),
+        )
+    }
+
     pub fn get_download_filename(&self) -> Option<String> {
         self.download_filename
             .read()
@@ -96,23 +114,19 @@ impl AgentController {
         self.issues.read().expect("Poisoned lock on issues").clone()
     }
 
-    pub async fn get_model_metadata(&self) -> Result<ReceiveModelMetadataController> {
-        let (model_metadata_tx, model_metadata_rx) = mpsc::unbounded_channel();
+    pub async fn get_model_metadata(&self) -> Result<ManagesSendersController<ModelMetadataSenderCollection>> {
         let request_id: String = Uuid::new_v4().to_string();
 
-        self.model_metadata_sender_collection
-            .register_sender(request_id.clone(), model_metadata_tx)?;
         self.send_rpc_message(AgentJsonRpcMessage::Request(RequestEnvelope {
             id: request_id.clone(),
             request: AgentJsonRpcRequest::GetModelMetadata,
         }))
         .await?;
 
-        Ok(ReceiveModelMetadataController {
-            model_metadata_rx,
-            model_metadata_sender_collection: self.model_metadata_sender_collection.clone(),
+        ManagesSendersController::from_request_id(
             request_id,
-        })
+            self.model_metadata_sender_collection.clone(),
+        )
     }
 
     pub fn get_model_path(&self) -> Option<String> {
@@ -167,6 +181,7 @@ impl AgentController {
             model_path,
             slots_processing,
             slots_total,
+            uses_chat_template_override,
             version,
         }: SlotAggregatedStatusSnapshot,
     ) -> AgentControllerUpdateResult {
@@ -186,6 +201,7 @@ impl AgentController {
         changed = changed || self.is_state_applied.set_check(is_state_applied);
         changed = changed || self.slots_processing.set_check(slots_processing);
         changed = changed || self.slots_total.set_check(slots_total);
+        changed = changed || self.uses_chat_template_override.set_check(uses_chat_template_override);
 
         self.newest_update_version
             .compare_and_swap(newest_update_version, version);
@@ -258,6 +274,7 @@ impl ProducesSnapshot for AgentController {
             name: self.name.clone(),
             slots_processing: self.slots_processing.get(),
             slots_total: self.slots_total.get(),
+            uses_chat_template_override: self.uses_chat_template_override.get(),
         }
     }
 }

@@ -1,9 +1,9 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::agent_desired_state::AgentDesiredState;
+use crate::balancer_desired_state::BalancerDesiredState;
 
 #[derive(Default, Deserialize, Serialize)]
 pub struct Schema {
-    pub agent_desired_state: AgentDesiredState,
+    pub balancer_desired_state: BalancerDesiredState,
 }

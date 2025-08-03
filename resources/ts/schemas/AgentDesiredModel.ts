@@ -7,7 +7,7 @@ export const AgentDesiredModelSchema = z.union([
     HuggingFace: HuggingFaceModelReferenceSchema,
   }),
   z.object({
-    Local: z.string(),
+    LocalToAgent: z.string(),
   }),
   z.literal("None"),
 ]);

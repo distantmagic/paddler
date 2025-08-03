@@ -8,9 +8,6 @@ export function AgentListAgentStatus({
   agent: {
     desired_slots_total,
     is_state_applied,
-    download_current,
-    download_filename,
-    download_total,
     slots_processing,
     slots_total,
   },
@@ -39,19 +36,10 @@ export function AgentListAgentStatus({
     );
   }
 
-  if (download_total > 0) {
-    return (
-      <div className={agentListAgentStatus__progress}>
-        <progress max={download_total} value={download_current} />
-        <div>Downloading: {download_filename}</div>
-      </div>
-    );
-  }
-
   return (
     <div className={agentListAgentStatus__progress}>
       <div>
-        ⏳ <i>Changes pending</i>
+        ⏳ <i>Pending</i>
       </div>
     </div>
   );

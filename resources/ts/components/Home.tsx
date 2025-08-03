@@ -12,11 +12,17 @@ export function Home({
   inferenceAddr,
   managementAddr,
   maxBufferedRequests,
+  statsdAddr,
+  statsdPrefix,
+  statsdReportingIntervalMillis,
 }: {
   bufferedRequestTimeoutMillis: number;
   inferenceAddr: string;
   managementAddr: string;
   maxBufferedRequests: number;
+  statsdAddr: string;
+  statsdPrefix: string;
+  statsdReportingIntervalMillis: number;
 }) {
   return (
     <Router>
@@ -28,6 +34,9 @@ export function Home({
               inferenceAddr={inferenceAddr}
               managementAddr={managementAddr}
               maxBufferedRequests={maxBufferedRequests}
+              statsdAddr={statsdAddr}
+              statsdPrefix={statsdPrefix}
+              statsdReportingIntervalMillis={statsdReportingIntervalMillis}
             />
           </Route>
           <Route path="/model">

@@ -30,18 +30,12 @@ async fn respond(
             }
         };
 
-        if let Some(event) = send_event(buffered_request_manager.make_snapshot()) {
-            yield event;
-        }
-
         loop {
-            tokio::select! {
-                _ = buffered_request_manager.update_notifier.notified() => {
-                    if let Some(event) = send_event(buffered_request_manager.make_snapshot()) {
-                        yield event;
-                    }
-                },
+            if let Some(event) = send_event(buffered_request_manager.make_snapshot()) {
+                yield event;
             }
+
+            buffered_request_manager.update_notifier.notified().await;
         }
     };
 

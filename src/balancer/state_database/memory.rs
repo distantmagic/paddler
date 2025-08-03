@@ -2,41 +2,46 @@ use std::sync::RwLock;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use tokio::sync::broadcast;
 
 use super::StateDatabase;
-use crate::agent_desired_state::AgentDesiredState;
+use crate::balancer_desired_state::BalancerDesiredState;
 
 pub struct Memory {
-    agent_desired_state: RwLock<AgentDesiredState>,
+    balancer_desired_state: RwLock<BalancerDesiredState>,
+    balancer_desired_state_notify_tx: broadcast::Sender<BalancerDesiredState>,
 }
 
 impl Memory {
-    pub fn new() -> Self {
+    pub fn new(balancer_desired_state_notify_tx: broadcast::Sender<BalancerDesiredState>) -> Self {
         Memory {
-            agent_desired_state: RwLock::new(AgentDesiredState::default()),
+            balancer_desired_state: RwLock::new(BalancerDesiredState::default()),
+            balancer_desired_state_notify_tx,
         }
     }
 }
 
 #[async_trait]
 impl StateDatabase for Memory {
-    async fn read_agent_desired_state(&self) -> Result<AgentDesiredState> {
+    async fn read_balancer_desired_state(&self) -> Result<BalancerDesiredState> {
         Ok(self
-            .agent_desired_state
+            .balancer_desired_state
             .read()
             .expect("Failed to acquire read lock")
             .clone())
     }
 
-    async fn store_agent_desired_state(&self, state: &AgentDesiredState) -> Result<()> {
+    async fn store_balancer_desired_state(&self, state: &BalancerDesiredState) -> Result<()> {
         {
-            let mut agent_desired_state = self
-                .agent_desired_state
+            let mut balancer_desired_state = self
+                .balancer_desired_state
                 .write()
                 .expect("Failed to acquire write lock");
 
-            *agent_desired_state = state.clone();
+            *balancer_desired_state = state.clone();
         }
+
+        self.balancer_desired_state_notify_tx.send(state.clone())?;
 
         Ok(())
     }

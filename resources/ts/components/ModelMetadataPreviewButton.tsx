@@ -1,16 +1,15 @@
 import React, { useCallback, useState, type MouseEvent } from "react";
 
+import { type Agent } from "../schemas/Agent";
 import { ModelMetadataLoader } from "./ModelMetadataLoader";
 
 import { modelMetadataPreviewButton } from "./ModelMetadataPreviewButton.module.css";
 
 export function ModelMetadataPreviewButton({
-  agentId,
-  agentName,
+  agent,
   managementAddr,
 }: {
-  agentId: string;
-  agentName: null | string;
+  agent: Agent;
   managementAddr: string;
 }) {
   const [isDetailsVisible, setIsDetailsVisible] = useState(false);
@@ -38,8 +37,7 @@ export function ModelMetadataPreviewButton({
       </button>
       {isDetailsVisible && (
         <ModelMetadataLoader
-          agentId={agentId}
-          agentName={agentName}
+          agent={agent}
           managementAddr={managementAddr}
           onClose={onClose}
         />

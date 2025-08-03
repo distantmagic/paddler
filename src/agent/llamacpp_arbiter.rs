@@ -26,9 +26,11 @@ use crate::agent_issue_fix::AgentIssueFix;
 use crate::inference_parameters::InferenceParameters;
 use crate::model_metadata::ModelMetadata;
 use crate::slot_aggregated_status_manager::SlotAggregatedStatusManager;
+use crate::chat_template::ChatTemplate;
 
 pub struct LlamaCppArbiter {
     agent_name: Option<String>,
+    chat_template_override: Option<ChatTemplate>,
     desired_slots_total: i32,
     inference_parameters: InferenceParameters,
     model_metadata_holder: Arc<ModelMetadataHolder>,
@@ -39,6 +41,7 @@ pub struct LlamaCppArbiter {
 impl LlamaCppArbiter {
     pub fn new(
         agent_name: Option<String>,
+        chat_template_override: Option<ChatTemplate>,
         desired_slots_total: i32,
         inference_parameters: InferenceParameters,
         model_metadata_holder: Arc<ModelMetadataHolder>,
@@ -47,6 +50,7 @@ impl LlamaCppArbiter {
     ) -> Self {
         Self {
             agent_name,
+            chat_template_override,
             desired_slots_total,
             inference_parameters,
             model_metadata_holder,
@@ -81,15 +85,12 @@ impl LlamaCppArbiter {
         let model_metadata_holder = self.model_metadata_holder.clone();
         let model_path = self.model_path.clone();
         let model_path_string_clone = model_path_string.clone();
+        let chat_template_override = self.chat_template_override.clone();
         let slot_aggregated_status_manager = self.slot_aggregated_status_manager.clone();
 
         let sync_arbiter_thread_handle = thread::spawn(move || -> Result<()> {
-            let backend =
-                Arc::new(LlamaBackend::init().context("Unable to initialize llama.cpp backend")?);
-            let ctx_params = Arc::new(
-                LlamaContextParams::default()
-                    .with_n_ctx(NonZeroU32::new(inference_parameters.context_size)),
-            );
+            let backend = Arc::new(LlamaBackend::init().context("Unable to initialize llama.cpp backend")?);
+            let ctx_params = Arc::new(LlamaContextParams::default().with_n_ctx(NonZeroU32::new(inference_parameters.context_size)));
             let backend_clone = backend.clone();
             let model = Arc::new(
                 LlamaModel::load_from_file(
@@ -120,13 +121,16 @@ impl LlamaCppArbiter {
 
             model_metadata_holder.set_model_metadata(model_metadata);
 
-            let llama_chat_template_string = model
-                .chat_template(None)
-                .context(format!(
-                    "Failed to load chat template for model at path: {}",
-                    model_path.display()
-                ))?
-                .to_string()?;
+            let llama_chat_template_string = match chat_template_override {
+                Some(chat_template) => chat_template.content,
+                None => model
+                    .chat_template(None)
+                    .context(format!(
+                        "Failed to load chat template for model at path: {}",
+                        model_path.display()
+                    ))?
+                    .to_string()?,
+            };
 
             if chat_template_loaded_tx.send(()).is_err() {
                 let message = format!(
@@ -259,23 +263,25 @@ mod tests {
     #[actix_web::test]
     async fn test_llamacpp_arbiter_spawn() -> Result<()> {
         let desired_state = AgentDesiredState {
+            chat_template_override: None,
+            inference_parameters: InferenceParameters::default(),
             model: AgentDesiredModel::HuggingFace(HuggingFaceModelReference {
                 filename: "Qwen3-0.6B-Q8_0.gguf".to_string(),
                 repo_id: "Qwen/Qwen3-0.6B-GGUF".to_string(),
                 revision: "main".to_string(),
             }),
-            inference_parameters: InferenceParameters::default(),
         };
         let slot_aggregated_status_manager =
             Arc::new(SlotAggregatedStatusManager::new(SLOTS_TOTAL));
 
         let applicable_state = desired_state
-            .to_applicable_state()
+            .to_applicable_state(slot_aggregated_status_manager.slot_aggregated_status.clone())
             .await?
             .expect("Failed to convert to applicable state");
 
         let llamacpp_arbiter = LlamaCppArbiter::new(
             Some("test_agent".to_string()),
+            None,
             SLOTS_TOTAL,
             applicable_state.inference_parameters,
             Arc::new(ModelMetadataHolder::new()),

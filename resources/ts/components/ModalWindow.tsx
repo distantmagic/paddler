@@ -13,10 +13,12 @@ import {
 
 export function ModalWindow({
   children,
+  confirmCloseMessage,
   onClose,
   title,
 }: {
   children: ReactNode;
+  confirmCloseMessage?: string;
   onClose(this: void): void;
   title: string;
 }) {
@@ -24,9 +26,13 @@ export function ModalWindow({
     function (evt: MouseEvent<HTMLButtonElement>) {
       evt.preventDefault();
 
+      if (confirmCloseMessage && !window.confirm(confirmCloseMessage)) {
+        return;
+      }
+
       onClose();
     },
-    [onClose],
+    [confirmCloseMessage, onClose],
   );
 
   return createPortal(

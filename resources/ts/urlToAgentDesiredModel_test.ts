@@ -16,9 +16,9 @@ test("recognizes Hugging Face urls", function (test) {
 });
 
 test("uses local urls", function (test) {
-  const url = new URL("file:///home/user/models/Qwen3-0.6B-Q8_0.gguf");
+  const url = new URL("agent:///home/user/models/Qwen3-0.6B-Q8_0.gguf");
 
   test.deepEqual(urlToAgentDesiredModel(url), {
-    Local: "/home/user/models/Qwen3-0.6B-Q8_0.gguf",
+    LocalToAgent: "/home/user/models/Qwen3-0.6B-Q8_0.gguf",
   });
 });

@@ -6,9 +6,9 @@ export function urlToAgentDesiredModel(url: URL): AgentDesiredModel {
     return {
       HuggingFace: extractHuggingFaceUrlParts(url),
     };
-  } else if (url.protocol === "file:") {
+  } else if (url.protocol === "agent:") {
     return {
-      Local: url.pathname,
+      LocalToAgent: url.pathname,
     };
   } else {
     throw new Error("Unsupported URL format");

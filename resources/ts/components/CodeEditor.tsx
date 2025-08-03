@@ -6,6 +6,7 @@ import { codeEditor } from "./CodeEditor.module.css";
 
 export function CodeEditor({
   editable,
+  onChange,
   value,
 }:
   | {
@@ -16,14 +17,15 @@ export function CodeEditor({
   | {
       editable: false;
       value: string;
+      onChange?: never;
     }) {
   return (
     <div className={codeEditor}>
       <CodeMirror
         editable={editable}
         extensions={[jinja()]}
-        height="100%"
-        readOnly={true}
+        onChange={onChange}
+        readOnly={!editable}
         value={value}
       />
     </div>

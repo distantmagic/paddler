@@ -5,7 +5,7 @@ use actix_web::http::header;
 
 pub fn create_cors_middleware(allowed_hosts: Arc<Vec<String>>) -> Cors {
     let mut cors = Cors::default()
-        .allowed_methods(vec!["GET", "POST", "PUT", "OPTIONS"])
+        .allowed_methods(vec!["DELETE", "GET", "POST", "PUT", "OPTIONS"])
         .allowed_headers(vec![
             header::ACCEPT,
             header::AUTHORIZATION,

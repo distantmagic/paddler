@@ -1,9 +1,20 @@
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .dashboardPageAddAgent {
   display: flex;
   padding-top: var(--spacing-base);
 }
 
 .dashboardPageAddAgent__button {
+  animation: fadeIn 200ms ease-in-out;
+  animation-fill-mode: forwards;
   appearance: none;
   background-color: transparent;
   background-image: url("../../icons/help.svg");
@@ -13,6 +24,7 @@
   border: none;
   display: flex;
   flex-direction: row;
+  opacity: 0;
   padding: var(--spacing-base) var(--spacing-base) var(--spacing-base)
     calc(var(--spacing-base) + var(--spacing-half) + 24px);
   text-decoration: underline;

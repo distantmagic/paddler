@@ -1,11 +1,15 @@
 mod agent;
+mod balancer_applicable_state_holder;
 mod agent_applicable_state;
 mod agent_applicable_state_holder;
 mod agent_desired_model;
 mod agent_desired_state;
 mod agent_issue;
+mod balancer_desired_state;
+mod balancer_applicable_state;
 mod agent_issue_fix;
 mod atomic_value;
+mod chat_template;
 mod balancer;
 mod cmd;
 mod controls_websocket_endpoint;

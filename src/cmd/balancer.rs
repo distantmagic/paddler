@@ -6,10 +6,12 @@ use anyhow::Result;
 use async_trait::async_trait;
 use clap::Parser;
 use tokio::sync::oneshot;
+use tokio::sync::broadcast;
 
 use super::handler::Handler;
 use super::parse_duration;
 use super::parse_socket_addr;
+use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
@@ -21,6 +23,7 @@ use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollec
 use crate::balancer::state_database::File;
 use crate::balancer::state_database::Memory;
 use crate::balancer::state_database::StateDatabase;
+use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
 use crate::balancer::state_database_type::StateDatabaseType;
 use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
 use crate::balancer::statsd_service::StatsdService;
@@ -30,6 +33,7 @@ use crate::balancer::web_admin_panel_service::configuration::Configuration as We
 use crate::balancer::web_admin_panel_service::template_data::TemplateData;
 #[cfg(feature = "web_admin_panel")]
 use crate::balancer::web_admin_panel_service::WebAdminPanelService;
+use crate::balancer::reconciliation_service::ReconciliationService;
 use crate::service_manager::ServiceManager;
 
 #[derive(Parser)]
@@ -79,7 +83,7 @@ pub struct Balancer {
     /// Address of the statsd server to report metrics to
     statsd_addr: Option<SocketAddr>,
 
-    #[arg(long, default_value = "paddler")]
+    #[arg(long, default_value = "paddler_")]
     /// Prefix for statsd metrics
     statsd_prefix: String,
 
@@ -112,6 +116,9 @@ impl Balancer {
                     max_buffered_requests: self.max_buffered_requests,
                     management_addr: self.management_addr,
                     inference_addr: self.inference_addr,
+                    statsd_addr: self.statsd_addr,
+                    statsd_prefix: self.statsd_prefix.clone(),
+                    statsd_reporting_interval: self.statsd_reporting_interval,
                 },
             })
     }
@@ -120,22 +127,26 @@ impl Balancer {
 #[async_trait]
 impl Handler for Balancer {
     async fn handle(&self, shutdown_rx: oneshot::Receiver<()>) -> Result<()> {
+        let (balancer_desired_state_tx, balancer_desired_state_rx) = broadcast::channel(100);
+
         let agent_controller_pool = Arc::new(AgentControllerPool::new());
+        let balancer_applicable_state_holder = Arc::new(BalancerApplicableStateHolder::new());
         let buffered_request_manager = Arc::new(BufferedRequestManager::new(
             agent_controller_pool.clone(),
             self.buffered_request_timeout,
             self.max_buffered_requests,
         ));
+        let chat_template_override_sender_collection = Arc::new(ChatTemplateOverrideSenderCollection::new());
         let generate_tokens_sender_collection = Arc::new(GenerateTokensSenderCollection::new());
         let model_metadata_sender_collection = Arc::new(ModelMetadataSenderCollection::new());
         let mut service_manager = ServiceManager::new();
         let state_database: Arc<dyn StateDatabase> = match &self.state_database {
-            StateDatabaseType::File(path) => Arc::new(File::new(path.to_owned())),
-            StateDatabaseType::Memory => Arc::new(Memory::new()),
+            StateDatabaseType::File(path) => Arc::new(File::new(
+                balancer_desired_state_tx.clone(),
+                path.to_owned(),
+            )),
+            StateDatabaseType::Memory => Arc::new(Memory::new(balancer_desired_state_tx.clone())),
         };
-
-        // Check if state database can read the desired state
-        state_database.read_agent_desired_state().await?;
 
         service_manager.add_service(InferenceService::new(
             agent_controller_pool.clone(),
@@ -150,16 +161,25 @@ impl Handler for Balancer {
             self.get_web_admin_panel_service_configuration(),
         ));
 
-        service_manager.add_service(ManagementService::new(
-            agent_controller_pool.clone(),
-            buffered_request_manager.clone(),
-            self.get_management_service_configuration(),
-            generate_tokens_sender_collection.clone(),
+        service_manager.add_service(ManagementService {
+            agent_controller_pool: agent_controller_pool.clone(),
+            balancer_applicable_state_holder: balancer_applicable_state_holder.clone(),
+            buffered_request_manager: buffered_request_manager.clone(),
+            chat_template_override_sender_collection,
+            configuration: self.get_management_service_configuration(),
+            generate_tokens_sender_collection: generate_tokens_sender_collection.clone(),
             model_metadata_sender_collection,
-            state_database,
+            state_database: state_database.clone(),
             #[cfg(feature = "web_admin_panel")]
-            self.get_web_admin_panel_service_configuration(),
-        ));
+            web_admin_panel_service_configuration: self.get_web_admin_panel_service_configuration(),
+        });
+
+        service_manager.add_service(ReconciliationService::new(
+            agent_controller_pool.clone(),
+            balancer_applicable_state_holder,
+            state_database.read_balancer_desired_state().await?,
+            balancer_desired_state_rx,
+        )?);
 
         if let Some(statsd_addr) = self.statsd_addr {
             service_manager.add_service(StatsdService::new(

@@ -39,18 +39,25 @@
 .modelMetadata__parameter__title,
 .modelMetadata__parameter__value {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
+  gap: var(--spacing-half);
 }
 
 .modelMetadata__parameter__title {
   font-weight: bold;
 
   @media screen and (min-width: 701px) {
-    justify-content: flex-end;
+    justify-content: flex-start;
     text-align: right;
   }
 }
 
 .modelMetadata__parameter__value {
+  align-items: flex-start;
   overflow-wrap: anywhere;
+}
+
+.modelMetadata__templateOverrideNote {
+  background-color: lavender;
+  font-size: var(--font-size-small);
 }

@@ -1,3 +1,8 @@
+body:has(.modalWindowBackdrop) {
+  overflow: hidden;
+  padding-right: var(--width-scrollbar);
+}
+
 .modalWindowBackdrop {
   --color-modal-window-background: var(--color-body-background);
   --height-modal-window-titlebar: 42px;

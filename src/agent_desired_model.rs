@@ -27,7 +27,7 @@ const LOCK_RETRY_TIMEOUT: Duration = Duration::from_secs(10);
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub enum AgentDesiredModel {
     HuggingFace(HuggingFaceModelReference),
-    Local(String),
+    LocalToAgent(String),
     #[default]
     None,
 }
@@ -35,10 +35,11 @@ pub enum AgentDesiredModel {
 #[async_trait]
 impl ConvertsToApplicableState for AgentDesiredModel {
     type ApplicableState = PathBuf;
+    type Context = Arc<SlotAggregatedStatus>;
 
     async fn to_applicable_state(
         &self,
-        slot_aggregated_status: Arc<SlotAggregatedStatus>,
+        slot_aggregated_status: Self::Context,
     ) -> Result<Option<Self::ApplicableState>> {
         Ok(match self {
             AgentDesiredModel::HuggingFace(HuggingFaceModelReference {
@@ -123,7 +124,7 @@ impl ConvertsToApplicableState for AgentDesiredModel {
 
                 Some(weights_filename)
             }
-            AgentDesiredModel::Local(path) => Some(PathBuf::from(path)),
+            AgentDesiredModel::LocalToAgent(path) => Some(PathBuf::from(path)),
             AgentDesiredModel::None => None,
         })
     }

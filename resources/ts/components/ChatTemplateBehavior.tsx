@@ -1,4 +1,7 @@
-import React from "react";
+import React, { useCallback, useContext, type ChangeEvent } from "react";
+
+import { ChatTemplateContext } from "../contexts/ChatTemplateContext";
+import { ChatTemplateEditButton } from "./ChatTemplateEditButton";
 
 import {
   chatTemplateBehavior,
@@ -8,7 +11,29 @@ import {
   chatTemplateBehavior__radio,
 } from "./ChatTemplateBehavior.module.css";
 
+const USE_MODEL_TEMPLATE = "use_model_template";
+const USE_MY_TEMPLATE = "use_my_template";
+
 export function ChatTemplateBehavior() {
+  const { setUseChatTemplateOverride, useChatTemplateOverride } =
+    useContext(ChatTemplateContext);
+
+  const onRadioChange = useCallback(
+    function (evt: ChangeEvent<HTMLInputElement>) {
+      switch (evt.target.value) {
+        case USE_MODEL_TEMPLATE:
+          setUseChatTemplateOverride(false);
+          break;
+        case USE_MY_TEMPLATE:
+          setUseChatTemplateOverride(true);
+          break;
+        default:
+          throw new Error("Unexpected value for chat template behavior");
+      }
+    },
+    [setUseChatTemplateOverride],
+  );
+
   return (
     <div className={chatTemplateBehavior}>
       <p>How should Paddler obtain the chat template?</p>
@@ -16,10 +41,12 @@ export function ChatTemplateBehavior() {
         <label className={chatTemplateBehavior__option}>
           <div className={chatTemplateBehavior__radio}>
             <input
-              type="radio"
+              checked={!useChatTemplateOverride}
               name="chat_template_behavior"
+              onChange={onRadioChange}
               required
-              value="use_model_template"
+              type="radio"
+              value={USE_MODEL_TEMPLATE}
             />
           </div>
           <div className={chatTemplateBehavior__description}>
@@ -37,25 +64,23 @@ export function ChatTemplateBehavior() {
         <label className={chatTemplateBehavior__option}>
           <div className={chatTemplateBehavior__radio}>
             <input
-              type="radio"
+              checked={useChatTemplateOverride}
               name="chat_template_behavior"
+              onChange={onRadioChange}
               required
-              value="use_specific_template"
+              type="radio"
+              value={USE_MY_TEMPLATE}
             />
           </div>
           <div className={chatTemplateBehavior__description}>
             <p>
-              <strong>Use: </strong>
-              <select>
-                <optgroup label="Built-in template">
-                  <option value="chatml">ChatML template</option>
-                </optgroup>
-              </select>
+              <strong>Use my chat template</strong>
             </p>
             <p>
               Only use this option if you know the model does not come with a
               chat template, or you want to modify it to suit your needs.
             </p>
+            <ChatTemplateEditButton />
           </div>
         </label>
       </div>

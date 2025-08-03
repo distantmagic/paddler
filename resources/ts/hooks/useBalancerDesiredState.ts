@@ -1,16 +1,16 @@
 import { useCallback } from "react";
 
-import { AgentDesiredStateSchema } from "../schemas/AgentDesiredState";
+import { BalancerDesiredStateSchema } from "../schemas/BalancerDesiredState";
 import { useFetchJson } from "./useFetchJson";
 
-export function useAgentDesiredState({
+export function useBalancerDesiredState({
   managementAddr,
 }: {
   managementAddr: string;
 }) {
   const produceFetchPromise = useCallback(
     function (signal: AbortSignal) {
-      return fetch(`//${managementAddr}/api/v1/agent_desired_state`, {
+      return fetch(`//${managementAddr}/api/v1/balancer_desired_state`, {
         signal,
       });
     },
@@ -19,7 +19,7 @@ export function useAgentDesiredState({
 
   const result = useFetchJson({
     produceFetchPromise,
-    responseSchema: AgentDesiredStateSchema,
+    responseSchema: BalancerDesiredStateSchema,
   });
 
   return result;

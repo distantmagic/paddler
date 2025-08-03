@@ -4,37 +4,37 @@ use anyhow::Result;
 use async_trait::async_trait;
 use log::error;
 use tokio::sync::broadcast;
+use tokio::sync::mpsc;
 use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
-use crate::agent::reconciliation_queue::ReconciliationQueue;
 use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
 use crate::agent_desired_state::AgentDesiredState;
 use crate::agent_issue_fix::AgentIssueFix;
-use crate::converts_to_applicable_state::ConvertsToApplicableState;
+use crate::converts_to_applicable_state::ConvertsToApplicableState as _;
 use crate::service::Service;
 use crate::slot_aggregated_status::SlotAggregatedStatus;
 
 pub struct ReconciliationService {
     agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
     agent_desired_state: Option<AgentDesiredState>,
+    agent_desired_state_rx: mpsc::UnboundedReceiver<AgentDesiredState>,
     is_converted_to_applicable_state: bool,
-    reconciliation_queue: Arc<ReconciliationQueue>,
     slot_aggregated_status: Arc<SlotAggregatedStatus>,
 }
 
 impl ReconciliationService {
     pub fn new(
         agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
-        reconciliation_queue: Arc<ReconciliationQueue>,
+        agent_desired_state_rx: mpsc::UnboundedReceiver<AgentDesiredState>,
         slot_aggregated_status: Arc<SlotAggregatedStatus>,
     ) -> Result<Self> {
         Ok(ReconciliationService {
             agent_applicable_state_holder,
             agent_desired_state: None,
+            agent_desired_state_rx,
             is_converted_to_applicable_state: true,
-            reconciliation_queue,
             slot_aggregated_status,
         })
     }
@@ -50,10 +50,13 @@ impl ReconciliationService {
         };
 
         self.is_converted_to_applicable_state = true;
-        self.slot_aggregated_status
-            .register_fix(AgentIssueFix::ModelStateIsReconciled);
-        self.agent_applicable_state_holder
-            .set_applicable_state(applicable_state)
+        self.slot_aggregated_status.set_uses_chat_template_override(if let Some(applicable_state) = &applicable_state {
+            applicable_state.chat_template_override.is_some()
+        } else {
+            false
+        });
+        self.slot_aggregated_status.register_fix(AgentIssueFix::ModelStateIsReconciled);
+        self.agent_applicable_state_holder.set_agent_applicable_state(applicable_state)
     }
 
     pub async fn try_convert_to_applicable_state(&mut self) {
@@ -82,14 +85,14 @@ impl Service for ReconciliationService {
                         self.try_convert_to_applicable_state().await;
                     }
                 },
-                next_agent_desired_state = self.reconciliation_queue.next_change_request() => {
+                next_agent_desired_state = self.agent_desired_state_rx.recv() => {
                     self.is_converted_to_applicable_state = false;
                     self.agent_desired_state = match next_agent_desired_state {
-                        Ok(agent_desired_state) => Some(agent_desired_state),
-                        Err(err) => {
-                            error!("Failed to receive change request from reconciliation queue: {err}");
+                        Some(agent_desired_state) => Some(agent_desired_state),
+                        None => {
+                            error!("Agent desired state channel closed, stopping reconciliation service.");
 
-                            None
+                            break Ok(())
                         }
                     };
                     self.try_convert_to_applicable_state().await;

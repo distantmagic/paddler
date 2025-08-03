@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+
 use actix_web::get;
 use actix_web::web;
 use actix_web::Responder;
@@ -21,6 +22,9 @@ struct WebAdminPanelTemplate {
     management_addr: SocketAddr,
     max_buffered_requests: i32,
     preloads: HttpPreloader,
+    statsd_addr: String,
+    statsd_prefix: String,
+    statsd_reporting_interval_millis: u128,
 }
 
 #[get("/{_:.*}")]
@@ -34,5 +38,11 @@ async fn respond(
         management_addr: template_data.management_addr,
         max_buffered_requests: template_data.max_buffered_requests,
         preloads,
+        statsd_addr: match template_data.statsd_addr {
+            Some(addr) => addr.to_string(),
+            None => String::new(),
+        },
+        statsd_prefix: template_data.statsd_prefix.clone(),
+        statsd_reporting_interval_millis: template_data.statsd_reporting_interval.as_millis(),
     })
 }

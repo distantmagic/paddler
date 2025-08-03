@@ -21,16 +21,17 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use uuid::Uuid;
 
+use crate::agent_desired_state::AgentDesiredState;
 use crate::agent::receive_tokens_stopper_collection::ReceiveTokensStopperCollection;
 use crate::agent::jsonrpc::Message as JsonRpcMessage;
 use crate::agent::jsonrpc::Notification as JsonRpcNotification;
 use crate::agent::jsonrpc::Request as JsonRpcRequest;
 use crate::agent::jsonrpc::Response as JsonRpcResponse;
+use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
 use crate::agent::receive_tokens_stopper_drop_guard::ReceiveTokensStopperDropGuard;
 use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::generate_tokens_request::GenerateTokensRequest;
 use crate::agent::jsonrpc::notification_params::VersionParams;
-use crate::agent::reconciliation_queue::ReconciliationQueue;
 use crate::slot_aggregated_status::SlotAggregatedStatus;
 use crate::agent::from_request_params::FromRequestParams;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Message as ManagementJsonRpcMessage;
@@ -48,35 +49,39 @@ use crate::service::Service;
 use crate::agent::model_metadata_holder::ModelMetadataHolder;
 
 pub struct ManagementSocketClientService {
+    agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
+    agent_desired_state_tx: mpsc::UnboundedSender<AgentDesiredState>,
     continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
     generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
     model_metadata_holder: Arc<ModelMetadataHolder>,
     name: Option<String>,
     receive_tokens_stopper_collection: Arc<ReceiveTokensStopperCollection>,
-    reconciliation_queue: Arc<ReconciliationQueue>,
     slot_aggregated_status: Arc<SlotAggregatedStatus>,
     socket_url: String,
 }
 
 impl ManagementSocketClientService {
+    #[expect(clippy::too_many_arguments)]
     pub fn new(
+        agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
+        agent_desired_state_tx: mpsc::UnboundedSender<AgentDesiredState>,
         continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
         generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
         management_addr: SocketAddr,
         model_metadata_holder: Arc<ModelMetadataHolder>,
         name: Option<String>,
-        reconciliation_queue: Arc<ReconciliationQueue>,
         slot_aggregated_status: Arc<SlotAggregatedStatus>,
     ) -> Result<Self> {
         let agent_id = Uuid::new_v4();
 
         Ok(ManagementSocketClientService {
+            agent_applicable_state_holder,
+            agent_desired_state_tx,
             continue_conversation_request_tx,
             generate_tokens_request_tx,
             model_metadata_holder,
             name,
             receive_tokens_stopper_collection: Arc::new(ReceiveTokensStopperCollection::new()),
-            reconciliation_queue,
             slot_aggregated_status,
             socket_url: format!("ws://{management_addr}/api/v1/agent_socket/{agent_id}"),
         })
@@ -137,6 +142,8 @@ impl ManagementSocketClientService {
 
     #[expect(clippy::too_many_arguments)]
     async fn handle_deserialized_message(
+        agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
+        agent_desired_state_tx: mpsc::UnboundedSender<AgentDesiredState>,
         connection_close_tx: broadcast::Sender<()>,
         continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
         generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
@@ -144,7 +151,6 @@ impl ManagementSocketClientService {
         model_metadata_holder: Arc<ModelMetadataHolder>,
         deserialized_message: JsonRpcMessage,
         receive_tokens_stopper_collection: Arc<ReceiveTokensStopperCollection>,
-        reconciliation_queue: Arc<ReconciliationQueue>,
     ) -> Result<()> {
         match deserialized_message {
             JsonRpcMessage::Error(ErrorEnvelope {
@@ -160,9 +166,9 @@ impl ManagementSocketClientService {
             JsonRpcMessage::Notification(JsonRpcNotification::SetState(SetStateParams {
                 desired_state,
             })) => {
-                reconciliation_queue
-                    .register_change_request(desired_state)
-                    .await
+                agent_desired_state_tx.send(desired_state)?;
+
+                Ok(())
             }
             JsonRpcMessage::Notification(JsonRpcNotification::StopGeneratingTokens(request_id)) => {
                 debug!("Received StopGeneratingTokens notification for request ID: {request_id:?}");
@@ -216,6 +222,21 @@ impl ManagementSocketClientService {
             }
             JsonRpcMessage::Request(RequestEnvelope {
                 id,
+                request: JsonRpcRequest::GetChatTemplateOverride,
+            }) => Ok(
+                message_tx.send(ManagementJsonRpcMessage::Response(ResponseEnvelope {
+                    request_id: id.clone(),
+                    response: JsonRpcResponse::ChatTemplateOverride(
+                        if let Some(agent_applicable_state) =  agent_applicable_state_holder.get_agent_applicable_state() {
+                            agent_applicable_state.chat_template_override.clone()
+                        } else {
+                            None
+                        }
+                    ),
+                }))?,
+            ),
+            JsonRpcMessage::Request(RequestEnvelope {
+                id,
                 request: JsonRpcRequest::GetModelMetadata,
             }) => Ok(
                 message_tx.send(ManagementJsonRpcMessage::Response(ResponseEnvelope {
@@ -230,6 +251,8 @@ impl ManagementSocketClientService {
 
     #[expect(clippy::too_many_arguments)]
     async fn handle_incoming_message(
+        agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
+        agent_desired_state_tx: mpsc::UnboundedSender<AgentDesiredState>,
         connection_close_tx: broadcast::Sender<()>,
         continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
         generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
@@ -238,7 +261,6 @@ impl ManagementSocketClientService {
         message_tx: mpsc::UnboundedSender<ManagementJsonRpcMessage>,
         msg: Message,
         pong_tx: mpsc::UnboundedSender<Bytes>,
-        reconciliation_queue: Arc<ReconciliationQueue>,
     ) -> Result<()> {
         match msg {
             Message::Text(text) => {
@@ -252,6 +274,8 @@ impl ManagementSocketClientService {
                             info!("Connection close signal received, shutting down");
                         }
                         result = Self::handle_deserialized_message(
+                            agent_applicable_state_holder,
+                            agent_desired_state_tx,
                             connection_close_tx,
                             continue_conversation_request_tx,
                             generate_tokens_request_tx,
@@ -266,7 +290,6 @@ impl ManagementSocketClientService {
                                 }
                             },
                             receive_tokens_stopper_collection_clone,
-                            reconciliation_queue,
                         ) => if let Err(err) = result {
                             error!("Error handling incoming message: {err}");
                         }
@@ -415,6 +438,8 @@ impl ManagementSocketClientService {
                     let should_close = match msg {
                         Some(Ok(msg)) => {
                             if let Err(err) = Self::handle_incoming_message(
+                                    self.agent_applicable_state_holder.clone(),
+                                    self.agent_desired_state_tx.clone(),
                                     connection_close_tx.clone(),
                                     self.continue_conversation_request_tx.clone(),
                                     self.generate_tokens_request_tx.clone(),
@@ -423,7 +448,6 @@ impl ManagementSocketClientService {
                                     message_tx.clone(),
                                     msg,
                                     pong_tx.clone(),
-                                    self.reconciliation_queue.clone(),
                                 )
                                 .await
                                 .context("Failed to handle incoming message")
