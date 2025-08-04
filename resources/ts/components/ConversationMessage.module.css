@@ -16,6 +16,10 @@
   padding-right: var(--spacing-half);
 }
 
+.conversationMessage__error {
+  background-color: lightcoral;
+}
+
 .conversationMessage__response {
   display: flex;
   flex-direction: column;

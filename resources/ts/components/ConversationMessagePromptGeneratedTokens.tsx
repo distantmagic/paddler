@@ -3,9 +3,14 @@ import { scan } from "rxjs";
 
 import { PromptContext } from "../contexts/PromptContext";
 import { InferenceSocketClient } from "../InferenceSocketClient";
+import { type InferenceServiceGenerateTokensResponse } from "../schemas/InferenceServiceGenerateTokensResponse";
 import { ConversationMessage } from "./ConversationMessage";
 
 interface Message {
+  errors: Array<{
+    code: number;
+    description: string;
+  }>;
   isEmpty: boolean;
   isThinking: boolean;
   response: string;
@@ -13,6 +18,7 @@ interface Message {
 }
 
 const defaultMessage: Message = Object.freeze({
+  errors: [],
   isEmpty: true,
   isThinking: false,
   response: "",
@@ -57,9 +63,31 @@ export const ConversationMessagePromptGeneratedTokens = memo(
             ],
           })
           .pipe(
-            scan(function (message: Message, token: string) {
+            scan(function (
+              message: Message,
+              { done, error, token }: InferenceServiceGenerateTokensResponse,
+            ) {
+              if (error) {
+                return Object.freeze({
+                  ...message,
+                  errors: [...message.errors, error],
+                  isEmpty: false,
+                });
+              }
+
+              if (done) {
+                return Object.freeze({
+                  errors: message.errors,
+                  isEmpty: false,
+                  isThinking: false,
+                  response: message.response,
+                  thoughts: message.thoughts,
+                });
+              }
+
               if ("<think>" === token) {
                 return Object.freeze({
+                  errors: message.errors,
                   isEmpty: false,
                   isThinking: true,
                   response: message.response,
@@ -69,6 +97,7 @@ export const ConversationMessagePromptGeneratedTokens = memo(
 
               if ("</think>" === token) {
                 return Object.freeze({
+                  errors: message.errors,
                   isEmpty: false,
                   isThinking: false,
                   response: message.response,
@@ -78,6 +107,7 @@ export const ConversationMessagePromptGeneratedTokens = memo(
 
               if (message.isThinking) {
                 return Object.freeze({
+                  errors: message.errors,
                   isEmpty: false,
                   isThinking: true,
                   response: message.response,
@@ -86,6 +116,7 @@ export const ConversationMessagePromptGeneratedTokens = memo(
               }
 
               return Object.freeze({
+                errors: message.errors,
                 isEmpty: false,
                 isThinking: false,
                 response: `${message.response}${token}`,
@@ -103,12 +134,25 @@ export const ConversationMessagePromptGeneratedTokens = memo(
     );
 
     if (message.isEmpty) {
+      if (submittedPrompt) {
+        return (
+          <ConversationMessage
+            author="AI"
+            errors={message.errors}
+            isThinking={true}
+            response={message.response}
+            thoughts={message.thoughts}
+          />
+        );
+      }
+
       return;
     }
 
     return (
       <ConversationMessage
         author="AI"
+        errors={message.errors}
         isThinking={message.isThinking}
         response={message.response}
         thoughts={message.thoughts}

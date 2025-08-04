@@ -38,7 +38,7 @@ use crate::service_manager::ServiceManager;
 
 #[derive(Parser)]
 pub struct Balancer {
-    #[arg(long, default_value = "20000", value_parser = parse_duration)]
+    #[arg(long, default_value = "10000", value_parser = parse_duration)]
     /// The request timeout (in milliseconds). For all requests that a timely response from an
     /// upstream isn't received for, the 504 (Gateway Timeout) error is issued.
     buffered_request_timeout: Duration,

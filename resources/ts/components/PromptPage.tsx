@@ -29,6 +29,7 @@ export function PromptPage({ inferenceAddr }: { inferenceAddr: string }) {
             {submittedPrompt && (
               <ConversationMessage
                 author="You"
+                errors={[]}
                 isThinking={false}
                 response={submittedPrompt}
                 thoughts=""

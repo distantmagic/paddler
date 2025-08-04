@@ -163,7 +163,7 @@ impl InferenceSocketController {
                         Self::respond_with_error(
                             JsonRpcError {
                                 code: 408,
-                                description: "Waiting for available agent timed out".to_string(),
+                                description: "Waiting for available slot timed out".to_string(),
                             },
                             id.clone(),
                             websocket_session_controller,
