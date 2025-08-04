@@ -10,6 +10,7 @@ pub enum AgentStateApplicationStatus {
     AttemptedAndNotAppliable,
     AttemptedAndRetrying,
     Fresh,
+    Stuck,
 }
 
 impl AgentStateApplicationStatus {
@@ -19,6 +20,7 @@ impl AgentStateApplicationStatus {
             1 => Ok(AgentStateApplicationStatus::AttemptedAndNotAppliable),
             2 => Ok(AgentStateApplicationStatus::AttemptedAndRetrying),
             3 => Ok(AgentStateApplicationStatus::Fresh),
+            4 => Ok(AgentStateApplicationStatus::Stuck),
             _ => Err(anyhow!("Invalid AgentStateApplicationStatus code: {}", code)),
         }
     }
@@ -29,6 +31,7 @@ impl AgentStateApplicationStatus {
             AgentStateApplicationStatus::AttemptedAndNotAppliable => false,
             AgentStateApplicationStatus::AttemptedAndRetrying => true,
             AgentStateApplicationStatus::Fresh => true,
+            AgentStateApplicationStatus::Stuck => true,
         }
     }
 
@@ -38,6 +41,7 @@ impl AgentStateApplicationStatus {
             AgentStateApplicationStatus::AttemptedAndNotAppliable => 1,
             AgentStateApplicationStatus::AttemptedAndRetrying => 2,
             AgentStateApplicationStatus::Fresh => 3,
+            AgentStateApplicationStatus::Stuck => 4,
         }
     }
 }

@@ -19,6 +19,7 @@ export const AgentSchema = z
       "AttemptedAndNotAppliable",
       "AttemptedAndRetrying",
       "Fresh",
+      "Stuck",
     ]),
     uses_chat_template_override: z.boolean(),
   })

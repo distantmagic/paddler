@@ -220,11 +220,17 @@ impl Service for LlamaCppArbiterService {
             tokio::select! {
                 _ = shutdown.recv() => break Ok(()),
                 _ = ticker.tick() => {
-                    if self.slot_aggregated_status_manager.slot_aggregated_status.get_state_application_status()?.should_try_to_apply() {
+                    let current_status = self.slot_aggregated_status_manager.slot_aggregated_status.get_state_application_status()?;
+
+                    if current_status.should_try_to_apply() {
                         self.slot_aggregated_status_manager
                             .slot_aggregated_status
                             .set_state_application_status(
-                                AgentStateApplicationStatus::AttemptedAndRetrying,
+                                if matches!(current_status, AgentStateApplicationStatus::AttemptedAndRetrying) {
+                                    AgentStateApplicationStatus::Stuck
+                                } else {
+                                    AgentStateApplicationStatus::AttemptedAndRetrying
+                                }
                             );
 
                         self.try_to_apply_state().await;

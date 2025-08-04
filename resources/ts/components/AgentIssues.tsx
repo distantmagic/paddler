@@ -18,7 +18,7 @@ export function AgentIssues({ issues }: { issues: Array<AgentIssue> }) {
               </strong>
               <strong>What will Paddler do?</strong>{" "}
               <p>
-                Paddler will continue to run, but it wo't reattempt to load the
+                Paddler will continue to run, but it won't reattempt to load the
                 model.
               </p>
               <strong>What can you do?</strong>{" "}

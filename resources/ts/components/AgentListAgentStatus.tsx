@@ -59,5 +59,13 @@ export function AgentListAgentStatus({
           </div>
         </div>
       );
+    case "Stuck":
+      return (
+        <div className={agentListAgentStatus__progress}>
+          <div>
+            🤨 <i>Retrying, but seems stuck?</i>
+          </div>
+        </div>
+      );
   }
 }
