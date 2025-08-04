@@ -19,6 +19,7 @@ use log::warn;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
 
+use crate::balancer::inference_service::app_data::AppData;
 use self::client::Message as OutgoingMessage;
 use self::client::Response as OutgoingResponse;
 use self::inference_socket_controller_context::InferenceSocketControllerContext;
@@ -44,8 +45,8 @@ pub fn register(cfg: &mut ServiceConfig) {
 }
 
 struct InferenceSocketController {
-    buffered_request_manager: Data<BufferedRequestManager>,
-    inference_service_configuration: Data<InferenceServiceConfiguration>,
+    buffered_request_manager: Arc<BufferedRequestManager>,
+    inference_service_configuration: InferenceServiceConfiguration,
 }
 
 impl InferenceSocketController {
@@ -356,14 +357,13 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
 
 #[get("/api/v1/inference_socket")]
 async fn respond(
-    buffered_request_manager: Data<BufferedRequestManager>,
-    inference_service_configuration: Data<InferenceServiceConfiguration>,
+    app_data: Data<AppData>,
     payload: Payload,
     req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
     let inference_socket_controller = InferenceSocketController {
-        buffered_request_manager,
-        inference_service_configuration,
+        buffered_request_manager: app_data.buffered_request_manager.clone(),
+        inference_service_configuration: app_data.inference_service_configuration.clone(),
     };
 
     inference_socket_controller.respond(payload, req)

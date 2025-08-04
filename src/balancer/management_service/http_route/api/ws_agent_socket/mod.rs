@@ -27,6 +27,7 @@ use serde::Deserialize;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
+use crate::balancer::management_service::app_data::AppData;
 use crate::balancer::manages_senders::ManagesSenders as _;
 use self::agent_socket_controller_context::AgentSocketControllerContext;
 use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
@@ -57,12 +58,12 @@ pub fn register(cfg: &mut ServiceConfig) {
 }
 
 struct AgentSocketController {
-    agent_controller_pool: Data<AgentControllerPool>,
+    agent_controller_pool: Arc<AgentControllerPool>,
     agent_id: String,
-    balancer_applicable_state_holder: Data<BalancerApplicableStateHolder>,
-    chat_template_override_sender_collection: Data<ChatTemplateOverrideSenderCollection>,
-    generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
-    model_metadata_sender_collection: Data<ModelMetadataSenderCollection>,
+    balancer_applicable_state_holder: Arc<BalancerApplicableStateHolder>,
+    chat_template_override_sender_collection: Arc<ChatTemplateOverrideSenderCollection>,
+    generate_tokens_sender_collection: Arc<GenerateTokensSenderCollection>,
+    model_metadata_sender_collection: Arc<ModelMetadataSenderCollection>,
 }
 
 #[async_trait]
@@ -278,25 +279,20 @@ struct PathParams {
     agent_id: String,
 }
 
-#[expect(clippy::too_many_arguments)]
 #[get("/api/v1/agent_socket/{agent_id}")]
 async fn respond(
-    agent_controller_pool: Data<AgentControllerPool>,
-    balancer_applicable_state_holder: Data<BalancerApplicableStateHolder>,
-    chat_template_override_sender_collection: Data<ChatTemplateOverrideSenderCollection>,
-    generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
-    model_metadata_sender_collection: Data<ModelMetadataSenderCollection>,
+    app_data: Data<AppData>,
     path_params: Path<PathParams>,
     payload: Payload,
     req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
     let agent_socket_controller = AgentSocketController {
-        agent_controller_pool,
+        agent_controller_pool: app_data.agent_controller_pool.clone(),
         agent_id: path_params.agent_id.clone(),
-        balancer_applicable_state_holder,
-        chat_template_override_sender_collection,
-        generate_tokens_sender_collection,
-        model_metadata_sender_collection,
+        balancer_applicable_state_holder: app_data.balancer_applicable_state_holder.clone(),
+        chat_template_override_sender_collection: app_data.chat_template_override_sender_collection.clone(),
+        generate_tokens_sender_collection: app_data.generate_tokens_sender_collection.clone(),
+        model_metadata_sender_collection: app_data.model_metadata_sender_collection.clone(),
     };
 
     agent_socket_controller.respond(payload, req)

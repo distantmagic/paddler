@@ -1,8 +1,7 @@
+pub mod app_data;
 pub mod configuration;
 pub mod http_route;
 pub mod template_data;
-
-use std::sync::Arc;
 
 use actix_web::web::Data;
 use actix_web::App;
@@ -12,13 +11,11 @@ use async_trait::async_trait;
 use log::error;
 use tokio::sync::broadcast;
 
-use crate::balancer::agent_controller_pool::AgentControllerPool;
-use crate::balancer::web_admin_panel_service::template_data::TemplateData;
+use crate::balancer::web_admin_panel_service::app_data::AppData;
 use crate::balancer::web_admin_panel_service::configuration::Configuration as WebAdminPanelServiceConfiguration;
 use crate::service::Service;
 
 pub struct WebAdminPanelService {
-    pub agent_controller_pool: Arc<AgentControllerPool>,
     pub configuration: WebAdminPanelServiceConfiguration,
 }
 
@@ -29,13 +26,13 @@ impl Service for WebAdminPanelService {
     }
 
     async fn run(&mut self, mut shutdown: broadcast::Receiver<()>) -> Result<()> {
-        let agent_controller_pool: Data<AgentControllerPool> = Data::from(self.agent_controller_pool.clone());
-        let template_data: Data<TemplateData> = Data::new(self.configuration.template_data.clone());
+        let app_data: Data<AppData> = Data::new(AppData {
+            template_data: self.configuration.template_data.clone(),
+        });
 
         HttpServer::new(move || {
             App::new()
-                .app_data(agent_controller_pool.clone())
-                .app_data(template_data.clone())
+                .app_data(app_data.clone())
                 .configure(http_route::favicon::register)
                 .configure(http_route::static_files::register)
                 .configure(http_route::home::register)

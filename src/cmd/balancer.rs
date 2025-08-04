@@ -149,14 +149,12 @@ impl Handler for Balancer {
         };
 
         service_manager.add_service(InferenceService {
-            agent_controller_pool: agent_controller_pool.clone(),
             buffered_request_manager: buffered_request_manager.clone(),
             configuration: InferenceServiceConfiguration {
                 addr: self.inference_addr,
                 cors_allowed_hosts: self.inference_cors_allowed_hosts.clone(),
                 inference_token_timeout: self.inference_token_timeout,
             },
-            state_database: state_database.clone(),
             #[cfg(feature = "web_admin_panel")]
             web_admin_panel_service_configuration: self.get_web_admin_panel_service_configuration(),
         });
@@ -197,7 +195,6 @@ impl Handler for Balancer {
         #[cfg(feature = "web_admin_panel")]
         if let Some(configuration) = self.get_web_admin_panel_service_configuration() {
             service_manager.add_service(WebAdminPanelService {
-                agent_controller_pool,
                 configuration,
             });
         }

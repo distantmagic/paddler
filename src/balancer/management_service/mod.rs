@@ -1,3 +1,4 @@
+pub mod app_data;
 pub mod configuration;
 pub mod http_route;
 
@@ -11,6 +12,7 @@ use async_trait::async_trait;
 use log::error;
 use tokio::sync::broadcast;
 
+use crate::balancer::management_service::app_data::AppData;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
@@ -48,31 +50,27 @@ impl Service for ManagementService {
         #[allow(unused_mut)]
         let mut cors_allowed_hosts = self.configuration.cors_allowed_hosts.clone();
 
-        let agent_pool: Data<AgentControllerPool> = Data::from(self.agent_controller_pool.clone());
-
         #[cfg(feature = "web_admin_panel")]
         if let Some(web_admin_panel_config) = &self.web_admin_panel_service_configuration {
             cors_allowed_hosts.push(format!("http://{}", web_admin_panel_config.addr));
         }
 
-        let balancer_applicable_state_holder: Data<BalancerApplicableStateHolder> = Data::from(self.balancer_applicable_state_holder.clone());
-        let buffered_request_manager: Data<BufferedRequestManager> = Data::from(self.buffered_request_manager.clone());
-        let chat_template_override_sender_collection: Data<ChatTemplateOverrideSenderCollection> = Data::from(self.chat_template_override_sender_collection.clone());
         let cors_allowed_hosts_arc = Arc::new(cors_allowed_hosts);
-        let generate_tokens_sender_collection: Data<GenerateTokensSenderCollection> = Data::from(self.generate_tokens_sender_collection.clone());
-        let model_metadata_sender_collection: Data<ModelMetadataSenderCollection> = Data::from(self.model_metadata_sender_collection.clone());
-        let state_database: Data<dyn StateDatabase> = Data::from(self.state_database.clone());
+
+        let app_data = Data::new(AppData {
+            agent_controller_pool: self.agent_controller_pool.clone(),
+            balancer_applicable_state_holder: self.balancer_applicable_state_holder.clone(),
+            buffered_request_manager: self.buffered_request_manager.clone(),
+            chat_template_override_sender_collection: self.chat_template_override_sender_collection.clone(),
+            generate_tokens_sender_collection: self.generate_tokens_sender_collection.clone(),
+            model_metadata_sender_collection: self.model_metadata_sender_collection.clone(),
+            state_database: self.state_database.clone(),
+        });
 
         HttpServer::new(move || {
             App::new()
                 .wrap(create_cors_middleware(cors_allowed_hosts_arc.clone()))
-                .app_data(agent_pool.clone())
-                .app_data(balancer_applicable_state_holder.clone())
-                .app_data(buffered_request_manager.clone())
-                .app_data(chat_template_override_sender_collection.clone())
-                .app_data(generate_tokens_sender_collection.clone())
-                .app_data(model_metadata_sender_collection.clone())
-                .app_data(state_database.clone())
+                .app_data(app_data.clone())
                 .configure(common_http_route::get_health::register)
                 .configure(http_route::api::get_agents::register)
                 .configure(http_route::api::get_agents_stream::register)

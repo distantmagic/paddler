@@ -8,7 +8,7 @@ use actix_web::Responder;
 use actix_web_lab::sse;
 use log::error;
 
-use crate::balancer::agent_controller_pool::AgentControllerPool;
+use crate::balancer::management_service::app_data::AppData;
 use crate::produces_snapshot::ProducesSnapshot as _;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
@@ -17,7 +17,7 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 
 #[get("/api/v1/agents/stream")]
 async fn respond(
-    agent_controller_pool: web::Data<AgentControllerPool>,
+    app_data: web::Data<AppData>,
 ) -> Result<impl Responder, Error> {
     let event_stream = async_stream::stream! {
         let send_event = |info| {
@@ -31,7 +31,7 @@ async fn respond(
         };
 
         loop {
-            match agent_controller_pool.make_snapshot() {
+            match app_data.agent_controller_pool.make_snapshot() {
                 Ok(agent_controller_pool_snapshot) => {
                     if let Some(event) = send_event(agent_controller_pool_snapshot) {
                         yield event;
@@ -40,7 +40,7 @@ async fn respond(
                 Err(err) => error!("Failed to get agent controller pool snapshot: {err}"),
             }
 
-            agent_controller_pool.update_notifier.notified().await;
+            app_data.agent_controller_pool.update_notifier.notified().await;
         }
     };
 

@@ -1,5 +1,6 @@
+use std::sync::Arc;
+
 use anyhow::Result;
-use actix_web::web::Data;
 use log::error;
 use tokio::sync::mpsc;
 
@@ -11,7 +12,7 @@ where
 {
     pub request_id: String,
     pub response_rx: mpsc::UnboundedReceiver<TSenderCollection::Value>,
-    pub response_sender_collection: Data<TSenderCollection>,
+    pub response_sender_collection: Arc<TSenderCollection>,
 }
 
 impl<TSenderCollection> ManagesSendersController<TSenderCollection>
@@ -20,7 +21,7 @@ where
 {
     pub fn from_request_id(
         request_id: String,
-        response_sender_collection: Data<TSenderCollection>,
+        response_sender_collection: Arc<TSenderCollection>,
     ) -> Result<Self> {
         let (response_tx, response_rx) = mpsc::unbounded_channel();
 

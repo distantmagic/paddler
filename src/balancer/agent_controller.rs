@@ -2,9 +2,9 @@ use std::collections::BTreeSet;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicUsize;
+use std::sync::Arc;
 use std::sync::RwLock;
 
-use actix_web::web::Data;
 use anyhow::Result;
 use async_trait::async_trait;
 use log::debug;
@@ -37,16 +37,16 @@ use crate::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 
 pub struct AgentController {
     pub agent_message_tx: mpsc::UnboundedSender<AgentJsonRpcMessage>,
-    pub chat_template_override_sender_collection: Data<ChatTemplateOverrideSenderCollection>,
+    pub chat_template_override_sender_collection: Arc<ChatTemplateOverrideSenderCollection>,
     pub connection_close_rx: broadcast::Receiver<()>,
     pub desired_slots_total: AtomicValue<AtomicI32>,
     pub download_current: AtomicValue<AtomicUsize>,
     pub download_filename: RwLock<Option<String>>,
     pub download_total: AtomicValue<AtomicUsize>,
-    pub generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
+    pub generate_tokens_sender_collection: Arc<GenerateTokensSenderCollection>,
     pub id: String,
     pub issues: RwLock<BTreeSet<AgentIssue>>,
-    pub model_metadata_sender_collection: Data<ModelMetadataSenderCollection>,
+    pub model_metadata_sender_collection: Arc<ModelMetadataSenderCollection>,
     pub model_path: RwLock<Option<String>>,
     pub name: Option<String>,
     pub newest_update_version: AtomicValue<AtomicI32>,
