@@ -200,6 +200,7 @@ pub trait ControlsInferenceEndpoint {
                             let is_done = matches!(generated_token_envelope.generated_token_result, GeneratedTokenResult::Done);
 
                             Self::respond_with_token(
+                                agent_controller.clone(),
                                 generated_token_envelope,
                                 request_id.clone(),
                                 &mut session_controller,
@@ -235,19 +236,23 @@ pub trait ControlsInferenceEndpoint {
     }
 
     async fn respond_with_token(
+        agent_controller: Arc<AgentController>,
         generated_token_envelope: GeneratedTokenEnvelope,
         request_id: String,
         session_controller: &mut Self::SessionController,
     ) {
-        session_controller
+        if let Err(err) = session_controller
             .send_response(OutgoingMessage::Response(ResponseEnvelope {
                 request_id: request_id.clone(),
                 response: OutgoingResponse::GeneratedToken(generated_token_envelope),
             }))
-            .await
-            .unwrap_or_else(|err| {
-                error!("Failed to send generated token for request {request_id:?}: {err}");
+            .await {
+            error!("Failed to send generated token for request {request_id:?}: {err}");
+
+            agent_controller.stop_generating_tokens(request_id.clone()).await.unwrap_or_else(|err| {
+                error!("Failed to stop generating tokens for request {request_id:?}: {err}");
             });
+        }
     }
 
     async fn wait_for_agent_controller(
