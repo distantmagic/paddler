@@ -9,6 +9,7 @@ use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::context::LlamaContext;
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::llama_batch::LlamaBatch;
+use rand::Rng as _;
 use llama_cpp_2::model::AddBos;
 use llama_cpp_2::model::LlamaModel;
 use llama_cpp_2::model::Special;
@@ -141,18 +142,20 @@ impl LlamaCppSlot {
 
         let mut n_cur = batch.n_tokens();
         let mut decoder = encoding_rs::UTF_8.new_decoder();
+
+        let mut rng = rand::rng();
         let mut sampler = LlamaSampler::chain_simple([
-            LlamaSampler::temp(self.slot_context.inference_parameters.temperature),
-            LlamaSampler::top_k(self.slot_context.inference_parameters.top_k),
-            LlamaSampler::top_p(self.slot_context.inference_parameters.top_p, 0),
-            LlamaSampler::min_p(self.slot_context.inference_parameters.min_p, 0),
             LlamaSampler::penalties(
                 self.slot_context.inference_parameters.penalty_last_n,
                 self.slot_context.inference_parameters.penalty_repeat,
                 self.slot_context.inference_parameters.penalty_frequency,
                 self.slot_context.inference_parameters.penalty_presence,
             ),
-            LlamaSampler::greedy(),
+            LlamaSampler::top_k(self.slot_context.inference_parameters.top_k),
+            LlamaSampler::top_p(self.slot_context.inference_parameters.top_p, 0),
+            LlamaSampler::min_p(self.slot_context.inference_parameters.min_p, 0),
+            LlamaSampler::temp(self.slot_context.inference_parameters.temperature),
+            LlamaSampler::dist(rng.random::<u32>()),
         ]);
 
         while n_cur <= max_tokens {
