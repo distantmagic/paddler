@@ -25,7 +25,6 @@ use crate::agent::generate_tokens_drop_guard::GenerateTokensDropGuard;
 use crate::agent::continue_from_raw_prompt_request::ContinueFromRawPromptRequest;
 use crate::agent::kv_cache_repair_action::KVCacheRepairAction;
 use crate::dispenses_slots::DispensesSlots as _;
-use crate::generated_token::GeneratedToken;
 use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::generated_token_result::GeneratedTokenResult;
 use crate::request_params::ContinueFromConversationHistoryParams;
@@ -183,9 +182,7 @@ impl LlamaCppSlot {
 
                 generated_tokens_tx.send(GeneratedTokenEnvelope {
                     slot: self.index,
-                    generated_token_result: GeneratedTokenResult::Token(GeneratedToken {
-                        token: output_string,
-                    }),
+                    generated_token_result: GeneratedTokenResult::Token(output_string),
                 })?;
 
                 batch.clear();

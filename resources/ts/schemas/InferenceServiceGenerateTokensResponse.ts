@@ -19,9 +19,7 @@ export const InferenceServiceGenerateTokensResponseSchema = z
             generated_token_result: z.union([
               z.literal("Done"),
               z.object({
-                Token: z.object({
-                  token: z.string(),
-                }),
+                Token: z.string(),
               }),
             ]),
             slot: z.number(),
@@ -82,9 +80,7 @@ export const InferenceServiceGenerateTokensResponseSchema = z
       error: null,
       ok: true,
       request_id: data.Response.request_id,
-      token:
-        data.Response.response.GeneratedToken.generated_token_result.Token
-          .token,
+      token: data.Response.response.GeneratedToken.generated_token_result.Token,
     });
   });
 
