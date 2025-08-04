@@ -119,16 +119,16 @@ impl LlamaCppArbiterService {
                     .slot_aggregated_status
                     .register_fix(AgentIssueFix::ModelFileExists);
                 self.llamacpp_arbiter_controller = Some(
-                    LlamaCppArbiter::new(
-                        self.agent_name.clone(),
+                    LlamaCppArbiter {
+                        agent_name: self.agent_name.clone(),
                         chat_template_override,
-                        self.desired_slots_total,
+                        desired_slots_total: self.desired_slots_total,
                         inference_parameters,
-                        self.model_metadata_holder.clone(),
+                        model_metadata_holder: self.model_metadata_holder.clone(),
                         model_path,
                         model_path_string,
-                        self.slot_aggregated_status_manager.clone(),
-                    )
+                        slot_aggregated_status_manager: self.slot_aggregated_status_manager.clone(),
+                    }
                     .spawn()
                     .await?,
                 );

@@ -18,20 +18,8 @@ use crate::balancer::web_admin_panel_service::configuration::Configuration as We
 use crate::service::Service;
 
 pub struct WebAdminPanelService {
-    agent_controller_pool: Arc<AgentControllerPool>,
-    configuration: WebAdminPanelServiceConfiguration,
-}
-
-impl WebAdminPanelService {
-    pub fn new(
-        agent_controller_pool: Arc<AgentControllerPool>,
-        configuration: WebAdminPanelServiceConfiguration,
-    ) -> Self {
-        WebAdminPanelService {
-            agent_controller_pool,
-            configuration,
-        }
-    }
+    pub agent_controller_pool: Arc<AgentControllerPool>,
+    pub configuration: WebAdminPanelServiceConfiguration,
 }
 
 #[async_trait]

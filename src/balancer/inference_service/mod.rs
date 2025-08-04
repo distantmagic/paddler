@@ -39,33 +39,12 @@ fn create_cors_middleware(allowed_hosts: Arc<Vec<String>>) -> Cors {
 }
 
 pub struct InferenceService {
-    agent_controller_pool: Arc<AgentControllerPool>,
-    buffered_request_manager: Arc<BufferedRequestManager>,
-    configuration: InferenceServiceConfiguration,
-    state_database: Arc<dyn StateDatabase>,
+    pub agent_controller_pool: Arc<AgentControllerPool>,
+    pub buffered_request_manager: Arc<BufferedRequestManager>,
+    pub configuration: InferenceServiceConfiguration,
+    pub state_database: Arc<dyn StateDatabase>,
     #[cfg(feature = "web_admin_panel")]
-    web_admin_panel_service_configuration: Option<WebAdminPanelServiceConfiguration>,
-}
-
-impl InferenceService {
-    pub fn new(
-        agent_controller_pool: Arc<AgentControllerPool>,
-        buffered_request_manager: Arc<BufferedRequestManager>,
-        configuration: InferenceServiceConfiguration,
-        state_database: Arc<dyn StateDatabase>,
-        #[cfg(feature = "web_admin_panel")] web_admin_panel_service_configuration: Option<
-            WebAdminPanelServiceConfiguration,
-        >,
-    ) -> Self {
-        InferenceService {
-            agent_controller_pool,
-            buffered_request_manager,
-            configuration,
-            state_database,
-            #[cfg(feature = "web_admin_panel")]
-            web_admin_panel_service_configuration,
-        }
-    }
+    pub web_admin_panel_service_configuration: Option<WebAdminPanelServiceConfiguration>,
 }
 
 #[async_trait]

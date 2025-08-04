@@ -32,40 +32,17 @@ use crate::slot_aggregated_status_manager::SlotAggregatedStatusManager;
 use crate::chat_template::ChatTemplate;
 
 pub struct LlamaCppArbiter {
-    agent_name: Option<String>,
-    chat_template_override: Option<ChatTemplate>,
-    desired_slots_total: i32,
-    inference_parameters: InferenceParameters,
-    model_metadata_holder: Arc<ModelMetadataHolder>,
-    model_path: PathBuf,
-    model_path_string: String,
-    slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
+    pub agent_name: Option<String>,
+    pub chat_template_override: Option<ChatTemplate>,
+    pub desired_slots_total: i32,
+    pub inference_parameters: InferenceParameters,
+    pub model_metadata_holder: Arc<ModelMetadataHolder>,
+    pub model_path: PathBuf,
+    pub model_path_string: String,
+    pub slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
 }
 
 impl LlamaCppArbiter {
-    #[expect(clippy::too_many_arguments)]
-    pub fn new(
-        agent_name: Option<String>,
-        chat_template_override: Option<ChatTemplate>,
-        desired_slots_total: i32,
-        inference_parameters: InferenceParameters,
-        model_metadata_holder: Arc<ModelMetadataHolder>,
-        model_path: PathBuf,
-        model_path_string: String,
-        slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
-    ) -> Self {
-        Self {
-            agent_name,
-            chat_template_override,
-            desired_slots_total,
-            inference_parameters,
-            model_metadata_holder,
-            model_path,
-            model_path_string,
-            slot_aggregated_status_manager,
-        }
-    }
-
     pub async fn spawn(&self) -> Result<LlamaCppArbiterController> {
         let (chat_template_loaded_tx, chat_template_loaded_rx) = oneshot::channel::<()>();
         let (llamacpp_slot_addr_tx, llamacpp_slot_addr_rx) = oneshot::channel();

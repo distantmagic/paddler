@@ -148,18 +148,18 @@ impl Handler for Balancer {
             StateDatabaseType::Memory => Arc::new(Memory::new(balancer_desired_state_tx.clone())),
         };
 
-        service_manager.add_service(InferenceService::new(
-            agent_controller_pool.clone(),
-            buffered_request_manager.clone(),
-            InferenceServiceConfiguration {
+        service_manager.add_service(InferenceService {
+            agent_controller_pool: agent_controller_pool.clone(),
+            buffered_request_manager: buffered_request_manager.clone(),
+            configuration: InferenceServiceConfiguration {
                 addr: self.inference_addr,
                 cors_allowed_hosts: self.inference_cors_allowed_hosts.clone(),
                 inference_token_timeout: self.inference_token_timeout,
             },
-            state_database.clone(),
+            state_database: state_database.clone(),
             #[cfg(feature = "web_admin_panel")]
-            self.get_web_admin_panel_service_configuration(),
-        ));
+            web_admin_panel_service_configuration: self.get_web_admin_panel_service_configuration(),
+        });
 
         service_manager.add_service(ManagementService {
             agent_controller_pool: agent_controller_pool.clone(),
@@ -174,33 +174,32 @@ impl Handler for Balancer {
             web_admin_panel_service_configuration: self.get_web_admin_panel_service_configuration(),
         });
 
-        service_manager.add_service(ReconciliationService::new(
-            agent_controller_pool.clone(),
+        service_manager.add_service(ReconciliationService {
+            agent_controller_pool: agent_controller_pool.clone(),
             balancer_applicable_state_holder,
-            state_database.read_balancer_desired_state().await?,
+            balancer_desired_state: state_database.read_balancer_desired_state().await?,
             balancer_desired_state_rx,
-        )?);
+            is_converted_to_applicable_state: false,
+        });
 
         if let Some(statsd_addr) = self.statsd_addr {
-            service_manager.add_service(StatsdService::new(
-                agent_controller_pool.clone(),
+            service_manager.add_service(StatsdService {
+                agent_controller_pool: agent_controller_pool.clone(),
                 buffered_request_manager,
-                StatsdServiceConfiguration {
+                configuration: StatsdServiceConfiguration {
                     statsd_addr,
                     statsd_prefix: self.statsd_prefix.clone(),
                     statsd_reporting_interval: self.statsd_reporting_interval,
                 },
-            )?);
+            });
         }
 
         #[cfg(feature = "web_admin_panel")]
-        if let Some(web_admin_panel_service_configuration) =
-            self.get_web_admin_panel_service_configuration()
-        {
-            service_manager.add_service(WebAdminPanelService::new(
+        if let Some(configuration) = self.get_web_admin_panel_service_configuration() {
+            service_manager.add_service(WebAdminPanelService {
                 agent_controller_pool,
-                web_admin_panel_service_configuration,
-            ));
+                configuration,
+            });
         }
 
         service_manager.run_forever(shutdown_rx).await

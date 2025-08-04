@@ -20,24 +20,12 @@ use crate::balancer::statsd_service::configuration::Configuration as StatsdServi
 use crate::service::Service;
 
 pub struct StatsdService {
-    agent_controller_pool: Arc<AgentControllerPool>,
-    buffered_request_manager: Arc<BufferedRequestManager>,
-    configuration: StatsdServiceConfiguration,
+    pub agent_controller_pool: Arc<AgentControllerPool>,
+    pub buffered_request_manager: Arc<BufferedRequestManager>,
+    pub configuration: StatsdServiceConfiguration,
 }
 
 impl StatsdService {
-    pub fn new(
-        agent_controller_pool: Arc<AgentControllerPool>,
-        buffered_request_manager: Arc<BufferedRequestManager>,
-        configuration: StatsdServiceConfiguration,
-    ) -> Result<Self> {
-        Ok(StatsdService {
-            agent_controller_pool,
-            buffered_request_manager,
-            configuration,
-        })
-    }
-
     async fn report_metrics(&self, client: &StatsdClient) -> Result<()> {
         let AgentControllerPoolTotalSlots {
             slots_processing,

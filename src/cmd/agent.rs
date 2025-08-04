@@ -6,9 +6,11 @@ use async_trait::async_trait;
 use clap::Parser;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
+use uuid::Uuid;
 
 use crate::agent::continue_from_conversation_history_request::ContinueFromConversationHistoryRequest;
 use crate::agent::continue_from_raw_prompt_request::ContinueFromRawPromptRequest;
+use crate::agent::receive_tokens_stopper_collection::ReceiveTokensStopperCollection;
 use crate::agent::llamacpp_arbiter_service::LlamaCppArbiterService;
 use crate::agent::management_socket_client_service::ManagementSocketClientService;
 use crate::agent::model_metadata_holder::ModelMetadataHolder;
@@ -46,38 +48,37 @@ impl Handler for Agent {
         let mut service_manager = ServiceManager::new();
         let slot_aggregated_status_manager = Arc::new(SlotAggregatedStatusManager::new(self.slots));
 
-        service_manager.add_service(
-            LlamaCppArbiterService {
-                agent_applicable_state: None,
-                agent_applicable_state_holder: agent_applicable_state_holder.clone(),
-                agent_name: self.name.clone(),
-                continue_from_conversation_history_request_rx,
-                continue_from_raw_prompt_request_rx,
-                desired_slots_total: self.slots,
-                llamacpp_arbiter_controller: None,
-                model_metadata_holder: model_metadata_holder.clone(),
-                slot_aggregated_status_manager: slot_aggregated_status_manager.clone(),
-            }
-        );
+        service_manager.add_service(LlamaCppArbiterService {
+            agent_applicable_state: None,
+            agent_applicable_state_holder: agent_applicable_state_holder.clone(),
+            agent_name: self.name.clone(),
+            continue_from_conversation_history_request_rx,
+            continue_from_raw_prompt_request_rx,
+            desired_slots_total: self.slots,
+            llamacpp_arbiter_controller: None,
+            model_metadata_holder: model_metadata_holder.clone(),
+            slot_aggregated_status_manager: slot_aggregated_status_manager.clone(),
+        });
 
-        service_manager.add_service(ManagementSocketClientService::new(
-            agent_applicable_state_holder.clone(),
+        service_manager.add_service(ManagementSocketClientService {
+            agent_applicable_state_holder: agent_applicable_state_holder.clone(),
             agent_desired_state_tx,
             continue_from_conversation_history_request_tx,
             continue_from_raw_prompt_request_tx,
-            self.management_addr,
             model_metadata_holder,
-            self.name.clone(),
-            slot_aggregated_status_manager.slot_aggregated_status.clone(),
-        )?);
+            name: self.name.clone(),
+            receive_tokens_stopper_collection: Arc::new(ReceiveTokensStopperCollection::new()),
+            slot_aggregated_status: slot_aggregated_status_manager.slot_aggregated_status.clone(),
+            socket_url: format!("ws://{}/api/v1/agent_socket/{}", self.management_addr, Uuid::new_v4()),
+        });
 
-        service_manager.add_service(ReconciliationService::new(
+        service_manager.add_service(ReconciliationService {
             agent_applicable_state_holder,
+            agent_desired_state: None,
             agent_desired_state_rx,
-            slot_aggregated_status_manager
-                .slot_aggregated_status
-                .clone(),
-        )?);
+            is_converted_to_applicable_state: false,
+            slot_aggregated_status: slot_aggregated_status_manager.slot_aggregated_status.clone(),
+        });
 
         service_manager.run_forever(shutdown_rx).await
     }
