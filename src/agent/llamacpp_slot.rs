@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use actix::Actor;
@@ -29,44 +28,28 @@ use crate::dispenses_slots::DispensesSlots as _;
 use crate::generated_token::GeneratedToken;
 use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::generated_token_result::GeneratedTokenResult;
-use crate::chat_template_renderer::ChatTemplateRenderer;
-use crate::inference_parameters::InferenceParameters;
 use crate::request_params::ContinueFromConversationHistoryParams;
 use crate::request_params::ContinueFromRawPromptParams;
+use crate::agent::llamacpp_slot_context::LlamaCppSlotContext;
 use crate::slot_status::SlotStatus;
 
 pub struct LlamaCppSlot {
-    agent_name: Option<String>,
-    chat_template_renderer: Arc<ChatTemplateRenderer>,
-    inference_parameters: InferenceParameters,
+    index: u32,
     llama_context: LlamaContext<'static>,
-    model: Arc<LlamaModel>,
-    model_path: PathBuf,
-    slot_index: u32,
-    slot_status: Arc<SlotStatus>,
-    token_bos_str: String,
-    token_eos_str: String,
-    token_nl_str: String,
+    slot_context: Arc<LlamaCppSlotContext>,
+    status: Arc<SlotStatus>,
 }
 
 impl LlamaCppSlot {
-    #[expect(clippy::too_many_arguments)]
     pub fn new(
-        agent_name: Option<String>,
         backend: Arc<LlamaBackend>,
-        chat_template_renderer: Arc<ChatTemplateRenderer>,
         ctx_params: Arc<LlamaContextParams>,
-        inference_parameters: InferenceParameters,
-        model: Arc<LlamaModel>,
-        model_path: PathBuf,
-        slot_index: u32,
-        slot_status: Arc<SlotStatus>,
-        token_bos_str: String,
-        token_eos_str: String,
-        token_nl_str: String,
+        index: u32,
+        slot_context: Arc<LlamaCppSlotContext>,
+        status: Arc<SlotStatus>,
     ) -> Result<Self> {
         debug_assert!(
-            Arc::strong_count(&model) >= 1,
+            Arc::strong_count(&slot_context.model) >= 1,
             "Model Arc must have at least one reference"
         );
 
@@ -76,23 +59,16 @@ impl LlamaCppSlot {
             // 1. The model is stored in an Arc, so it won't be deallocated
             // 2. We store the Arc in the same struct, ensuring it lives as long as the context
             // 3. The context cannot outlive the struct that contains both it and the model
-            let model_ref: &'static LlamaModel = std::mem::transmute(model.as_ref());
+            let model_ref: &'static LlamaModel = std::mem::transmute(slot_context.model.as_ref());
 
             model_ref.new_context(&backend, (*ctx_params).clone())?
         };
 
         Ok(Self {
-            agent_name,
-            chat_template_renderer,
-            inference_parameters,
+            index,
             llama_context,
-            model,
-            model_path,
-            slot_index,
-            slot_status,
-            token_bos_str,
-            token_eos_str,
-            token_nl_str,
+            slot_context,
+            status,
         })
     }
 
@@ -107,7 +83,7 @@ impl LlamaCppSlot {
                     if !taken_kv_cache_repair_actions.contains(&KVCacheRepairAction::Defrag) {
                         debug!(
                             "{:?}: slot {} has no KV cache slot, defragmenting",
-                            self.agent_name, self.slot_index
+                            self.slot_context.agent_name, self.index
                         );
 
                         taken_kv_cache_repair_actions.push(KVCacheRepairAction::Defrag);
@@ -121,7 +97,7 @@ impl LlamaCppSlot {
                 DecodeError::NTokensZero => {
                     debug!(
                         "{:?}: slot {} - the number of tokens in the batch was 0",
-                        self.agent_name, self.slot_index,
+                        self.slot_context.agent_name, self.index,
                     );
 
                     Err(err.into())
@@ -142,18 +118,18 @@ impl LlamaCppSlot {
         max_tokens: i32,
         prompt: String,
     ) -> Result<()> {
-        self.slot_status.take_slot();
+        self.status.take_slot();
 
         let _guard = GenerateTokensDropGuard::new(
             generated_tokens_tx.clone(),
-            self.slot_index,
-            self.slot_status.clone(),
+            self.index,
+            self.status.clone(),
         );
 
         self.llama_context.clear_kv_cache();
 
-        let tokens_list = self.model.str_to_token(&prompt, AddBos::Always)?;
-        let mut batch = LlamaBatch::new(self.inference_parameters.batch_n_tokens, 1);
+        let tokens_list = self.slot_context.model.str_to_token(&prompt, AddBos::Always)?;
+        let mut batch = LlamaBatch::new(self.slot_context.inference_parameters.batch_n_tokens, 1);
         let last_index = tokens_list.len() as i32 - 1;
 
         for (i, token) in (0_i32..).zip(tokens_list.into_iter()) {
@@ -167,15 +143,15 @@ impl LlamaCppSlot {
         let mut n_cur = batch.n_tokens();
         let mut decoder = encoding_rs::UTF_8.new_decoder();
         let mut sampler = LlamaSampler::chain_simple([
-            LlamaSampler::temp(self.inference_parameters.temperature),
-            LlamaSampler::top_k(self.inference_parameters.top_k),
-            LlamaSampler::top_p(self.inference_parameters.top_p, 0),
-            LlamaSampler::min_p(self.inference_parameters.min_p, 0),
+            LlamaSampler::temp(self.slot_context.inference_parameters.temperature),
+            LlamaSampler::top_k(self.slot_context.inference_parameters.top_k),
+            LlamaSampler::top_p(self.slot_context.inference_parameters.top_p, 0),
+            LlamaSampler::min_p(self.slot_context.inference_parameters.min_p, 0),
             LlamaSampler::penalties(
-                self.inference_parameters.penalty_last_n,
-                self.inference_parameters.penalty_repeat,
-                self.inference_parameters.penalty_frequency,
-                self.inference_parameters.penalty_presence,
+                self.slot_context.inference_parameters.penalty_last_n,
+                self.slot_context.inference_parameters.penalty_repeat,
+                self.slot_context.inference_parameters.penalty_frequency,
+                self.slot_context.inference_parameters.penalty_presence,
             ),
             LlamaSampler::greedy(),
         ]);
@@ -184,7 +160,7 @@ impl LlamaCppSlot {
             if generate_tokens_stop_rx.try_recv().is_ok() {
                 debug!(
                     "{:?}: slot {} received stop signal",
-                    self.agent_name, self.slot_index
+                    self.slot_context.agent_name, self.index
                 );
 
                 break;
@@ -196,17 +172,17 @@ impl LlamaCppSlot {
 
                 sampler.accept(token);
 
-                if token == self.model.token_eos() {
+                if token == self.slot_context.model.token_eos() {
                     break;
                 }
 
-                let output_bytes = self.model.token_to_bytes(token, Special::Tokenize)?;
+                let output_bytes = self.slot_context.model.token_to_bytes(token, Special::Tokenize)?;
                 let mut output_string = String::with_capacity(32);
                 let _decode_result =
                     decoder.decode_to_string(&output_bytes, &mut output_string, false);
 
                 generated_tokens_tx.send(GeneratedTokenEnvelope {
-                    slot: self.slot_index,
+                    slot: self.index,
                     generated_token_result: GeneratedTokenResult::Token(GeneratedToken {
                         token: output_string,
                     }),
@@ -229,20 +205,20 @@ impl Actor for LlamaCppSlot {
     type Context = SyncContext<Self>;
 
     fn started(&mut self, _ctx: &mut Self::Context) {
-        self.slot_status.started();
+        self.status.started();
 
         info!(
             "{:?}: slot {} ready with model {:?}",
-            self.agent_name,
-            self.slot_index,
-            self.model_path.display(),
+            self.slot_context.agent_name,
+            self.index,
+            self.slot_context.model_path.display(),
         );
     }
 
     fn stopped(&mut self, _ctx: &mut Self::Context) {
-        self.slot_status.stopped();
+        self.status.stopped();
 
-        info!("{:?}: slot {} stopped", self.agent_name, self.slot_index,);
+        info!("{:?}: slot {} stopped", self.slot_context.agent_name, self.index,);
     }
 }
 
@@ -264,28 +240,28 @@ impl Handler<ContinueFromConversationHistoryRequest> for LlamaCppSlot {
         }: ContinueFromConversationHistoryRequest,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
-        let raw_prompt = match self.chat_template_renderer.render(context! {
+        let raw_prompt = match self.slot_context.chat_template_renderer.render(context! {
             // Known uses:
             // https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF
             add_generation_prompt,
             // Known uses:
             // https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF
             // https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF
-            bos_token => self.token_bos_str,
+            bos_token => self.slot_context.token_bos_str,
             // Known uses:
             // https://huggingface.co/Qwen/Qwen3-0.6B-GGUF
             enable_thinking,
             // Known uses:
             // https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF
-            eos_token => self.token_eos_str,
+            eos_token => self.slot_context.token_eos_str,
             messages => conversation_history,
-            nl_token => self.token_nl_str,
+            nl_token => self.slot_context.token_nl_str,
         }) {
             Ok(raw_prompt) => raw_prompt,
             Err(err) => {
                 error!(
                     "{:?}: slot {} failed to render chat template: {err:?}",
-                    self.agent_name, self.slot_index
+                    self.slot_context.agent_name, self.index
                 );
 
                 return Err(err);
@@ -294,7 +270,7 @@ impl Handler<ContinueFromConversationHistoryRequest> for LlamaCppSlot {
 
         debug!(
             "{:?}: slot {} generating from raw prompt: {:?}",
-            self.agent_name, self.slot_index, raw_prompt
+            self.slot_context.agent_name, self.index, raw_prompt
         );
 
         self.generate_from_raw_prompt(
