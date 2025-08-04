@@ -14,7 +14,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
-use crate::request_params::ContinueFromRawPromptParams;
+use crate::request_params::ContinueFromConversationHistoryParams;
 use crate::balancer::inference_service::app_data::AppData;
 use crate::balancer::inference_service::controls_inference_endpoint::ControlsInferenceEndpoint;
 use crate::balancer::inference_service::chunk_forwarding_session_controller::ChunkForwardingSessionController;
@@ -23,24 +23,24 @@ pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
 }
 
-struct ContinueFromRawPromptController {}
+struct ContinueFromConversationHistoryController {}
 
 #[async_trait]
-impl ControlsInferenceEndpoint for ContinueFromRawPromptController {
+impl ControlsInferenceEndpoint for ContinueFromConversationHistoryController {
     type SessionController = ChunkForwardingSessionController;
 }
 
-#[post("/api/v1/continue_from_raw_prompt")]
+#[post("/api/v1/continue_from_conversation_history")]
 async fn respond(
     app_data: web::Data<AppData>,
-    params: web::Json<ContinueFromRawPromptParams>,
+    params: web::Json<ContinueFromConversationHistoryParams>,
 ) -> Result<impl Responder, Error> {
     let request_id: String = Uuid::new_v4().into();
     let (connection_close_tx, mut connection_close_rx) = broadcast::channel(1);
     let (chunk_tx, chunk_rx) = mpsc::unbounded_channel();
 
     rt::spawn(async move {
-        if let Err(err) = ContinueFromRawPromptController::continue_from_raw_prompt(
+        if let Err(err) = ContinueFromConversationHistoryController::continue_from_conversation_history(
             app_data.buffered_request_manager.clone(),
             connection_close_tx,
             app_data.inference_service_configuration.clone(),
