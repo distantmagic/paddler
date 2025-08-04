@@ -29,6 +29,7 @@ use crate::agent_issue::AgentIssue;
 use crate::agent_issue_fix::AgentIssueFix;
 use crate::service::Service;
 use crate::slot_aggregated_status_manager::SlotAggregatedStatusManager;
+use crate::agent_state_application_status::AgentStateApplicationStatus;
 
 pub struct LlamaCppArbiterService {
     agent_applicable_state: Option<AgentApplicableState>,
@@ -95,6 +96,47 @@ impl LlamaCppArbiterService {
                     ));
                 }
 
+                let model_path_string = model_path.display().to_string();
+
+                if self
+                    .slot_aggregated_status_manager
+                    .slot_aggregated_status
+                    .has_issue(&AgentIssue::UnableToFindChatTemplate(
+                        model_path_string.clone(),
+                    ))
+                {
+                    self.slot_aggregated_status_manager
+                        .slot_aggregated_status
+                        .set_state_application_status(
+                            AgentStateApplicationStatus::AttemptedAndNotAppliable,
+                        );
+
+                    return Err(anyhow!(
+                        "Unable to establish chat template for model at path: {model_path_string}"
+                    ));
+                }
+
+                if self
+                    .slot_aggregated_status_manager
+                    .slot_aggregated_status
+                    .has_issue_like(|issue| {
+                        matches!(
+                            issue,
+                            AgentIssue::ChatTemplateDoesNotCompile(_)
+                        )
+                    })
+                {
+                    self.slot_aggregated_status_manager
+                        .slot_aggregated_status
+                        .set_state_application_status(
+                            AgentStateApplicationStatus::AttemptedAndNotAppliable,
+                        );
+
+                    return Err(anyhow!(
+                        "Chat template does not compile for model at path: {model_path_string}"
+                    ));
+                }
+
                 self.slot_aggregated_status_manager
                     .slot_aggregated_status
                     .register_fix(AgentIssueFix::ModelFileExists);
@@ -106,6 +148,7 @@ impl LlamaCppArbiterService {
                         inference_parameters,
                         self.model_metadata_holder.clone(),
                         model_path,
+                        model_path_string,
                         self.slot_aggregated_status_manager.clone(),
                     )
                     .spawn()
@@ -120,7 +163,7 @@ impl LlamaCppArbiterService {
 
         self.slot_aggregated_status_manager
             .slot_aggregated_status
-            .set_is_state_applied(true);
+            .set_state_application_status(AgentStateApplicationStatus::Applied);
 
         Ok(())
     }
@@ -177,13 +220,22 @@ impl Service for LlamaCppArbiterService {
             tokio::select! {
                 _ = shutdown.recv() => break Ok(()),
                 _ = ticker.tick() => {
-                    if !self.slot_aggregated_status_manager.slot_aggregated_status.get_is_state_applied() {
+                    if self.slot_aggregated_status_manager.slot_aggregated_status.get_state_application_status()?.should_try_to_apply() {
+                        self.slot_aggregated_status_manager
+                            .slot_aggregated_status
+                            .set_state_application_status(
+                                AgentStateApplicationStatus::AttemptedAndRetrying,
+                            );
+
                         self.try_to_apply_state().await;
                     }
                 }
                 _ = reconciled_state.changed() => {
                     self.agent_applicable_state = reconciled_state.borrow_and_update().clone();
-                    self.slot_aggregated_status_manager.slot_aggregated_status.set_is_state_applied(false);
+                    self.slot_aggregated_status_manager
+                        .slot_aggregated_status
+                        .set_state_application_status(AgentStateApplicationStatus::Fresh);
+
                     self.try_to_apply_state().await;
                 }
                 continue_conversation_request = self.continue_conversation_request_rx.recv() => {

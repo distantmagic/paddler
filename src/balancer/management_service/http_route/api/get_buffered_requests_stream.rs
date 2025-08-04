@@ -31,8 +31,13 @@ async fn respond(
         };
 
         loop {
-            if let Some(event) = send_event(buffered_request_manager.make_snapshot()) {
-                yield event;
+            match buffered_request_manager.make_snapshot() {
+                Ok(buffered_request_manager_snapshot) => {
+                    if let Some(event) = send_event(buffered_request_manager_snapshot) {
+                        yield event;
+                    }
+                },
+                Err(err) => error!("Failed to get buffered requests snapshot: {err}"),
             }
 
             buffered_request_manager.update_notifier.notified().await;

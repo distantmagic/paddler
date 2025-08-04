@@ -77,9 +77,9 @@ impl BufferedRequestManager {
 impl ProducesSnapshot for BufferedRequestManager {
     type Snapshot = BufferedRequestManagerSnapshot;
 
-    fn make_snapshot(&self) -> Self::Snapshot {
-        BufferedRequestManagerSnapshot {
+    fn make_snapshot(&self) -> Result<Self::Snapshot> {
+        Ok(BufferedRequestManagerSnapshot {
             buffered_requests_current: self.buffered_request_counter.get(),
-        }
+        })
     }
 }

@@ -31,8 +31,13 @@ async fn respond(
         };
 
         loop {
-            if let Some(event) = send_event(agent_controller_pool.make_snapshot()) {
-                yield event;
+            match agent_controller_pool.make_snapshot() {
+                Ok(agent_controller_pool_snapshot) => {
+                    if let Some(event) = send_event(agent_controller_pool_snapshot) {
+                        yield event;
+                    }
+                }
+                Err(err) => error!("Failed to get agent controller pool snapshot: {err}"),
             }
 
             agent_controller_pool.update_notifier.notified().await;

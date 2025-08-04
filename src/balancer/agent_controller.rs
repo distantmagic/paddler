@@ -26,6 +26,7 @@ use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderColl
 use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
 use crate::balancer::manages_senders_controller::ManagesSendersController;
 use crate::balancer::receive_tokens_controller::ReceiveTokensController;
+use crate::agent_state_application_status::AgentStateApplicationStatus;
 use crate::jsonrpc::RequestEnvelope;
 use crate::produces_snapshot::ProducesSnapshot;
 use crate::request_params::ContinueConversationParams;
@@ -44,7 +45,6 @@ pub struct AgentController {
     pub download_total: AtomicValue<AtomicUsize>,
     pub generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
     pub id: String,
-    pub is_state_applied: AtomicValue<AtomicBool>,
     pub issues: RwLock<BTreeSet<AgentIssue>>,
     pub model_metadata_sender_collection: Data<ModelMetadataSenderCollection>,
     pub model_path: RwLock<Option<String>>,
@@ -52,6 +52,7 @@ pub struct AgentController {
     pub newest_update_version: AtomicValue<AtomicI32>,
     pub slots_processing: AtomicValue<AtomicI32>,
     pub slots_total: AtomicValue<AtomicI32>,
+    pub state_application_status_code: AtomicValue<AtomicI32>,
     pub uses_chat_template_override: AtomicValue<AtomicBool>,
 }
 
@@ -176,11 +177,11 @@ impl AgentController {
             download_current,
             download_filename,
             download_total,
-            is_state_applied,
             issues,
             model_path,
             slots_processing,
             slots_total,
+            state_application_status,
             uses_chat_template_override,
             version,
         }: SlotAggregatedStatusSnapshot,
@@ -198,9 +199,9 @@ impl AgentController {
         changed = changed || self.desired_slots_total.set_check(desired_slots_total);
         changed = changed || self.download_current.set_check(download_current);
         changed = changed || self.download_total.set_check(download_total);
-        changed = changed || self.is_state_applied.set_check(is_state_applied);
         changed = changed || self.slots_processing.set_check(slots_processing);
         changed = changed || self.slots_total.set_check(slots_total);
+        changed = changed || self.state_application_status_code.set_check(state_application_status.to_code());
         changed = changed || self.uses_chat_template_override.set_check(uses_chat_template_override);
 
         self.newest_update_version
@@ -253,8 +254,8 @@ impl AgentController {
 impl ProducesSnapshot for AgentController {
     type Snapshot = AgentControllerSnapshot;
 
-    fn make_snapshot(&self) -> Self::Snapshot {
-        AgentControllerSnapshot {
+    fn make_snapshot(&self) -> Result<Self::Snapshot> {
+        Ok(AgentControllerSnapshot {
             desired_slots_total: self.desired_slots_total.get(),
             download_current: self.download_current.get(),
             download_filename: self
@@ -264,7 +265,6 @@ impl ProducesSnapshot for AgentController {
                 .clone(),
             download_total: self.download_total.get(),
             id: self.id.clone(),
-            is_state_applied: self.is_state_applied.get(),
             issues: self.get_issues(),
             model_path: self
                 .model_path
@@ -274,8 +274,11 @@ impl ProducesSnapshot for AgentController {
             name: self.name.clone(),
             slots_processing: self.slots_processing.get(),
             slots_total: self.slots_total.get(),
+            state_application_status: AgentStateApplicationStatus::from_code(
+                self.state_application_status_code.get(),
+            )?,
             uses_chat_template_override: self.uses_chat_template_override.get(),
-        }
+        })
     }
 }
 

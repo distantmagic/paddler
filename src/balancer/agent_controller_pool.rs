@@ -92,14 +92,16 @@ impl AgentControllerPool {
 impl ProducesSnapshot for AgentControllerPool {
     type Snapshot = AgentControllerPoolSnapshot;
 
-    fn make_snapshot(&self) -> Self::Snapshot {
-        let agents: Vec<AgentControllerSnapshot> = self
-            .agents
-            .iter()
-            .map(|entry| entry.value().make_snapshot())
-            .collect();
+    fn make_snapshot(&self) -> Result<Self::Snapshot> {
+        let mut agents: Vec<AgentControllerSnapshot> = Vec::with_capacity(self.agents.len());
 
-        AgentControllerPoolSnapshot { agents }
+        for entry in self.agents.iter() {
+            let agent_controller = entry.value();
+
+            agents.push(agent_controller.make_snapshot()?);
+        }
+
+        Ok(AgentControllerPoolSnapshot { agents })
     }
 }
 

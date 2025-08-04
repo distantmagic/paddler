@@ -1,10 +1,13 @@
 mod agent;
+mod agent_state_application_status;
+mod agent_issue_params;
 mod balancer_applicable_state_holder;
 mod agent_applicable_state;
 mod agent_applicable_state_holder;
 mod agent_desired_model;
 mod agent_desired_state;
 mod agent_issue;
+mod chat_template_renderer;
 mod balancer_desired_state;
 mod balancer_applicable_state;
 mod agent_issue_fix;

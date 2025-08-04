@@ -19,9 +19,6 @@ use log::debug;
 use log::error;
 use log::info;
 use minijinja::context;
-use minijinja::Environment;
-use minijinja::Error;
-use minijinja::ErrorKind;
 use tokio::sync::mpsc;
 
 use crate::agent::continue_conversation_request::ContinueConversationRequest;
@@ -32,27 +29,17 @@ use crate::dispenses_slots::DispensesSlots as _;
 use crate::generated_token::GeneratedToken;
 use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::generated_token_result::GeneratedTokenResult;
+use crate::chat_template_renderer::ChatTemplateRenderer;
 use crate::inference_parameters::InferenceParameters;
 use crate::request_params::ContinueConversationParams;
 use crate::request_params::GenerateTokensParams;
 use crate::slot_status::SlotStatus;
 
-const CHAT_TEMPLATE_NAME: &str = "chat_template";
-
-// Known uses:
-// https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF
-fn minijinja_raise_exception(message: String) -> std::result::Result<String, Error> {
-    Err(Error::new::<String>(
-        ErrorKind::InvalidOperation,
-        format!("Model's chat template raised an exception: '{message}'"),
-    ))
-}
-
 pub struct LlamaCppSlot {
     agent_name: Option<String>,
+    chat_template_renderer: Arc<ChatTemplateRenderer>,
     inference_parameters: InferenceParameters,
     llama_context: LlamaContext<'static>,
-    minijinja_env: Environment<'static>,
     model: Arc<LlamaModel>,
     model_path: PathBuf,
     slot_index: u32,
@@ -67,9 +54,9 @@ impl LlamaCppSlot {
     pub fn new(
         agent_name: Option<String>,
         backend: Arc<LlamaBackend>,
+        chat_template_renderer: Arc<ChatTemplateRenderer>,
         ctx_params: Arc<LlamaContextParams>,
         inference_parameters: InferenceParameters,
-        llama_chat_template_string: String,
         model: Arc<LlamaModel>,
         model_path: PathBuf,
         slot_index: u32,
@@ -94,17 +81,11 @@ impl LlamaCppSlot {
             model_ref.new_context(&backend, (*ctx_params).clone())?
         };
 
-        let mut minijinja_env = Environment::new();
-
-        minijinja_env.add_function("raise_exception", minijinja_raise_exception);
-
-        minijinja_env.add_template_owned(CHAT_TEMPLATE_NAME, llama_chat_template_string)?;
-
         Ok(Self {
             agent_name,
+            chat_template_renderer,
             inference_parameters,
             llama_context,
-            minijinja_env,
             model,
             model_path,
             slot_index,
@@ -283,26 +264,23 @@ impl Handler<ContinueConversationRequest> for LlamaCppSlot {
         }: ContinueConversationRequest,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
-        let prompt = match self
-            .minijinja_env
-            .get_template(CHAT_TEMPLATE_NAME)?
-            .render(context! {
-                // Known uses:
-                // https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF
-                add_generation_prompt,
-                // Known uses:
-                // https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF
-                // https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF
-                bos_token => self.token_bos_str,
-                // Known uses:
-                // https://huggingface.co/Qwen/Qwen3-0.6B-GGUF
-                enable_thinking,
-                // Known uses:
-                // https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF
-                eos_token => self.token_eos_str,
-                messages => conversation_history,
-                nl_token => self.token_nl_str,
-            }) {
+        let prompt = match self.chat_template_renderer.render(context! {
+            // Known uses:
+            // https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF
+            add_generation_prompt,
+            // Known uses:
+            // https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF
+            // https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF
+            bos_token => self.token_bos_str,
+            // Known uses:
+            // https://huggingface.co/Qwen/Qwen3-0.6B-GGUF
+            enable_thinking,
+            // Known uses:
+            // https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF
+            eos_token => self.token_eos_str,
+            messages => conversation_history,
+            nl_token => self.token_nl_str,
+        }) {
             Ok(prompt) => prompt,
             Err(err) => {
                 error!(
@@ -310,7 +288,7 @@ impl Handler<ContinueConversationRequest> for LlamaCppSlot {
                     self.agent_name, self.slot_index
                 );
 
-                return Err(err.into());
+                return Err(err);
             }
         };
 

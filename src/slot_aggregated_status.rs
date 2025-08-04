@@ -3,6 +3,7 @@ use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicUsize;
 use std::sync::RwLock;
 
+use anyhow::Result;
 use dashmap::DashSet;
 use tokio::sync::Notify;
 
@@ -12,17 +13,18 @@ use crate::atomic_value::AtomicValue;
 use crate::dispenses_slots::DispensesSlots;
 use crate::produces_snapshot::ProducesSnapshot;
 use crate::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
+use crate::agent_state_application_status::AgentStateApplicationStatus;
 
 pub struct SlotAggregatedStatus {
     desired_slots_total: i32,
     download_current: AtomicValue<AtomicUsize>,
     download_filename: RwLock<Option<String>>,
     download_total: AtomicValue<AtomicUsize>,
-    is_state_applied: AtomicValue<AtomicBool>,
     issues: DashSet<AgentIssue>,
     model_path: RwLock<Option<String>>,
     slots_processing: AtomicValue<AtomicI32>,
     slots_total: AtomicValue<AtomicI32>,
+    state_application_status_code: AtomicValue<AtomicI32>,
     pub update_notifier: Notify,
     uses_chat_template_override: AtomicValue<AtomicBool>,
     version: AtomicValue<AtomicI32>,
@@ -35,9 +37,11 @@ impl SlotAggregatedStatus {
             download_current: AtomicValue::<AtomicUsize>::new(0),
             download_filename: RwLock::new(None),
             download_total: AtomicValue::<AtomicUsize>::new(0),
-            is_state_applied: AtomicValue::<AtomicBool>::new(true),
             issues: DashSet::new(),
             model_path: RwLock::new(None),
+            state_application_status_code: AtomicValue::<AtomicI32>::new(
+                AgentStateApplicationStatus::Fresh.to_code()
+            ),
             slots_processing: AtomicValue::<AtomicI32>::new(0),
             slots_total: AtomicValue::<AtomicI32>::new(0),
             update_notifier: Notify::new(),
@@ -52,12 +56,21 @@ impl SlotAggregatedStatus {
         self.update_notifier.notify_waiters();
     }
 
-    pub fn get_is_state_applied(&self) -> bool {
-        self.is_state_applied.get()
+    pub fn get_state_application_status(&self) -> Result<AgentStateApplicationStatus> {
+        AgentStateApplicationStatus::from_code(self.state_application_status_code.get())
     }
 
     pub fn has_issue(&self, issue: &AgentIssue) -> bool {
         self.issues.contains(issue)
+    }
+
+    pub fn has_issue_like<TFunction>(&self, issue_like: TFunction) -> bool
+    where
+        TFunction: Fn(&AgentIssue) -> bool,
+    {
+        self.issues.iter().any(|ref_multi| {
+            issue_like(ref_multi.key())
+        })
     }
 
     pub fn increment_download_current(&self, size: usize) {
@@ -122,12 +135,6 @@ impl SlotAggregatedStatus {
         self.update_notifier.notify_waiters();
     }
 
-    pub fn set_is_state_applied(&self, is_applied: bool) {
-        self.is_state_applied.set(is_applied);
-        self.version.increment();
-        self.update_notifier.notify_waiters();
-    }
-
     pub fn set_model_path(&self, model_path: Option<String>) {
         let mut path_lock = self.model_path.write().unwrap_or_else(|err| {
             panic!("Lock poisoned when setting model path: {model_path:?}, error: {err:?}")
@@ -135,6 +142,12 @@ impl SlotAggregatedStatus {
 
         *path_lock = model_path;
 
+        self.version.increment();
+        self.update_notifier.notify_waiters();
+    }
+
+    pub fn set_state_application_status(&self, status: AgentStateApplicationStatus) {
+        self.state_application_status_code.set(status.to_code());
         self.version.increment();
         self.update_notifier.notify_waiters();
     }
@@ -163,8 +176,8 @@ impl DispensesSlots for SlotAggregatedStatus {
 impl ProducesSnapshot for SlotAggregatedStatus {
     type Snapshot = SlotAggregatedStatusSnapshot;
 
-    fn make_snapshot(&self) -> Self::Snapshot {
-        SlotAggregatedStatusSnapshot {
+    fn make_snapshot(&self) -> Result<Self::Snapshot> {
+        Ok(SlotAggregatedStatusSnapshot {
             issues: self.issues.iter().map(|item| item.clone()).collect(),
             desired_slots_total: self.desired_slots_total,
             download_current: self.download_current.get(),
@@ -174,7 +187,6 @@ impl ProducesSnapshot for SlotAggregatedStatus {
                 .expect("Lock poisoned when getting download filename")
                 .clone(),
             download_total: self.download_total.get(),
-            is_state_applied: self.is_state_applied.get(),
             model_path: self
                 .model_path
                 .read()
@@ -182,8 +194,11 @@ impl ProducesSnapshot for SlotAggregatedStatus {
                 .clone(),
             slots_processing: self.slots_processing.get(),
             slots_total: self.slots_total.get(),
+            state_application_status: AgentStateApplicationStatus::from_code(
+                self.state_application_status_code.get()
+            )?,
             uses_chat_template_override: self.uses_chat_template_override.get(),
             version: self.version.get(),
-        }
+        })
     }
 }

@@ -395,29 +395,41 @@ impl ManagementSocketClientService {
             }
         });
 
-        message_tx
-            .send(ManagementJsonRpcMessage::Notification(
-                ManagementJsonRpcNotification::RegisterAgent(RegisterAgentParams {
-                    name: self.name.clone(),
-                    slot_aggregated_status_snapshot: self.slot_aggregated_status.make_snapshot(),
-                }),
-            ))
-            .unwrap_or_else(|err| {
-                error!("Failed to send register agent notification: {err}");
-            });
+        match self.slot_aggregated_status.make_snapshot() {
+            Ok(slot_aggregated_status_snapshot) => {
+                message_tx
+                    .send(ManagementJsonRpcMessage::Notification(
+                        ManagementJsonRpcNotification::RegisterAgent(RegisterAgentParams {
+                            name: self.name.clone(),
+                            slot_aggregated_status_snapshot,
+                        }),
+                    ))
+                    .unwrap_or_else(|err| {
+                        error!("Failed to send register agent notification: {err}");
+                    });
+            }
+            Err(err) => {
+                error!("Failed to create slot aggregated status snapshot: {err}");
+
+                return Err(err);
+            }
+        }
 
         let do_send_status_update = || {
-            let slot_aggregated_status_snapshot = self.slot_aggregated_status.make_snapshot();
-
-            message_tx
-                .send(ManagementJsonRpcMessage::Notification(
-                    ManagementJsonRpcNotification::UpdateAgentStatus(UpdateAgentStatusParams {
-                        slot_aggregated_status_snapshot,
-                    }),
-                ))
-                .unwrap_or_else(|err| {
-                    error!("Failed to send status update notification: {err}");
-                });
+            match self.slot_aggregated_status.make_snapshot() {
+                Ok(slot_aggregated_status_snapshot) => {
+                    message_tx
+                        .send(ManagementJsonRpcMessage::Notification(
+                            ManagementJsonRpcNotification::UpdateAgentStatus(UpdateAgentStatusParams {
+                                slot_aggregated_status_snapshot,
+                            }),
+                        ))
+                        .unwrap_or_else(|err| {
+                            error!("Failed to send status update notification: {err}");
+                        });
+                }
+                Err(err) => error!("Failed to create slot aggregated status snapshot: {err}"),
+            }
         };
 
         let mut ticker = interval(Duration::from_secs(1));
