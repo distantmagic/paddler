@@ -13,7 +13,6 @@ where
     TResponse: RpcMessage + Send + Serialize + Sync,
 {
     session: Session,
-
     _marker: PhantomData<TResponse>,
 }
 
