@@ -1,5 +1,6 @@
 pub mod app_data;
 pub mod configuration;
+pub mod controls_inference_endpoint;
 pub mod http_route;
 
 use std::sync::Arc;
@@ -73,6 +74,7 @@ impl Service for InferenceService {
                 .wrap(create_cors_middleware(cors_allowed_hosts_arc.clone()))
                 .app_data(app_data.clone())
                 .configure(common_http_route::get_health::register)
+                .configure(http_route::api::post_continue_from_raw_prompt::register)
                 .configure(http_route::api::ws_inference_socket::register)
         })
         .shutdown_signal(async move {

@@ -8,6 +8,7 @@ mod agent_desired_model;
 mod agent_desired_state;
 mod agent_issue;
 mod chat_template_renderer;
+mod session_controller;
 mod balancer_desired_state;
 mod balancer_applicable_state;
 mod agent_issue_fix;

@@ -20,7 +20,7 @@ use tokio::sync::oneshot;
 
 use crate::agent_issue_params::SlotCannotStartParams;
 use crate::agent_issue_params::ChatTemplateDoesNotCompileParams;
-use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
+use crate::agent::llamacpp_arbiter_handle::LlamaCppArbiterHandle;
 use crate::agent::llamacpp_slot::LlamaCppSlot;
 use crate::agent::llamacpp_slot_context::LlamaCppSlotContext;
 use crate::agent::model_metadata_holder::ModelMetadataHolder;
@@ -44,7 +44,7 @@ pub struct LlamaCppArbiter {
 }
 
 impl LlamaCppArbiter {
-    pub async fn spawn(&self) -> Result<LlamaCppArbiterController> {
+    pub async fn spawn(&self) -> Result<LlamaCppArbiterHandle> {
         let (chat_template_loaded_tx, chat_template_loaded_rx) = oneshot::channel::<()>();
         let (llamacpp_slot_addr_tx, llamacpp_slot_addr_rx) = oneshot::channel();
         let (model_loaded_tx, model_loaded_rx) = oneshot::channel::<()>();
@@ -250,13 +250,11 @@ impl LlamaCppArbiter {
             }
         }
 
-        Ok(LlamaCppArbiterController::new(
-            llamacpp_slot_addr_rx
-                .await
-                .context("Unable to await for llamacpp slot addr")?,
+        Ok(LlamaCppArbiterHandle {
+            llamacpp_slot_addr: llamacpp_slot_addr_rx.await.context("Unable to await for llamacpp slot addr")?,
             shutdown_tx,
             sync_arbiter_thread_handle,
-        ))
+        })
     }
 }
 
@@ -357,7 +355,7 @@ mod tests {
             }
         }
 
-        controller.shutdown().await?;
+        controller.shutdown()?;
 
         Ok(())
     }

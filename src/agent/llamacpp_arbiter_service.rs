@@ -20,7 +20,7 @@ use tokio::time::MissedTickBehavior;
 use crate::agent::continue_from_conversation_history_request::ContinueFromConversationHistoryRequest;
 use crate::agent::continue_from_raw_prompt_request::ContinueFromRawPromptRequest;
 use crate::agent::llamacpp_arbiter::LlamaCppArbiter;
-use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
+use crate::agent::llamacpp_arbiter_handle::LlamaCppArbiterHandle;
 use crate::agent::llamacpp_slot::LlamaCppSlot;
 use crate::agent::model_metadata_holder::ModelMetadataHolder;
 use crate::agent_applicable_state::AgentApplicableState;
@@ -38,17 +38,16 @@ pub struct LlamaCppArbiterService {
     pub continue_from_conversation_history_request_rx: mpsc::UnboundedReceiver<ContinueFromConversationHistoryRequest>,
     pub continue_from_raw_prompt_request_rx: mpsc::UnboundedReceiver<ContinueFromRawPromptRequest>,
     pub desired_slots_total: i32,
-    pub llamacpp_arbiter_controller: Option<LlamaCppArbiterController>,
+    pub llamacpp_arbiter_handle: Option<LlamaCppArbiterHandle>,
     pub model_metadata_holder: Arc<ModelMetadataHolder>,
     pub slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
 }
 
 impl LlamaCppArbiterService {
     async fn apply_state(&mut self) -> Result<()> {
-        if let Some(llamacpp_arbiter_controller) = self.llamacpp_arbiter_controller.take() {
-            llamacpp_arbiter_controller
+        if let Some(llamacpp_arbiter_handle) = self.llamacpp_arbiter_handle.take() {
+            llamacpp_arbiter_handle
                 .shutdown()
-                .await
                 .context("Unable to stop arbiter controller")?;
         }
 
@@ -118,7 +117,7 @@ impl LlamaCppArbiterService {
                 self.slot_aggregated_status_manager
                     .slot_aggregated_status
                     .register_fix(AgentIssueFix::ModelFileExists);
-                self.llamacpp_arbiter_controller = Some(
+                self.llamacpp_arbiter_handle = Some(
                     LlamaCppArbiter {
                         agent_name: self.agent_name.clone(),
                         chat_template_override,
@@ -155,8 +154,8 @@ impl LlamaCppArbiterService {
         TRequest::Result: Send + 'static,
         LlamaCppSlot: actix::Handler<TRequest>,
     {
-        if let Some(llamacpp_arbiter_controller) = &self.llamacpp_arbiter_controller {
-            let llamacpp_slot_addr = llamacpp_arbiter_controller.llamacpp_slot_addr.clone();
+        if let Some(llamacpp_arbiter_handle) = &self.llamacpp_arbiter_handle {
+            let llamacpp_slot_addr = llamacpp_arbiter_handle.llamacpp_slot_addr.clone();
 
             rt::spawn(async move {
                 tokio::select! {
@@ -171,7 +170,7 @@ impl LlamaCppArbiterService {
                 }
             });
         } else {
-            error!("LlamaCppArbiterController is not initialized");
+            error!("LlamaCppArbiterHandle is not initialized");
         }
     }
 

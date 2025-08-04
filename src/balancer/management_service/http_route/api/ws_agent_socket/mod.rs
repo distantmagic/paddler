@@ -37,6 +37,7 @@ use self::jsonrpc::Message as ManagementJsonRpcMessage;
 use self::jsonrpc::Notification as ManagementJsonRpcNotification;
 use crate::agent::jsonrpc::notification_params::VersionParams;
 use crate::agent::jsonrpc::Message as AgentJsonRpcMessage;
+use crate::session_controller::SessionController as _;
 use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
 use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
 use crate::agent::jsonrpc::Response as AgentJsonRpcResponse;

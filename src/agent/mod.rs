@@ -5,7 +5,7 @@ pub mod generate_tokens_drop_guard;
 pub mod jsonrpc;
 pub mod kv_cache_repair_action;
 pub mod llamacpp_arbiter;
-pub mod llamacpp_arbiter_controller;
+pub mod llamacpp_arbiter_handle;
 mod llamacpp_slot_context;
 pub mod llamacpp_arbiter_service;
 mod llamacpp_slot;
