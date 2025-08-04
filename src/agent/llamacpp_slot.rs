@@ -8,6 +8,7 @@ use anyhow::Result;
 use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::context::LlamaContext;
 use llama_cpp_2::llama_backend::LlamaBackend;
+use rand::rngs::ThreadRng;
 use llama_cpp_2::llama_batch::LlamaBatch;
 use rand::Rng as _;
 use llama_cpp_2::model::AddBos;
@@ -36,6 +37,7 @@ use crate::slot_status::SlotStatus;
 pub struct LlamaCppSlot {
     index: u32,
     llama_context: LlamaContext<'static>,
+    rng: ThreadRng,
     slot_context: Arc<LlamaCppSlotContext>,
     status: Arc<SlotStatus>,
 }
@@ -67,6 +69,7 @@ impl LlamaCppSlot {
         Ok(Self {
             index,
             llama_context,
+            rng: rand::rng(),
             slot_context,
             status,
         })
@@ -143,7 +146,6 @@ impl LlamaCppSlot {
         let mut n_cur = batch.n_tokens();
         let mut decoder = encoding_rs::UTF_8.new_decoder();
 
-        let mut rng = rand::rng();
         let mut sampler = LlamaSampler::chain_simple([
             LlamaSampler::penalties(
                 self.slot_context.inference_parameters.penalty_last_n,
@@ -155,7 +157,7 @@ impl LlamaCppSlot {
             LlamaSampler::top_p(self.slot_context.inference_parameters.top_p, 0),
             LlamaSampler::min_p(self.slot_context.inference_parameters.min_p, 0),
             LlamaSampler::temp(self.slot_context.inference_parameters.temperature),
-            LlamaSampler::dist(rng.random::<u32>()),
+            LlamaSampler::dist(self.rng.random::<u32>()),
         ]);
 
         while n_cur <= max_tokens {
