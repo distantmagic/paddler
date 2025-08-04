@@ -2,7 +2,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct GenerateTokensParams {
+pub struct ContinueFromRawPromptParams {
     pub max_tokens: i32,
-    pub prompt: String,
+    pub raw_prompt: String,
 }

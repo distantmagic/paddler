@@ -30,13 +30,13 @@ use crate::agent::jsonrpc::Response as JsonRpcResponse;
 use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
 use crate::agent::receive_tokens_stopper_drop_guard::ReceiveTokensStopperDropGuard;
 use crate::agent::jsonrpc::notification_params::SetStateParams;
-use crate::agent::generate_tokens_request::GenerateTokensRequest;
+use crate::agent::continue_from_raw_prompt_request::ContinueFromRawPromptRequest;
 use crate::agent::jsonrpc::notification_params::VersionParams;
 use crate::slot_aggregated_status::SlotAggregatedStatus;
 use crate::agent::from_request_params::FromRequestParams;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Message as ManagementJsonRpcMessage;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Notification as ManagementJsonRpcNotification;
-use crate::agent::continue_conversation_request::ContinueConversationRequest;
+use crate::agent::continue_from_conversation_history_request::ContinueFromConversationHistoryRequest;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::RegisterAgentParams;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::UpdateAgentStatusParams;
 use crate::jsonrpc::Error as JsonRpcError;
@@ -51,8 +51,8 @@ use crate::agent::model_metadata_holder::ModelMetadataHolder;
 pub struct ManagementSocketClientService {
     agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
     agent_desired_state_tx: mpsc::UnboundedSender<AgentDesiredState>,
-    continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
-    generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
+    continue_from_conversation_history_request_tx: mpsc::UnboundedSender<ContinueFromConversationHistoryRequest>,
+    continue_from_raw_prompt_request_tx: mpsc::UnboundedSender<ContinueFromRawPromptRequest>,
     model_metadata_holder: Arc<ModelMetadataHolder>,
     name: Option<String>,
     receive_tokens_stopper_collection: Arc<ReceiveTokensStopperCollection>,
@@ -65,8 +65,8 @@ impl ManagementSocketClientService {
     pub fn new(
         agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
         agent_desired_state_tx: mpsc::UnboundedSender<AgentDesiredState>,
-        continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
-        generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
+        continue_from_conversation_history_request_tx: mpsc::UnboundedSender<ContinueFromConversationHistoryRequest>,
+        continue_from_raw_prompt_request_tx: mpsc::UnboundedSender<ContinueFromRawPromptRequest>,
         management_addr: SocketAddr,
         model_metadata_holder: Arc<ModelMetadataHolder>,
         name: Option<String>,
@@ -77,8 +77,8 @@ impl ManagementSocketClientService {
         Ok(ManagementSocketClientService {
             agent_applicable_state_holder,
             agent_desired_state_tx,
-            continue_conversation_request_tx,
-            generate_tokens_request_tx,
+            continue_from_conversation_history_request_tx,
+            continue_from_raw_prompt_request_tx,
             model_metadata_holder,
             name,
             receive_tokens_stopper_collection: Arc::new(ReceiveTokensStopperCollection::new()),
@@ -145,8 +145,8 @@ impl ManagementSocketClientService {
         agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
         agent_desired_state_tx: mpsc::UnboundedSender<AgentDesiredState>,
         connection_close_tx: broadcast::Sender<()>,
-        continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
-        generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
+        continue_from_conversation_history_request_tx: mpsc::UnboundedSender<ContinueFromConversationHistoryRequest>,
+        continue_from_raw_prompt_request_tx: mpsc::UnboundedSender<ContinueFromRawPromptRequest>,
         message_tx: mpsc::UnboundedSender<ManagementJsonRpcMessage>,
         model_metadata_holder: Arc<ModelMetadataHolder>,
         deserialized_message: JsonRpcMessage,
@@ -194,21 +194,21 @@ impl ManagementSocketClientService {
             }
             JsonRpcMessage::Request(RequestEnvelope {
                 id,
-                request: JsonRpcRequest::ContinueConversation(continue_conversation_params),
+                request: JsonRpcRequest::ContinueFromConversationHistory(continue_from_conversation_history_params),
             }) => {
                 Self::generate_tokens(
                     connection_close_tx,
                     id,
                     message_tx,
-                    continue_conversation_params,
+                    continue_from_conversation_history_params,
                     receive_tokens_stopper_collection,
-                    continue_conversation_request_tx,
+                    continue_from_conversation_history_request_tx,
                 )
                 .await
             }
             JsonRpcMessage::Request(RequestEnvelope {
                 id,
-                request: JsonRpcRequest::GenerateTokens(generate_tokens_params),
+                request: JsonRpcRequest::ContinueFromRawPrompt(generate_tokens_params),
             }) => {
                 Self::generate_tokens(
                     connection_close_tx,
@@ -216,7 +216,7 @@ impl ManagementSocketClientService {
                     message_tx,
                     generate_tokens_params,
                     receive_tokens_stopper_collection,
-                    generate_tokens_request_tx,
+                    continue_from_raw_prompt_request_tx,
                 )
                 .await
             }
@@ -254,8 +254,8 @@ impl ManagementSocketClientService {
         agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
         agent_desired_state_tx: mpsc::UnboundedSender<AgentDesiredState>,
         connection_close_tx: broadcast::Sender<()>,
-        continue_conversation_request_tx: mpsc::UnboundedSender<ContinueConversationRequest>,
-        generate_tokens_request_tx: mpsc::UnboundedSender<GenerateTokensRequest>,
+        continue_from_conversation_history_request_tx: mpsc::UnboundedSender<ContinueFromConversationHistoryRequest>,
+        continue_from_raw_prompt_request_tx: mpsc::UnboundedSender<ContinueFromRawPromptRequest>,
         model_metadata_holder: Arc<ModelMetadataHolder>,
         receive_tokens_stopper_collection: Arc<ReceiveTokensStopperCollection>,
         message_tx: mpsc::UnboundedSender<ManagementJsonRpcMessage>,
@@ -277,8 +277,8 @@ impl ManagementSocketClientService {
                             agent_applicable_state_holder,
                             agent_desired_state_tx,
                             connection_close_tx,
-                            continue_conversation_request_tx,
-                            generate_tokens_request_tx,
+                            continue_from_conversation_history_request_tx,
+                            continue_from_raw_prompt_request_tx,
                             message_tx,
                             model_metadata_holder,
                             match serde_json::from_str::<JsonRpcMessage>(&text).context(format!("Failed to parse JSON-RPC message: {text}")) {
@@ -453,8 +453,8 @@ impl ManagementSocketClientService {
                                     self.agent_applicable_state_holder.clone(),
                                     self.agent_desired_state_tx.clone(),
                                     connection_close_tx.clone(),
-                                    self.continue_conversation_request_tx.clone(),
-                                    self.generate_tokens_request_tx.clone(),
+                                    self.continue_from_conversation_history_request_tx.clone(),
+                                    self.continue_from_raw_prompt_request_tx.clone(),
                                     self.model_metadata_holder.clone(),
                                     self.receive_tokens_stopper_collection.clone(),
                                     message_tx.clone(),

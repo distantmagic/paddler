@@ -1,7 +1,7 @@
-pub mod continue_conversation_request;
+pub mod continue_from_conversation_history_request;
+pub mod continue_from_raw_prompt_request;
 pub mod from_request_params;
 pub mod generate_tokens_drop_guard;
-pub mod generate_tokens_request;
 pub mod jsonrpc;
 pub mod kv_cache_repair_action;
 pub mod llamacpp_arbiter;

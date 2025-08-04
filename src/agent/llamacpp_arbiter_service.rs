@@ -17,8 +17,8 @@ use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
 
-use crate::agent::continue_conversation_request::ContinueConversationRequest;
-use crate::agent::generate_tokens_request::GenerateTokensRequest;
+use crate::agent::continue_from_conversation_history_request::ContinueFromConversationHistoryRequest;
+use crate::agent::continue_from_raw_prompt_request::ContinueFromRawPromptRequest;
 use crate::agent::llamacpp_arbiter::LlamaCppArbiter;
 use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
 use crate::agent::llamacpp_slot::LlamaCppSlot;
@@ -32,40 +32,18 @@ use crate::slot_aggregated_status_manager::SlotAggregatedStatusManager;
 use crate::agent_state_application_status::AgentStateApplicationStatus;
 
 pub struct LlamaCppArbiterService {
-    agent_applicable_state: Option<AgentApplicableState>,
-    agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
-    agent_name: Option<String>,
-    continue_conversation_request_rx: mpsc::UnboundedReceiver<ContinueConversationRequest>,
-    desired_slots_total: i32,
-    generate_tokens_request_rx: mpsc::UnboundedReceiver<GenerateTokensRequest>,
-    llamacpp_arbiter_controller: Option<LlamaCppArbiterController>,
-    model_metadata_holder: Arc<ModelMetadataHolder>,
-    slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
+    pub agent_applicable_state: Option<AgentApplicableState>,
+    pub agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
+    pub agent_name: Option<String>,
+    pub continue_from_conversation_history_request_rx: mpsc::UnboundedReceiver<ContinueFromConversationHistoryRequest>,
+    pub continue_from_raw_prompt_request_rx: mpsc::UnboundedReceiver<ContinueFromRawPromptRequest>,
+    pub desired_slots_total: i32,
+    pub llamacpp_arbiter_controller: Option<LlamaCppArbiterController>,
+    pub model_metadata_holder: Arc<ModelMetadataHolder>,
+    pub slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
 }
 
 impl LlamaCppArbiterService {
-    pub async fn new(
-        agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
-        agent_name: Option<String>,
-        continue_conversation_request_rx: mpsc::UnboundedReceiver<ContinueConversationRequest>,
-        desired_slots_total: i32,
-        generate_tokens_request_rx: mpsc::UnboundedReceiver<GenerateTokensRequest>,
-        model_metadata_holder: Arc<ModelMetadataHolder>,
-        slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
-    ) -> Result<Self> {
-        Ok(LlamaCppArbiterService {
-            agent_applicable_state: None,
-            agent_applicable_state_holder,
-            agent_name,
-            continue_conversation_request_rx,
-            desired_slots_total,
-            generate_tokens_request_rx,
-            llamacpp_arbiter_controller: None,
-            model_metadata_holder,
-            slot_aggregated_status_manager,
-        })
-    }
-
     async fn apply_state(&mut self) -> Result<()> {
         if let Some(llamacpp_arbiter_controller) = self.llamacpp_arbiter_controller.take() {
             llamacpp_arbiter_controller
@@ -183,11 +161,11 @@ impl LlamaCppArbiterService {
             rt::spawn(async move {
                 tokio::select! {
                     _ = shutdown.recv() => {
-                        error!("Shutdown received, stopping GenerateTokensRequest processing");
+                        error!("Shutdown received, stopping ContinueFromRawPromptRequest processing");
                     }
                     result = llamacpp_slot_addr.send(request) => {
                         if let Err(err) = result {
-                            error!("Failed to send GenerateTokensRequest: {err}");
+                            error!("Failed to send ContinueFromRawPromptRequest: {err}");
                         }
                     }
                 }
@@ -244,29 +222,29 @@ impl Service for LlamaCppArbiterService {
 
                     self.try_to_apply_state().await;
                 }
-                continue_conversation_request = self.continue_conversation_request_rx.recv() => {
-                    match continue_conversation_request {
-                        Some(continue_conversation_request) => {
+                continue_from_conversation_history_request = self.continue_from_conversation_history_request_rx.recv() => {
+                    match continue_from_conversation_history_request {
+                        Some(continue_from_conversation_history_request) => {
                             self.generate_tokens(
-                                continue_conversation_request,
+                                continue_from_conversation_history_request,
                                 shutdown.resubscribe(),
                             ).await
                         }
                         None => {
-                            break Err(anyhow!("ContinueConversationRequest channel closed unexpectedly"));
+                            break Err(anyhow!("ContinueFromConversationHistoryRequest channel closed unexpectedly"));
                         }
                     }
                 }
-                generate_tokens_request = self.generate_tokens_request_rx.recv() => {
-                    match generate_tokens_request {
-                        Some(generate_tokens_request) => {
+                continue_from_raw_prompt_request = self.continue_from_raw_prompt_request_rx.recv() => {
+                    match continue_from_raw_prompt_request {
+                        Some(continue_from_raw_prompt_request) => {
                             self.generate_tokens(
-                                generate_tokens_request,
+                                continue_from_raw_prompt_request,
                                 shutdown.resubscribe(),
                             ).await
                         }
                         None => {
-                            break Err(anyhow!("GenerateTokensRequest channel closed unexpectedly"));
+                            break Err(anyhow!("ContinueFromRawPromptRequest channel closed unexpectedly"));
                         }
                     }
                 }

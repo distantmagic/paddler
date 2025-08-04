@@ -21,9 +21,9 @@ use log::info;
 use minijinja::context;
 use tokio::sync::mpsc;
 
-use crate::agent::continue_conversation_request::ContinueConversationRequest;
+use crate::agent::continue_from_conversation_history_request::ContinueFromConversationHistoryRequest;
 use crate::agent::generate_tokens_drop_guard::GenerateTokensDropGuard;
-use crate::agent::generate_tokens_request::GenerateTokensRequest;
+use crate::agent::continue_from_raw_prompt_request::ContinueFromRawPromptRequest;
 use crate::agent::kv_cache_repair_action::KVCacheRepairAction;
 use crate::dispenses_slots::DispensesSlots as _;
 use crate::generated_token::GeneratedToken;
@@ -31,8 +31,8 @@ use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::generated_token_result::GeneratedTokenResult;
 use crate::chat_template_renderer::ChatTemplateRenderer;
 use crate::inference_parameters::InferenceParameters;
-use crate::request_params::ContinueConversationParams;
-use crate::request_params::GenerateTokensParams;
+use crate::request_params::ContinueFromConversationHistoryParams;
+use crate::request_params::ContinueFromRawPromptParams;
 use crate::slot_status::SlotStatus;
 
 pub struct LlamaCppSlot {
@@ -135,7 +135,7 @@ impl LlamaCppSlot {
         }
     }
 
-    fn generate_from_prompt(
+    fn generate_from_raw_prompt(
         &mut self,
         mut generate_tokens_stop_rx: mpsc::UnboundedReceiver<()>,
         generated_tokens_tx: mpsc::UnboundedSender<GeneratedTokenEnvelope>,
@@ -246,14 +246,14 @@ impl Actor for LlamaCppSlot {
     }
 }
 
-impl Handler<ContinueConversationRequest> for LlamaCppSlot {
+impl Handler<ContinueFromConversationHistoryRequest> for LlamaCppSlot {
     type Result = Result<()>;
 
     fn handle(
         &mut self,
-        ContinueConversationRequest {
-            continue_conversation_params:
-                ContinueConversationParams {
+        ContinueFromConversationHistoryRequest {
+            continue_from_conversation_history_params:
+                ContinueFromConversationHistoryParams {
                     add_generation_prompt,
                     enable_thinking,
                     conversation_history,
@@ -261,10 +261,10 @@ impl Handler<ContinueConversationRequest> for LlamaCppSlot {
                 },
             generate_tokens_stop_rx,
             generated_tokens_tx,
-        }: ContinueConversationRequest,
+        }: ContinueFromConversationHistoryRequest,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
-        let prompt = match self.chat_template_renderer.render(context! {
+        let raw_prompt = match self.chat_template_renderer.render(context! {
             // Known uses:
             // https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF
             add_generation_prompt,
@@ -281,7 +281,7 @@ impl Handler<ContinueConversationRequest> for LlamaCppSlot {
             messages => conversation_history,
             nl_token => self.token_nl_str,
         }) {
-            Ok(prompt) => prompt,
+            Ok(raw_prompt) => raw_prompt,
             Err(err) => {
                 error!(
                     "{:?}: slot {} failed to render chat template: {err:?}",
@@ -293,36 +293,36 @@ impl Handler<ContinueConversationRequest> for LlamaCppSlot {
         };
 
         debug!(
-            "{:?}: slot {} generating from prompt: {:?}",
-            self.agent_name, self.slot_index, prompt
+            "{:?}: slot {} generating from raw prompt: {:?}",
+            self.agent_name, self.slot_index, raw_prompt
         );
 
-        self.generate_from_prompt(
+        self.generate_from_raw_prompt(
             generate_tokens_stop_rx,
             generated_tokens_tx,
             max_tokens,
-            prompt,
+            raw_prompt,
         )
     }
 }
 
-impl Handler<GenerateTokensRequest> for LlamaCppSlot {
+impl Handler<ContinueFromRawPromptRequest> for LlamaCppSlot {
     type Result = Result<()>;
 
     fn handle(
         &mut self,
-        GenerateTokensRequest {
-            generate_tokens_params: GenerateTokensParams { prompt, max_tokens },
+        ContinueFromRawPromptRequest {
+            continue_from_raw_prompt_params: ContinueFromRawPromptParams { max_tokens, raw_prompt },
             generate_tokens_stop_rx,
             generated_tokens_tx,
-        }: GenerateTokensRequest,
+        }: ContinueFromRawPromptRequest,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
-        self.generate_from_prompt(
+        self.generate_from_raw_prompt(
             generate_tokens_stop_rx,
             generated_tokens_tx,
             max_tokens,
-            prompt,
+            raw_prompt,
         )
     }
 }

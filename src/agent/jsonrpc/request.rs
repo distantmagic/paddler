@@ -1,13 +1,13 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::request_params::ContinueConversationParams;
-use crate::request_params::GenerateTokensParams;
+use crate::request_params::ContinueFromConversationHistoryParams;
+use crate::request_params::ContinueFromRawPromptParams;
 
 #[derive(Deserialize, Serialize)]
 pub enum Request {
-    ContinueConversation(ContinueConversationParams),
-    GenerateTokens(GenerateTokensParams),
+    ContinueFromConversationHistory(ContinueFromConversationHistoryParams),
+    ContinueFromRawPrompt(ContinueFromRawPromptParams),
     GetChatTemplateOverride,
     GetModelMetadata,
 }

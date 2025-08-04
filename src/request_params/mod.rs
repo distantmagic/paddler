@@ -1,5 +1,5 @@
-mod continue_conversation_params;
-mod generate_tokens_params;
+mod continue_from_conversation_history_params;
+mod continue_from_raw_prompt_params;
 
-pub use continue_conversation_params::ContinueConversationParams;
-pub use generate_tokens_params::GenerateTokensParams;
+pub use continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
+pub use continue_from_raw_prompt_params::ContinueFromRawPromptParams;

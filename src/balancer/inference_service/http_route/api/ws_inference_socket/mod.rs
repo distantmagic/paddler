@@ -149,7 +149,7 @@ impl InferenceSocketController {
                         warn!("Too many buffered requests, dropping request: {id:?}");
                         Self::respond_with_error(
                             JsonRpcError {
-                                code: 503,
+                                code: 509,
                                 description: "Buffered requests overflow".to_string(),
                             },
                             id.clone(),
@@ -162,7 +162,7 @@ impl InferenceSocketController {
                         warn!("Buffered request {id:?} timed out: {err:?}");
                         Self::respond_with_error(
                             JsonRpcError {
-                                code: 408,
+                                code: 503,
                                 description: "Waiting for available slot timed out".to_string(),
                             },
                             id.clone(),
@@ -252,10 +252,10 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
             }
             InferenceJsonRpcMessage::Request(RequestEnvelope {
                 id,
-                request: InferenceJsonRpcRequest::ContinueConversation(params),
+                request: InferenceJsonRpcRequest::ContinueFromConversationHistory(params),
             }) => {
                 debug!(
-                    "Received ContinueConversation request from client: {id:?}, params: {params:?}"
+                    "Received continue from conversation history request from client: {id:?}, params: {params:?}"
                 );
 
                 match Self::wait_for_agent_controller(
@@ -268,7 +268,7 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                 {
                     Some(agent_controller) => {
                         let receive_tokens_controller = match agent_controller
-                            .continue_conversation(id.clone(), params)
+                            .continue_from_conversation_history(id.clone(), params)
                             .await
                         {
                             Ok(receive_tokens_controller) => receive_tokens_controller,
@@ -304,7 +304,7 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
             }
             InferenceJsonRpcMessage::Request(RequestEnvelope {
                 id,
-                request: InferenceJsonRpcRequest::GenerateTokens(params),
+                request: InferenceJsonRpcRequest::ContinueFromRawPrompt(params),
             }) => {
                 debug!("Received GenerateTokens request from client: {id:?}, params: {params:?}");
 
@@ -318,7 +318,7 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                 {
                     Some(agent_controller) => {
                         let receive_tokens_controller =
-                            match agent_controller.generate_tokens(id.clone(), params).await {
+                            match agent_controller.continue_from_raw_prompt(id.clone(), params).await {
                                 Ok(receive_tokens_controller) => receive_tokens_controller,
                                 Err(err) => {
                                     error!("Failed to generate tokens: {err}");

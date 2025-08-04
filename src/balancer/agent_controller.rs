@@ -29,8 +29,8 @@ use crate::balancer::receive_tokens_controller::ReceiveTokensController;
 use crate::agent_state_application_status::AgentStateApplicationStatus;
 use crate::jsonrpc::RequestEnvelope;
 use crate::produces_snapshot::ProducesSnapshot;
-use crate::request_params::ContinueConversationParams;
-use crate::request_params::GenerateTokensParams;
+use crate::request_params::ContinueFromConversationHistoryParams;
+use crate::request_params::ContinueFromRawPromptParams;
 use crate::sends_rpc_message::SendsRpcMessage;
 use crate::sets_desired_state::SetsDesiredState;
 use crate::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
@@ -57,33 +57,33 @@ pub struct AgentController {
 }
 
 impl AgentController {
-    pub async fn continue_conversation(
+    pub async fn continue_from_conversation_history(
         &self,
         request_id: String,
-        continue_conversation_params: ContinueConversationParams,
+        continue_from_conversation_history_params: ContinueFromConversationHistoryParams,
     ) -> Result<ReceiveTokensController> {
         self.receiver_from_message(
             request_id.clone(),
             AgentJsonRpcMessage::Request(RequestEnvelope {
                 id: request_id,
-                request: AgentJsonRpcRequest::ContinueConversation(
-                    continue_conversation_params.clone(),
+                request: AgentJsonRpcRequest::ContinueFromConversationHistory(
+                    continue_from_conversation_history_params.clone(),
                 ),
             }),
         )
         .await
     }
 
-    pub async fn generate_tokens(
+    pub async fn continue_from_raw_prompt(
         &self,
         request_id: String,
-        generate_tokens_params: GenerateTokensParams,
+        continue_from_raw_prompt_params: ContinueFromRawPromptParams,
     ) -> Result<ReceiveTokensController> {
         self.receiver_from_message(
             request_id.clone(),
             AgentJsonRpcMessage::Request(RequestEnvelope {
                 id: request_id,
-                request: AgentJsonRpcRequest::GenerateTokens(generate_tokens_params.clone()),
+                request: AgentJsonRpcRequest::ContinueFromRawPrompt(continue_from_raw_prompt_params.clone()),
             }),
         )
         .await
