@@ -52,9 +52,10 @@ thiserror = "2.0.12"
 rand = "0.9.2"
 
 [features]
-web_admin_panel = ["dep:askama", "dep:esbuild-metafile", "dep:mime_guess", "dep:rust-embed"]
 default = ["web_admin_panel"]
+cuda = ["llama-cpp-2/cuda"]
 tests_that_use_llms = []
+web_admin_panel = ["dep:askama", "dep:esbuild-metafile", "dep:mime_guess", "dep:rust-embed"]
 
 [profile.release]
 lto = true
