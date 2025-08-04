@@ -1,15 +1,16 @@
-use std::convert::Infallible;
-use std::time::Duration;
-
 use actix_web::Error;
 use tokio::sync::broadcast;
 use actix_web::rt;
 use actix_web::Responder;
 use actix_web::post;
 use actix_web::web;
-use actix_web_lab::sse;
+use actix_web::HttpResponse;
 use log::error;
+use bytes::Bytes;
+use actix_web::http::header;
+use futures::stream::StreamExt;
 use async_trait::async_trait;
+use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
@@ -24,17 +25,13 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 }
 
 struct ForwardingSessionController {
-    sse_event_tx: mpsc::UnboundedSender<sse::Event>,
+    chunk_tx: mpsc::UnboundedSender<String>,
 }
 
 #[async_trait]
 impl SessionController<OutgoingMessage> for ForwardingSessionController {
     async fn send_response(&mut self, message: OutgoingMessage) -> anyhow::Result<()> {
-        self.sse_event_tx.send(
-            sse::Event::Data(sse::Data::new(
-                serde_json::to_string(&message)?
-            ))
-        )?;
+        self.chunk_tx.send(serde_json::to_string(&message)?)?;
 
         Ok(())
     }
@@ -54,7 +51,7 @@ async fn respond(
 ) -> Result<impl Responder, Error> {
     let request_id: String = Uuid::new_v4().into();
     let (connection_close_tx, mut connection_close_rx) = broadcast::channel(1);
-    let (sse_event_tx, mut sse_event_rx) = mpsc::unbounded_channel();
+    let (chunk_tx, chunk_rx) = mpsc::unbounded_channel();
 
     rt::spawn(async move {
         if let Err(err) = ContinueFromRawPromptController::continue_from_raw_prompt(
@@ -64,28 +61,23 @@ async fn respond(
             params.into_inner(),
             request_id,
             ForwardingSessionController {
-                sse_event_tx,
+                chunk_tx,
             },
         ).await {
             error!("Failed to handle request: {err}");
         }
     });
 
-    let event_stream = async_stream::stream! {
-        loop {
-            tokio::select! {
-                _ = connection_close_rx.recv() => {
-                    break;
-                }
-                event = sse_event_rx.recv() => {
-                    match event {
-                        Some(event) => yield Ok::<_, Infallible>(event),
-                        None => break,
-                    }
-                }
-            }
-        }
-    };
+    let stream = UnboundedReceiverStream::new(chunk_rx)
+        .map(|chunk: String| {
+            Ok::<_, Error>(Bytes::from(format!("{chunk}\n")))
+        })
+        .take_until(async move {
+            connection_close_rx.recv().await.ok();
+        });
 
-    Ok(sse::Sse::from_stream(event_stream).with_keep_alive(Duration::from_secs(10)))
+    Ok(HttpResponse::Ok()
+        .insert_header(header::ContentType::json())
+        .insert_header((header::CACHE_CONTROL, "no-cache"))
+        .streaming(stream))
 }
