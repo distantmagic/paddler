@@ -32,6 +32,8 @@ impl ChatTemplateRenderer {
         minijinja_env.add_template_owned(CHAT_TEMPLATE_NAME, content)?;
         minijinja_env.set_unknown_method_callback(unknown_method_callback);
 
+        minijinja_contrib::add_to_environment(&mut minijinja_env);
+
         Ok(Self {
             minijinja_env,
         })
