@@ -123,11 +123,7 @@ impl LlamaCppSlot {
     ) -> Result<()> {
         self.status.take_slot();
 
-        let _guard = GenerateTokensDropGuard::new(
-            generated_tokens_tx.clone(),
-            self.index,
-            self.status.clone(),
-        );
+        let _guard = GenerateTokensDropGuard::new(self.status.clone());
 
         self.llama_context.clear_kv_cache();
 
@@ -198,6 +194,11 @@ impl LlamaCppSlot {
 
             self.decode_batch(&mut batch, &mut vec![])?;
         }
+
+        generated_tokens_tx.send(GeneratedTokenEnvelope {
+            slot: self.index,
+            generated_token_result: GeneratedTokenResult::Done,
+        })?;
 
         Ok(())
     }
