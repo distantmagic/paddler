@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use log::debug;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
-use uuid::Uuid;
+use nanoid::nanoid;
 
 use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::jsonrpc::Message as AgentJsonRpcMessage;
@@ -90,7 +90,7 @@ impl AgentController {
     }
 
     pub async fn get_chat_template_override(&self) -> Result<ManagesSendersController<ChatTemplateOverrideSenderCollection>> {
-        let request_id: String = Uuid::new_v4().to_string();
+        let request_id: String = nanoid!();
 
         self.send_rpc_message(AgentJsonRpcMessage::Request(RequestEnvelope {
             id: request_id.clone(),
@@ -116,7 +116,7 @@ impl AgentController {
     }
 
     pub async fn get_model_metadata(&self) -> Result<ManagesSendersController<ModelMetadataSenderCollection>> {
-        let request_id: String = Uuid::new_v4().to_string();
+        let request_id: String = nanoid!();
 
         self.send_rpc_message(AgentJsonRpcMessage::Request(RequestEnvelope {
             id: request_id.clone(),

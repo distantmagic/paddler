@@ -12,7 +12,7 @@ use futures::stream::StreamExt;
 use async_trait::async_trait;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio::sync::mpsc;
-use uuid::Uuid;
+use nanoid::nanoid;
 
 use crate::request_params::ContinueFromConversationHistoryParams;
 use crate::balancer::inference_service::app_data::AppData;
@@ -35,7 +35,7 @@ async fn respond(
     app_data: web::Data<AppData>,
     params: web::Json<ContinueFromConversationHistoryParams>,
 ) -> Result<impl Responder, Error> {
-    let request_id: String = Uuid::new_v4().into();
+    let request_id: String = nanoid!();
     let (connection_close_tx, mut connection_close_rx) = broadcast::channel(1);
     let (chunk_tx, chunk_rx) = mpsc::unbounded_channel();
 

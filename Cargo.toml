@@ -41,7 +41,6 @@ tokio = { version = "1.45.1", features = ["full"] }
 tokio-stream = { version = "0.1.17", features = ["sync"] }
 tokio-tungstenite = "0.27.0"
 url = { version = "2.5.4", features = ["serde"] }
-uuid = { version = "1.17.0", features = ["serde", "v4"] }
 validator = { version = "0.20.0", features = ["derive"] }
 
 # web dashboard deps
@@ -50,6 +49,7 @@ esbuild-metafile = { version = "0.2.1", optional = true }
 mime_guess = { version = "2.0.5", optional = true }
 rust-embed = { version = "8.7.2", optional = true, features = ["interpolate-folder-path"] }
 minijinja = { version = "2.11.0", features = ["builtins", "json", "loader"] }
+nanoid = "0.4.0"
 
 [features]
 default = ["web_admin_panel"]

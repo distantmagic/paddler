@@ -89,7 +89,7 @@ dependencies = [
  "mime",
  "percent-encoding",
  "pin-project-lite",
- "rand",
+ "rand 0.9.2",
  "sha1",
  "smallvec",
  "tokio",
@@ -1342,7 +1342,7 @@ dependencies = [
  "log",
  "native-tls",
  "num_cpus",
- "rand",
+ "rand 0.9.2",
  "reqwest",
  "serde",
  "serde_json",
@@ -1947,6 +1947,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nanoid"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3ffa00dec017b5b1a8b7cf5e2c008bfda1aa7e0697ac1508b491fdf2622fb4d8"
+dependencies = [
+ "rand 0.8.5",
+]
+
+[[package]]
 name = "native-tls"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2102,8 +2111,9 @@ dependencies = [
  "mime_guess",
  "minijinja",
  "minijinja-contrib",
+ "nanoid",
  "nix",
- "rand",
+ "rand 0.9.2",
  "reqwest",
  "rust-embed",
  "serde",
@@ -2114,7 +2124,6 @@ dependencies = [
  "tokio-stream",
  "tokio-tungstenite",
  "url",
- "uuid",
  "validator",
 ]
 
@@ -2262,12 +2271,33 @@ checksum = "74765f6d916ee2faa39bc8e68e4f3ed8949b48cccdac59983d287a7cb71ce9c5"
 
 [[package]]
 name = "rand"
+version = "0.8.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
+dependencies = [
+ "libc",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.4",
+]
+
+[[package]]
+name = "rand"
 version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6db2770f06117d490610c7488547d543617b21bfa07796d7a12f6f1bd53850d1"
 dependencies = [
- "rand_chacha",
- "rand_core",
+ "rand_chacha 0.9.0",
+ "rand_core 0.9.3",
+]
+
+[[package]]
+name = "rand_chacha"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
+dependencies = [
+ "ppv-lite86",
+ "rand_core 0.6.4",
 ]
 
 [[package]]
@@ -2277,7 +2307,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3022b5f1df60f26e1ffddd6c66e8aa15de382ae63b3a0c1bfc0e4d3e3f325cb"
 dependencies = [
  "ppv-lite86",
- "rand_core",
+ "rand_core 0.9.3",
+]
+
+[[package]]
+name = "rand_core"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
+dependencies = [
+ "getrandom 0.2.16",
 ]
 
 [[package]]
@@ -3100,7 +3139,7 @@ dependencies = [
  "http 1.3.1",
  "httparse",
  "log",
- "rand",
+ "rand 0.9.2",
  "sha1",
  "thiserror 2.0.12",
  "utf-8",
@@ -3197,18 +3236,6 @@ name = "utf8parse"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
-
-[[package]]
-name = "uuid"
-version = "1.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3cf4199d1e5d15ddd86a694e4d0dffa9c323ce759fea589f00fef9d81cc1931d"
-dependencies = [
- "getrandom 0.3.3",
- "js-sys",
- "serde",
- "wasm-bindgen",
-]
 
 [[package]]
 name = "validator"

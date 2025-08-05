@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use clap::Parser;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
-use uuid::Uuid;
+use nanoid::nanoid;
 
 use crate::agent::continue_from_conversation_history_request::ContinueFromConversationHistoryRequest;
 use crate::agent::continue_from_raw_prompt_request::ContinueFromRawPromptRequest;
@@ -69,7 +69,7 @@ impl Handler for Agent {
             name: self.name.clone(),
             receive_tokens_stopper_collection: Arc::new(ReceiveTokensStopperCollection::new()),
             slot_aggregated_status: slot_aggregated_status_manager.slot_aggregated_status.clone(),
-            socket_url: format!("ws://{}/api/v1/agent_socket/{}", self.management_addr, Uuid::new_v4()),
+            socket_url: format!("ws://{}/api/v1/agent_socket/{}", self.management_addr, nanoid!()),
         });
 
         service_manager.add_service(ReconciliationService {
