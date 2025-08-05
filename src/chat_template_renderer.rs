@@ -1,4 +1,5 @@
 use anyhow::Result;
+use minijinja_contrib::pycompat::unknown_method_callback;
 use minijinja::Environment;
 use minijinja::Error;
 use minijinja::ErrorKind;
@@ -29,6 +30,7 @@ impl ChatTemplateRenderer {
 
         minijinja_env.add_function("raise_exception", minijinja_raise_exception);
         minijinja_env.add_template_owned(CHAT_TEMPLATE_NAME, content)?;
+        minijinja_env.set_unknown_method_callback(unknown_method_callback);
 
         Ok(Self {
             minijinja_env,
