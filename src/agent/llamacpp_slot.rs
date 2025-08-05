@@ -261,10 +261,17 @@ impl Handler<ContinueFromConversationHistoryRequest> for LlamaCppSlot {
         }) {
             Ok(raw_prompt) => raw_prompt,
             Err(err) => {
-                error!(
+                let msg = format!(
                     "{:?}: slot {} failed to render chat template: {err:?}",
                     self.slot_context.agent_name, self.index
                 );
+
+                error!("{msg}");
+
+                generated_tokens_tx.send(GeneratedTokenEnvelope {
+                    slot: self.index,
+                    generated_token_result: GeneratedTokenResult::ChatTemplateError(msg),
+                })?;
 
                 return Err(err);
             }

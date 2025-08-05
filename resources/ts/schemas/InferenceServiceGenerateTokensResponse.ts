@@ -17,6 +17,9 @@ export const InferenceServiceGenerateTokensResponseSchema = z
         response: z.object({
           GeneratedToken: z.object({
             generated_token_result: z.union([
+              z.object({
+                ChatTemplateError: z.string(),
+              }),
               z.literal("Done"),
               z.object({
                 Token: z.string(),
@@ -70,6 +73,24 @@ export const InferenceServiceGenerateTokensResponseSchema = z
         done: true,
         error: null,
         ok: true,
+        request_id: data.Response.request_id,
+        token: null,
+      });
+    }
+
+    if (
+      "ChatTemplateError" in
+      data.Response.response.GeneratedToken.generated_token_result
+    ) {
+      return Object.freeze({
+        done: true,
+        error: Object.freeze({
+          code: 500,
+          description:
+            data.Response.response.GeneratedToken.generated_token_result
+              .ChatTemplateError,
+        }),
+        ok: false,
         request_id: data.Response.request_id,
         token: null,
       });
