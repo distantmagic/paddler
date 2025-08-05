@@ -1,4 +1,5 @@
-use actix_web::web::Data;
+use std::sync::Arc;
+
 use log::error;
 use log::info;
 
@@ -9,12 +10,12 @@ use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverr
 use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
 
 pub struct AgentSocketControllerContext {
-    pub balancer_applicable_state_holder: Data<BalancerApplicableStateHolder>,
-    pub agent_controller_pool: Data<AgentControllerPool>,
+    pub balancer_applicable_state_holder: Arc<BalancerApplicableStateHolder>,
+    pub agent_controller_pool: Arc<AgentControllerPool>,
     pub agent_id: String,
-    pub chat_template_override_sender_collection: Data<ChatTemplateOverrideSenderCollection>,
-    pub generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
-    pub model_metadata_sender_collection: Data<ModelMetadataSenderCollection>,
+    pub chat_template_override_sender_collection: Arc<ChatTemplateOverrideSenderCollection>,
+    pub generate_tokens_sender_collection: Arc<GenerateTokensSenderCollection>,
+    pub model_metadata_sender_collection: Arc<ModelMetadataSenderCollection>,
 }
 
 impl Drop for AgentSocketControllerContext {

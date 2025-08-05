@@ -1,9 +1,10 @@
+use actix_web::error::ErrorInternalServerError;
 use actix_web::get;
 use actix_web::web;
 use actix_web::Error;
-use actix_web::Responder;
+use actix_web::HttpResponse;
 
-use crate::balancer::agent_controller_pool::AgentControllerPool;
+use crate::balancer::management_service::app_data::AppData;
 use crate::produces_snapshot::ProducesSnapshot as _;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
@@ -12,7 +13,9 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 
 #[get("/api/v1/agents")]
 async fn respond(
-    agent_controller_pool: web::Data<AgentControllerPool>,
-) -> Result<impl Responder, Error> {
-    Ok(web::Json(agent_controller_pool.make_snapshot()))
+    app_data: web::Data<AppData>,
+) -> Result<HttpResponse, Error> {
+    Ok(HttpResponse::Ok().json(
+        app_data.agent_controller_pool.make_snapshot().map_err(ErrorInternalServerError)?
+    ))
 }

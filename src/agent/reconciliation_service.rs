@@ -17,28 +17,14 @@ use crate::service::Service;
 use crate::slot_aggregated_status::SlotAggregatedStatus;
 
 pub struct ReconciliationService {
-    agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
-    agent_desired_state: Option<AgentDesiredState>,
-    agent_desired_state_rx: mpsc::UnboundedReceiver<AgentDesiredState>,
-    is_converted_to_applicable_state: bool,
-    slot_aggregated_status: Arc<SlotAggregatedStatus>,
+    pub agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
+    pub agent_desired_state: Option<AgentDesiredState>,
+    pub agent_desired_state_rx: mpsc::UnboundedReceiver<AgentDesiredState>,
+    pub is_converted_to_applicable_state: bool,
+    pub slot_aggregated_status: Arc<SlotAggregatedStatus>,
 }
 
 impl ReconciliationService {
-    pub fn new(
-        agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
-        agent_desired_state_rx: mpsc::UnboundedReceiver<AgentDesiredState>,
-        slot_aggregated_status: Arc<SlotAggregatedStatus>,
-    ) -> Result<Self> {
-        Ok(ReconciliationService {
-            agent_applicable_state_holder,
-            agent_desired_state: None,
-            agent_desired_state_rx,
-            is_converted_to_applicable_state: true,
-            slot_aggregated_status,
-        })
-    }
-
     pub async fn convert_to_applicable_state(&mut self) -> Result<()> {
         let applicable_state = match &self.agent_desired_state {
             None => None,

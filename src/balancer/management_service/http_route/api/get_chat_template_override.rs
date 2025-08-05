@@ -1,11 +1,13 @@
+use std::sync::Arc;
+
 use actix_web::Error;
 use actix_web::HttpResponse;
 use actix_web::get;
 use actix_web::web;
 use async_trait::async_trait;
 use serde::Deserialize;
-use std::sync::Arc;
 
+use crate::balancer::management_service::app_data::AppData;
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::controls_manages_senders_endpoint::ControlsManagesSendersEndpoint;
@@ -17,7 +19,7 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 }
 
 struct GetChatTemplateOverrideController {
-    agent_controller_pool: web::Data<AgentControllerPool>,
+    agent_controller_pool: Arc<AgentControllerPool>,
     agent_id: String,
 }
 
@@ -25,7 +27,7 @@ struct GetChatTemplateOverrideController {
 impl ControlsManagesSendersEndpoint for GetChatTemplateOverrideController {
     type SenderCollection = ChatTemplateOverrideSenderCollection;
 
-    fn get_agent_controller_pool(&self) -> web::Data<AgentControllerPool> {
+    fn get_agent_controller_pool(&self) -> Arc<AgentControllerPool> {
         self.agent_controller_pool.clone()
     }
 
@@ -45,11 +47,11 @@ struct PathParams {
 
 #[get("/api/v1/agent/{agent_id}/chat_template_override")]
 async fn respond(
-    agent_controller_pool: web::Data<AgentControllerPool>,
+    app_data: web::Data<AppData>,
     params: web::Path<PathParams>,
 ) -> Result<HttpResponse, Error> {
     let controller = GetChatTemplateOverrideController {
-        agent_controller_pool,
+        agent_controller_pool: app_data.agent_controller_pool.clone(),
         agent_id: params.agent_id.clone(),
     };
 

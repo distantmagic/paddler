@@ -9,12 +9,18 @@ export const AgentSchema = z
     download_filename: z.string().nullable(),
     download_total: z.number(),
     id: z.string(),
-    is_state_applied: z.boolean(),
     issues: z.array(AgentIssueSchema),
     model_path: z.string().nullable(),
     name: z.string().nullable(),
     slots_processing: z.number(),
     slots_total: z.number(),
+    state_application_status: z.enum([
+      "Applied",
+      "AttemptedAndNotAppliable",
+      "AttemptedAndRetrying",
+      "Fresh",
+      "Stuck",
+    ]),
     uses_chat_template_override: z.boolean(),
   })
   .strict();

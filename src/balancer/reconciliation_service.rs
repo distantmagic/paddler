@@ -16,29 +16,14 @@ use crate::balancer_desired_state::BalancerDesiredState;
 use crate::sets_desired_state::SetsDesiredState as _;
 
 pub struct ReconciliationService {
-    agent_controller_pool: Arc<AgentControllerPool>,
-    balancer_applicable_state_holder: Arc<BalancerApplicableStateHolder>,
-    balancer_desired_state: BalancerDesiredState,
-    balancer_desired_state_rx: broadcast::Receiver<BalancerDesiredState>,
-    is_converted_to_applicable_state: bool,
+    pub agent_controller_pool: Arc<AgentControllerPool>,
+    pub balancer_applicable_state_holder: Arc<BalancerApplicableStateHolder>,
+    pub balancer_desired_state: BalancerDesiredState,
+    pub balancer_desired_state_rx: broadcast::Receiver<BalancerDesiredState>,
+    pub is_converted_to_applicable_state: bool,
 }
 
 impl ReconciliationService {
-    pub fn new(
-        agent_controller_pool: Arc<AgentControllerPool>,
-        balancer_applicable_state_holder: Arc<BalancerApplicableStateHolder>,
-        balancer_desired_state: BalancerDesiredState,
-        balancer_desired_state_rx: broadcast::Receiver<BalancerDesiredState>,
-    ) -> Result<Self> {
-        Ok(ReconciliationService {
-            agent_controller_pool,
-            balancer_applicable_state_holder,
-            balancer_desired_state,
-            balancer_desired_state_rx,
-            is_converted_to_applicable_state: false,
-        })
-    }
-
     pub async fn convert_to_applicable_state(&mut self) -> Result<()> {
         if let Some(balancer_applicable_state) = self.balancer_desired_state.to_applicable_state(()).await? {
             self.agent_controller_pool.set_desired_state(balancer_applicable_state.agent_desired_state.clone()).await?;

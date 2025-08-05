@@ -1,4 +1,5 @@
-use actix_web::web::Data;
+use std::sync::Arc;
+
 use log::error;
 use tokio::sync::mpsc;
 
@@ -6,7 +7,7 @@ use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderColl
 use crate::generated_token_envelope::GeneratedTokenEnvelope;
 
 pub struct ReceiveTokensController {
-    pub generate_tokens_sender_collection: Data<GenerateTokensSenderCollection>,
+    pub generate_tokens_sender_collection: Arc<GenerateTokensSenderCollection>,
     pub generated_tokens_rx: mpsc::UnboundedReceiver<GeneratedTokenEnvelope>,
     pub request_id: String,
 }

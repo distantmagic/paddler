@@ -1,13 +1,14 @@
-pub mod continue_conversation_request;
+pub mod continue_from_conversation_history_request;
+pub mod continue_from_raw_prompt_request;
 pub mod from_request_params;
 pub mod generate_tokens_drop_guard;
-pub mod generate_tokens_request;
 pub mod jsonrpc;
 pub mod kv_cache_repair_action;
 pub mod llamacpp_arbiter;
-pub mod llamacpp_arbiter_controller;
+pub mod llamacpp_arbiter_handle;
+mod llamacpp_slot_context;
 pub mod llamacpp_arbiter_service;
-pub mod llamacpp_slot;
+mod llamacpp_slot;
 pub mod management_socket_client_service;
 pub mod model_metadata_holder;
 pub mod receive_tokens_stopper_collection;

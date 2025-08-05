@@ -8,7 +8,7 @@ use actix_web::Responder;
 use actix_web_lab::sse;
 use log::error;
 
-use crate::balancer::buffered_request_manager::BufferedRequestManager;
+use crate::balancer::management_service::app_data::AppData;
 use crate::produces_snapshot::ProducesSnapshot as _;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
@@ -17,7 +17,7 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 
 #[get("/api/v1/buffered_requests/stream")]
 async fn respond(
-    buffered_request_manager: web::Data<BufferedRequestManager>,
+    app_data: web::Data<AppData>,
 ) -> Result<impl Responder, Error> {
     let event_stream = async_stream::stream! {
         let send_event = |info| {
@@ -31,11 +31,16 @@ async fn respond(
         };
 
         loop {
-            if let Some(event) = send_event(buffered_request_manager.make_snapshot()) {
-                yield event;
+            match app_data.buffered_request_manager.make_snapshot() {
+                Ok(buffered_request_manager_snapshot) => {
+                    if let Some(event) = send_event(buffered_request_manager_snapshot) {
+                        yield event;
+                    }
+                },
+                Err(err) => error!("Failed to get buffered requests snapshot: {err}"),
             }
 
-            buffered_request_manager.update_notifier.notified().await;
+            app_data.buffered_request_manager.update_notifier.notified().await;
         }
     };
 

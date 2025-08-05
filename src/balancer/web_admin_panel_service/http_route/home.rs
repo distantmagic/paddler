@@ -8,7 +8,7 @@ use esbuild_metafile::filters;
 use esbuild_metafile::HttpPreloader;
 
 use crate::balancer::response::view;
-use crate::balancer::web_admin_panel_service::template_data::TemplateData;
+use crate::balancer::web_admin_panel_service::app_data::AppData;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
@@ -30,19 +30,19 @@ struct WebAdminPanelTemplate {
 #[get("/{_:.*}")]
 async fn respond(
     preloads: HttpPreloader,
-    template_data: web::Data<TemplateData>,
+    app_data: web::Data<AppData>,
 ) -> impl Responder {
     view(WebAdminPanelTemplate {
-        buffered_request_timeout_millis: template_data.buffered_request_timeout.as_millis(),
-        inference_addr: template_data.inference_addr,
-        management_addr: template_data.management_addr,
-        max_buffered_requests: template_data.max_buffered_requests,
+        buffered_request_timeout_millis: app_data.template_data.buffered_request_timeout.as_millis(),
+        inference_addr: app_data.template_data.inference_addr,
+        management_addr: app_data.template_data.management_addr,
+        max_buffered_requests: app_data.template_data.max_buffered_requests,
         preloads,
-        statsd_addr: match template_data.statsd_addr {
+        statsd_addr: match app_data.template_data.statsd_addr {
             Some(addr) => addr.to_string(),
             None => String::new(),
         },
-        statsd_prefix: template_data.statsd_prefix.clone(),
-        statsd_reporting_interval_millis: template_data.statsd_reporting_interval.as_millis(),
+        statsd_prefix: app_data.template_data.statsd_prefix.clone(),
+        statsd_reporting_interval_millis: app_data.template_data.statsd_reporting_interval.as_millis(),
     })
 }

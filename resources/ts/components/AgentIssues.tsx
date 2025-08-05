@@ -9,6 +9,30 @@ export function AgentIssues({ issues }: { issues: Array<AgentIssue> }) {
   return (
     <ul className={agentIssues}>
       {issues.map(function (issue, index) {
+        if ("ChatTemplateDoesNotCompile" in issue) {
+          return (
+            <li className={agentIssues__issue} key={index}>
+              <strong>
+                Chat template does not compile: "
+                {issue.ChatTemplateDoesNotCompile.error}"
+              </strong>
+              <strong>What will Paddler do?</strong>{" "}
+              <p>
+                Paddler will continue to run, but it won't reattempt to load the
+                model.
+              </p>
+              <strong>What can you do?</strong>{" "}
+              <p>
+                <Link href="/model">You need to fix the chat template.</Link>
+              </p>
+              <strong>Template in question:</strong>{" "}
+              <pre>
+                <code>{issue.ChatTemplateDoesNotCompile.template_content}</code>
+              </pre>
+            </li>
+          );
+        }
+
         if ("HuggingFaceCannotAcquireLock" in issue) {
           return (
             <li className={agentIssues__issue} key={index}>
@@ -104,6 +128,18 @@ export function AgentIssues({ issues }: { issues: Array<AgentIssue> }) {
                 path, or <Link href="/model">change the model parameters</Link>{" "}
                 to use a different model file.
               </p>
+            </li>
+          );
+        }
+
+        if ("SlotCannotStart" in issue) {
+          const { error, slot_index } = issue.SlotCannotStart;
+
+          return (
+            <li className={agentIssues__issue} key={index}>
+              <strong>
+                Unable to start slot {slot_index}: {error}
+              </strong>
             </li>
           );
         }

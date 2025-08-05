@@ -1,6 +1,6 @@
 use std::sync::Arc;
+
 use async_trait::async_trait;
-use actix_web::web;
 use actix_web::Error;
 use actix_web::HttpResponse;
 use tokio::time::sleep;
@@ -17,7 +17,7 @@ const TIMEOUT: Duration = Duration::from_secs(3);
 pub trait ControlsManagesSendersEndpoint {
     type SenderCollection: ManagesSenders + Send + Sync + 'static;
 
-    fn get_agent_controller_pool(&self) -> web::Data<AgentControllerPool>;
+    fn get_agent_controller_pool(&self) -> Arc<AgentControllerPool>;
 
     fn get_agent_id(&self) -> String;
 

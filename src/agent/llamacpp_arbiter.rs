@@ -18,10 +18,14 @@ use llama_cpp_2::model::Special;
 use log::error;
 use tokio::sync::oneshot;
 
-use crate::agent::llamacpp_arbiter_controller::LlamaCppArbiterController;
+use crate::agent_issue_params::SlotCannotStartParams;
+use crate::agent_issue_params::ChatTemplateDoesNotCompileParams;
+use crate::agent::llamacpp_arbiter_handle::LlamaCppArbiterHandle;
 use crate::agent::llamacpp_slot::LlamaCppSlot;
+use crate::agent::llamacpp_slot_context::LlamaCppSlotContext;
 use crate::agent::model_metadata_holder::ModelMetadataHolder;
 use crate::agent_issue::AgentIssue;
+use crate::chat_template_renderer::ChatTemplateRenderer;
 use crate::agent_issue_fix::AgentIssueFix;
 use crate::inference_parameters::InferenceParameters;
 use crate::model_metadata::ModelMetadata;
@@ -29,51 +33,18 @@ use crate::slot_aggregated_status_manager::SlotAggregatedStatusManager;
 use crate::chat_template::ChatTemplate;
 
 pub struct LlamaCppArbiter {
-    agent_name: Option<String>,
-    chat_template_override: Option<ChatTemplate>,
-    desired_slots_total: i32,
-    inference_parameters: InferenceParameters,
-    model_metadata_holder: Arc<ModelMetadataHolder>,
-    model_path: PathBuf,
-    slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
+    pub agent_name: Option<String>,
+    pub chat_template_override: Option<ChatTemplate>,
+    pub desired_slots_total: i32,
+    pub inference_parameters: InferenceParameters,
+    pub model_metadata_holder: Arc<ModelMetadataHolder>,
+    pub model_path: PathBuf,
+    pub model_path_string: String,
+    pub slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
 }
 
 impl LlamaCppArbiter {
-    pub fn new(
-        agent_name: Option<String>,
-        chat_template_override: Option<ChatTemplate>,
-        desired_slots_total: i32,
-        inference_parameters: InferenceParameters,
-        model_metadata_holder: Arc<ModelMetadataHolder>,
-        model_path: PathBuf,
-        slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
-    ) -> Self {
-        Self {
-            agent_name,
-            chat_template_override,
-            desired_slots_total,
-            inference_parameters,
-            model_metadata_holder,
-            model_path,
-            slot_aggregated_status_manager,
-        }
-    }
-
-    pub async fn spawn(&self) -> Result<LlamaCppArbiterController> {
-        let model_path_string = self.model_path.display().to_string();
-
-        if self
-            .slot_aggregated_status_manager
-            .slot_aggregated_status
-            .has_issue(&AgentIssue::UnableToFindChatTemplate(
-                model_path_string.clone(),
-            ))
-        {
-            return Err(anyhow!(
-                "Unable to establish chat template for model at path: {model_path_string}"
-            ));
-        }
-
+    pub async fn spawn(&self) -> Result<LlamaCppArbiterHandle> {
         let (chat_template_loaded_tx, chat_template_loaded_rx) = oneshot::channel::<()>();
         let (llamacpp_slot_addr_tx, llamacpp_slot_addr_rx) = oneshot::channel();
         let (model_loaded_tx, model_loaded_rx) = oneshot::channel::<()>();
@@ -84,7 +55,8 @@ impl LlamaCppArbiter {
         let inference_parameters = self.inference_parameters.clone();
         let model_metadata_holder = self.model_metadata_holder.clone();
         let model_path = self.model_path.clone();
-        let model_path_string_clone = model_path_string.clone();
+        let model_path_string_clone = self.model_path_string.clone();
+        let model_path_string = self.model_path_string.clone();
         let chat_template_override = self.chat_template_override.clone();
         let slot_aggregated_status_manager = self.slot_aggregated_status_manager.clone();
 
@@ -143,36 +115,81 @@ impl LlamaCppArbiter {
                 return Err(anyhow!(message));
             }
 
+            let chat_template_renderer = Arc::new(
+                match ChatTemplateRenderer::new(ChatTemplate {
+                    content: llama_chat_template_string.clone(),
+                })
+                .context("Failed to create chat template renderer") {
+                    Ok(renderer) => {
+                        slot_aggregated_status_manager
+                            .slot_aggregated_status
+                            .register_fix(AgentIssueFix::ChatTemplateIsCompiled);
+
+                        renderer
+                    },
+                    Err(err) => {
+                        slot_aggregated_status_manager
+                            .slot_aggregated_status
+                            .register_issue(AgentIssue::ChatTemplateDoesNotCompile(ChatTemplateDoesNotCompileParams {
+                                error: format!("{err}"),
+                                template_content: llama_chat_template_string,
+                            }));
+
+                        return Err(err);
+                    }
+                },
+            );
+
             slot_aggregated_status_manager
                 .slot_aggregated_status
                 .set_model_path(Some(model_path_string_clone));
 
             let slot_index = Arc::new(AtomicU32::new(0));
+            let slot_context = Arc::new(LlamaCppSlotContext {
+                agent_name: agent_name_clone,
+                chat_template_renderer,
+                inference_parameters,
+                token_bos_str: model.token_to_str(model.token_bos(), Special::Tokenize)?,
+                token_nl_str: model.token_to_str(model.token_nl(), Special::Tokenize)?,
+                token_eos_str: model.token_to_str(model.token_eos(), Special::Tokenize)?,
+                model,
+                model_path,
+            });
             let system = System::new();
-            let token_bos_str = model.token_to_str(model.token_bos(), Special::Tokenize)?;
-            let token_nl_str = model.token_to_str(model.token_nl(), Special::Tokenize)?;
-            let token_eos_str = model.token_to_str(model.token_eos(), Special::Tokenize)?;
 
             system.block_on(async move {
                 llamacpp_slot_addr_tx
                     .send(SyncArbiter::start(
                         desired_slots_total as usize,
                         move || {
-                            LlamaCppSlot::new(
-                                agent_name_clone.clone(),
+                            let index = slot_index.fetch_add(1, Ordering::SeqCst);
+                            let llamacpp_slot = LlamaCppSlot::new(
                                 backend.clone(),
                                 ctx_params.clone(),
-                                inference_parameters.clone(),
-                                llama_chat_template_string.clone(),
-                                model.clone(),
-                                model_path.clone(),
-                                slot_index.fetch_add(1, Ordering::SeqCst),
+                                index,
+                                slot_context.clone(),
                                 slot_aggregated_status_manager.bind_slot_status(),
-                                token_bos_str.clone(),
-                                token_eos_str.clone(),
-                                token_nl_str.clone(),
-                            )
-                            .expect("Failed to create LlamaCppSlot")
+                            );
+
+                            match llamacpp_slot {
+                                Err(err) => {
+                                    slot_aggregated_status_manager
+                                        .slot_aggregated_status
+                                        .register_issue(AgentIssue::SlotCannotStart(SlotCannotStartParams {
+                                            error: format!("{err}"),
+                                            slot_index: index,
+                                        }));
+
+                                    panic!("Failed to create slot: {err}");
+                                }
+                                Ok(llamacpp_slot) => {
+                                    slot_aggregated_status_manager
+                                        .slot_aggregated_status
+                                        .register_fix(AgentIssueFix::SlotStarted(index));
+
+                                    llamacpp_slot
+                                },
+                            }
                         },
                     ))
                     .expect("Failed to send LlamaCppSlot address");
@@ -233,13 +250,11 @@ impl LlamaCppArbiter {
             }
         }
 
-        Ok(LlamaCppArbiterController::new(
-            llamacpp_slot_addr_rx
-                .await
-                .context("Unable to await for llamacpp slot addr")?,
+        Ok(LlamaCppArbiterHandle {
+            llamacpp_slot_addr: llamacpp_slot_addr_rx.await.context("Unable to await for llamacpp slot addr")?,
             shutdown_tx,
             sync_arbiter_thread_handle,
-        ))
+        })
     }
 }
 
@@ -250,13 +265,13 @@ mod tests {
     use tokio::sync::mpsc;
 
     use super::*;
-    use crate::agent::generate_tokens_request::GenerateTokensRequest;
+    use crate::agent::continue_from_raw_prompt_request::ContinueFromRawPromptRequest;
     use crate::agent_desired_model::AgentDesiredModel;
     use crate::agent_desired_state::AgentDesiredState;
     use crate::converts_to_applicable_state::ConvertsToApplicableState as _;
     use crate::huggingface_model_reference::HuggingFaceModelReference;
     use crate::inference_parameters::InferenceParameters;
-    use crate::request_params::GenerateTokensParams;
+    use crate::request_params::ContinueFromRawPromptParams;
 
     const SLOTS_TOTAL: i32 = 2;
 
@@ -279,19 +294,20 @@ mod tests {
             .await?
             .expect("Failed to convert to applicable state");
 
-        let llamacpp_arbiter = LlamaCppArbiter::new(
-            Some("test_agent".to_string()),
-            None,
-            SLOTS_TOTAL,
-            applicable_state.inference_parameters,
-            Arc::new(ModelMetadataHolder::new()),
-            applicable_state.model_path.expect("Model path is required"),
+        let model_path = applicable_state.model_path.expect("Model path is required");
+        let llamacpp_arbiter = LlamaCppArbiter {
+            agent_name: Some("test_agent".to_string()),
+            chat_template_override: None,
+            desired_slots_total: SLOTS_TOTAL,
+            inference_parameters: applicable_state.inference_parameters,
+            model_metadata_holder: Arc::new(ModelMetadataHolder::new()),
+            model_path: model_path.clone(),
+            model_path_string: model_path.display().to_string(),
             slot_aggregated_status_manager,
-        );
+        };
         let controller = llamacpp_arbiter.spawn().await?;
 
-        let prompt =
-            "<|im_start|>user\nHow can I make a cat happy?<|im_end|>\n<|im_start|>assistant\n";
+        let raw_prompt = "<|im_start|>user\nHow can I make a cat happy?<|im_end|>\n<|im_start|>assistant\n";
         let (generated_tokens_tx, mut generated_tokens_rx) = mpsc::unbounded_channel();
 
         let (_, generate_tokens_stop_rx_1) = mpsc::unbounded_channel::<()>();
@@ -299,28 +315,28 @@ mod tests {
         let (_, generate_tokens_stop_rx_3) = mpsc::unbounded_channel::<()>();
 
         let futures = vec![
-            controller.llamacpp_slot_addr.send(GenerateTokensRequest {
+            controller.llamacpp_slot_addr.send(ContinueFromRawPromptRequest {
                 generated_tokens_tx: generated_tokens_tx.clone(),
                 generate_tokens_stop_rx: generate_tokens_stop_rx_1,
-                generate_tokens_params: GenerateTokensParams {
+                continue_from_raw_prompt_params: ContinueFromRawPromptParams {
                     max_tokens: 30,
-                    prompt: prompt.to_string(),
+                    raw_prompt: raw_prompt.to_string(),
                 },
             }),
-            controller.llamacpp_slot_addr.send(GenerateTokensRequest {
+            controller.llamacpp_slot_addr.send(ContinueFromRawPromptRequest {
                 generated_tokens_tx: generated_tokens_tx.clone(),
                 generate_tokens_stop_rx: generate_tokens_stop_rx_2,
-                generate_tokens_params: GenerateTokensParams {
+                continue_from_raw_prompt_params: ContinueFromRawPromptParams {
                     max_tokens: 30,
-                    prompt: prompt.to_string(),
+                    raw_prompt: raw_prompt.to_string(),
                 },
             }),
-            controller.llamacpp_slot_addr.send(GenerateTokensRequest {
+            controller.llamacpp_slot_addr.send(ContinueFromRawPromptRequest {
                 generated_tokens_tx,
                 generate_tokens_stop_rx: generate_tokens_stop_rx_3,
-                generate_tokens_params: GenerateTokensParams {
+                continue_from_raw_prompt_params: ContinueFromRawPromptParams {
                     max_tokens: 30,
-                    prompt: prompt.to_string(),
+                    raw_prompt: raw_prompt.to_string(),
                 },
             }),
         ];
@@ -339,7 +355,7 @@ mod tests {
             }
         }
 
-        controller.shutdown().await?;
+        controller.shutdown()?;
 
         Ok(())
     }
