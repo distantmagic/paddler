@@ -1,0 +1,53 @@
+.inferenceParameterInput__checkbox {
+  align-items: center;
+  display: flex;
+  height: var(--height-input);
+  padding: var(--spacing-half) 2px;
+
+  input[type="checkbox"] {
+    appearance: none;
+    background-color: white;
+    border: 2px solid white;
+    height: 1em;
+    outline: 2px solid var(--color-border);
+    width: 1em;
+
+    &:checked {
+      background-color: var(--color-border);
+    }
+  }
+}
+
+.inferenceParameterInput__input {
+  appearance: none;
+  border-color: var(--color-border);
+  border-style: solid;
+  border-width: var(--width-input-border) var(--width-input-border) 0
+    var(--width-input-border);
+  box-shadow: 1px 1px 0 var(--color-border);
+  height: var(--height-input);
+  padding: var(--spacing-half);
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.inferenceParameterInput {
+  --height-input: 35px;
+  --width-input-border: 1px;
+
+  align-items: center;
+  column-gap: var(--spacing-base);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+
+  &:last-of-type .inferenceParameterInput__input {
+    border-bottom-width: var(--width-input-border);
+  }
+}
+
+.inferenceParameterInput__label {
+  font-weight: bold;
+  text-align: right;
+}

@@ -80,6 +80,13 @@ hr {
   padding: 0;
 }
 
+input[type="checkbox"],
+input[type="radio"] {
+  &:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
 a:active,
 button:not(:disabled):active {
   transform: translate3d(0, 1px, 0);

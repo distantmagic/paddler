@@ -28,7 +28,10 @@ export function InferenceParametersContextProvider({
         });
       }
 
-      function setParameter(name: keyof InferenceParameters, value: number) {
+      function setParameter<TKey extends keyof InferenceParameters>(
+        name: TKey,
+        value: InferenceParameters[TKey],
+      ) {
         setPartialParameters({
           ...parameters,
           ...{

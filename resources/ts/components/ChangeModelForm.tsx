@@ -12,6 +12,7 @@ import { InferenceParametersContext } from "../contexts/InferenceParametersConte
 import { useAgentDesiredModelUrl } from "../hooks/useAgentDesiredModelUrl";
 import { type BalancerDesiredState } from "../schemas/BalancerDesiredState";
 import { ChatTemplateBehavior } from "./ChatTemplateBehavior";
+import { InferenceParameterCheckbox } from "./InferenceParameterCheckbox";
 import { InferenceParameterInput } from "./InferenceParameterInput";
 
 import {
@@ -179,7 +180,7 @@ export function ChangeModelForm({
                 performance for your specific needs.
               </p>
             </details>
-            <InferenceParameterInput
+            <InferenceParameterCheckbox
               description="Enable Embeddings (if supported by the model)"
               name="enable_embeddings"
             />

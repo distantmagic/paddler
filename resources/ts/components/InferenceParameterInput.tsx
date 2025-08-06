@@ -1,19 +1,23 @@
 import React, { useCallback, useContext, type FormEvent } from "react";
 
 import { InferenceParametersContext } from "../contexts/InferenceParametersContext";
-import { type InferenceParameters } from "../schemas/InferenceParameters";
+import {
+  type InferenceParameters,
+  type NumberKeys,
+} from "../schemas/InferenceParameters";
 import {
   inferenceParameterInput,
   inferenceParameterInput__input,
   inferenceParameterInput__label,
-} from "./InferenceParameterInput.module.css";
+} from "./inferenceParameterInput.module.css";
 
-export function InferenceParameterInput({
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
+export function InferenceParameterInput<TKey extends NumberKeys>({
   description,
   name,
 }: {
   description: string;
-  name: keyof InferenceParameters;
+  name: TKey;
 }) {
   const { parameters, setParameter } = useContext(InferenceParametersContext);
 
@@ -21,7 +25,10 @@ export function InferenceParameterInput({
     function (event: FormEvent<HTMLInputElement>) {
       event.preventDefault();
 
-      setParameter(name, parseFloat(event.currentTarget.value));
+      setParameter(
+        name,
+        parseFloat(event.currentTarget.value) as InferenceParameters[TKey],
+      );
     },
     [name, setParameter],
   );
@@ -37,7 +44,7 @@ export function InferenceParameterInput({
         onInput={onInput}
         required
         type="number"
-        value={Number(parameters[name])}
+        value={parameters[name]}
       />
     </label>
   );
