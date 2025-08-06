@@ -238,8 +238,7 @@ impl AgentController {
     ) -> Result<ReceiveTokensController> {
         let (generated_tokens_tx, generated_tokens_rx) = mpsc::unbounded_channel();
 
-        self.generate_tokens_sender_collection
-            .register_sender(request_id.clone(), generated_tokens_tx)?;
+        self.generate_tokens_sender_collection.register_sender(request_id.clone(), generated_tokens_tx)?;
         self.send_rpc_message(message).await?;
 
         Ok(ReceiveTokensController {

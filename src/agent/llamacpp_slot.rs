@@ -29,11 +29,13 @@ use crate::agent::kv_cache_repair_action::KVCacheRepairAction;
 use crate::request_params::GenerateEmbeddingBatchParams;
 use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::generated_token_result::GeneratedTokenResult;
+use crate::embedding::Embedding;
 use crate::agent::generate_embedding_batch_request::GenerateEmbeddingBatchRequest;
 use crate::request_params::ContinueFromConversationHistoryParams;
 use crate::request_params::ContinueFromRawPromptParams;
 use crate::embedding_normalization_method::EmbeddingNormalizationMethod;
 use crate::agent::llamacpp_slot_context::LlamaCppSlotContext;
+use crate::embedding_input_tokenized::EmbeddingInputTokenized;
 use crate::slot_status::SlotStatus;
 
 pub struct LlamaCppSlot {
@@ -119,33 +121,23 @@ impl LlamaCppSlot {
     fn embedding_batch_decode(
         &mut self,
         batch: &mut LlamaBatch,
+        current_batch_embeddings: &Vec<&EmbeddingInputTokenized>,
         normalization_method: &EmbeddingNormalizationMethod,
-        output: &mut Vec<Vec<f32>>,
-        sequence_index_max: i32,
+        output: &mut Vec<Embedding>,
     ) -> Result<()> {
         self.llama_context.clear_kv_cache();
         self.llama_context.decode(batch)?;
 
-        for i in 0..sequence_index_max {
+        for (index, embedding_input_tokenized) in current_batch_embeddings.iter().enumerate() {
             let embedding = self.llama_context
-                .embeddings_seq_ith(i)
-                .with_context(|| "Failed to get embeddings")?;
+                .embeddings_seq_ith(index as i32)
+                .context("Failed to get embeddings")?;
 
-            output.push(match normalization_method {
-                EmbeddingNormalizationMethod::None => embedding.to_vec(),
-                EmbeddingNormalizationMethod::Euclidean => {
-                    let magnitude = embedding
-                        .iter()
-                        .fold(0.0, |acc, &val| val.mul_add(val, acc))
-                        .sqrt();
-
-                    if magnitude == 0.0 {
-                        vec![0.0; embedding.len()]
-                    } else {
-                        embedding.iter().map(|&val| val / magnitude).collect()
-                    }
-                },
-            });
+            output.push(Embedding {
+                embedding: embedding.to_vec(),
+                normalization_method: EmbeddingNormalizationMethod::None,
+                source_document_id: embedding_input_tokenized.id.clone(),
+            }.normalize(normalization_method)?);
         }
 
         batch.clear();
@@ -361,6 +353,7 @@ impl Handler<GenerateEmbeddingBatchRequest> for LlamaCppSlot {
             params: GenerateEmbeddingBatchParams {
                 input_batch,
                 normalization_method,
+                start_batch_index,
             },
         }: GenerateEmbeddingBatchRequest,
         _ctx: &mut Self::Context,
@@ -378,36 +371,42 @@ impl Handler<GenerateEmbeddingBatchRequest> for LlamaCppSlot {
 
         let tokens_lines_list = input_batch
             .into_iter()
-            .map(|input| self.slot_context.model.str_to_token(&input, AddBos::Always))
-            .collect::<Result<Vec<_>, _>>()
+            .map(|input| match self.slot_context.model.str_to_token(&input.content, AddBos::Always) {
+                Ok(llama_tokens) => Ok(EmbeddingInputTokenized {
+                    id: input.id,
+                    llama_tokens,
+                }),
+                Err(err) => Err(anyhow!("Failed to tokenize input: {err:?}")),
+            })
+            .collect::<Result<Vec<EmbeddingInputTokenized>, _>>()
             .context("failed to tokenize embedding input batch")?;
 
         let mut batch = LlamaBatch::new(self.slot_context.inference_parameters.batch_n_tokens, 1);
+        let mut current_batch_embeddings: Vec<&EmbeddingInputTokenized> = Vec::new();
         let mut output = Vec::with_capacity(tokens_lines_list.len());
-        let mut sequence_index_max = 0;
 
-        for tokens in &tokens_lines_list {
+        for embedding_input_tokenized in &tokens_lines_list {
             // Flush the batch if the next prompt would exceed our batch size
-            if (batch.n_tokens() as usize + tokens.len()) > self.slot_context.inference_parameters.batch_n_tokens {
+            if (batch.n_tokens() as usize + embedding_input_tokenized.llama_tokens.len()) > self.slot_context.inference_parameters.batch_n_tokens {
                 self.embedding_batch_decode(
                     &mut batch,
+                    &current_batch_embeddings,
                     &normalization_method,
                     &mut output,
-                    sequence_index_max,
                 )?;
 
-                sequence_index_max = 0;
+                current_batch_embeddings.clear();
             }
 
-            batch.add_sequence(tokens, sequence_index_max, false)?;
-            sequence_index_max += 1;
+            batch.add_sequence(&embedding_input_tokenized.llama_tokens, current_batch_embeddings.len() as i32, false)?;
+            current_batch_embeddings.push(&embedding_input_tokenized);
         }
 
         self.embedding_batch_decode(
             &mut batch,
+            &current_batch_embeddings,
             &normalization_method,
             &mut output,
-            sequence_index_max,
         )?;
 
         Ok(())

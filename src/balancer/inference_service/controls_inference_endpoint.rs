@@ -289,7 +289,7 @@ pub trait ControlsInferenceEndpoint {
                         warn!("Buffered request {request_id:?} timed out: {err:?}");
                         Self::respond_with_error(
                             JsonRpcError {
-                                code: 408,
+                                code: 504,
                                 description: "Waiting for available slot timed out".to_string(),
                             },
                             request_id.clone(),

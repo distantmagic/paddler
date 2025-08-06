@@ -1,4 +1,7 @@
 mod agent;
+mod embedding;
+mod embedding_input_tokenized;
+mod embedding_input_document;
 mod agent_state_application_status;
 mod agent_issue_params;
 mod balancer_applicable_state_holder;
