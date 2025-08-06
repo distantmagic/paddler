@@ -22,6 +22,7 @@ use crate::balancer::inference_service::app_data::AppData;
 use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 #[cfg(feature = "web_admin_panel")]
 use crate::balancer::web_admin_panel_service::configuration::Configuration as WebAdminPanelServiceConfiguration;
+use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::service::Service;
 
 fn create_cors_middleware(allowed_hosts: Arc<Vec<String>>) -> Cors {
@@ -42,6 +43,7 @@ fn create_cors_middleware(allowed_hosts: Arc<Vec<String>>) -> Cors {
 }
 
 pub struct InferenceService {
+    pub balancer_applicable_state_holder: Arc<BalancerApplicableStateHolder>,
     pub buffered_request_manager: Arc<BufferedRequestManager>,
     pub configuration: InferenceServiceConfiguration,
     #[cfg(feature = "web_admin_panel")]
@@ -66,6 +68,7 @@ impl Service for InferenceService {
         let cors_allowed_hosts_arc = Arc::new(cors_allowed_hosts);
 
         let app_data = Data::new(AppData {
+            balancer_applicable_state_holder: self.balancer_applicable_state_holder.clone(),
             buffered_request_manager: self.buffered_request_manager.clone(),
             inference_service_configuration: self.configuration.clone(),
         });

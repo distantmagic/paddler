@@ -1,3 +1,5 @@
+use actix_web::error::ErrorNotImplemented;
+use actix_web::error::ErrorServiceUnavailable;
 use actix_web::http::header;
 use actix_web::post;
 use actix_web::rt;
@@ -17,7 +19,9 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use crate::balancer::inference_service::app_data::AppData;
 use crate::balancer::inference_service::chunk_forwarding_session_controller::ChunkForwardingSessionController;
 use crate::balancer::inference_service::controls_inference_endpoint::ControlsInferenceEndpoint;
-use crate::request_params::ContinueFromConversationHistoryParams;
+use crate::request_params::GenerateEmbeddingBatchParams;
+
+const CHARACTERS_PER_TOKEN_MORE_OR_LESS: usize = 4;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
@@ -26,11 +30,31 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 #[post("/api/v1/generate_embedding_batch")]
 async fn respond(
     app_data: web::Data<AppData>,
-    params: web::Json<ContinueFromConversationHistoryParams>,
+    params: web::Json<GenerateEmbeddingBatchParams>,
 ) -> Result<impl Responder, Error> {
+    let balancer_applicable_state_holder = app_data.balancer_applicable_state_holder.clone();
+    let agent_desired_state = match balancer_applicable_state_holder.get_agent_desired_state() {
+        Some(agent_desired_state) => agent_desired_state,
+        None => {
+            return Err(ErrorServiceUnavailable(
+                "Balancer applicable state is not yet set",
+            ));
+        }
+    };
+
+    if !agent_desired_state.inference_parameters.enable_embeddings {
+        return Err(ErrorNotImplemented(
+            "Embedding generation is not enabled in the inference parameters",
+        ));
+    }
+
     let request_id: String = nanoid!();
     let (connection_close_tx, mut connection_close_rx) = broadcast::channel::<()>(1);
     let (chunk_tx, chunk_rx) = mpsc::unbounded_channel();
+
+    let request_batches = params.chunk_by_input_size(
+        agent_desired_state.inference_parameters.batch_n_tokens * CHARACTERS_PER_TOKEN_MORE_OR_LESS,
+    );
 
     rt::spawn(async move {});
 

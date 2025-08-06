@@ -150,6 +150,7 @@ impl Handler for Balancer {
         };
 
         service_manager.add_service(InferenceService {
+            balancer_applicable_state_holder: balancer_applicable_state_holder.clone(),
             buffered_request_manager: buffered_request_manager.clone(),
             configuration: InferenceServiceConfiguration {
                 addr: self.inference_addr,
