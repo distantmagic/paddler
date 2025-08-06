@@ -1,23 +1,25 @@
+use std::mem;
+
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum EmbeddingNormalizationMethod {
-    Euclidean,
-    // MaxAbsolute,
+    L2,
     None,
-    // PNorm,
+    RmsNorm { epsilon: f32 },
 }
 
 impl EmbeddingNormalizationMethod {
-    pub fn can_transform_to(&self, other: &EmbeddingNormalizationMethod) -> bool {
-        match (self, other) {
-            (EmbeddingNormalizationMethod::Euclidean, EmbeddingNormalizationMethod::Euclidean) => {
-                true
-            }
-            (EmbeddingNormalizationMethod::None, EmbeddingNormalizationMethod::Euclidean) => true,
-            (EmbeddingNormalizationMethod::None, EmbeddingNormalizationMethod::None) => true,
-            _ => false,
+    pub fn can_transform_to(&self, _other: &EmbeddingNormalizationMethod) -> bool {
+        if matches!(self, EmbeddingNormalizationMethod::None) {
+            return true;
         }
+
+        false
+    }
+
+    pub fn needs_transformation_to(&self, other: &EmbeddingNormalizationMethod) -> bool {
+        mem::discriminant(self) != mem::discriminant(other)
     }
 }

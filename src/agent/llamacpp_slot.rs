@@ -373,7 +373,6 @@ impl Handler<GenerateEmbeddingBatchRequest> for LlamaCppSlot {
                 GenerateEmbeddingBatchParams {
                     input_batch,
                     normalization_method,
-                    start_batch_index,
                 },
         }: GenerateEmbeddingBatchRequest,
         _ctx: &mut Self::Context,
@@ -431,7 +430,7 @@ impl Handler<GenerateEmbeddingBatchRequest> for LlamaCppSlot {
                 current_batch_embeddings.len() as i32,
                 false,
             )?;
-            current_batch_embeddings.push(&embedding_input_tokenized);
+            current_batch_embeddings.push(embedding_input_tokenized);
         }
 
         self.embedding_batch_decode(

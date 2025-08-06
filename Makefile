@@ -27,12 +27,6 @@ clean:
 .PHONY: fmt
 fmt: node_modules
 	./jarmuz-fmt.mjs
-	$(MAKE) -C integration_tests fmt
-
-.PHONY: integration_tests
-integration_tests:
-	cargo release
-	$(MAKE) -C integration_tests test
 
 .PHONY: jarmuz-static
 jarmuz-static: node_modules
