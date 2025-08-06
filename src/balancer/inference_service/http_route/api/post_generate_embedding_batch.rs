@@ -38,7 +38,7 @@ async fn respond(
         None => {
             return Err(ErrorServiceUnavailable(
                 "Balancer applicable state is not yet set",
-            ));
+            ))
         }
     };
 
