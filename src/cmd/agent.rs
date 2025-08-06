@@ -12,6 +12,7 @@ use super::handler::Handler;
 use super::parse_socket_addr;
 use crate::agent::continue_from_conversation_history_request::ContinueFromConversationHistoryRequest;
 use crate::agent::continue_from_raw_prompt_request::ContinueFromRawPromptRequest;
+use crate::agent::generate_embedding_batch_request::GenerateEmbeddingBatchRequest;
 use crate::agent::llamacpp_arbiter_service::LlamaCppArbiterService;
 use crate::agent::management_socket_client_service::ManagementSocketClientService;
 use crate::agent::model_metadata_holder::ModelMetadataHolder;
@@ -47,6 +48,8 @@ impl Handler for Agent {
         ) = mpsc::unbounded_channel::<ContinueFromConversationHistoryRequest>();
         let (continue_from_raw_prompt_request_tx, continue_from_raw_prompt_request_rx) =
             mpsc::unbounded_channel::<ContinueFromRawPromptRequest>();
+        let (generate_embedding_batch_request_tx, generate_embedding_batch_request_rx) =
+            mpsc::unbounded_channel::<GenerateEmbeddingBatchRequest>();
 
         let agent_applicable_state_holder = Arc::new(AgentApplicableStateHolder::new());
         let model_metadata_holder = Arc::new(ModelMetadataHolder::new());
@@ -60,6 +63,7 @@ impl Handler for Agent {
             continue_from_conversation_history_request_rx,
             continue_from_raw_prompt_request_rx,
             desired_slots_total: self.slots,
+            generate_embedding_batch_request_rx,
             llamacpp_arbiter_handle: None,
             model_metadata_holder: model_metadata_holder.clone(),
             slot_aggregated_status_manager: slot_aggregated_status_manager.clone(),
@@ -70,6 +74,7 @@ impl Handler for Agent {
             agent_desired_state_tx,
             continue_from_conversation_history_request_tx,
             continue_from_raw_prompt_request_tx,
+            generate_embedding_batch_request_tx,
             model_metadata_holder,
             name: self.name.clone(),
             receive_tokens_stopper_collection: Arc::new(ReceiveTokensStopperCollection::new()),

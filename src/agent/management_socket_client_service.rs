@@ -34,6 +34,7 @@ use crate::agent::from_request_params::FromRequestParams;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Message as ManagementJsonRpcMessage;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::Notification as ManagementJsonRpcNotification;
 use crate::agent::continue_from_conversation_history_request::ContinueFromConversationHistoryRequest;
+use crate::agent::generate_embedding_batch_request::GenerateEmbeddingBatchRequest;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::RegisterAgentParams;
 use crate::balancer::management_service::http_route::api::ws_agent_socket::jsonrpc::notification_params::UpdateAgentStatusParams;
 use crate::jsonrpc::Error as JsonRpcError;
@@ -63,6 +64,7 @@ pub struct ManagementSocketClientService {
     pub continue_from_conversation_history_request_tx:
         mpsc::UnboundedSender<ContinueFromConversationHistoryRequest>,
     pub continue_from_raw_prompt_request_tx: mpsc::UnboundedSender<ContinueFromRawPromptRequest>,
+    pub generate_embedding_batch_request_tx: mpsc::UnboundedSender<GenerateEmbeddingBatchRequest>,
     pub model_metadata_holder: Arc<ModelMetadataHolder>,
     pub name: Option<String>,
     pub receive_tokens_stopper_collection: Arc<ReceiveTokensStopperCollection>,
@@ -203,6 +205,10 @@ impl ManagementSocketClientService {
                 )
                 .await
             }
+            JsonRpcMessage::Request(RequestEnvelope {
+                id,
+                request: JsonRpcRequest::GenerateEmbeddingBatch(generate_embedding_batch_params),
+            }) => Ok(()),
             JsonRpcMessage::Request(RequestEnvelope {
                 id,
                 request: JsonRpcRequest::GetChatTemplateOverride,

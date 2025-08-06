@@ -31,6 +31,7 @@ use crate::agent::llamacpp_slot_context::LlamaCppSlotContext;
 use crate::embedding::Embedding;
 use crate::embedding_input_tokenized::EmbeddingInputTokenized;
 use crate::embedding_normalization_method::EmbeddingNormalizationMethod;
+use crate::embedding_result::EmbeddingResult;
 use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::generated_token_result::GeneratedTokenResult;
 use crate::request_params::ContinueFromConversationHistoryParams;
@@ -123,8 +124,8 @@ impl LlamaCppSlot {
         &mut self,
         batch: &mut LlamaBatch,
         current_batch_embeddings: &Vec<&EmbeddingInputTokenized>,
+        generated_embedding_tx: &mpsc::UnboundedSender<EmbeddingResult>,
         normalization_method: &EmbeddingNormalizationMethod,
-        output: &mut Vec<Embedding>,
     ) -> Result<()> {
         self.llama_context.clear_kv_cache();
         self.llama_context.decode(batch)?;
@@ -135,14 +136,14 @@ impl LlamaCppSlot {
                 .embeddings_seq_ith(index as i32)
                 .context("Failed to get embeddings")?;
 
-            output.push(
+            generated_embedding_tx.send(EmbeddingResult::Embedding(
                 Embedding {
                     embedding: embedding.to_vec(),
                     normalization_method: EmbeddingNormalizationMethod::None,
                     source_document_id: embedding_input_tokenized.id.clone(),
                 }
                 .normalize(normalization_method)?,
-            );
+            ))?;
         }
 
         batch.clear();
@@ -369,6 +370,8 @@ impl Handler<GenerateEmbeddingBatchRequest> for LlamaCppSlot {
     fn handle(
         &mut self,
         GenerateEmbeddingBatchRequest {
+            generate_embedding_stop_rx,
+            generated_embedding_tx,
             params:
                 GenerateEmbeddingBatchParams {
                     input_batch,
@@ -408,7 +411,6 @@ impl Handler<GenerateEmbeddingBatchRequest> for LlamaCppSlot {
 
         let mut batch = LlamaBatch::new(self.slot_context.inference_parameters.batch_n_tokens, 1);
         let mut current_batch_embeddings: Vec<&EmbeddingInputTokenized> = Vec::new();
-        let mut output = Vec::with_capacity(tokens_lines_list.len());
 
         for embedding_input_tokenized in &tokens_lines_list {
             // Flush the batch if the next prompt would exceed our batch size
@@ -418,8 +420,8 @@ impl Handler<GenerateEmbeddingBatchRequest> for LlamaCppSlot {
                 self.embedding_batch_decode(
                     &mut batch,
                     &current_batch_embeddings,
+                    &generated_embedding_tx,
                     &normalization_method,
-                    &mut output,
                 )?;
 
                 current_batch_embeddings.clear();
@@ -436,8 +438,8 @@ impl Handler<GenerateEmbeddingBatchRequest> for LlamaCppSlot {
         self.embedding_batch_decode(
             &mut batch,
             &current_batch_embeddings,
+            &generated_embedding_tx,
             &normalization_method,
-            &mut output,
         )?;
 
         Ok(())

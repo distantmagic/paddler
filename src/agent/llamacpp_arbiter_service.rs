@@ -19,6 +19,7 @@ use tokio::time::MissedTickBehavior;
 
 use crate::agent::continue_from_conversation_history_request::ContinueFromConversationHistoryRequest;
 use crate::agent::continue_from_raw_prompt_request::ContinueFromRawPromptRequest;
+use crate::agent::generate_embedding_batch_request::GenerateEmbeddingBatchRequest;
 use crate::agent::llamacpp_arbiter::LlamaCppArbiter;
 use crate::agent::llamacpp_arbiter_handle::LlamaCppArbiterHandle;
 use crate::agent::llamacpp_slot::LlamaCppSlot;
@@ -39,6 +40,7 @@ pub struct LlamaCppArbiterService {
         mpsc::UnboundedReceiver<ContinueFromConversationHistoryRequest>,
     pub continue_from_raw_prompt_request_rx: mpsc::UnboundedReceiver<ContinueFromRawPromptRequest>,
     pub desired_slots_total: i32,
+    pub generate_embedding_batch_request_rx: mpsc::UnboundedReceiver<GenerateEmbeddingBatchRequest>,
     pub llamacpp_arbiter_handle: Option<LlamaCppArbiterHandle>,
     pub model_metadata_holder: Arc<ModelMetadataHolder>,
     pub slot_aggregated_status_manager: Arc<SlotAggregatedStatusManager>,
@@ -143,7 +145,7 @@ impl LlamaCppArbiterService {
         Ok(())
     }
 
-    async fn generate_tokens<TRequest>(
+    async fn forward_request_to_arbiter<TRequest>(
         &mut self,
         request: TRequest,
         mut shutdown: broadcast::Receiver<()>,
@@ -158,11 +160,11 @@ impl LlamaCppArbiterService {
             rt::spawn(async move {
                 tokio::select! {
                     _ = shutdown.recv() => {
-                        error!("Shutdown received, stopping ContinueFromRawPromptRequest processing");
+                        error!("Shutdown received, stopping request processing");
                     }
                     result = llamacpp_slot_addr.send(request) => {
                         if let Err(err) = result {
-                            error!("Failed to send ContinueFromRawPromptRequest: {err}");
+                            error!("Failed to forward request to arbiter: {err}");
                         }
                     }
                 }
@@ -222,7 +224,7 @@ impl Service for LlamaCppArbiterService {
                 continue_from_conversation_history_request = self.continue_from_conversation_history_request_rx.recv() => {
                     match continue_from_conversation_history_request {
                         Some(continue_from_conversation_history_request) => {
-                            self.generate_tokens(
+                            self.forward_request_to_arbiter(
                                 continue_from_conversation_history_request,
                                 shutdown.resubscribe(),
                             ).await
@@ -235,13 +237,26 @@ impl Service for LlamaCppArbiterService {
                 continue_from_raw_prompt_request = self.continue_from_raw_prompt_request_rx.recv() => {
                     match continue_from_raw_prompt_request {
                         Some(continue_from_raw_prompt_request) => {
-                            self.generate_tokens(
+                            self.forward_request_to_arbiter(
                                 continue_from_raw_prompt_request,
                                 shutdown.resubscribe(),
                             ).await
                         }
                         None => {
                             break Err(anyhow!("ContinueFromRawPromptRequest channel closed unexpectedly"));
+                        }
+                    }
+                }
+                generate_embedding_batch_request = self.generate_embedding_batch_request_rx.recv() => {
+                    match generate_embedding_batch_request {
+                        Some(generate_embedding_batch_request) => {
+                            self.forward_request_to_arbiter(
+                                generate_embedding_batch_request,
+                                shutdown.resubscribe(),
+                            ).await
+                        }
+                        None => {
+                            break Err(anyhow!("GenerateEmbeddingBatchRequest channel closed unexpectedly"));
                         }
                     }
                 }
