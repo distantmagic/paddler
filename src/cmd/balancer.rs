@@ -14,6 +14,7 @@ use super::parse_socket_addr;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
 use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
+use crate::balancer::embedding_sender_collection::EmbeddingSenderCollection;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::balancer::inference_service::InferenceService;
@@ -138,6 +139,7 @@ impl Handler for Balancer {
         ));
         let chat_template_override_sender_collection =
             Arc::new(ChatTemplateOverrideSenderCollection::new());
+        let embedding_sender_collection = Arc::new(EmbeddingSenderCollection::new());
         let generate_tokens_sender_collection = Arc::new(GenerateTokensSenderCollection::new());
         let model_metadata_sender_collection = Arc::new(ModelMetadataSenderCollection::new());
         let mut service_manager = ServiceManager::new();
@@ -167,7 +169,8 @@ impl Handler for Balancer {
             buffered_request_manager: buffered_request_manager.clone(),
             chat_template_override_sender_collection,
             configuration: self.get_management_service_configuration(),
-            generate_tokens_sender_collection: generate_tokens_sender_collection.clone(),
+            embedding_sender_collection,
+            generate_tokens_sender_collection,
             model_metadata_sender_collection,
             state_database: state_database.clone(),
             #[cfg(feature = "web_admin_panel")]
@@ -184,7 +187,7 @@ impl Handler for Balancer {
 
         if let Some(statsd_addr) = self.statsd_addr {
             service_manager.add_service(StatsdService {
-                agent_controller_pool: agent_controller_pool.clone(),
+                agent_controller_pool,
                 buffered_request_manager,
                 configuration: StatsdServiceConfiguration {
                     statsd_addr,

@@ -15,6 +15,7 @@ use tokio::sync::broadcast;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
 use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
+use crate::balancer::embedding_sender_collection::EmbeddingSenderCollection;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::http_route as common_http_route;
 use crate::balancer::management_service::app_data::AppData;
@@ -33,6 +34,7 @@ pub struct ManagementService {
     pub buffered_request_manager: Arc<BufferedRequestManager>,
     pub chat_template_override_sender_collection: Arc<ChatTemplateOverrideSenderCollection>,
     pub configuration: ManagementServiceConfiguration,
+    pub embedding_sender_collection: Arc<EmbeddingSenderCollection>,
     pub generate_tokens_sender_collection: Arc<GenerateTokensSenderCollection>,
     pub model_metadata_sender_collection: Arc<ModelMetadataSenderCollection>,
     pub state_database: Arc<dyn StateDatabase>,
@@ -64,6 +66,7 @@ impl Service for ManagementService {
             chat_template_override_sender_collection: self
                 .chat_template_override_sender_collection
                 .clone(),
+            embedding_sender_collection: self.embedding_sender_collection.clone(),
             generate_tokens_sender_collection: self.generate_tokens_sender_collection.clone(),
             model_metadata_sender_collection: self.model_metadata_sender_collection.clone(),
             state_database: self.state_database.clone(),

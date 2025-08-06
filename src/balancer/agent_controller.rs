@@ -22,14 +22,17 @@ use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller_snapshot::AgentControllerSnapshot;
 use crate::balancer::agent_controller_update_result::AgentControllerUpdateResult;
 use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
+use crate::balancer::embedding_sender_collection::EmbeddingSenderCollection;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::manages_senders_controller::ManagesSendersController;
 use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
 use crate::balancer::receive_tokens_controller::ReceiveTokensController;
+use crate::embedding_result::EmbeddingResult;
 use crate::jsonrpc::RequestEnvelope;
 use crate::produces_snapshot::ProducesSnapshot;
 use crate::request_params::ContinueFromConversationHistoryParams;
 use crate::request_params::ContinueFromRawPromptParams;
+use crate::request_params::GenerateEmbeddingBatchParams;
 use crate::sends_rpc_message::SendsRpcMessage;
 use crate::sets_desired_state::SetsDesiredState;
 use crate::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
@@ -42,6 +45,7 @@ pub struct AgentController {
     pub download_current: AtomicValue<AtomicUsize>,
     pub download_filename: RwLock<Option<String>>,
     pub download_total: AtomicValue<AtomicUsize>,
+    pub embedding_sender_collection: Arc<EmbeddingSenderCollection>,
     pub generate_tokens_sender_collection: Arc<GenerateTokensSenderCollection>,
     pub id: String,
     pub issues: RwLock<BTreeSet<AgentIssue>>,
@@ -59,15 +63,13 @@ impl AgentController {
     pub async fn continue_from_conversation_history(
         &self,
         request_id: String,
-        continue_from_conversation_history_params: ContinueFromConversationHistoryParams,
+        params: ContinueFromConversationHistoryParams,
     ) -> Result<ReceiveTokensController> {
         self.receiver_from_message(
             request_id.clone(),
             AgentJsonRpcMessage::Request(RequestEnvelope {
                 id: request_id,
-                request: AgentJsonRpcRequest::ContinueFromConversationHistory(
-                    continue_from_conversation_history_params.clone(),
-                ),
+                request: AgentJsonRpcRequest::ContinueFromConversationHistory(params.clone()),
             }),
         )
         .await
@@ -76,18 +78,30 @@ impl AgentController {
     pub async fn continue_from_raw_prompt(
         &self,
         request_id: String,
-        continue_from_raw_prompt_params: ContinueFromRawPromptParams,
+        params: ContinueFromRawPromptParams,
     ) -> Result<ReceiveTokensController> {
         self.receiver_from_message(
             request_id.clone(),
             AgentJsonRpcMessage::Request(RequestEnvelope {
                 id: request_id,
-                request: AgentJsonRpcRequest::ContinueFromRawPrompt(
-                    continue_from_raw_prompt_params.clone(),
-                ),
+                request: AgentJsonRpcRequest::ContinueFromRawPrompt(params.clone()),
             }),
         )
         .await
+    }
+
+    pub async fn generate_embedding_batch(
+        &self,
+        embedding_rx: mpsc::UnboundedReceiver<EmbeddingResult>,
+        embedding_tx: mpsc::UnboundedSender<EmbeddingResult>,
+        request_id: String,
+        params: GenerateEmbeddingBatchParams,
+    ) -> Result<ManagesSendersController<EmbeddingSenderCollection>> {
+        Ok(ManagesSendersController {
+            request_id,
+            response_rx: embedding_rx,
+            response_sender_collection: self.embedding_sender_collection.clone(),
+        })
     }
 
     pub async fn get_chat_template_override(

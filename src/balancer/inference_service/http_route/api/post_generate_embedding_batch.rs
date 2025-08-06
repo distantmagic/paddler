@@ -7,21 +7,17 @@ use actix_web::web;
 use actix_web::Error;
 use actix_web::HttpResponse;
 use actix_web::Responder;
-use async_trait::async_trait;
 use bytes::Bytes;
 use futures::stream::StreamExt;
-use log::error;
 use nanoid::nanoid;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::balancer::inference_service::app_data::AppData;
-use crate::balancer::inference_service::chunk_forwarding_session_controller::ChunkForwardingSessionController;
-use crate::balancer::inference_service::controls_inference_endpoint::ControlsInferenceEndpoint;
 use crate::request_params::GenerateEmbeddingBatchParams;
 
-const CHARACTERS_PER_TOKEN_MORE_OR_LESS: usize = 4;
+const CHARACTERS_PER_TOKEN_APPROXIMATELY: usize = 3;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
@@ -48,12 +44,12 @@ async fn respond(
         ));
     }
 
-    let request_id: String = nanoid!();
     let (connection_close_tx, mut connection_close_rx) = broadcast::channel::<()>(1);
     let (chunk_tx, chunk_rx) = mpsc::unbounded_channel();
 
     let request_batches = params.chunk_by_input_size(
-        agent_desired_state.inference_parameters.batch_n_tokens * CHARACTERS_PER_TOKEN_MORE_OR_LESS,
+        agent_desired_state.inference_parameters.batch_n_tokens
+            * CHARACTERS_PER_TOKEN_APPROXIMATELY,
     );
 
     rt::spawn(async move {});

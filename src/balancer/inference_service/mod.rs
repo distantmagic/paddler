@@ -80,6 +80,7 @@ impl Service for InferenceService {
                 .configure(common_http_route::get_health::register)
                 .configure(http_route::api::post_continue_from_conversation_history::register)
                 .configure(http_route::api::post_continue_from_raw_prompt::register)
+                .configure(http_route::api::post_generate_embedding_batch::register)
                 .configure(http_route::api::ws_inference_socket::register)
         })
         .shutdown_signal(async move {

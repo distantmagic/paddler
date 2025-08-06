@@ -41,6 +41,7 @@ use crate::balancer::agent_controller::AgentController;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::agent_controller_update_result::AgentControllerUpdateResult;
 use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
+use crate::balancer::embedding_sender_collection::EmbeddingSenderCollection;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::management_service::app_data::AppData;
 use crate::balancer::manages_senders::ManagesSenders as _;
@@ -63,6 +64,7 @@ struct AgentSocketController {
     agent_id: String,
     balancer_applicable_state_holder: Arc<BalancerApplicableStateHolder>,
     chat_template_override_sender_collection: Arc<ChatTemplateOverrideSenderCollection>,
+    embedding_sender_collection: Arc<EmbeddingSenderCollection>,
     generate_tokens_sender_collection: Arc<GenerateTokensSenderCollection>,
     model_metadata_sender_collection: Arc<ModelMetadataSenderCollection>,
 }
@@ -81,6 +83,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
             chat_template_override_sender_collection: self
                 .chat_template_override_sender_collection
                 .clone(),
+            embedding_sender_collection: self.embedding_sender_collection.clone(),
             generate_tokens_sender_collection: self.generate_tokens_sender_collection.clone(),
             model_metadata_sender_collection: self.model_metadata_sender_collection.clone(),
         }
@@ -136,6 +139,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     download_current: AtomicValue::<AtomicUsize>::new(download_current),
                     download_filename: RwLock::new(download_filename),
                     download_total: AtomicValue::<AtomicUsize>::new(download_total),
+                    embedding_sender_collection: context.embedding_sender_collection.clone(),
                     generate_tokens_sender_collection: context
                         .generate_tokens_sender_collection
                         .clone(),
@@ -243,6 +247,17 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
             }
             ManagementJsonRpcMessage::Response(ResponseEnvelope {
                 request_id,
+                response: AgentJsonRpcResponse::Embedding(embedding_result),
+            }) => {
+                context
+                    .embedding_sender_collection
+                    .forward_response_safe(request_id, embedding_result)
+                    .await;
+
+                Ok(ContinuationDecision::Continue)
+            }
+            ManagementJsonRpcMessage::Response(ResponseEnvelope {
+                request_id,
                 response: AgentJsonRpcResponse::GeneratedToken(generated_token_envelope),
             }) => {
                 if let Err(err) = context
@@ -310,6 +325,7 @@ async fn respond(
         chat_template_override_sender_collection: app_data
             .chat_template_override_sender_collection
             .clone(),
+        embedding_sender_collection: app_data.embedding_sender_collection.clone(),
         generate_tokens_sender_collection: app_data.generate_tokens_sender_collection.clone(),
         model_metadata_sender_collection: app_data.model_metadata_sender_collection.clone(),
     };

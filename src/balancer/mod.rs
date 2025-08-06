@@ -11,6 +11,7 @@ pub mod buffered_request_manager;
 mod buffered_request_manager_snapshot;
 pub mod chat_template_override_sender_collection;
 mod controls_manages_senders_endpoint;
+pub mod embedding_sender_collection;
 pub mod generate_tokens_sender_collection;
 mod http_route;
 pub mod inference_service;
