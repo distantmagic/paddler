@@ -4,6 +4,7 @@ use std::sync::Arc;
 use crate::atomic_value::AtomicValue;
 use crate::dispenses_slots::DispensesSlots;
 use crate::slot_aggregated_status::SlotAggregatedStatus;
+use crate::slot_request_drop_guard::SlotRequestDropGuard;
 
 pub struct SlotStatus {
     pub slot_aggregated_status: Arc<SlotAggregatedStatus>,
@@ -24,6 +25,12 @@ impl SlotStatus {
 
     pub fn stopped(&self) {
         self.slot_aggregated_status.decrement_total_slots();
+    }
+
+    pub fn take_slot_with_guard(self: &Arc<Self>) -> SlotRequestDropGuard {
+        self.take_slot();
+
+        SlotRequestDropGuard::new(self.clone())
     }
 }
 

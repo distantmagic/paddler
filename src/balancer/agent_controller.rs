@@ -26,7 +26,6 @@ use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderColl
 use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
 use crate::balancer::manages_senders_controller::ManagesSendersController;
 use crate::balancer::receive_tokens_controller::ReceiveTokensController;
-use crate::agent_state_application_status::AgentStateApplicationStatus;
 use crate::jsonrpc::RequestEnvelope;
 use crate::produces_snapshot::ProducesSnapshot;
 use crate::request_params::ContinueFromConversationHistoryParams;
@@ -201,7 +200,7 @@ impl AgentController {
         changed = changed || self.download_total.set_check(download_total);
         changed = changed || self.slots_processing.set_check(slots_processing);
         changed = changed || self.slots_total.set_check(slots_total);
-        changed = changed || self.state_application_status_code.set_check(state_application_status.to_code());
+        changed = changed || self.state_application_status_code.set_check(state_application_status as i32);
         changed = changed || self.uses_chat_template_override.set_check(uses_chat_template_override);
 
         self.newest_update_version
@@ -274,9 +273,7 @@ impl ProducesSnapshot for AgentController {
             name: self.name.clone(),
             slots_processing: self.slots_processing.get(),
             slots_total: self.slots_total.get(),
-            state_application_status: AgentStateApplicationStatus::from_code(
-                self.state_application_status_code.get(),
-            )?,
+            state_application_status: self.state_application_status_code.get().try_into()?,
             uses_chat_template_override: self.uses_chat_template_override.get(),
         })
     }

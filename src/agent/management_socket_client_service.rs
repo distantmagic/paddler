@@ -26,7 +26,6 @@ use crate::agent::jsonrpc::Notification as JsonRpcNotification;
 use crate::agent::jsonrpc::Request as JsonRpcRequest;
 use crate::agent::jsonrpc::Response as JsonRpcResponse;
 use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
-use crate::agent::receive_tokens_stopper_drop_guard::ReceiveTokensStopperDropGuard;
 use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::continue_from_raw_prompt_request::ContinueFromRawPromptRequest;
 use crate::agent::jsonrpc::notification_params::VersionParams;
@@ -78,17 +77,11 @@ impl ManagementSocketClientService {
         receive_tokens_stopper_collection: Arc<ReceiveTokensStopperCollection>,
         request_tx: mpsc::UnboundedSender<TRequest>,
     ) -> Result<()> {
-        let (generated_tokens_tx, mut generated_tokens_rx) =
-            mpsc::unbounded_channel::<GeneratedTokenEnvelope>();
+        let (generated_tokens_tx, mut generated_tokens_rx) = mpsc::unbounded_channel::<GeneratedTokenEnvelope>();
         let (generate_tokens_stop_tx, generate_tokens_stop_rx) = mpsc::unbounded_channel::<()>();
 
-        let _guard = ReceiveTokensStopperDropGuard {
-            receive_tokens_stopper_collection: receive_tokens_stopper_collection.clone(),
-            request_id: id.clone(),
-        };
-
-        receive_tokens_stopper_collection
-            .register_stopper(id.clone(), generate_tokens_stop_tx)
+        let _guard = receive_tokens_stopper_collection
+            .register_stopper_with_guard(id.clone(), generate_tokens_stop_tx)
             .context(format!("Failed to register stopper for request ID: {id}"))?;
 
         request_tx.send(TRequest::from_request_params(

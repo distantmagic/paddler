@@ -4,6 +4,7 @@ use actix::Actor;
 use actix::Handler;
 use actix::SyncContext;
 use anyhow::anyhow;
+use anyhow::Context as _;
 use anyhow::Result;
 use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::context::LlamaContext;
@@ -23,14 +24,15 @@ use minijinja::context;
 use tokio::sync::mpsc;
 
 use crate::agent::continue_from_conversation_history_request::ContinueFromConversationHistoryRequest;
-use crate::agent::generate_tokens_drop_guard::GenerateTokensDropGuard;
 use crate::agent::continue_from_raw_prompt_request::ContinueFromRawPromptRequest;
 use crate::agent::kv_cache_repair_action::KVCacheRepairAction;
-use crate::dispenses_slots::DispensesSlots as _;
+use crate::request_params::GenerateEmbeddingBatchParams;
 use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::generated_token_result::GeneratedTokenResult;
+use crate::agent::generate_embedding_batch_request::GenerateEmbeddingBatchRequest;
 use crate::request_params::ContinueFromConversationHistoryParams;
 use crate::request_params::ContinueFromRawPromptParams;
+use crate::embedding_normalization_method::EmbeddingNormalizationMethod;
 use crate::agent::llamacpp_slot_context::LlamaCppSlotContext;
 use crate::slot_status::SlotStatus;
 
@@ -44,9 +46,9 @@ pub struct LlamaCppSlot {
 
 impl LlamaCppSlot {
     pub fn new(
-        backend: Arc<LlamaBackend>,
-        ctx_params: Arc<LlamaContextParams>,
         index: u32,
+        llama_backend: Arc<LlamaBackend>,
+        llama_ctx_params: Arc<LlamaContextParams>,
         slot_context: Arc<LlamaCppSlotContext>,
         status: Arc<SlotStatus>,
     ) -> Result<Self> {
@@ -63,7 +65,7 @@ impl LlamaCppSlot {
             // 3. The context cannot outlive the struct that contains both it and the model
             let model_ref: &'static LlamaModel = std::mem::transmute(slot_context.model.as_ref());
 
-            model_ref.new_context(&backend, (*ctx_params).clone())?
+            model_ref.new_context(&llama_backend, (*llama_ctx_params).clone())?
         };
 
         Ok(Self {
@@ -75,7 +77,7 @@ impl LlamaCppSlot {
         })
     }
 
-    fn decode_batch(
+    fn continuation_batch_decode(
         &mut self,
         batch: &mut LlamaBatch,
         taken_kv_cache_repair_actions: &mut Vec<KVCacheRepairAction>,
@@ -92,7 +94,7 @@ impl LlamaCppSlot {
                         taken_kv_cache_repair_actions.push(KVCacheRepairAction::Defrag);
                         self.llama_context.kv_cache_defrag();
 
-                        return self.decode_batch(batch, taken_kv_cache_repair_actions);
+                        return self.continuation_batch_decode(batch, taken_kv_cache_repair_actions);
                     }
 
                     Err(err.into())
@@ -114,6 +116,39 @@ impl LlamaCppSlot {
         }
     }
 
+    fn embedding_batch_decode(
+        &mut self,
+        batch: &mut LlamaBatch,
+        normalization_method: &EmbeddingNormalizationMethod,
+        output: &mut Vec<Vec<f32>>,
+        sequence_index: i32,
+    ) -> Result<()> {
+        self.llama_context.clear_kv_cache();
+        self.llama_context.decode(batch)?;
+
+        for i in 0..sequence_index {
+            let embedding = self.llama_context
+                .embeddings_seq_ith(i)
+                .with_context(|| "Failed to get embeddings")?;
+
+            output.push(match normalization_method {
+                EmbeddingNormalizationMethod::None => embedding.to_vec(),
+                EmbeddingNormalizationMethod::Euclidean => {
+                    let norm = embedding.iter().map(|&x| x * x).sum::<f32>().sqrt();
+                    if norm == 0.0 {
+                        vec![0.0; embedding.len()]
+                    } else {
+                        embedding.iter().map(|&x| x / norm).collect()
+                    }
+                }
+            });
+        }
+
+        batch.clear();
+
+        Ok(())
+    }
+
     fn generate_from_raw_prompt(
         &mut self,
         mut generate_tokens_stop_rx: mpsc::UnboundedReceiver<()>,
@@ -121,9 +156,7 @@ impl LlamaCppSlot {
         max_tokens: i32,
         prompt: String,
     ) -> Result<()> {
-        self.status.take_slot();
-
-        let _guard = GenerateTokensDropGuard::new(self.status.clone());
+        let _guard = self.status.take_slot_with_guard();
 
         self.llama_context.clear_kv_cache();
 
@@ -137,7 +170,7 @@ impl LlamaCppSlot {
             batch.add(token, i, &[0], is_last)?;
         }
 
-        self.decode_batch(&mut batch, &mut vec![])?;
+        self.continuation_batch_decode(&mut batch, &mut vec![])?;
 
         let mut n_cur = batch.n_tokens();
         let mut decoder = encoding_rs::UTF_8.new_decoder();
@@ -154,6 +187,7 @@ impl LlamaCppSlot {
             LlamaSampler::min_p(self.slot_context.inference_parameters.min_p, 0),
             LlamaSampler::temp(self.slot_context.inference_parameters.temperature),
             LlamaSampler::dist(self.rng.random::<u32>()),
+            LlamaSampler::greedy(),
         ]);
 
         while n_cur <= max_tokens {
@@ -192,7 +226,7 @@ impl LlamaCppSlot {
 
             n_cur += 1;
 
-            self.decode_batch(&mut batch, &mut vec![])?;
+            self.continuation_batch_decode(&mut batch, &mut vec![])?;
         }
 
         generated_tokens_tx.send(GeneratedTokenEnvelope {
@@ -231,15 +265,14 @@ impl Handler<ContinueFromConversationHistoryRequest> for LlamaCppSlot {
     fn handle(
         &mut self,
         ContinueFromConversationHistoryRequest {
-            continue_from_conversation_history_params:
-                ContinueFromConversationHistoryParams {
-                    add_generation_prompt,
-                    enable_thinking,
-                    conversation_history,
-                    max_tokens,
-                },
             generate_tokens_stop_rx,
             generated_tokens_tx,
+            params: ContinueFromConversationHistoryParams {
+                add_generation_prompt,
+                enable_thinking,
+                conversation_history,
+                max_tokens,
+            },
         }: ContinueFromConversationHistoryRequest,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
@@ -298,9 +331,9 @@ impl Handler<ContinueFromRawPromptRequest> for LlamaCppSlot {
     fn handle(
         &mut self,
         ContinueFromRawPromptRequest {
-            continue_from_raw_prompt_params: ContinueFromRawPromptParams { max_tokens, raw_prompt },
             generate_tokens_stop_rx,
             generated_tokens_tx,
+            params: ContinueFromRawPromptParams { max_tokens, raw_prompt },
         }: ContinueFromRawPromptRequest,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
@@ -310,5 +343,62 @@ impl Handler<ContinueFromRawPromptRequest> for LlamaCppSlot {
             max_tokens,
             raw_prompt,
         )
+    }
+}
+
+impl Handler<GenerateEmbeddingBatchRequest> for LlamaCppSlot {
+    type Result = Result<()>;
+
+    // Based on the example from the llama-cpp-rs repository:
+    // https://github.com/utilityai/llama-cpp-rs/blob/main/examples/embeddings/src/main.rs
+    fn handle(
+        &mut self,
+        GenerateEmbeddingBatchRequest {
+            params: GenerateEmbeddingBatchParams {
+                input_batch,
+                normalization_method,
+            },
+        }: GenerateEmbeddingBatchRequest,
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
+        let _guard = self.status.take_slot_with_guard();
+
+        self.llama_context.clear_kv_cache();
+
+        let tokens_lines_list = input_batch
+            .into_iter()
+            .map(|input| self.slot_context.model.str_to_token(&input, AddBos::Always))
+            .collect::<Result<Vec<_>, _>>()
+            .context("failed to tokenize embedding input batch")?;
+
+        let mut batch = LlamaBatch::new(self.slot_context.inference_parameters.batch_n_tokens, 1);
+        let mut output = Vec::with_capacity(tokens_lines_list.len());
+        let mut sequence_index = 0;
+
+        for tokens in &tokens_lines_list {
+            // Flush the batch if the next prompt would exceed our batch size
+            if (batch.n_tokens() as usize + tokens.len()) > self.slot_context.inference_parameters.batch_n_tokens {
+                self.embedding_batch_decode(
+                    &mut batch,
+                    &normalization_method,
+                    &mut output,
+                    sequence_index,
+                )?;
+
+                sequence_index = 0;
+            }
+
+            batch.add_sequence(tokens, sequence_index, false)?;
+            sequence_index += 1;
+        }
+
+        self.embedding_batch_decode(
+            &mut batch,
+            &normalization_method,
+            &mut output,
+            sequence_index,
+        )?;
+
+        Ok(())
     }
 }

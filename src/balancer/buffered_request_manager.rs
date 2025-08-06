@@ -8,7 +8,6 @@ use tokio::time::timeout;
 use crate::balancer::buffered_request_manager_snapshot::BufferedRequestManagerSnapshot;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::buffered_request_agent_wait_result::BufferedRequestAgentWaitResult;
-use crate::balancer::buffered_request_count_guard::BufferedRequestCountGuard;
 use crate::balancer::buffered_request_counter::BufferedRequestCounter;
 use crate::produces_snapshot::ProducesSnapshot;
 
@@ -49,9 +48,7 @@ impl BufferedRequestManager {
             ));
         }
 
-        self.buffered_request_counter.increment();
-
-        let _buffered_request_count_guard = BufferedRequestCountGuard::new(self.buffered_request_counter.clone());
+        let _buffered_request_count_guard = self.buffered_request_counter.increment_with_guard();
         let agent_controller_pool = self.agent_controller_pool.clone();
 
         match timeout(self.buffered_request_timeout, async {

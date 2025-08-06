@@ -56,6 +56,7 @@ default = ["web_admin_panel"]
 cuda = ["llama-cpp-2/cuda"]
 tests_that_use_llms = []
 web_admin_panel = ["dep:askama", "dep:esbuild-metafile", "dep:mime_guess", "dep:rust-embed"]
+vulkan = ["llama-cpp-2/vulkan"]
 
 [profile.release]
 lto = true

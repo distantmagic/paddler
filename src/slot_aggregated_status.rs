@@ -40,7 +40,7 @@ impl SlotAggregatedStatus {
             issues: DashSet::new(),
             model_path: RwLock::new(None),
             state_application_status_code: AtomicValue::<AtomicI32>::new(
-                AgentStateApplicationStatus::Fresh.to_code()
+                AgentStateApplicationStatus::Fresh as i32
             ),
             slots_processing: AtomicValue::<AtomicI32>::new(0),
             slots_total: AtomicValue::<AtomicI32>::new(0),
@@ -57,7 +57,7 @@ impl SlotAggregatedStatus {
     }
 
     pub fn get_state_application_status(&self) -> Result<AgentStateApplicationStatus> {
-        AgentStateApplicationStatus::from_code(self.state_application_status_code.get())
+        self.state_application_status_code.get().try_into()
     }
 
     pub fn has_issue(&self, issue: &AgentIssue) -> bool {
@@ -147,7 +147,7 @@ impl SlotAggregatedStatus {
     }
 
     pub fn set_state_application_status(&self, status: AgentStateApplicationStatus) {
-        self.state_application_status_code.set(status.to_code());
+        self.state_application_status_code.set(status as i32);
         self.version.increment();
         self.update_notifier.notify_waiters();
     }
@@ -194,9 +194,7 @@ impl ProducesSnapshot for SlotAggregatedStatus {
                 .clone(),
             slots_processing: self.slots_processing.get(),
             slots_total: self.slots_total.get(),
-            state_application_status: AgentStateApplicationStatus::from_code(
-                self.state_application_status_code.get()
-            )?,
+            state_application_status: self.state_application_status_code.get().try_into()?,
             uses_chat_template_override: self.uses_chat_template_override.get(),
             version: self.version.get(),
         })

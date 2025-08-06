@@ -61,14 +61,25 @@ impl LlamaCppArbiter {
         let slot_aggregated_status_manager = self.slot_aggregated_status_manager.clone();
 
         let sync_arbiter_thread_handle = thread::spawn(move || -> Result<()> {
-            let backend = Arc::new(LlamaBackend::init().context("Unable to initialize llama.cpp backend")?);
-            let ctx_params = Arc::new(LlamaContextParams::default().with_n_ctx(NonZeroU32::new(inference_parameters.context_size)));
-            let backend_clone = backend.clone();
+            let llama_backend = Arc::new(LlamaBackend::init().context("Unable to initialize llama.cpp backend")?);
+            let llama_ctx_params = Arc::new(
+                LlamaContextParams::default()
+                    .with_n_threads_batch(thread::available_parallelism()?.get().try_into()?)
+                    .with_embeddings(true)
+                    .with_n_ctx(NonZeroU32::new(inference_parameters.context_size))
+            );
+            let backend_clone = llama_backend.clone();
             let model = Arc::new(
                 LlamaModel::load_from_file(
                     &backend_clone.clone(),
                     model_path.clone(),
-                    &LlamaModelParams::default(),
+                    &{
+                        if cfg!(any(feature = "cuda", feature = "vulkan", target_os = "macos")) {
+                            LlamaModelParams::default().with_n_gpu_layers(1000)
+                        } else {
+                            LlamaModelParams::default()
+                        }
+                    },
                 )
                 .context("Unable to load model from file")?,
             );
@@ -164,9 +175,9 @@ impl LlamaCppArbiter {
                         move || {
                             let index = slot_index.fetch_add(1, Ordering::SeqCst);
                             let llamacpp_slot = LlamaCppSlot::new(
-                                backend.clone(),
-                                ctx_params.clone(),
                                 index,
+                                llama_backend.clone(),
+                                llama_ctx_params.clone(),
                                 slot_context.clone(),
                                 slot_aggregated_status_manager.bind_slot_status(),
                             );

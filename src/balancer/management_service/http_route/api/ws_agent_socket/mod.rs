@@ -140,7 +140,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     newest_update_version: AtomicValue::<AtomicI32>::new(version),
                     slots_processing: AtomicValue::<AtomicI32>::new(slots_processing),
                     slots_total: AtomicValue::<AtomicI32>::new(slots_total),
-                    state_application_status_code: AtomicValue::<AtomicI32>::new(state_application_status.to_code()),
+                    state_application_status_code: AtomicValue::<AtomicI32>::new(state_application_status as i32),
                     uses_chat_template_override: AtomicValue::<AtomicBool>::new(uses_chat_template_override),
                 });
 

@@ -1,7 +1,11 @@
+use std::sync::Arc;
+
 use anyhow::anyhow;
 use anyhow::Result;
 use dashmap::DashMap;
 use tokio::sync::mpsc;
+
+use crate::agent::receive_tokens_stopper_drop_guard::ReceiveTokensStopperDropGuard;
 
 pub struct ReceiveTokensStopperCollection {
     receive_tokens_stoppers: DashMap<String, mpsc::UnboundedSender<()>>,
@@ -38,6 +42,19 @@ impl ReceiveTokensStopperCollection {
         self.receive_tokens_stoppers.insert(request_id, stopper);
 
         Ok(())
+    }
+
+    pub fn register_stopper_with_guard(
+        self: &Arc<Self>,
+        request_id: String,
+        stopper: mpsc::UnboundedSender<()>,
+    ) -> Result<ReceiveTokensStopperDropGuard> {
+        self.register_stopper(request_id.clone(), stopper)?;
+
+        Ok(ReceiveTokensStopperDropGuard {
+            receive_tokens_stopper_collection: self.clone(),
+            request_id,
+        })
     }
 
     pub fn stop(&self, request_id: String) -> Result<()> {
