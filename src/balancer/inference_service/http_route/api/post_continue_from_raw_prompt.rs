@@ -1,23 +1,23 @@
-use actix_web::Error;
-use tokio::sync::broadcast;
-use actix_web::rt;
-use actix_web::Responder;
-use actix_web::post;
-use actix_web::web;
-use actix_web::HttpResponse;
-use log::error;
-use bytes::Bytes;
 use actix_web::http::header;
-use futures::stream::StreamExt;
+use actix_web::post;
+use actix_web::rt;
+use actix_web::web;
+use actix_web::Error;
+use actix_web::HttpResponse;
+use actix_web::Responder;
 use async_trait::async_trait;
-use tokio_stream::wrappers::UnboundedReceiverStream;
-use tokio::sync::mpsc;
+use bytes::Bytes;
+use futures::stream::StreamExt;
+use log::error;
 use nanoid::nanoid;
+use tokio::sync::broadcast;
+use tokio::sync::mpsc;
+use tokio_stream::wrappers::UnboundedReceiverStream;
 
-use crate::request_params::ContinueFromRawPromptParams;
 use crate::balancer::inference_service::app_data::AppData;
-use crate::balancer::inference_service::controls_inference_endpoint::ControlsInferenceEndpoint;
 use crate::balancer::inference_service::chunk_forwarding_session_controller::ChunkForwardingSessionController;
+use crate::balancer::inference_service::controls_inference_endpoint::ControlsInferenceEndpoint;
+use crate::request_params::ContinueFromRawPromptParams;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
@@ -46,18 +46,16 @@ async fn respond(
             app_data.inference_service_configuration.clone(),
             params.into_inner(),
             request_id,
-            ChunkForwardingSessionController {
-                chunk_tx,
-            },
-        ).await {
+            ChunkForwardingSessionController { chunk_tx },
+        )
+        .await
+        {
             error!("Failed to handle request: {err}");
         }
     });
 
     let stream = UnboundedReceiverStream::new(chunk_rx)
-        .map(|chunk: String| {
-            Ok::<_, Error>(Bytes::from(format!("{chunk}\n")))
-        })
+        .map(|chunk: String| Ok::<_, Error>(Bytes::from(format!("{chunk}\n"))))
         .take_until(async move {
             connection_close_rx.recv().await.ok();
         });

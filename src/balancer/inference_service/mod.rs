@@ -18,8 +18,8 @@ use tokio::sync::broadcast;
 
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
 use crate::balancer::http_route as common_http_route;
-use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::balancer::inference_service::app_data::AppData;
+use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 #[cfg(feature = "web_admin_panel")]
 use crate::balancer::web_admin_panel_service::configuration::Configuration as WebAdminPanelServiceConfiguration;
 use crate::service::Service;

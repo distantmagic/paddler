@@ -8,8 +8,8 @@ use async_trait::async_trait;
 use log::warn;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
-use tokio::sync::RwLock;
 use tokio::sync::broadcast;
+use tokio::sync::RwLock;
 
 use self::schema::Schema;
 use super::StateDatabase;
@@ -76,7 +76,8 @@ impl File {
         file.write_all(serialized_schema.as_bytes()).await?;
         file.sync_all().await?;
 
-        self.balancer_desired_state_notify_tx.send(balancer_desired_state)?;
+        self.balancer_desired_state_notify_tx
+            .send(balancer_desired_state)?;
 
         Ok(())
     }
@@ -107,9 +108,13 @@ impl StateDatabase for File {
             .clone())
     }
 
-    async fn store_balancer_desired_state(&self, balancer_desired_state: &BalancerDesiredState) -> Result<()> {
+    async fn store_balancer_desired_state(
+        &self,
+        balancer_desired_state: &BalancerDesiredState,
+    ) -> Result<()> {
         self.update_schema(|schema| {
             schema.balancer_desired_state = balancer_desired_state.clone();
-        }).await
+        })
+        .await
     }
 }

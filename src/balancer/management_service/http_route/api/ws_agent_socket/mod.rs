@@ -27,30 +27,30 @@ use serde::Deserialize;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
-use crate::balancer::management_service::app_data::AppData;
-use crate::balancer::manages_senders::ManagesSenders as _;
 use self::agent_socket_controller_context::AgentSocketControllerContext;
-use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use self::jsonrpc::notification_params::RegisterAgentParams;
 use self::jsonrpc::notification_params::UpdateAgentStatusParams;
 use self::jsonrpc::Message as ManagementJsonRpcMessage;
 use self::jsonrpc::Notification as ManagementJsonRpcNotification;
 use crate::agent::jsonrpc::notification_params::VersionParams;
 use crate::agent::jsonrpc::Message as AgentJsonRpcMessage;
-use crate::session_controller::SessionController as _;
 use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
-use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
 use crate::agent::jsonrpc::Response as AgentJsonRpcResponse;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::agent_controller_update_result::AgentControllerUpdateResult;
+use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
+use crate::balancer::management_service::app_data::AppData;
+use crate::balancer::manages_senders::ManagesSenders as _;
 use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
-use crate::sets_desired_state::SetsDesiredState as _;
+use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::jsonrpc::ResponseEnvelope;
+use crate::session_controller::SessionController as _;
+use crate::sets_desired_state::SetsDesiredState as _;
 use crate::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 use crate::websocket_session_controller::WebSocketSessionController;
 
@@ -78,7 +78,9 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
             agent_controller_pool: self.agent_controller_pool.clone(),
             agent_id: self.agent_id.clone(),
             balancer_applicable_state_holder: self.balancer_applicable_state_holder.clone(),
-            chat_template_override_sender_collection: self.chat_template_override_sender_collection.clone(),
+            chat_template_override_sender_collection: self
+                .chat_template_override_sender_collection
+                .clone(),
             generate_tokens_sender_collection: self.generate_tokens_sender_collection.clone(),
             model_metadata_sender_collection: self.model_metadata_sender_collection.clone(),
         }
@@ -122,17 +124,24 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                         },
                 }),
             ) => {
-                let (agent_message_tx, mut agent_message_rx) = mpsc::unbounded_channel::<AgentJsonRpcMessage>();
+                let (agent_message_tx, mut agent_message_rx) =
+                    mpsc::unbounded_channel::<AgentJsonRpcMessage>();
                 let agent_controller = Arc::new(AgentController {
                     agent_message_tx,
-                    chat_template_override_sender_collection: context.chat_template_override_sender_collection.clone(),
+                    chat_template_override_sender_collection: context
+                        .chat_template_override_sender_collection
+                        .clone(),
                     connection_close_rx: connection_close_tx.subscribe(),
                     desired_slots_total: AtomicValue::<AtomicI32>::new(desired_slots_total),
                     download_current: AtomicValue::<AtomicUsize>::new(download_current),
                     download_filename: RwLock::new(download_filename),
                     download_total: AtomicValue::<AtomicUsize>::new(download_total),
-                    generate_tokens_sender_collection: context.generate_tokens_sender_collection.clone(),
-                    model_metadata_sender_collection: context.model_metadata_sender_collection.clone(),
+                    generate_tokens_sender_collection: context
+                        .generate_tokens_sender_collection
+                        .clone(),
+                    model_metadata_sender_collection: context
+                        .model_metadata_sender_collection
+                        .clone(),
                     id: context.agent_id.clone(),
                     issues: RwLock::new(issues),
                     model_path: RwLock::new(model_path),
@@ -140,8 +149,12 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     newest_update_version: AtomicValue::<AtomicI32>::new(version),
                     slots_processing: AtomicValue::<AtomicI32>::new(slots_processing),
                     slots_total: AtomicValue::<AtomicI32>::new(slots_total),
-                    state_application_status_code: AtomicValue::<AtomicI32>::new(state_application_status as i32),
-                    uses_chat_template_override: AtomicValue::<AtomicBool>::new(uses_chat_template_override),
+                    state_application_status_code: AtomicValue::<AtomicI32>::new(
+                        state_application_status as i32,
+                    ),
+                    uses_chat_template_override: AtomicValue::<AtomicBool>::new(
+                        uses_chat_template_override,
+                    ),
                 });
 
                 context
@@ -149,7 +162,10 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     .register_agent_controller(context.agent_id.clone(), agent_controller.clone())
                     .context("Unable to register agent controller")?;
 
-                if let Some(desired_state) = context.balancer_applicable_state_holder.get_agent_desired_state() {
+                if let Some(desired_state) = context
+                    .balancer_applicable_state_holder
+                    .get_agent_desired_state()
+                {
                     agent_controller
                         .set_desired_state(desired_state)
                         .await
@@ -291,7 +307,9 @@ async fn respond(
         agent_controller_pool: app_data.agent_controller_pool.clone(),
         agent_id: path_params.agent_id.clone(),
         balancer_applicable_state_holder: app_data.balancer_applicable_state_holder.clone(),
-        chat_template_override_sender_collection: app_data.chat_template_override_sender_collection.clone(),
+        chat_template_override_sender_collection: app_data
+            .chat_template_override_sender_collection
+            .clone(),
         generate_tokens_sender_collection: app_data.generate_tokens_sender_collection.clone(),
         model_metadata_sender_collection: app_data.model_metadata_sender_collection.clone(),
     };

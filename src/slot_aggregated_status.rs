@@ -9,11 +9,11 @@ use tokio::sync::Notify;
 
 use crate::agent_issue::AgentIssue;
 use crate::agent_issue_fix::AgentIssueFix;
+use crate::agent_state_application_status::AgentStateApplicationStatus;
 use crate::atomic_value::AtomicValue;
 use crate::dispenses_slots::DispensesSlots;
 use crate::produces_snapshot::ProducesSnapshot;
 use crate::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
-use crate::agent_state_application_status::AgentStateApplicationStatus;
 
 pub struct SlotAggregatedStatus {
     desired_slots_total: i32,
@@ -40,7 +40,7 @@ impl SlotAggregatedStatus {
             issues: DashSet::new(),
             model_path: RwLock::new(None),
             state_application_status_code: AtomicValue::<AtomicI32>::new(
-                AgentStateApplicationStatus::Fresh as i32
+                AgentStateApplicationStatus::Fresh as i32,
             ),
             slots_processing: AtomicValue::<AtomicI32>::new(0),
             slots_total: AtomicValue::<AtomicI32>::new(0),
@@ -68,9 +68,9 @@ impl SlotAggregatedStatus {
     where
         TFunction: Fn(&AgentIssue) -> bool,
     {
-        self.issues.iter().any(|ref_multi| {
-            issue_like(ref_multi.key())
-        })
+        self.issues
+            .iter()
+            .any(|ref_multi| issue_like(ref_multi.key()))
     }
 
     pub fn increment_download_current(&self, size: usize) {

@@ -3,8 +3,8 @@ use std::collections::BTreeSet;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::agent_state_application_status::AgentStateApplicationStatus;
 use crate::agent_issue::AgentIssue;
+use crate::agent_state_application_status::AgentStateApplicationStatus;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct SlotAggregatedStatusSnapshot {

@@ -27,7 +27,8 @@ impl AgentControllerPool {
     }
 
     pub fn take_least_busy_agent_controller(&self) -> Option<Arc<AgentController>> {
-        let agent_controller: Option<Arc<AgentController>> = self.agents
+        let agent_controller: Option<Arc<AgentController>> = self
+            .agents
             .iter()
             .map(|entry| entry.value().clone())
             .filter(|agent| agent.slots_processing.get() < agent.slots_total.get())

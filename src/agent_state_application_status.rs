@@ -1,7 +1,6 @@
 use anyhow::anyhow;
 use anyhow::Error;
 use anyhow::Result;
-
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -37,7 +36,9 @@ impl TryFrom<i32> for AgentStateApplicationStatus {
             2 => Ok(AgentStateApplicationStatus::AttemptedAndRetrying),
             3 => Ok(AgentStateApplicationStatus::Fresh),
             4 => Ok(AgentStateApplicationStatus::Stuck),
-            _ => Err(anyhow!("Invalid value for AgentStateApplicationStatus: {value}")),
+            _ => Err(anyhow!(
+                "Invalid value for AgentStateApplicationStatus: {value}"
+            )),
         }
     }
 }

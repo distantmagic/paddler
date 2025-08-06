@@ -17,8 +17,7 @@ impl AgentIssueFix {
         match issue {
             AgentIssue::ChatTemplateDoesNotCompile(_) => matches!(
                 self,
-                AgentIssueFix::ChatTemplateIsCompiled
-                    | AgentIssueFix::ModelStateIsReconciled
+                AgentIssueFix::ChatTemplateIsCompiled | AgentIssueFix::ModelStateIsReconciled
             ),
             AgentIssue::HuggingFaceCannotAcquireLock(_) => matches!(
                 self,

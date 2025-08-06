@@ -3,9 +3,9 @@ use async_trait::async_trait;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::agent_desired_model::AgentDesiredModel;
 use crate::agent_desired_state::AgentDesiredState;
 use crate::balancer_applicable_state::BalancerApplicableState;
-use crate::agent_desired_model::AgentDesiredModel;
 use crate::chat_template::ChatTemplate;
 use crate::converts_to_applicable_state::ConvertsToApplicableState;
 use crate::inference_parameters::InferenceParameters;

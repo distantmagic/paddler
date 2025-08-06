@@ -11,7 +11,10 @@ pub struct Embedding {
 
 impl Embedding {
     pub fn normalize(self, normalization_method: &EmbeddingNormalizationMethod) -> Result<Self> {
-        if !self.normalization_method.can_transform_to(normalization_method) {
+        if !self
+            .normalization_method
+            .can_transform_to(normalization_method)
+        {
             return Err(anyhow!(
                 "Cannot transform from {:?} to {normalization_method:?}",
                 self.normalization_method
@@ -25,7 +28,8 @@ impl Embedding {
         Ok(Self {
             embedding: match normalization_method {
                 EmbeddingNormalizationMethod::Euclidean => {
-                    let magnitude = self.embedding
+                    let magnitude = self
+                        .embedding
                         .iter()
                         .fold(0.0, |acc, &val| val.mul_add(val, acc))
                         .sqrt();

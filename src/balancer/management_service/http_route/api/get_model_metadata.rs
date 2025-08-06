@@ -3,8 +3,8 @@ use std::sync::Arc;
 use actix_web::get;
 use actix_web::web;
 use actix_web::Error;
-use async_trait::async_trait;
 use actix_web::HttpResponse;
+use async_trait::async_trait;
 use serde::Deserialize;
 
 use crate::balancer::agent_controller::AgentController;
@@ -35,7 +35,10 @@ impl ControlsManagesSendersEndpoint for GetModelMetadataController {
         self.agent_id.clone()
     }
 
-    async fn get_manages_senders_controller(&self, agent_controller: Arc<AgentController>) -> anyhow::Result<ManagesSendersController<Self::SenderCollection>> {
+    async fn get_manages_senders_controller(
+        &self,
+        agent_controller: Arc<AgentController>,
+    ) -> anyhow::Result<ManagesSendersController<Self::SenderCollection>> {
         agent_controller.get_model_metadata().await
     }
 }

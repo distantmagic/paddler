@@ -12,10 +12,11 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 }
 
 #[get("/api/v1/buffered_requests")]
-async fn respond(
-    app_data: web::Data<AppData>,
-) -> Result<HttpResponse, Error> {
+async fn respond(app_data: web::Data<AppData>) -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(
-        app_data.buffered_request_manager.make_snapshot().map_err(ErrorInternalServerError)?
+        app_data
+            .buffered_request_manager
+            .make_snapshot()
+            .map_err(ErrorInternalServerError)?,
     ))
 }

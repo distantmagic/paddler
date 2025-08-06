@@ -21,7 +21,10 @@ impl AgentApplicableStateHolder {
     }
 
     pub fn get_agent_applicable_state(&self) -> Option<AgentApplicableState> {
-        self.agent_applicable_state.read().expect("Failed to acquire read lock").clone()
+        self.agent_applicable_state
+            .read()
+            .expect("Failed to acquire read lock")
+            .clone()
     }
 
     pub fn set_agent_applicable_state(
@@ -29,7 +32,10 @@ impl AgentApplicableStateHolder {
         agent_applicable_state: Option<AgentApplicableState>,
     ) -> Result<()> {
         {
-            let mut state = self.agent_applicable_state.write().expect("Failed to acquire write lock");
+            let mut state = self
+                .agent_applicable_state
+                .write()
+                .expect("Failed to acquire write lock");
 
             *state = agent_applicable_state.clone();
         }

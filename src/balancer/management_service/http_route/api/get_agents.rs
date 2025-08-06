@@ -12,10 +12,11 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 }
 
 #[get("/api/v1/agents")]
-async fn respond(
-    app_data: web::Data<AppData>,
-) -> Result<HttpResponse, Error> {
+async fn respond(app_data: web::Data<AppData>) -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(
-        app_data.agent_controller_pool.make_snapshot().map_err(ErrorInternalServerError)?
+        app_data
+            .agent_controller_pool
+            .make_snapshot()
+            .map_err(ErrorInternalServerError)?,
     ))
 }

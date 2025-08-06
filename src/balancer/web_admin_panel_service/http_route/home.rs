@@ -28,12 +28,12 @@ struct WebAdminPanelTemplate {
 }
 
 #[get("/{_:.*}")]
-async fn respond(
-    preloads: HttpPreloader,
-    app_data: web::Data<AppData>,
-) -> impl Responder {
+async fn respond(preloads: HttpPreloader, app_data: web::Data<AppData>) -> impl Responder {
     view(WebAdminPanelTemplate {
-        buffered_request_timeout_millis: app_data.template_data.buffered_request_timeout.as_millis(),
+        buffered_request_timeout_millis: app_data
+            .template_data
+            .buffered_request_timeout
+            .as_millis(),
         inference_addr: app_data.template_data.inference_addr,
         management_addr: app_data.template_data.management_addr,
         max_buffered_requests: app_data.template_data.max_buffered_requests,
@@ -43,6 +43,9 @@ async fn respond(
             None => String::new(),
         },
         statsd_prefix: app_data.template_data.statsd_prefix.clone(),
-        statsd_reporting_interval_millis: app_data.template_data.statsd_reporting_interval.as_millis(),
+        statsd_reporting_interval_millis: app_data
+            .template_data
+            .statsd_reporting_interval
+            .as_millis(),
     })
 }

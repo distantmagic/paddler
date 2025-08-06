@@ -8,21 +8,21 @@ use log::warn;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
 
-use crate::generated_token_envelope::GeneratedTokenEnvelope;
-use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Response as OutgoingResponse;
-use crate::jsonrpc::ResponseEnvelope;
 use crate::balancer::agent_controller::AgentController;
-use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Message as OutgoingMessage;
 use crate::balancer::buffered_request_agent_wait_result::BufferedRequestAgentWaitResult;
-use crate::jsonrpc::Error as JsonRpcError;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
-use crate::jsonrpc::ErrorEnvelope;
-use crate::balancer::receive_tokens_controller::ReceiveTokensController;
-use crate::generated_token_result::GeneratedTokenResult;
-use crate::session_controller::SessionController;
 use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
-use crate::request_params::ContinueFromRawPromptParams;
+use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Message as OutgoingMessage;
+use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Response as OutgoingResponse;
+use crate::balancer::receive_tokens_controller::ReceiveTokensController;
+use crate::generated_token_envelope::GeneratedTokenEnvelope;
+use crate::generated_token_result::GeneratedTokenResult;
+use crate::jsonrpc::Error as JsonRpcError;
+use crate::jsonrpc::ErrorEnvelope;
+use crate::jsonrpc::ResponseEnvelope;
 use crate::request_params::ContinueFromConversationHistoryParams;
+use crate::request_params::ContinueFromRawPromptParams;
+use crate::session_controller::SessionController;
 
 #[async_trait]
 pub trait ControlsInferenceEndpoint {
@@ -104,25 +104,27 @@ pub trait ControlsInferenceEndpoint {
         .await?
         {
             Some(agent_controller) => {
-                let receive_tokens_controller =
-                    match agent_controller.continue_from_raw_prompt(request_id.clone(), params).await {
-                        Ok(receive_tokens_controller) => receive_tokens_controller,
-                        Err(err) => {
-                            error!("Failed to generate tokens: {err}");
+                let receive_tokens_controller = match agent_controller
+                    .continue_from_raw_prompt(request_id.clone(), params)
+                    .await
+                {
+                    Ok(receive_tokens_controller) => receive_tokens_controller,
+                    Err(err) => {
+                        error!("Failed to generate tokens: {err}");
 
-                            Self::respond_with_error(
-                                JsonRpcError {
-                                    code: 500,
-                                    description: "Failed to generate tokens".to_string(),
-                                },
-                                request_id.clone(),
-                                &mut session_controller,
-                            )
-                            .await;
+                        Self::respond_with_error(
+                            JsonRpcError {
+                                code: 500,
+                                description: "Failed to generate tokens".to_string(),
+                            },
+                            request_id.clone(),
+                            &mut session_controller,
+                        )
+                        .await;
 
-                            return Ok(());
-                        }
-                    };
+                        return Ok(());
+                    }
+                };
 
                 Self::generate_tokens(
                     agent_controller,
@@ -150,7 +152,8 @@ pub trait ControlsInferenceEndpoint {
     ) -> Result<()> {
         debug!("Found available agent controller for GenerateTokens request: {request_id:?}");
 
-        let mut agent_controller_connection_close_resubscribed = agent_controller.connection_close_rx.resubscribe();
+        let mut agent_controller_connection_close_resubscribed =
+            agent_controller.connection_close_rx.resubscribe();
 
         loop {
             tokio::select! {
@@ -246,12 +249,16 @@ pub trait ControlsInferenceEndpoint {
                 request_id: request_id.clone(),
                 response: OutgoingResponse::GeneratedToken(generated_token_envelope),
             }))
-            .await {
+            .await
+        {
             error!("Failed to send generated token for request {request_id:?}: {err}");
 
-            agent_controller.stop_generating_tokens(request_id.clone()).await.unwrap_or_else(|err| {
-                error!("Failed to stop generating tokens for request {request_id:?}: {err}");
-            });
+            agent_controller
+                .stop_generating_tokens(request_id.clone())
+                .await
+                .unwrap_or_else(|err| {
+                    error!("Failed to stop generating tokens for request {request_id:?}: {err}");
+                });
         }
     }
 

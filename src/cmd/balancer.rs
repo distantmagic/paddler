@@ -5,25 +5,25 @@ use std::time::Duration;
 use anyhow::Result;
 use async_trait::async_trait;
 use clap::Parser;
-use tokio::sync::oneshot;
 use tokio::sync::broadcast;
+use tokio::sync::oneshot;
 
 use super::handler::Handler;
 use super::parse_duration;
 use super::parse_socket_addr;
-use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
+use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::balancer::inference_service::InferenceService;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::management_service::ManagementService;
 use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
+use crate::balancer::reconciliation_service::ReconciliationService;
 use crate::balancer::state_database::File;
 use crate::balancer::state_database::Memory;
 use crate::balancer::state_database::StateDatabase;
-use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
 use crate::balancer::state_database_type::StateDatabaseType;
 use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
 use crate::balancer::statsd_service::StatsdService;
@@ -33,7 +33,7 @@ use crate::balancer::web_admin_panel_service::configuration::Configuration as We
 use crate::balancer::web_admin_panel_service::template_data::TemplateData;
 #[cfg(feature = "web_admin_panel")]
 use crate::balancer::web_admin_panel_service::WebAdminPanelService;
-use crate::balancer::reconciliation_service::ReconciliationService;
+use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::service_manager::ServiceManager;
 
 #[derive(Parser)]
@@ -136,7 +136,8 @@ impl Handler for Balancer {
             self.buffered_request_timeout,
             self.max_buffered_requests,
         ));
-        let chat_template_override_sender_collection = Arc::new(ChatTemplateOverrideSenderCollection::new());
+        let chat_template_override_sender_collection =
+            Arc::new(ChatTemplateOverrideSenderCollection::new());
         let generate_tokens_sender_collection = Arc::new(GenerateTokensSenderCollection::new());
         let model_metadata_sender_collection = Arc::new(ModelMetadataSenderCollection::new());
         let mut service_manager = ServiceManager::new();
@@ -194,9 +195,7 @@ impl Handler for Balancer {
 
         #[cfg(feature = "web_admin_panel")]
         if let Some(configuration) = self.get_web_admin_panel_service_configuration() {
-            service_manager.add_service(WebAdminPanelService {
-                configuration,
-            });
+            service_manager.add_service(WebAdminPanelService { configuration });
         }
 
         service_manager.run_forever(shutdown_rx).await

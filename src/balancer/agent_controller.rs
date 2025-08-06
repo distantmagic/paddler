@@ -8,9 +8,9 @@ use std::sync::RwLock;
 use anyhow::Result;
 use async_trait::async_trait;
 use log::debug;
+use nanoid::nanoid;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
-use nanoid::nanoid;
 
 use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::jsonrpc::Message as AgentJsonRpcMessage;
@@ -18,13 +18,13 @@ use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
 use crate::agent::jsonrpc::Request as AgentJsonRpcRequest;
 use crate::agent_desired_state::AgentDesiredState;
 use crate::agent_issue::AgentIssue;
-use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller_snapshot::AgentControllerSnapshot;
 use crate::balancer::agent_controller_update_result::AgentControllerUpdateResult;
+use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
-use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
 use crate::balancer::manages_senders_controller::ManagesSendersController;
+use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
 use crate::balancer::receive_tokens_controller::ReceiveTokensController;
 use crate::jsonrpc::RequestEnvelope;
 use crate::produces_snapshot::ProducesSnapshot;
@@ -82,13 +82,17 @@ impl AgentController {
             request_id.clone(),
             AgentJsonRpcMessage::Request(RequestEnvelope {
                 id: request_id,
-                request: AgentJsonRpcRequest::ContinueFromRawPrompt(continue_from_raw_prompt_params.clone()),
+                request: AgentJsonRpcRequest::ContinueFromRawPrompt(
+                    continue_from_raw_prompt_params.clone(),
+                ),
             }),
         )
         .await
     }
 
-    pub async fn get_chat_template_override(&self) -> Result<ManagesSendersController<ChatTemplateOverrideSenderCollection>> {
+    pub async fn get_chat_template_override(
+        &self,
+    ) -> Result<ManagesSendersController<ChatTemplateOverrideSenderCollection>> {
         let request_id: String = nanoid!();
 
         self.send_rpc_message(AgentJsonRpcMessage::Request(RequestEnvelope {
@@ -114,7 +118,9 @@ impl AgentController {
         self.issues.read().expect("Poisoned lock on issues").clone()
     }
 
-    pub async fn get_model_metadata(&self) -> Result<ManagesSendersController<ModelMetadataSenderCollection>> {
+    pub async fn get_model_metadata(
+        &self,
+    ) -> Result<ManagesSendersController<ModelMetadataSenderCollection>> {
         let request_id: String = nanoid!();
 
         self.send_rpc_message(AgentJsonRpcMessage::Request(RequestEnvelope {
@@ -200,8 +206,14 @@ impl AgentController {
         changed = changed || self.download_total.set_check(download_total);
         changed = changed || self.slots_processing.set_check(slots_processing);
         changed = changed || self.slots_total.set_check(slots_total);
-        changed = changed || self.state_application_status_code.set_check(state_application_status as i32);
-        changed = changed || self.uses_chat_template_override.set_check(uses_chat_template_override);
+        changed = changed
+            || self
+                .state_application_status_code
+                .set_check(state_application_status as i32);
+        changed = changed
+            || self
+                .uses_chat_template_override
+                .set_check(uses_chat_template_override);
 
         self.newest_update_version
             .compare_and_swap(newest_update_version, version);
@@ -238,7 +250,8 @@ impl AgentController {
     ) -> Result<ReceiveTokensController> {
         let (generated_tokens_tx, generated_tokens_rx) = mpsc::unbounded_channel();
 
-        self.generate_tokens_sender_collection.register_sender(request_id.clone(), generated_tokens_tx)?;
+        self.generate_tokens_sender_collection
+            .register_sender(request_id.clone(), generated_tokens_tx)?;
         self.send_rpc_message(message).await?;
 
         Ok(ReceiveTokensController {

@@ -27,15 +27,16 @@ use crate::agent_applicable_state::AgentApplicableState;
 use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
 use crate::agent_issue::AgentIssue;
 use crate::agent_issue_fix::AgentIssueFix;
+use crate::agent_state_application_status::AgentStateApplicationStatus;
 use crate::service::Service;
 use crate::slot_aggregated_status_manager::SlotAggregatedStatusManager;
-use crate::agent_state_application_status::AgentStateApplicationStatus;
 
 pub struct LlamaCppArbiterService {
     pub agent_applicable_state: Option<AgentApplicableState>,
     pub agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
     pub agent_name: Option<String>,
-    pub continue_from_conversation_history_request_rx: mpsc::UnboundedReceiver<ContinueFromConversationHistoryRequest>,
+    pub continue_from_conversation_history_request_rx:
+        mpsc::UnboundedReceiver<ContinueFromConversationHistoryRequest>,
     pub continue_from_raw_prompt_request_rx: mpsc::UnboundedReceiver<ContinueFromRawPromptRequest>,
     pub desired_slots_total: i32,
     pub llamacpp_arbiter_handle: Option<LlamaCppArbiterHandle>,
@@ -97,10 +98,7 @@ impl LlamaCppArbiterService {
                     .slot_aggregated_status_manager
                     .slot_aggregated_status
                     .has_issue_like(|issue| {
-                        matches!(
-                            issue,
-                            AgentIssue::ChatTemplateDoesNotCompile(_)
-                        )
+                        matches!(issue, AgentIssue::ChatTemplateDoesNotCompile(_))
                     })
                 {
                     self.slot_aggregated_status_manager
