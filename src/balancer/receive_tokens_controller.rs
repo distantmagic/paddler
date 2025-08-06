@@ -4,6 +4,7 @@ use log::error;
 use tokio::sync::mpsc;
 
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
+use crate::balancer::manages_senders::ManagesSenders as _;
 use crate::generated_token_envelope::GeneratedTokenEnvelope;
 
 pub struct ReceiveTokensController {

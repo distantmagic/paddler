@@ -24,6 +24,7 @@ use crate::balancer::agent_controller_update_result::AgentControllerUpdateResult
 use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
 use crate::balancer::embedding_sender_collection::EmbeddingSenderCollection;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
+use crate::balancer::manages_senders::ManagesSenders as _;
 use crate::balancer::manages_senders_controller::ManagesSendersController;
 use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
 use crate::balancer::receive_tokens_controller::ReceiveTokensController;

@@ -22,7 +22,6 @@ use anyhow::Result;
 use async_trait::async_trait;
 use log::error;
 use log::info;
-use log::warn;
 use serde::Deserialize;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
@@ -260,14 +259,10 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                 request_id,
                 response: AgentJsonRpcResponse::GeneratedToken(generated_token_envelope),
             }) => {
-                if let Err(err) = context
+                context
                     .generate_tokens_sender_collection
-                    .forward_generated_token(request_id, generated_token_envelope)
-                    .await
-                {
-                    // Token might come in after the sender was deregistered
-                    warn!("Error forwarding generated token: {err}");
-                }
+                    .forward_response_safe(request_id, generated_token_envelope)
+                    .await;
 
                 Ok(ContinuationDecision::Continue)
             }
