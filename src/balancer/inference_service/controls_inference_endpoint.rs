@@ -11,10 +11,11 @@ use tokio::time::sleep;
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::buffered_request_agent_wait_result::BufferedRequestAgentWaitResult;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
+use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Message as OutgoingMessage;
 use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Response as OutgoingResponse;
-use crate::balancer::receive_tokens_controller::ReceiveTokensController;
+use crate::balancer::manages_senders_controller::ManagesSendersController;
 use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::generated_token_result::GeneratedTokenResult;
 use crate::jsonrpc::Error as JsonRpcError;
@@ -146,7 +147,7 @@ pub trait ControlsInferenceEndpoint {
         agent_controller: Arc<AgentController>,
         mut connection_close_rx: broadcast::Receiver<()>,
         inference_service_configuration: InferenceServiceConfiguration,
-        mut receive_tokens_controller: ReceiveTokensController,
+        mut receive_tokens_controller: ManagesSendersController<GenerateTokensSenderCollection>,
         request_id: String,
         mut session_controller: Self::SessionController,
     ) -> Result<()> {
@@ -197,7 +198,7 @@ pub trait ControlsInferenceEndpoint {
 
                     break;
                 }
-                generated_token_envelope = receive_tokens_controller.generated_tokens_rx.recv() => {
+                generated_token_envelope = receive_tokens_controller.response_rx.recv() => {
                     match generated_token_envelope {
                         Some(generated_token_envelope) => {
                             let is_done = matches!(generated_token_envelope.generated_token_result, GeneratedTokenResult::Done);

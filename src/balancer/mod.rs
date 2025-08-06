@@ -19,7 +19,6 @@ pub mod management_service;
 mod manages_senders;
 mod manages_senders_controller;
 pub mod model_metadata_sender_collection;
-mod receive_tokens_controller;
 pub mod reconciliation_service;
 #[cfg(feature = "web_admin_panel")]
 mod response;

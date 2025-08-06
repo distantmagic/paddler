@@ -27,7 +27,6 @@ use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderColl
 use crate::balancer::manages_senders::ManagesSenders as _;
 use crate::balancer::manages_senders_controller::ManagesSendersController;
 use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
-use crate::balancer::receive_tokens_controller::ReceiveTokensController;
 use crate::embedding_result::EmbeddingResult;
 use crate::jsonrpc::RequestEnvelope;
 use crate::produces_snapshot::ProducesSnapshot;
@@ -65,7 +64,7 @@ impl AgentController {
         &self,
         request_id: String,
         params: ContinueFromConversationHistoryParams,
-    ) -> Result<ReceiveTokensController> {
+    ) -> Result<ManagesSendersController<GenerateTokensSenderCollection>> {
         self.receiver_from_message(
             request_id.clone(),
             AgentJsonRpcMessage::Request(RequestEnvelope {
@@ -80,7 +79,7 @@ impl AgentController {
         &self,
         request_id: String,
         params: ContinueFromRawPromptParams,
-    ) -> Result<ReceiveTokensController> {
+    ) -> Result<ManagesSendersController<GenerateTokensSenderCollection>> {
         self.receiver_from_message(
             request_id.clone(),
             AgentJsonRpcMessage::Request(RequestEnvelope {
@@ -262,17 +261,17 @@ impl AgentController {
         &self,
         request_id: String,
         message: AgentJsonRpcMessage,
-    ) -> Result<ReceiveTokensController> {
-        let (generated_tokens_tx, generated_tokens_rx) = mpsc::unbounded_channel();
+    ) -> Result<ManagesSendersController<GenerateTokensSenderCollection>> {
+        let (response_tx, response_rx) = mpsc::unbounded_channel();
 
         self.generate_tokens_sender_collection
-            .register_sender(request_id.clone(), generated_tokens_tx)?;
+            .register_sender(request_id.clone(), response_tx)?;
         self.send_rpc_message(message).await?;
 
-        Ok(ReceiveTokensController {
-            generate_tokens_sender_collection: self.generate_tokens_sender_collection.clone(),
-            generated_tokens_rx,
+        Ok(ManagesSendersController {
             request_id,
+            response_rx,
+            response_sender_collection: self.generate_tokens_sender_collection.clone(),
         })
     }
 }
