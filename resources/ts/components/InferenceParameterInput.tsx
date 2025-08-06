@@ -37,7 +37,7 @@ export function InferenceParameterInput({
         onInput={onInput}
         required
         type="number"
-        value={parameters[name]}
+        value={Number(parameters[name])}
       />
     </label>
   );

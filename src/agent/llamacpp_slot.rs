@@ -121,12 +121,12 @@ impl LlamaCppSlot {
         batch: &mut LlamaBatch,
         normalization_method: &EmbeddingNormalizationMethod,
         output: &mut Vec<Vec<f32>>,
-        sequence_index: i32,
+        sequence_index_max: i32,
     ) -> Result<()> {
         self.llama_context.clear_kv_cache();
         self.llama_context.decode(batch)?;
 
-        for i in 0..sequence_index {
+        for i in 0..sequence_index_max {
             let embedding = self.llama_context
                 .embeddings_seq_ith(i)
                 .with_context(|| "Failed to get embeddings")?;
@@ -134,13 +134,17 @@ impl LlamaCppSlot {
             output.push(match normalization_method {
                 EmbeddingNormalizationMethod::None => embedding.to_vec(),
                 EmbeddingNormalizationMethod::Euclidean => {
-                    let norm = embedding.iter().map(|&x| x * x).sum::<f32>().sqrt();
-                    if norm == 0.0 {
+                    let magnitude = embedding
+                        .iter()
+                        .fold(0.0, |acc, &val| val.mul_add(val, acc))
+                        .sqrt();
+
+                    if magnitude == 0.0 {
                         vec![0.0; embedding.len()]
                     } else {
-                        embedding.iter().map(|&x| x / norm).collect()
+                        embedding.iter().map(|&val| val / magnitude).collect()
                     }
-                }
+                },
             });
         }
 
@@ -361,6 +365,13 @@ impl Handler<GenerateEmbeddingBatchRequest> for LlamaCppSlot {
         }: GenerateEmbeddingBatchRequest,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
+        if !self.slot_context.inference_parameters.enable_embeddings {
+            return Err(anyhow!(
+                "Embeddings are not enabled for this slot: {:?}",
+                self.slot_context.agent_name
+            ));
+        }
+
         let _guard = self.status.take_slot_with_guard();
 
         self.llama_context.clear_kv_cache();
@@ -373,7 +384,7 @@ impl Handler<GenerateEmbeddingBatchRequest> for LlamaCppSlot {
 
         let mut batch = LlamaBatch::new(self.slot_context.inference_parameters.batch_n_tokens, 1);
         let mut output = Vec::with_capacity(tokens_lines_list.len());
-        let mut sequence_index = 0;
+        let mut sequence_index_max = 0;
 
         for tokens in &tokens_lines_list {
             // Flush the batch if the next prompt would exceed our batch size
@@ -382,21 +393,21 @@ impl Handler<GenerateEmbeddingBatchRequest> for LlamaCppSlot {
                     &mut batch,
                     &normalization_method,
                     &mut output,
-                    sequence_index,
+                    sequence_index_max,
                 )?;
 
-                sequence_index = 0;
+                sequence_index_max = 0;
             }
 
-            batch.add_sequence(tokens, sequence_index, false)?;
-            sequence_index += 1;
+            batch.add_sequence(tokens, sequence_index_max, false)?;
+            sequence_index_max += 1;
         }
 
         self.embedding_batch_decode(
             &mut batch,
             &normalization_method,
             &mut output,
-            sequence_index,
+            sequence_index_max,
         )?;
 
         Ok(())

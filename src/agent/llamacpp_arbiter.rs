@@ -65,7 +65,7 @@ impl LlamaCppArbiter {
             let llama_ctx_params = Arc::new(
                 LlamaContextParams::default()
                     .with_n_threads_batch(thread::available_parallelism()?.get().try_into()?)
-                    .with_embeddings(true)
+                    .with_embeddings(inference_parameters.enable_embeddings)
                     .with_n_ctx(NonZeroU32::new(inference_parameters.context_size))
             );
             let backend_clone = llama_backend.clone();
@@ -329,7 +329,7 @@ mod tests {
             controller.llamacpp_slot_addr.send(ContinueFromRawPromptRequest {
                 generated_tokens_tx: generated_tokens_tx.clone(),
                 generate_tokens_stop_rx: generate_tokens_stop_rx_1,
-                continue_from_raw_prompt_params: ContinueFromRawPromptParams {
+                params: ContinueFromRawPromptParams {
                     max_tokens: 30,
                     raw_prompt: raw_prompt.to_string(),
                 },
@@ -337,7 +337,7 @@ mod tests {
             controller.llamacpp_slot_addr.send(ContinueFromRawPromptRequest {
                 generated_tokens_tx: generated_tokens_tx.clone(),
                 generate_tokens_stop_rx: generate_tokens_stop_rx_2,
-                continue_from_raw_prompt_params: ContinueFromRawPromptParams {
+                params: ContinueFromRawPromptParams {
                     max_tokens: 30,
                     raw_prompt: raw_prompt.to_string(),
                 },
@@ -345,7 +345,7 @@ mod tests {
             controller.llamacpp_slot_addr.send(ContinueFromRawPromptRequest {
                 generated_tokens_tx,
                 generate_tokens_stop_rx: generate_tokens_stop_rx_3,
-                continue_from_raw_prompt_params: ContinueFromRawPromptParams {
+                params: ContinueFromRawPromptParams {
                     max_tokens: 30,
                     raw_prompt: raw_prompt.to_string(),
                 },

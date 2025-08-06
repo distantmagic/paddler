@@ -180,6 +180,10 @@ export function ChangeModelForm({
               </p>
             </details>
             <InferenceParameterInput
+              description="Enable Embeddings (if supported by the model)"
+              name="enable_embeddings"
+            />
+            <InferenceParameterInput
               description="Batch Size (higher = more memory usage, lower = less inference speed)"
               name="batch_n_tokens"
             />
