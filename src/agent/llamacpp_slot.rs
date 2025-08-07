@@ -197,11 +197,6 @@ impl LlamaCppSlot {
 
         while n_cur <= max_tokens {
             if generate_tokens_stop_rx.try_recv().is_ok() {
-                debug!(
-                    "{:?}: slot {} received stop signal",
-                    self.slot_context.agent_name, self.index
-                );
-
                 break;
             }
 
@@ -242,7 +237,7 @@ impl LlamaCppSlot {
     fn generate_embedding_batch(
         &mut self,
         GenerateEmbeddingBatchRequest {
-            generate_embedding_stop_rx,
+            mut generate_embedding_stop_rx,
             generated_embedding_tx,
             params:
                 GenerateEmbeddingBatchParams {
@@ -284,6 +279,10 @@ impl LlamaCppSlot {
         let mut current_batch_embeddings: Vec<&EmbeddingInputTokenized> = Vec::new();
 
         for embedding_input_tokenized in &tokens_lines_list {
+            if generate_embedding_stop_rx.try_recv().is_ok() {
+                break;
+            }
+
             // Flush the batch if the next prompt would exceed our batch size
             if (batch.n_tokens() as usize + embedding_input_tokenized.llama_tokens.len())
                 > self.slot_context.inference_parameters.batch_n_tokens
@@ -304,6 +303,10 @@ impl LlamaCppSlot {
                 false,
             )?;
             current_batch_embeddings.push(embedding_input_tokenized);
+        }
+
+        if generate_embedding_stop_rx.try_recv().is_ok() {
+            return Ok(());
         }
 
         self.embedding_batch_decode(
