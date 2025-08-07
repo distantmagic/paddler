@@ -4,7 +4,7 @@ use serde::Serialize;
 use crate::embedding_result::EmbeddingResult;
 use crate::generated_token_result::GeneratedTokenResult;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum Response {
     Embedding(EmbeddingResult),
     GeneratedToken(GeneratedTokenResult),

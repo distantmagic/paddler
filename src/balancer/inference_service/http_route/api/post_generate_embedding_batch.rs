@@ -55,45 +55,40 @@ async fn respond(
         ));
     }
 
-    let (connection_close_tx, mut connection_close_rx) = broadcast::channel::<()>(1);
+    let (connection_close_tx, _connection_close_rx) = broadcast::channel::<()>(1);
     let (chunk_tx, chunk_rx) = mpsc::unbounded_channel();
 
     // Distribute the embeddings evenly across the available agents
-    params
-        .chunk_by_input_size(
-            agent_desired_state.inference_parameters.batch_n_tokens
-                * CHARACTERS_PER_TOKEN_APPROXIMATELY,
-        )
-        .for_each(|batch| {
-            let buffered_request_manager_clone = app_data.buffered_request_manager.clone();
-            let chunk_tx_clone = chunk_tx.clone();
-            let connection_close_tx_clone = connection_close_tx.clone();
-            let inference_service_configuration_clone =
-                app_data.inference_service_configuration.clone();
+    for batch in params.chunk_by_input_size(
+        agent_desired_state.inference_parameters.batch_n_tokens
+            * CHARACTERS_PER_TOKEN_APPROXIMATELY,
+    ) {
+        let buffered_request_manager_clone = app_data.buffered_request_manager.clone();
+        let chunk_tx_clone = chunk_tx.clone();
+        let connection_close_tx_clone = connection_close_tx.clone();
+        let inference_service_configuration_clone =
+            app_data.inference_service_configuration.clone();
 
-            rt::spawn(async move {
-                if let Err(err) = Controller::request_from_agent(
-                    buffered_request_manager_clone,
-                    connection_close_tx_clone,
-                    inference_service_configuration_clone,
-                    batch,
-                    nanoid!(),
-                    ChunkForwardingSessionController {
-                        chunk_tx: chunk_tx_clone,
-                    },
-                )
-                .await
-                {
-                    error!("Failed to handle request: {err}");
-                }
-            });
+        rt::spawn(async move {
+            if let Err(err) = Controller::request_from_agent(
+                buffered_request_manager_clone,
+                connection_close_tx_clone,
+                inference_service_configuration_clone,
+                batch,
+                nanoid!(),
+                ChunkForwardingSessionController {
+                    chunk_tx: chunk_tx_clone,
+                },
+            )
+            .await
+            {
+                error!("Failed to handle request: {err}");
+            }
         });
+    }
 
     let stream = UnboundedReceiverStream::new(chunk_rx)
-        .map(|chunk: String| Ok::<_, Error>(Bytes::from(format!("{chunk}\n"))))
-        .take_until(async move {
-            connection_close_rx.recv().await.ok();
-        });
+        .map(|chunk: String| Ok::<_, Error>(Bytes::from(format!("{chunk}\n"))));
 
     Ok(HttpResponse::Ok()
         .insert_header(header::ContentType::json())

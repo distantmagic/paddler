@@ -11,6 +11,7 @@ use anyhow::anyhow;
 use anyhow::Context as _;
 use anyhow::Result;
 use llama_cpp_2::context::params::LlamaContextParams;
+use llama_cpp_2::context::params::LlamaPoolingType;
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::model::LlamaModel;
@@ -65,10 +66,11 @@ impl LlamaCppArbiter {
                 Arc::new(LlamaBackend::init().context("Unable to initialize llama.cpp backend")?);
             let llama_ctx_params = Arc::new(
                 LlamaContextParams::default()
+                    .with_embeddings(inference_parameters.enable_embeddings)
+                    .with_n_ctx(NonZeroU32::new(inference_parameters.context_size))
                     // n_threads_batch > 1 causes some unpredictability
                     .with_n_threads_batch(1)
-                    .with_embeddings(inference_parameters.enable_embeddings)
-                    .with_n_ctx(NonZeroU32::new(inference_parameters.context_size)),
+                    .with_pooling_type(LlamaPoolingType::Last),
             );
             let backend_clone = llama_backend.clone();
             let model = Arc::new(

@@ -7,7 +7,7 @@ use crate::jsonrpc::ErrorEnvelope;
 use crate::jsonrpc::ResponseEnvelope;
 use crate::rpc_message::RpcMessage;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum Message {
     Error(ErrorEnvelope<Error>),
     Response(ResponseEnvelope<Response>),

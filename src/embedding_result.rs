@@ -8,10 +8,11 @@ use crate::streamable_result::StreamableResult;
 pub enum EmbeddingResult {
     Done,
     Embedding(Embedding),
+    Error(String),
 }
 
 impl StreamableResult for EmbeddingResult {
     fn is_done(&self) -> bool {
-        matches!(self, EmbeddingResult::Done)
+        matches!(self, EmbeddingResult::Done | EmbeddingResult::Error(_))
     }
 }

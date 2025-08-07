@@ -150,7 +150,7 @@ impl LlamaCppSlot {
         Ok(())
     }
 
-    fn generate_from_raw_prompt(
+    fn continue_from_raw_prompt(
         &mut self,
         mut generate_tokens_stop_rx: mpsc::UnboundedReceiver<()>,
         generated_tokens_tx: mpsc::UnboundedSender<GeneratedTokenResult>,
@@ -237,6 +237,83 @@ impl LlamaCppSlot {
 
         Ok(())
     }
+
+    fn generate_embedding_batch(
+        &mut self,
+        GenerateEmbeddingBatchRequest {
+            generate_embedding_stop_rx,
+            generated_embedding_tx,
+            params:
+                GenerateEmbeddingBatchParams {
+                    input_batch,
+                    normalization_method,
+                },
+        }: GenerateEmbeddingBatchRequest,
+    ) -> Result<()> {
+        if !self.slot_context.inference_parameters.enable_embeddings {
+            return Err(anyhow!(
+                "Embeddings are not enabled for this slot: {:?}",
+                self.slot_context.agent_name
+            ));
+        }
+
+        let _guard = self.status.take_slot_with_guard();
+
+        self.llama_context.clear_kv_cache();
+
+        let tokens_lines_list = input_batch
+            .into_iter()
+            .map(|input| {
+                match self
+                    .slot_context
+                    .model
+                    .str_to_token(&input.content, AddBos::Always)
+                {
+                    Ok(llama_tokens) => Ok(EmbeddingInputTokenized {
+                        id: input.id,
+                        llama_tokens,
+                    }),
+                    Err(err) => Err(anyhow!("Failed to tokenize input: {err:?}")),
+                }
+            })
+            .collect::<Result<Vec<EmbeddingInputTokenized>, _>>()
+            .context("failed to tokenize embedding input batch")?;
+
+        let mut batch = LlamaBatch::new(self.slot_context.inference_parameters.batch_n_tokens, 1);
+        let mut current_batch_embeddings: Vec<&EmbeddingInputTokenized> = Vec::new();
+
+        for embedding_input_tokenized in &tokens_lines_list {
+            // Flush the batch if the next prompt would exceed our batch size
+            if (batch.n_tokens() as usize + embedding_input_tokenized.llama_tokens.len())
+                > self.slot_context.inference_parameters.batch_n_tokens
+            {
+                self.embedding_batch_decode(
+                    &mut batch,
+                    &current_batch_embeddings,
+                    &generated_embedding_tx,
+                    &normalization_method,
+                )?;
+
+                current_batch_embeddings.clear();
+            }
+
+            batch.add_sequence(
+                &embedding_input_tokenized.llama_tokens,
+                current_batch_embeddings.len() as i32,
+                false,
+            )?;
+            current_batch_embeddings.push(embedding_input_tokenized);
+        }
+
+        self.embedding_batch_decode(
+            &mut batch,
+            &current_batch_embeddings,
+            &generated_embedding_tx,
+            &normalization_method,
+        )?;
+
+        Ok(())
+    }
 }
 
 impl Actor for LlamaCppSlot {
@@ -318,7 +395,7 @@ impl Handler<ContinueFromConversationHistoryRequest> for LlamaCppSlot {
             self.slot_context.agent_name, self.index, raw_prompt
         );
 
-        self.generate_from_raw_prompt(
+        self.continue_from_raw_prompt(
             generate_tokens_stop_rx,
             generated_tokens_tx,
             max_tokens,
@@ -343,7 +420,7 @@ impl Handler<ContinueFromRawPromptRequest> for LlamaCppSlot {
         }: ContinueFromRawPromptRequest,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
-        self.generate_from_raw_prompt(
+        self.continue_from_raw_prompt(
             generate_tokens_stop_rx,
             generated_tokens_tx,
             max_tokens,
@@ -359,78 +436,23 @@ impl Handler<GenerateEmbeddingBatchRequest> for LlamaCppSlot {
     // https://github.com/utilityai/llama-cpp-rs/blob/main/examples/embeddings/src/main.rs
     fn handle(
         &mut self,
-        GenerateEmbeddingBatchRequest {
-            generate_embedding_stop_rx,
-            generated_embedding_tx,
-            params:
-                GenerateEmbeddingBatchParams {
-                    input_batch,
-                    normalization_method,
-                },
-        }: GenerateEmbeddingBatchRequest,
+        request: GenerateEmbeddingBatchRequest,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
-        if !self.slot_context.inference_parameters.enable_embeddings {
-            return Err(anyhow!(
-                "Embeddings are not enabled for this slot: {:?}",
-                self.slot_context.agent_name
-            ));
+        let generated_embedding_tx_clone = request.generated_embedding_tx.clone();
+
+        if let Err(err) = self.generate_embedding_batch(request) {
+            error!(
+                "{:?}: slot {} failed to generate embeddings: {err:?}",
+                self.slot_context.agent_name, self.index
+            );
+
+            generated_embedding_tx_clone.send(EmbeddingResult::Error(err.to_string()))?;
+
+            return Err(err);
         }
 
-        let _guard = self.status.take_slot_with_guard();
-
-        self.llama_context.clear_kv_cache();
-
-        let tokens_lines_list = input_batch
-            .into_iter()
-            .map(|input| {
-                match self
-                    .slot_context
-                    .model
-                    .str_to_token(&input.content, AddBos::Always)
-                {
-                    Ok(llama_tokens) => Ok(EmbeddingInputTokenized {
-                        id: input.id,
-                        llama_tokens,
-                    }),
-                    Err(err) => Err(anyhow!("Failed to tokenize input: {err:?}")),
-                }
-            })
-            .collect::<Result<Vec<EmbeddingInputTokenized>, _>>()
-            .context("failed to tokenize embedding input batch")?;
-
-        let mut batch = LlamaBatch::new(self.slot_context.inference_parameters.batch_n_tokens, 1);
-        let mut current_batch_embeddings: Vec<&EmbeddingInputTokenized> = Vec::new();
-
-        for embedding_input_tokenized in &tokens_lines_list {
-            // Flush the batch if the next prompt would exceed our batch size
-            if (batch.n_tokens() as usize + embedding_input_tokenized.llama_tokens.len())
-                > self.slot_context.inference_parameters.batch_n_tokens
-            {
-                self.embedding_batch_decode(
-                    &mut batch,
-                    &current_batch_embeddings,
-                    &generated_embedding_tx,
-                    &normalization_method,
-                )?;
-
-                current_batch_embeddings.clear();
-            }
-
-            batch.add_sequence(
-                &embedding_input_tokenized.llama_tokens,
-                current_batch_embeddings.len() as i32,
-                false,
-            )?;
-            current_batch_embeddings.push(embedding_input_tokenized);
-        }
-
-        self.embedding_batch_decode(
-            &mut batch,
-            &current_batch_embeddings,
-            &generated_embedding_tx,
-            &normalization_method,
-        )?;
+        generated_embedding_tx_clone.send(EmbeddingResult::Done)?;
 
         Ok(())
     }

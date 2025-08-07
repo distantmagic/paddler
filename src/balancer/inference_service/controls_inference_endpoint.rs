@@ -40,7 +40,7 @@ pub trait ControlsInferenceEndpoint {
     where
         TParams: Debug + Into<AgentJsonRpcRequest> + Send,
         AgentController: HandlesAgentStreamingResponse<TParams>,
-        <<AgentController as HandlesAgentStreamingResponse<TParams>>::SenderCollection as ManagesSenders>::Value: Into<OutgoingResponse> + StreamableResult,
+        <<AgentController as HandlesAgentStreamingResponse<TParams>>::SenderCollection as ManagesSenders>::Value: Debug + Into<OutgoingResponse> + StreamableResult,
     {
         match Self::wait_for_agent_controller(
             buffered_request_manager.clone(),
@@ -97,7 +97,7 @@ pub trait ControlsInferenceEndpoint {
     ) -> Result<()>
     where
         TManagesSenders: Send + Sync,
-        TManagesSenders::Value: Into<OutgoingResponse> + Send + StreamableResult,
+        TManagesSenders::Value: Debug + Into<OutgoingResponse> + Send + StreamableResult,
     {
         debug!("Found available agent controller for request: {request_id:?}");
 

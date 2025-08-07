@@ -26,7 +26,7 @@ impl Embedding {
             ));
         }
 
-        if self
+        if !self
             .normalization_method
             .needs_transformation_to(normalization_method)
         {

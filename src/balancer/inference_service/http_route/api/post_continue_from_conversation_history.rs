@@ -36,7 +36,7 @@ async fn respond(
     params: web::Json<ContinueFromConversationHistoryParams>,
 ) -> Result<impl Responder, Error> {
     let request_id: String = nanoid!();
-    let (connection_close_tx, mut connection_close_rx) = broadcast::channel(1);
+    let (connection_close_tx, _connection_close_rx) = broadcast::channel(1);
     let (chunk_tx, chunk_rx) = mpsc::unbounded_channel();
 
     rt::spawn(async move {
@@ -55,10 +55,7 @@ async fn respond(
     });
 
     let stream = UnboundedReceiverStream::new(chunk_rx)
-        .map(|chunk: String| Ok::<_, Error>(Bytes::from(format!("{chunk}\n"))))
-        .take_until(async move {
-            connection_close_rx.recv().await.ok();
-        });
+        .map(|chunk: String| Ok::<_, Error>(Bytes::from(format!("{chunk}\n"))));
 
     Ok(HttpResponse::Ok()
         .insert_header(header::ContentType::json())

@@ -12,6 +12,9 @@ pub enum GeneratedTokenResult {
 
 impl StreamableResult for GeneratedTokenResult {
     fn is_done(&self) -> bool {
-        matches!(self, GeneratedTokenResult::Done)
+        matches!(
+            self,
+            GeneratedTokenResult::ChatTemplateError(_) | GeneratedTokenResult::Done
+        )
     }
 }
