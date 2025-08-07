@@ -13,3 +13,15 @@ pub enum Request {
     GetChatTemplateOverride,
     GetModelMetadata,
 }
+
+impl From<ContinueFromConversationHistoryParams> for Request {
+    fn from(params: ContinueFromConversationHistoryParams) -> Self {
+        Request::ContinueFromConversationHistory(params)
+    }
+}
+
+impl From<ContinueFromRawPromptParams> for Request {
+    fn from(params: ContinueFromRawPromptParams) -> Self {
+        Request::ContinueFromRawPrompt(params)
+    }
+}

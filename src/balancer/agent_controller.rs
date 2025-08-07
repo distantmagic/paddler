@@ -28,11 +28,8 @@ use crate::balancer::manages_senders::ManagesSenders as _;
 use crate::balancer::manages_senders::ManagesSenders;
 use crate::balancer::manages_senders_controller::ManagesSendersController;
 use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
-use crate::embedding_result::EmbeddingResult;
 use crate::jsonrpc::RequestEnvelope;
 use crate::produces_snapshot::ProducesSnapshot;
-use crate::request_params::ContinueFromConversationHistoryParams;
-use crate::request_params::ContinueFromRawPromptParams;
 use crate::request_params::GenerateEmbeddingBatchParams;
 use crate::sends_rpc_message::SendsRpcMessage;
 use crate::sets_desired_state::SetsDesiredState;
@@ -61,33 +58,17 @@ pub struct AgentController {
 }
 
 impl AgentController {
-    pub async fn continue_from_conversation_history(
+    pub async fn continue_from<TParams: Into<AgentJsonRpcRequest>>(
         &self,
         request_id: String,
-        params: ContinueFromConversationHistoryParams,
+        params: TParams,
     ) -> Result<ManagesSendersController<GenerateTokensSenderCollection>> {
         self.receiver_from_message(
             request_id.clone(),
             self.generate_tokens_sender_collection.clone(),
             AgentJsonRpcMessage::Request(RequestEnvelope {
                 id: request_id,
-                request: AgentJsonRpcRequest::ContinueFromConversationHistory(params),
-            }),
-        )
-        .await
-    }
-
-    pub async fn continue_from_raw_prompt(
-        &self,
-        request_id: String,
-        params: ContinueFromRawPromptParams,
-    ) -> Result<ManagesSendersController<GenerateTokensSenderCollection>> {
-        self.receiver_from_message(
-            request_id.clone(),
-            self.generate_tokens_sender_collection.clone(),
-            AgentJsonRpcMessage::Request(RequestEnvelope {
-                id: request_id,
-                request: AgentJsonRpcRequest::ContinueFromRawPrompt(params),
+                request: params.into(),
             }),
         )
         .await

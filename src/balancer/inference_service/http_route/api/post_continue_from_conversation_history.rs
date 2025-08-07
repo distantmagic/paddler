@@ -40,16 +40,15 @@ async fn respond(
     let (chunk_tx, chunk_rx) = mpsc::unbounded_channel();
 
     rt::spawn(async move {
-        if let Err(err) =
-            ContinueFromConversationHistoryController::continue_from_conversation_history(
-                app_data.buffered_request_manager.clone(),
-                connection_close_tx,
-                app_data.inference_service_configuration.clone(),
-                params.into_inner(),
-                request_id,
-                ChunkForwardingSessionController { chunk_tx },
-            )
-            .await
+        if let Err(err) = ContinueFromConversationHistoryController::continue_from(
+            app_data.buffered_request_manager.clone(),
+            connection_close_tx,
+            app_data.inference_service_configuration.clone(),
+            params.into_inner(),
+            request_id,
+            ChunkForwardingSessionController { chunk_tx },
+        )
+        .await
         {
             error!("Failed to handle request: {err}");
         }

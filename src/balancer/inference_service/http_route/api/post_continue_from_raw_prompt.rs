@@ -40,7 +40,7 @@ async fn respond(
     let (chunk_tx, chunk_rx) = mpsc::unbounded_channel();
 
     rt::spawn(async move {
-        if let Err(err) = ContinueFromRawPromptController::continue_from_raw_prompt(
+        if let Err(err) = ContinueFromRawPromptController::continue_from(
             app_data.buffered_request_manager.clone(),
             connection_close_tx,
             app_data.inference_service_configuration.clone(),

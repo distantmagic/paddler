@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -8,6 +9,7 @@ use log::warn;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
 
+use crate::agent::jsonrpc::Request as AgentJsonRpcRequest;
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::buffered_request_agent_wait_result::BufferedRequestAgentWaitResult;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
@@ -20,19 +22,17 @@ use crate::generated_token_result::GeneratedTokenResult;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::ErrorEnvelope;
 use crate::jsonrpc::ResponseEnvelope;
-use crate::request_params::ContinueFromConversationHistoryParams;
-use crate::request_params::ContinueFromRawPromptParams;
 use crate::session_controller::SessionController;
 
 #[async_trait]
 pub trait ControlsInferenceEndpoint {
     type SessionController: SessionController<OutgoingMessage>;
 
-    async fn continue_from_conversation_history(
+    async fn continue_from<TParams: Debug + Into<AgentJsonRpcRequest> + Send>(
         buffered_request_manager: Arc<BufferedRequestManager>,
         connection_close_tx: broadcast::Sender<()>,
         inference_service_configuration: InferenceServiceConfiguration,
-        params: ContinueFromConversationHistoryParams,
+        params: TParams,
         request_id: String,
         mut session_controller: Self::SessionController,
     ) -> Result<()> {
@@ -48,69 +48,12 @@ pub trait ControlsInferenceEndpoint {
         {
             Some(agent_controller) => {
                 let receive_tokens_controller = match agent_controller
-                    .continue_from_conversation_history(request_id.clone(), params)
+                    .continue_from(request_id.clone(), params)
                     .await
                 {
                     Ok(receive_tokens_controller) => receive_tokens_controller,
                     Err(err) => {
-                        error!("Failed to continue conversation for request {request_id:?}: {err}");
-
-                        Self::respond_with_error(
-                            JsonRpcError {
-                                code: 500,
-                                description: "Failed to continue conversation".to_string(),
-                            },
-                            request_id.clone(),
-                            &mut session_controller,
-                        )
-                        .await;
-
-                        return Ok(());
-                    }
-                };
-
-                Self::generate_tokens(
-                    agent_controller,
-                    connection_close_tx.subscribe(),
-                    inference_service_configuration,
-                    receive_tokens_controller,
-                    request_id,
-                    session_controller,
-                )
-                .await?;
-
-                Ok(())
-            }
-            None => Ok(()),
-        }
-    }
-
-    async fn continue_from_raw_prompt(
-        buffered_request_manager: Arc<BufferedRequestManager>,
-        connection_close_tx: broadcast::Sender<()>,
-        inference_service_configuration: InferenceServiceConfiguration,
-        params: ContinueFromRawPromptParams,
-        request_id: String,
-        mut session_controller: Self::SessionController,
-    ) -> Result<()> {
-        debug!("Received GenerateTokens request from client: {request_id:?}, params: {params:?}");
-
-        match Self::wait_for_agent_controller(
-            buffered_request_manager.clone(),
-            connection_close_tx.subscribe(),
-            request_id.clone(),
-            &mut session_controller,
-        )
-        .await?
-        {
-            Some(agent_controller) => {
-                let receive_tokens_controller = match agent_controller
-                    .continue_from_raw_prompt(request_id.clone(), params)
-                    .await
-                {
-                    Ok(receive_tokens_controller) => receive_tokens_controller,
-                    Err(err) => {
-                        error!("Failed to generate tokens: {err}");
+                        error!("Failed to generate tokens for request {request_id:?}: {err}");
 
                         Self::respond_with_error(
                             JsonRpcError {
