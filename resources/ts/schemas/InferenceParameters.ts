@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+export const poolingTypes = [
+  "Cls",
+  "Last",
+  "Mean",
+  "None",
+  "Rank",
+  "Unspecified",
+] as const;
+
 export const InferenceParametersSchema = z
   .object({
     batch_n_tokens: z.number(),
@@ -10,6 +19,7 @@ export const InferenceParametersSchema = z
     penalty_last_n: z.number(),
     penalty_presence: z.number(),
     penalty_repeat: z.number(),
+    pooling_type: z.enum(poolingTypes),
     temperature: z.number(),
     top_k: z.number(),
     top_p: z.number(),

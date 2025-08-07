@@ -70,7 +70,7 @@ impl LlamaCppArbiter {
                     .with_n_ctx(NonZeroU32::new(inference_parameters.context_size))
                     // n_threads_batch > 1 causes some unpredictability
                     .with_n_threads_batch(1)
-                    .with_pooling_type(LlamaPoolingType::Last),
+                    .with_pooling_type(inference_parameters.pooling_type.clone().into()),
             );
             let backend_clone = llama_backend.clone();
             let model = Arc::new(

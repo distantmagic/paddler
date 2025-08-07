@@ -14,6 +14,7 @@ import { type BalancerDesiredState } from "../schemas/BalancerDesiredState";
 import { ChatTemplateBehavior } from "./ChatTemplateBehavior";
 import { InferenceParameterCheckbox } from "./InferenceParameterCheckbox";
 import { InferenceParameterInput } from "./InferenceParameterInput";
+import { InferenceParameterPoolingType } from "./InferenceParameterPoolingType";
 
 import {
   changeModelForm,
@@ -180,10 +181,6 @@ export function ChangeModelForm({
                 performance for your specific needs.
               </p>
             </details>
-            <InferenceParameterCheckbox
-              description="Enable Embeddings (if supported by the model)"
-              name="enable_embeddings"
-            />
             <InferenceParameterInput
               description="Batch Size (higher = more memory usage, lower = less inference speed)"
               name="batch_n_tokens"
@@ -223,6 +220,14 @@ export function ChangeModelForm({
             <InferenceParameterInput
               description="Probability threshold for selecting tokens"
               name="top_p"
+            />
+            <InferenceParameterCheckbox
+              description="Enable Embeddings (if supported by the model)"
+              name="enable_embeddings"
+            />
+            <InferenceParameterPoolingType
+              description="How to combine token embeddings"
+              disabled={!parameters.enable_embeddings}
             />
           </fieldset>
           <div className={changeModelForm__formControls}>

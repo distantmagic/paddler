@@ -31,6 +31,7 @@ mod inference_parameters;
 mod jsonrpc;
 mod model_metadata;
 mod normalization;
+mod pooling_type;
 mod produces_snapshot;
 mod request_params;
 mod rpc_message;

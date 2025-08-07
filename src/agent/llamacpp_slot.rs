@@ -139,6 +139,7 @@ impl LlamaCppSlot {
                 Embedding {
                     embedding: embedding.to_vec(),
                     normalization_method: EmbeddingNormalizationMethod::None,
+                    pooling_type: self.slot_context.inference_parameters.pooling_type.clone(),
                     source_document_id: embedding_input_tokenized.id.clone(),
                 }
                 .normalize(normalization_method)?,
@@ -442,12 +443,14 @@ impl Handler<GenerateEmbeddingBatchRequest> for LlamaCppSlot {
         let generated_embedding_tx_clone = request.generated_embedding_tx.clone();
 
         if let Err(err) = self.generate_embedding_batch(request) {
-            error!(
-                "{:?}: slot {} failed to generate embeddings: {err:?}",
+            let msg = format!(
+                "{:?}: slot {} failed to generate embeddings: {err:#}",
                 self.slot_context.agent_name, self.index
             );
 
-            generated_embedding_tx_clone.send(EmbeddingResult::Error(err.to_string()))?;
+            error!("{msg}");
+
+            generated_embedding_tx_clone.send(EmbeddingResult::Error(msg))?;
 
             return Err(err);
         }

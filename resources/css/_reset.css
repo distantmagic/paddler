@@ -67,7 +67,8 @@ textarea {
 }
 
 button:disabled,
-input:disabled {
+input:disabled,
+select:disabled {
   cursor: not-allowed;
   filter: grayscale(100%);
   user-select: none;

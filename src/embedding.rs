@@ -6,11 +6,13 @@ use serde::Serialize;
 use crate::embedding_normalization_method::EmbeddingNormalizationMethod;
 use crate::normalization::l2;
 use crate::normalization::rms_norm;
+use crate::pooling_type::PoolingType;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Embedding {
     pub embedding: Vec<f32>,
     pub normalization_method: EmbeddingNormalizationMethod,
+    pub pooling_type: PoolingType,
     pub source_document_id: String,
 }
 
@@ -42,6 +44,7 @@ impl Embedding {
                 }
             },
             normalization_method: normalization_method.clone(),
+            pooling_type: self.pooling_type.clone(),
             source_document_id: self.source_document_id.clone(),
         })
     }

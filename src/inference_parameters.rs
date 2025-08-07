@@ -1,6 +1,8 @@
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::pooling_type::PoolingType;
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct InferenceParameters {
     pub batch_n_tokens: usize,
@@ -14,6 +16,7 @@ pub struct InferenceParameters {
     pub penalty_presence: f32,
     /// Penalty for repeating tokens (1.0 = disabled)
     pub penalty_repeat: f32,
+    pub pooling_type: PoolingType,
     /// Adjust the randomness of the generated text (0.0 = greedy/deterministic)
     pub temperature: f32,
     /// Limit the next token selection to the K most probable tokens
@@ -33,6 +36,7 @@ impl Default for InferenceParameters {
             penalty_last_n: -1,
             penalty_presence: 1.5,
             penalty_repeat: 1.0,
+            pooling_type: PoolingType::Last,
             temperature: 0.6,
             top_k: 40,
             top_p: 0.8,
