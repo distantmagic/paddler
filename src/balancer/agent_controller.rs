@@ -166,9 +166,9 @@ impl AgentController {
         *locked_path = model_path;
     }
 
-    pub async fn stop_generating_tokens(&self, request_id: String) -> Result<()> {
+    pub async fn stop_responding_to(&self, request_id: String) -> Result<()> {
         self.send_rpc_message(AgentJsonRpcMessage::Notification(
-            AgentJsonRpcNotification::StopGeneratingTokens(request_id),
+            AgentJsonRpcNotification::StopRespondingTo(request_id),
         ))
         .await?;
 

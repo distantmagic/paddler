@@ -49,8 +49,8 @@ pub struct Balancer {
     inference_addr: SocketAddr,
 
     #[arg(long, default_value = "5000", value_parser = parse_duration)]
-    /// The timeout (in milliseconds) for generating a single token.
-    inference_token_timeout: Duration,
+    /// The timeout (in milliseconds) for generating a single token or a single embedding.
+    inference_item_timeout: Duration,
 
     #[arg(
         long = "inference-cors-allowed-host",
@@ -157,7 +157,7 @@ impl Handler for Balancer {
             configuration: InferenceServiceConfiguration {
                 addr: self.inference_addr,
                 cors_allowed_hosts: self.inference_cors_allowed_hosts.clone(),
-                inference_token_timeout: self.inference_token_timeout,
+                inference_item_timeout: self.inference_item_timeout,
             },
             #[cfg(feature = "web_admin_panel")]
             web_admin_panel_service_configuration: self.get_web_admin_panel_service_configuration(),

@@ -47,6 +47,7 @@ mod slot_request_drop_guard;
 mod slot_status;
 #[cfg(feature = "web_admin_panel")]
 mod static_files;
+mod streamable_result;
 mod tool;
 mod websocket_session_controller;
 

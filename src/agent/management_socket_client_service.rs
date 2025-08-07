@@ -152,7 +152,7 @@ impl ManagementSocketClientService {
 
                 Ok(())
             }
-            JsonRpcMessage::Notification(JsonRpcNotification::StopGeneratingTokens(request_id)) => {
+            JsonRpcMessage::Notification(JsonRpcNotification::StopRespondingTo(request_id)) => {
                 debug!("Received StopGeneratingTokens notification for request ID: {request_id:?}");
                 receive_stream_stopper_collection
                     .stop(request_id.clone())

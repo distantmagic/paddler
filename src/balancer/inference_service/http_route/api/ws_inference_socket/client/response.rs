@@ -9,3 +9,9 @@ pub enum Response {
     Timeout,
     TooManyBufferedRequests,
 }
+
+impl From<GeneratedTokenResult> for Response {
+    fn from(result: GeneratedTokenResult) -> Self {
+        Response::GeneratedToken(result)
+    }
+}
