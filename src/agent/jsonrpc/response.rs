@@ -3,14 +3,14 @@ use serde::Serialize;
 
 use crate::chat_template::ChatTemplate;
 use crate::embedding_result::EmbeddingResult;
-use crate::generated_token_envelope::GeneratedTokenEnvelope;
+use crate::generated_token_result::GeneratedTokenResult;
 use crate::model_metadata::ModelMetadata;
 
 #[derive(Deserialize, Serialize)]
 pub enum Response {
     ChatTemplateOverride(Option<ChatTemplate>),
     Embedding(EmbeddingResult),
-    GeneratedToken(GeneratedTokenEnvelope),
+    GeneratedToken(GeneratedTokenResult),
     ModelMetadata(Option<ModelMetadata>),
 }
 
@@ -26,9 +26,9 @@ impl From<EmbeddingResult> for Response {
     }
 }
 
-impl From<GeneratedTokenEnvelope> for Response {
-    fn from(generated_token_envelope: GeneratedTokenEnvelope) -> Self {
-        Response::GeneratedToken(generated_token_envelope)
+impl From<GeneratedTokenResult> for Response {
+    fn from(generated_token_result: GeneratedTokenResult) -> Self {
+        Response::GeneratedToken(generated_token_result)
     }
 }
 

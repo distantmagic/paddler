@@ -3,10 +3,10 @@ use dashmap::DashMap;
 use tokio::sync::mpsc;
 
 use crate::balancer::manages_senders::ManagesSenders;
-use crate::generated_token_envelope::GeneratedTokenEnvelope;
+use crate::generated_token_result::GeneratedTokenResult;
 
 pub struct GenerateTokensSenderCollection {
-    senders: DashMap<String, mpsc::UnboundedSender<GeneratedTokenEnvelope>>,
+    senders: DashMap<String, mpsc::UnboundedSender<GeneratedTokenResult>>,
 }
 
 impl GenerateTokensSenderCollection {
@@ -19,7 +19,7 @@ impl GenerateTokensSenderCollection {
 
 #[async_trait]
 impl ManagesSenders for GenerateTokensSenderCollection {
-    type Value = GeneratedTokenEnvelope;
+    type Value = GeneratedTokenResult;
 
     fn get_sender_collection(&self) -> &DashMap<String, mpsc::UnboundedSender<Self::Value>> {
         &self.senders

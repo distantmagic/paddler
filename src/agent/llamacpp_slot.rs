@@ -32,7 +32,6 @@ use crate::embedding::Embedding;
 use crate::embedding_input_tokenized::EmbeddingInputTokenized;
 use crate::embedding_normalization_method::EmbeddingNormalizationMethod;
 use crate::embedding_result::EmbeddingResult;
-use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::generated_token_result::GeneratedTokenResult;
 use crate::request_params::ContinueFromConversationHistoryParams;
 use crate::request_params::ContinueFromRawPromptParams;
@@ -154,7 +153,7 @@ impl LlamaCppSlot {
     fn generate_from_raw_prompt(
         &mut self,
         mut generate_tokens_stop_rx: mpsc::UnboundedReceiver<()>,
-        generated_tokens_tx: mpsc::UnboundedSender<GeneratedTokenEnvelope>,
+        generated_tokens_tx: mpsc::UnboundedSender<GeneratedTokenResult>,
         max_tokens: i32,
         prompt: String,
     ) -> Result<()> {
@@ -223,10 +222,7 @@ impl LlamaCppSlot {
                 let _decode_result =
                     decoder.decode_to_string(&output_bytes, &mut output_string, false);
 
-                generated_tokens_tx.send(GeneratedTokenEnvelope {
-                    slot: self.index,
-                    generated_token_result: GeneratedTokenResult::Token(output_string),
-                })?;
+                generated_tokens_tx.send(GeneratedTokenResult::Token(output_string))?;
 
                 batch.clear();
                 batch.add(token, n_cur, &[0], true)?;
@@ -237,10 +233,7 @@ impl LlamaCppSlot {
             self.continuation_batch_decode(&mut batch, &mut vec![])?;
         }
 
-        generated_tokens_tx.send(GeneratedTokenEnvelope {
-            slot: self.index,
-            generated_token_result: GeneratedTokenResult::Done,
-        })?;
+        generated_tokens_tx.send(GeneratedTokenResult::Done)?;
 
         Ok(())
     }
@@ -314,10 +307,7 @@ impl Handler<ContinueFromConversationHistoryRequest> for LlamaCppSlot {
 
                 error!("{msg}");
 
-                generated_tokens_tx.send(GeneratedTokenEnvelope {
-                    slot: self.index,
-                    generated_token_result: GeneratedTokenResult::ChatTemplateError(msg),
-                })?;
+                generated_tokens_tx.send(GeneratedTokenResult::ChatTemplateError(msg))?;
 
                 return Err(err);
             }

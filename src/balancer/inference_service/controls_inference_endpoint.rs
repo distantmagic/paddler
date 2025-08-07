@@ -16,7 +16,6 @@ use crate::balancer::inference_service::configuration::Configuration as Inferenc
 use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Message as OutgoingMessage;
 use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Response as OutgoingResponse;
 use crate::balancer::manages_senders_controller::ManagesSendersController;
-use crate::generated_token_envelope::GeneratedTokenEnvelope;
 use crate::generated_token_result::GeneratedTokenResult;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::ErrorEnvelope;
@@ -198,14 +197,14 @@ pub trait ControlsInferenceEndpoint {
 
                     break;
                 }
-                generated_token_envelope = receive_tokens_controller.response_rx.recv() => {
-                    match generated_token_envelope {
-                        Some(generated_token_envelope) => {
-                            let is_done = matches!(generated_token_envelope.generated_token_result, GeneratedTokenResult::Done);
+                generated_token_result = receive_tokens_controller.response_rx.recv() => {
+                    match generated_token_result {
+                        Some(generated_token_result) => {
+                            let is_done = matches!(generated_token_result, GeneratedTokenResult::Done);
 
                             Self::respond_with_token(
                                 agent_controller.clone(),
-                                generated_token_envelope,
+                                generated_token_result,
                                 request_id.clone(),
                                 &mut session_controller,
                             ).await;
@@ -241,14 +240,14 @@ pub trait ControlsInferenceEndpoint {
 
     async fn respond_with_token(
         agent_controller: Arc<AgentController>,
-        generated_token_envelope: GeneratedTokenEnvelope,
+        generated_token_result: GeneratedTokenResult,
         request_id: String,
         session_controller: &mut Self::SessionController,
     ) {
         if let Err(err) = session_controller
             .send_response(OutgoingMessage::Response(ResponseEnvelope {
                 request_id: request_id.clone(),
-                response: OutgoingResponse::GeneratedToken(generated_token_envelope),
+                response: OutgoingResponse::GeneratedToken(generated_token_result),
             }))
             .await
         {

@@ -25,7 +25,6 @@ mod embedding_input_document;
 mod embedding_input_tokenized;
 mod embedding_normalization_method;
 mod embedding_result;
-mod generated_token_envelope;
 mod generated_token_result;
 mod huggingface_model_reference;
 mod inference_parameters;
