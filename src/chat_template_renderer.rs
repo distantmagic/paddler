@@ -1,8 +1,8 @@
 use anyhow::Result;
-use minijinja_contrib::pycompat::unknown_method_callback;
 use minijinja::Environment;
 use minijinja::Error;
 use minijinja::ErrorKind;
+use minijinja_contrib::pycompat::unknown_method_callback;
 use serde::ser::Serialize;
 
 use crate::chat_template::ChatTemplate;
@@ -23,9 +23,7 @@ pub struct ChatTemplateRenderer {
 }
 
 impl ChatTemplateRenderer {
-    pub fn new(ChatTemplate {
-        content,
-    }: ChatTemplate) -> Result<Self> {
+    pub fn new(ChatTemplate { content }: ChatTemplate) -> Result<Self> {
         let mut minijinja_env = Environment::new();
 
         minijinja_env.add_function("raise_exception", minijinja_raise_exception);
@@ -34,9 +32,7 @@ impl ChatTemplateRenderer {
 
         minijinja_contrib::add_to_environment(&mut minijinja_env);
 
-        Ok(Self {
-            minijinja_env,
-        })
+        Ok(Self { minijinja_env })
     }
 
     pub fn render<TContext: Serialize>(&self, context: TContext) -> Result<String> {

@@ -1,56 +1,27 @@
-use anyhow::anyhow;
-use anyhow::Result;
+use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::mpsc;
 
-use crate::generated_token_envelope::GeneratedTokenEnvelope;
+use crate::balancer::manages_senders::ManagesSenders;
+use crate::generated_token_result::GeneratedTokenResult;
 
 pub struct GenerateTokensSenderCollection {
-    generate_tokens_senders: DashMap<String, mpsc::UnboundedSender<GeneratedTokenEnvelope>>,
+    senders: DashMap<String, mpsc::UnboundedSender<GeneratedTokenResult>>,
 }
 
 impl GenerateTokensSenderCollection {
     pub fn new() -> Self {
         Self {
-            generate_tokens_senders: DashMap::new(),
+            senders: DashMap::new(),
         }
     }
+}
 
-    pub fn deregister_sender(&self, request_id: String) -> Result<()> {
-        if let Some(sender) = self.generate_tokens_senders.remove(&request_id) {
-            drop(sender);
+#[async_trait]
+impl ManagesSenders for GenerateTokensSenderCollection {
+    type Value = GeneratedTokenResult;
 
-            Ok(())
-        } else {
-            Err(anyhow!("No sender found for request_id {request_id}"))
-        }
-    }
-
-    pub async fn forward_generated_token(
-        &self,
-        request_id: String,
-        generated_token_envelope: GeneratedTokenEnvelope,
-    ) -> Result<()> {
-        if let Some(sender) = self.generate_tokens_senders.get(&request_id) {
-            sender.send(generated_token_envelope)?;
-
-            Ok(())
-        } else {
-            Err(anyhow!("No sender found for request_id {request_id}"))
-        }
-    }
-
-    pub fn register_sender(
-        &self,
-        request_id: String,
-        sender: mpsc::UnboundedSender<GeneratedTokenEnvelope>,
-    ) -> Result<()> {
-        if self.generate_tokens_senders.contains_key(&request_id) {
-            return Err(anyhow!("Sender for request_id {request_id} already exists"));
-        }
-
-        self.generate_tokens_senders.insert(request_id, sender);
-
-        Ok(())
+    fn get_sender_collection(&self) -> &DashMap<String, mpsc::UnboundedSender<Self::Value>> {
+        &self.senders
     }
 }

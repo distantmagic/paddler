@@ -12,7 +12,9 @@ import { InferenceParametersContext } from "../contexts/InferenceParametersConte
 import { useAgentDesiredModelUrl } from "../hooks/useAgentDesiredModelUrl";
 import { type BalancerDesiredState } from "../schemas/BalancerDesiredState";
 import { ChatTemplateBehavior } from "./ChatTemplateBehavior";
+import { InferenceParameterCheckbox } from "./InferenceParameterCheckbox";
 import { InferenceParameterInput } from "./InferenceParameterInput";
+import { InferenceParameterPoolingType } from "./InferenceParameterPoolingType";
 
 import {
   changeModelForm,
@@ -218,6 +220,14 @@ export function ChangeModelForm({
             <InferenceParameterInput
               description="Probability threshold for selecting tokens"
               name="top_p"
+            />
+            <InferenceParameterCheckbox
+              description="Enable Embeddings (if supported by the model)"
+              name="enable_embeddings"
+            />
+            <InferenceParameterPoolingType
+              description="How to combine token embeddings"
+              disabled={!parameters.enable_embeddings}
             />
           </fieldset>
           <div className={changeModelForm__formControls}>

@@ -1,18 +1,18 @@
 use std::sync::Arc;
 
-use actix_web::Error;
-use actix_web::HttpResponse;
 use actix_web::get;
 use actix_web::web;
+use actix_web::Error;
+use actix_web::HttpResponse;
 use async_trait::async_trait;
 use serde::Deserialize;
 
-use crate::balancer::management_service::app_data::AppData;
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
-use crate::balancer::controls_manages_senders_endpoint::ControlsManagesSendersEndpoint;
-use crate::balancer::manages_senders_controller::ManagesSendersController;
 use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
+use crate::balancer::controls_manages_senders_endpoint::ControlsManagesSendersEndpoint;
+use crate::balancer::management_service::app_data::AppData;
+use crate::balancer::manages_senders_controller::ManagesSendersController;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
@@ -35,7 +35,10 @@ impl ControlsManagesSendersEndpoint for GetChatTemplateOverrideController {
         self.agent_id.clone()
     }
 
-    async fn get_manages_senders_controller(&self, agent_controller: Arc<AgentController>) -> anyhow::Result<ManagesSendersController<Self::SenderCollection>> {
+    async fn get_manages_senders_controller(
+        &self,
+        agent_controller: Arc<AgentController>,
+    ) -> anyhow::Result<ManagesSendersController<Self::SenderCollection>> {
         agent_controller.get_chat_template_override().await
     }
 }

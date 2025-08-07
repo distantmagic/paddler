@@ -7,22 +7,23 @@ use actix_web::HttpResponse;
 use actix_web::Responder;
 use indoc::formatdoc;
 
-use crate::balancer::management_service::app_data::AppData;
 use crate::balancer::agent_controller_pool_total_slots::AgentControllerPoolTotalSlots;
+use crate::balancer::management_service::app_data::AppData;
 
 pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
 }
 
 #[get("/metrics")]
-async fn respond(
-    app_data: Data<AppData>,
-) -> Result<impl Responder, Box<dyn Error>> {
+async fn respond(app_data: Data<AppData>) -> Result<impl Responder, Box<dyn Error>> {
     let AgentControllerPoolTotalSlots {
         slots_processing,
         slots_total,
     } = app_data.agent_controller_pool.total_slots();
-    let buffered_requests_count = app_data.buffered_request_manager.buffered_request_counter.get();
+    let buffered_requests_count = app_data
+        .buffered_request_manager
+        .buffered_request_counter
+        .get();
 
     let metrics_response = formatdoc! {"
         # HELP paddler_slots_processing Number of processing slots

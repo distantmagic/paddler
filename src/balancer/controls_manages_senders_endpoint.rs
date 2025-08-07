@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use actix_web::Error;
 use actix_web::HttpResponse;
+use async_trait::async_trait;
 use tokio::time::sleep;
 use tokio::time::Duration;
 
-use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::agent_controller::AgentController;
+use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::manages_senders::ManagesSenders;
 use crate::balancer::manages_senders_controller::ManagesSendersController;
 
@@ -21,7 +21,10 @@ pub trait ControlsManagesSendersEndpoint {
 
     fn get_agent_id(&self) -> String;
 
-    async fn get_manages_senders_controller(&self, agent_controller: Arc<AgentController>) -> anyhow::Result<ManagesSendersController<Self::SenderCollection>>;
+    async fn get_manages_senders_controller(
+        &self,
+        agent_controller: Arc<AgentController>,
+    ) -> anyhow::Result<ManagesSendersController<Self::SenderCollection>>;
 
     async fn respond(&self) -> Result<HttpResponse, Error> {
         let agent_controller_pool = self.get_agent_controller_pool();

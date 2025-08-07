@@ -18,19 +18,19 @@ use llama_cpp_2::model::Special;
 use log::error;
 use tokio::sync::oneshot;
 
-use crate::agent_issue_params::SlotCannotStartParams;
-use crate::agent_issue_params::ChatTemplateDoesNotCompileParams;
 use crate::agent::llamacpp_arbiter_handle::LlamaCppArbiterHandle;
 use crate::agent::llamacpp_slot::LlamaCppSlot;
 use crate::agent::llamacpp_slot_context::LlamaCppSlotContext;
 use crate::agent::model_metadata_holder::ModelMetadataHolder;
 use crate::agent_issue::AgentIssue;
-use crate::chat_template_renderer::ChatTemplateRenderer;
 use crate::agent_issue_fix::AgentIssueFix;
+use crate::agent_issue_params::ChatTemplateDoesNotCompileParams;
+use crate::agent_issue_params::SlotCannotStartParams;
+use crate::chat_template::ChatTemplate;
+use crate::chat_template_renderer::ChatTemplateRenderer;
 use crate::inference_parameters::InferenceParameters;
 use crate::model_metadata::ModelMetadata;
 use crate::slot_aggregated_status_manager::SlotAggregatedStatusManager;
-use crate::chat_template::ChatTemplate;
 
 pub struct LlamaCppArbiter {
     pub agent_name: Option<String>,
@@ -61,15 +61,29 @@ impl LlamaCppArbiter {
         let slot_aggregated_status_manager = self.slot_aggregated_status_manager.clone();
 
         let sync_arbiter_thread_handle = thread::spawn(move || -> Result<()> {
-            let backend = Arc::new(LlamaBackend::init().context("Unable to initialize llama.cpp backend")?);
-            let ctx_params = Arc::new(LlamaContextParams::default().with_n_ctx(NonZeroU32::new(inference_parameters.context_size)));
-            let backend_clone = backend.clone();
+            let llama_backend =
+                Arc::new(LlamaBackend::init().context("Unable to initialize llama.cpp backend")?);
+            let llama_ctx_params = Arc::new(
+                LlamaContextParams::default()
+                    .with_embeddings(inference_parameters.enable_embeddings)
+                    .with_n_ctx(NonZeroU32::new(inference_parameters.context_size))
+                    // n_threads_batch > 1 causes some unpredictability
+                    .with_n_threads_batch(1)
+                    .with_pooling_type(inference_parameters.pooling_type.clone().into()),
+            );
+            let backend_clone = llama_backend.clone();
             let model = Arc::new(
-                LlamaModel::load_from_file(
-                    &backend_clone.clone(),
-                    model_path.clone(),
-                    &LlamaModelParams::default(),
-                )
+                LlamaModel::load_from_file(&backend_clone.clone(), model_path.clone(), &{
+                    if cfg!(any(
+                        feature = "cuda",
+                        feature = "vulkan",
+                        target_os = "macos"
+                    )) {
+                        LlamaModelParams::default().with_n_gpu_layers(1000)
+                    } else {
+                        LlamaModelParams::default()
+                    }
+                })
                 .context("Unable to load model from file")?,
             );
 
@@ -119,21 +133,24 @@ impl LlamaCppArbiter {
                 match ChatTemplateRenderer::new(ChatTemplate {
                     content: llama_chat_template_string.clone(),
                 })
-                .context("Failed to create chat template renderer") {
+                .context("Failed to create chat template renderer")
+                {
                     Ok(renderer) => {
                         slot_aggregated_status_manager
                             .slot_aggregated_status
                             .register_fix(AgentIssueFix::ChatTemplateIsCompiled);
 
                         renderer
-                    },
+                    }
                     Err(err) => {
                         slot_aggregated_status_manager
                             .slot_aggregated_status
-                            .register_issue(AgentIssue::ChatTemplateDoesNotCompile(ChatTemplateDoesNotCompileParams {
-                                error: format!("{err}"),
-                                template_content: llama_chat_template_string,
-                            }));
+                            .register_issue(AgentIssue::ChatTemplateDoesNotCompile(
+                                ChatTemplateDoesNotCompileParams {
+                                    error: format!("{err}"),
+                                    template_content: llama_chat_template_string,
+                                },
+                            ));
 
                         return Err(err);
                     }
@@ -164,9 +181,9 @@ impl LlamaCppArbiter {
                         move || {
                             let index = slot_index.fetch_add(1, Ordering::SeqCst);
                             let llamacpp_slot = LlamaCppSlot::new(
-                                backend.clone(),
-                                ctx_params.clone(),
                                 index,
+                                llama_backend.clone(),
+                                llama_ctx_params.clone(),
                                 slot_context.clone(),
                                 slot_aggregated_status_manager.bind_slot_status(),
                             );
@@ -175,10 +192,12 @@ impl LlamaCppArbiter {
                                 Err(err) => {
                                     slot_aggregated_status_manager
                                         .slot_aggregated_status
-                                        .register_issue(AgentIssue::SlotCannotStart(SlotCannotStartParams {
-                                            error: format!("{err}"),
-                                            slot_index: index,
-                                        }));
+                                        .register_issue(AgentIssue::SlotCannotStart(
+                                            SlotCannotStartParams {
+                                                error: format!("{err}"),
+                                                slot_index: index,
+                                            },
+                                        ));
 
                                     panic!("Failed to create slot: {err}");
                                 }
@@ -188,7 +207,7 @@ impl LlamaCppArbiter {
                                         .register_fix(AgentIssueFix::SlotStarted(index));
 
                                     llamacpp_slot
-                                },
+                                }
                             }
                         },
                     ))
@@ -251,7 +270,9 @@ impl LlamaCppArbiter {
         }
 
         Ok(LlamaCppArbiterHandle {
-            llamacpp_slot_addr: llamacpp_slot_addr_rx.await.context("Unable to await for llamacpp slot addr")?,
+            llamacpp_slot_addr: llamacpp_slot_addr_rx
+                .await
+                .context("Unable to await for llamacpp slot addr")?,
             shutdown_tx,
             sync_arbiter_thread_handle,
         })
@@ -290,7 +311,11 @@ mod tests {
             Arc::new(SlotAggregatedStatusManager::new(SLOTS_TOTAL));
 
         let applicable_state = desired_state
-            .to_applicable_state(slot_aggregated_status_manager.slot_aggregated_status.clone())
+            .to_applicable_state(
+                slot_aggregated_status_manager
+                    .slot_aggregated_status
+                    .clone(),
+            )
             .await?
             .expect("Failed to convert to applicable state");
 
@@ -307,7 +332,8 @@ mod tests {
         };
         let controller = llamacpp_arbiter.spawn().await?;
 
-        let raw_prompt = "<|im_start|>user\nHow can I make a cat happy?<|im_end|>\n<|im_start|>assistant\n";
+        let raw_prompt =
+            "<|im_start|>user\nHow can I make a cat happy?<|im_end|>\n<|im_start|>assistant\n";
         let (generated_tokens_tx, mut generated_tokens_rx) = mpsc::unbounded_channel();
 
         let (_, generate_tokens_stop_rx_1) = mpsc::unbounded_channel::<()>();
@@ -315,30 +341,36 @@ mod tests {
         let (_, generate_tokens_stop_rx_3) = mpsc::unbounded_channel::<()>();
 
         let futures = vec![
-            controller.llamacpp_slot_addr.send(ContinueFromRawPromptRequest {
-                generated_tokens_tx: generated_tokens_tx.clone(),
-                generate_tokens_stop_rx: generate_tokens_stop_rx_1,
-                continue_from_raw_prompt_params: ContinueFromRawPromptParams {
-                    max_tokens: 30,
-                    raw_prompt: raw_prompt.to_string(),
-                },
-            }),
-            controller.llamacpp_slot_addr.send(ContinueFromRawPromptRequest {
-                generated_tokens_tx: generated_tokens_tx.clone(),
-                generate_tokens_stop_rx: generate_tokens_stop_rx_2,
-                continue_from_raw_prompt_params: ContinueFromRawPromptParams {
-                    max_tokens: 30,
-                    raw_prompt: raw_prompt.to_string(),
-                },
-            }),
-            controller.llamacpp_slot_addr.send(ContinueFromRawPromptRequest {
-                generated_tokens_tx,
-                generate_tokens_stop_rx: generate_tokens_stop_rx_3,
-                continue_from_raw_prompt_params: ContinueFromRawPromptParams {
-                    max_tokens: 30,
-                    raw_prompt: raw_prompt.to_string(),
-                },
-            }),
+            controller
+                .llamacpp_slot_addr
+                .send(ContinueFromRawPromptRequest {
+                    generated_tokens_tx: generated_tokens_tx.clone(),
+                    generate_tokens_stop_rx: generate_tokens_stop_rx_1,
+                    params: ContinueFromRawPromptParams {
+                        max_tokens: 30,
+                        raw_prompt: raw_prompt.to_string(),
+                    },
+                }),
+            controller
+                .llamacpp_slot_addr
+                .send(ContinueFromRawPromptRequest {
+                    generated_tokens_tx: generated_tokens_tx.clone(),
+                    generate_tokens_stop_rx: generate_tokens_stop_rx_2,
+                    params: ContinueFromRawPromptParams {
+                        max_tokens: 30,
+                        raw_prompt: raw_prompt.to_string(),
+                    },
+                }),
+            controller
+                .llamacpp_slot_addr
+                .send(ContinueFromRawPromptRequest {
+                    generated_tokens_tx,
+                    generate_tokens_stop_rx: generate_tokens_stop_rx_3,
+                    params: ContinueFromRawPromptParams {
+                        max_tokens: 30,
+                        raw_prompt: raw_prompt.to_string(),
+                    },
+                }),
         ];
 
         tokio::spawn(async move {

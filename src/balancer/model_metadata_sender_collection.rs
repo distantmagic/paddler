@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::mpsc;
 
-use crate::model_metadata::ModelMetadata;
 use crate::balancer::manages_senders::ManagesSenders;
+use crate::model_metadata::ModelMetadata;
 
 pub struct ModelMetadataSenderCollection {
     senders: DashMap<String, mpsc::UnboundedSender<Option<ModelMetadata>>>,

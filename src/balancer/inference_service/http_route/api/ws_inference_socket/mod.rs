@@ -16,20 +16,20 @@ use async_trait::async_trait;
 use log::error;
 use tokio::sync::broadcast;
 
-use crate::balancer::inference_service::app_data::AppData;
 use self::client::Message as OutgoingMessage;
 use self::inference_socket_controller_context::InferenceSocketControllerContext;
 use self::jsonrpc::Message as InferenceJsonRpcMessage;
 use self::jsonrpc::Request as InferenceJsonRpcRequest;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
+use crate::balancer::inference_service::app_data::AppData;
 use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
+use crate::balancer::inference_service::controls_inference_endpoint::ControlsInferenceEndpoint;
 use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::ErrorEnvelope;
 use crate::jsonrpc::RequestEnvelope;
 use crate::websocket_session_controller::WebSocketSessionController;
-use crate::balancer::inference_service::controls_inference_endpoint::ControlsInferenceEndpoint;
 
 pub fn register(cfg: &mut ServiceConfig) {
     cfg.service(respond);
@@ -77,14 +77,15 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                 id,
                 request: InferenceJsonRpcRequest::ContinueFromConversationHistory(params),
             }) => {
-                Self::continue_from_conversation_history(
+                Self::request_from_agent(
                     context.buffered_request_manager.clone(),
                     connection_close_tx,
                     context.inference_service_configuration.clone(),
                     params,
                     id,
                     websocket_session_controller,
-                ).await?;
+                )
+                .await?;
 
                 Ok(ContinuationDecision::Continue)
             }
@@ -92,14 +93,15 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                 id,
                 request: InferenceJsonRpcRequest::ContinueFromRawPrompt(params),
             }) => {
-                Self::continue_from_raw_prompt(
+                Self::request_from_agent(
                     context.buffered_request_manager.clone(),
                     connection_close_tx,
                     context.inference_service_configuration.clone(),
                     params,
                     id,
                     websocket_session_controller,
-                ).await?;
+                )
+                .await?;
 
                 Ok(ContinuationDecision::Continue)
             }

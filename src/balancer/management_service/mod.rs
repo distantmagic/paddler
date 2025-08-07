@@ -12,18 +12,19 @@ use async_trait::async_trait;
 use log::error;
 use tokio::sync::broadcast;
 
-use crate::balancer::management_service::app_data::AppData;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
-use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
-use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
+use crate::balancer::embedding_sender_collection::EmbeddingSenderCollection;
+use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::http_route as common_http_route;
+use crate::balancer::management_service::app_data::AppData;
 use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
 use crate::balancer::state_database::StateDatabase;
 #[cfg(feature = "web_admin_panel")]
 use crate::balancer::web_admin_panel_service::configuration::Configuration as WebAdminPanelServiceConfiguration;
+use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::create_cors_middleware::create_cors_middleware;
 use crate::service::Service;
 
@@ -33,6 +34,7 @@ pub struct ManagementService {
     pub buffered_request_manager: Arc<BufferedRequestManager>,
     pub chat_template_override_sender_collection: Arc<ChatTemplateOverrideSenderCollection>,
     pub configuration: ManagementServiceConfiguration,
+    pub embedding_sender_collection: Arc<EmbeddingSenderCollection>,
     pub generate_tokens_sender_collection: Arc<GenerateTokensSenderCollection>,
     pub model_metadata_sender_collection: Arc<ModelMetadataSenderCollection>,
     pub state_database: Arc<dyn StateDatabase>,
@@ -61,7 +63,10 @@ impl Service for ManagementService {
             agent_controller_pool: self.agent_controller_pool.clone(),
             balancer_applicable_state_holder: self.balancer_applicable_state_holder.clone(),
             buffered_request_manager: self.buffered_request_manager.clone(),
-            chat_template_override_sender_collection: self.chat_template_override_sender_collection.clone(),
+            chat_template_override_sender_collection: self
+                .chat_template_override_sender_collection
+                .clone(),
+            embedding_sender_collection: self.embedding_sender_collection.clone(),
             generate_tokens_sender_collection: self.generate_tokens_sender_collection.clone(),
             model_metadata_sender_collection: self.model_metadata_sender_collection.clone(),
             state_database: self.state_database.clone(),

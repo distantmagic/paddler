@@ -16,9 +16,7 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 }
 
 #[get("/api/v1/buffered_requests/stream")]
-async fn respond(
-    app_data: web::Data<AppData>,
-) -> Result<impl Responder, Error> {
+async fn respond(app_data: web::Data<AppData>) -> Result<impl Responder, Error> {
     let event_stream = async_stream::stream! {
         let send_event = |info| {
             match serde_json::to_string(&info) {

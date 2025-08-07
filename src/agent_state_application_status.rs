@@ -1,30 +1,20 @@
 use anyhow::anyhow;
+use anyhow::Error;
 use anyhow::Result;
-
 use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[repr(i32)]
 pub enum AgentStateApplicationStatus {
-    Applied,
-    AttemptedAndNotAppliable,
-    AttemptedAndRetrying,
-    Fresh,
-    Stuck,
+    Applied = 0,
+    AttemptedAndNotAppliable = 1,
+    AttemptedAndRetrying = 2,
+    Fresh = 3,
+    Stuck = 4,
 }
 
 impl AgentStateApplicationStatus {
-    pub fn from_code(code: i32) -> Result<Self> {
-        match code {
-            0 => Ok(AgentStateApplicationStatus::Applied),
-            1 => Ok(AgentStateApplicationStatus::AttemptedAndNotAppliable),
-            2 => Ok(AgentStateApplicationStatus::AttemptedAndRetrying),
-            3 => Ok(AgentStateApplicationStatus::Fresh),
-            4 => Ok(AgentStateApplicationStatus::Stuck),
-            _ => Err(anyhow!("Invalid AgentStateApplicationStatus code: {}", code)),
-        }
-    }
-
     pub fn should_try_to_apply(&self) -> bool {
         match self {
             AgentStateApplicationStatus::Applied => false,
@@ -34,14 +24,21 @@ impl AgentStateApplicationStatus {
             AgentStateApplicationStatus::Stuck => true,
         }
     }
+}
 
-    pub fn to_code(&self) -> i32 {
-        match self {
-            AgentStateApplicationStatus::Applied => 0,
-            AgentStateApplicationStatus::AttemptedAndNotAppliable => 1,
-            AgentStateApplicationStatus::AttemptedAndRetrying => 2,
-            AgentStateApplicationStatus::Fresh => 3,
-            AgentStateApplicationStatus::Stuck => 4,
+impl TryFrom<i32> for AgentStateApplicationStatus {
+    type Error = Error;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(AgentStateApplicationStatus::Applied),
+            1 => Ok(AgentStateApplicationStatus::AttemptedAndNotAppliable),
+            2 => Ok(AgentStateApplicationStatus::AttemptedAndRetrying),
+            3 => Ok(AgentStateApplicationStatus::Fresh),
+            4 => Ok(AgentStateApplicationStatus::Stuck),
+            _ => Err(anyhow!(
+                "Invalid value for AgentStateApplicationStatus: {value}"
+            )),
         }
     }
 }

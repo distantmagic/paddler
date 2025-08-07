@@ -1,15 +1,14 @@
-use std::time::Duration;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::Result;
 use tokio::sync::Notify;
 use tokio::time::timeout;
 
-use crate::balancer::buffered_request_manager_snapshot::BufferedRequestManagerSnapshot;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::buffered_request_agent_wait_result::BufferedRequestAgentWaitResult;
-use crate::balancer::buffered_request_count_guard::BufferedRequestCountGuard;
 use crate::balancer::buffered_request_counter::BufferedRequestCounter;
+use crate::balancer::buffered_request_manager_snapshot::BufferedRequestManagerSnapshot;
 use crate::produces_snapshot::ProducesSnapshot;
 
 pub struct BufferedRequestManager {
@@ -30,7 +29,9 @@ impl BufferedRequestManager {
 
         Self {
             agent_controller_pool,
-            buffered_request_counter: Arc::new(BufferedRequestCounter::new(update_notifier.clone())),
+            buffered_request_counter: Arc::new(BufferedRequestCounter::new(
+                update_notifier.clone(),
+            )),
             buffered_request_timeout,
             max_buffered_requests,
             update_notifier,
@@ -43,15 +44,14 @@ impl BufferedRequestManager {
         }
 
         // Do a quick check before getting into the coroutines
-        if let Some(agent_controller) = self.agent_controller_pool.take_least_busy_agent_controller() {
-            return Ok(BufferedRequestAgentWaitResult::Found(
-                agent_controller,
-            ));
+        if let Some(agent_controller) = self
+            .agent_controller_pool
+            .take_least_busy_agent_controller()
+        {
+            return Ok(BufferedRequestAgentWaitResult::Found(agent_controller));
         }
 
-        self.buffered_request_counter.increment();
-
-        let _buffered_request_count_guard = BufferedRequestCountGuard::new(self.buffered_request_counter.clone());
+        let _buffered_request_count_guard = self.buffered_request_counter.increment_with_guard();
         let agent_controller_pool = self.agent_controller_pool.clone();
 
         match timeout(self.buffered_request_timeout, async {

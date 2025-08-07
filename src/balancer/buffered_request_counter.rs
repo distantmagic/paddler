@@ -4,6 +4,7 @@ use std::sync::Arc;
 use tokio::sync::Notify;
 
 use crate::atomic_value::AtomicValue;
+use crate::balancer::buffered_request_count_guard::BufferedRequestCountGuard;
 
 pub struct BufferedRequestCounter {
     count: Arc<AtomicValue<AtomicI32>>,
@@ -30,5 +31,11 @@ impl BufferedRequestCounter {
     pub fn increment(&self) {
         self.count.increment();
         self.update_notifier.notify_waiters();
+    }
+
+    pub fn increment_with_guard(self: &Arc<Self>) -> BufferedRequestCountGuard {
+        self.increment();
+
+        BufferedRequestCountGuard::new(self.clone())
     }
 }

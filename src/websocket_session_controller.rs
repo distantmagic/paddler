@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
-use async_trait::async_trait;
 use actix_ws::Session;
 use anyhow::Result;
+use async_trait::async_trait;
 use serde::Serialize;
 
 use crate::rpc_message::RpcMessage;
@@ -27,7 +27,6 @@ where
         }
     }
 }
-
 
 #[async_trait]
 impl<TResponse> SessionController<TResponse> for WebSocketSessionController<TResponse>

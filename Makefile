@@ -1,4 +1,4 @@
-.DEFAULT_GOAL := build
+.DEFAULT_GOAL := release
 
 RUST_LOG ?= debug
 
@@ -17,10 +17,6 @@ node_modules: package-lock.json
 # Phony targets
 # -----------------------------------------------------------------------------
 
-.PHONY: build
-build: node_modules
-	./jarmuz-release.mjs
-
 .PHONY: clean
 clean:
 	rm -rf esbuild-meta.json
@@ -31,16 +27,14 @@ clean:
 .PHONY: fmt
 fmt: node_modules
 	./jarmuz-fmt.mjs
-	$(MAKE) -C integration_tests fmt
-
-.PHONY: integration_tests
-integration_tests:
-	cargo build
-	$(MAKE) -C integration_tests test
 
 .PHONY: jarmuz-static
 jarmuz-static: node_modules
 	./jarmuz-static.mjs
+
+.PHONY: release
+release: node_modules
+	./jarmuz-release.mjs
 
 .PHONY: test
 test: jarmuz-static

@@ -22,8 +22,14 @@ impl BalancerApplicableStateHolder {
             .map(|state| state.agent_desired_state.clone())
     }
 
-    pub fn set_balancer_applicable_state(&self, balancer_applicable_state: Option<BalancerApplicableState>) {
-        let mut lock = self.balancer_applicable_state.write().expect("Failed to get balancer state lock");
+    pub fn set_balancer_applicable_state(
+        &self,
+        balancer_applicable_state: Option<BalancerApplicableState>,
+    ) {
+        let mut lock = self
+            .balancer_applicable_state
+            .write()
+            .expect("Failed to get balancer state lock");
 
         *lock = balancer_applicable_state;
     }

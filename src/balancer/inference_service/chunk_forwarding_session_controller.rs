@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use tokio::sync::mpsc;
 
-use crate::session_controller::SessionController;
 use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Message as OutgoingMessage;
+use crate::session_controller::SessionController;
 
 pub struct ChunkForwardingSessionController {
     pub chunk_tx: mpsc::UnboundedSender<String>,

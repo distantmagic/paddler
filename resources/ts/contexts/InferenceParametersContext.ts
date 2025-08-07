@@ -4,10 +4,10 @@ import { type InferenceParameters } from "../schemas/InferenceParameters";
 
 export type InferenceParametersContextValue = {
   parameters: InferenceParameters;
-  setParameter(
+  setParameter<TKey extends keyof InferenceParameters>(
     this: void,
-    name: keyof InferenceParameters,
-    value: number,
+    name: TKey,
+    value: InferenceParameters[TKey],
   ): void;
   setPartialParameters(
     this: void,
