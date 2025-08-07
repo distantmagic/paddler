@@ -65,7 +65,8 @@ impl LlamaCppArbiter {
                 Arc::new(LlamaBackend::init().context("Unable to initialize llama.cpp backend")?);
             let llama_ctx_params = Arc::new(
                 LlamaContextParams::default()
-                    .with_n_threads_batch(thread::available_parallelism()?.get().try_into()?)
+                    // n_threads_batch > 1 causes some unpredictability
+                    .with_n_threads_batch(1)
                     .with_embeddings(inference_parameters.enable_embeddings)
                     .with_n_ctx(NonZeroU32::new(inference_parameters.context_size)),
             );
