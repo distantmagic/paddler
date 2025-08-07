@@ -16,7 +16,7 @@ use crate::agent::generate_embedding_batch_request::GenerateEmbeddingBatchReques
 use crate::agent::llamacpp_arbiter_service::LlamaCppArbiterService;
 use crate::agent::management_socket_client_service::ManagementSocketClientService;
 use crate::agent::model_metadata_holder::ModelMetadataHolder;
-use crate::agent::receive_tokens_stopper_collection::ReceiveTokensStopperCollection;
+use crate::agent::receive_stream_stopper_collection::ReceiveStreamStopperCollection;
 use crate::agent::reconciliation_service::ReconciliationService;
 use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
 use crate::agent_desired_state::AgentDesiredState;
@@ -77,7 +77,7 @@ impl Handler for Agent {
             generate_embedding_batch_request_tx,
             model_metadata_holder,
             name: self.name.clone(),
-            receive_tokens_stopper_collection: Arc::new(ReceiveTokensStopperCollection::new()),
+            receive_stream_stopper_collection: Arc::new(ReceiveStreamStopperCollection::new()),
             slot_aggregated_status: slot_aggregated_status_manager
                 .slot_aggregated_status
                 .clone(),

@@ -25,6 +25,7 @@ use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverr
 use crate::balancer::embedding_sender_collection::EmbeddingSenderCollection;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::manages_senders::ManagesSenders as _;
+use crate::balancer::manages_senders::ManagesSenders;
 use crate::balancer::manages_senders_controller::ManagesSendersController;
 use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
 use crate::embedding_result::EmbeddingResult;
@@ -67,9 +68,10 @@ impl AgentController {
     ) -> Result<ManagesSendersController<GenerateTokensSenderCollection>> {
         self.receiver_from_message(
             request_id.clone(),
+            self.generate_tokens_sender_collection.clone(),
             AgentJsonRpcMessage::Request(RequestEnvelope {
                 id: request_id,
-                request: AgentJsonRpcRequest::ContinueFromConversationHistory(params.clone()),
+                request: AgentJsonRpcRequest::ContinueFromConversationHistory(params),
             }),
         )
         .await
@@ -82,9 +84,10 @@ impl AgentController {
     ) -> Result<ManagesSendersController<GenerateTokensSenderCollection>> {
         self.receiver_from_message(
             request_id.clone(),
+            self.generate_tokens_sender_collection.clone(),
             AgentJsonRpcMessage::Request(RequestEnvelope {
                 id: request_id,
-                request: AgentJsonRpcRequest::ContinueFromRawPrompt(params.clone()),
+                request: AgentJsonRpcRequest::ContinueFromRawPrompt(params),
             }),
         )
         .await
@@ -92,16 +95,18 @@ impl AgentController {
 
     pub async fn generate_embedding_batch(
         &self,
-        embedding_rx: mpsc::UnboundedReceiver<EmbeddingResult>,
-        embedding_tx: mpsc::UnboundedSender<EmbeddingResult>,
         request_id: String,
         params: GenerateEmbeddingBatchParams,
     ) -> Result<ManagesSendersController<EmbeddingSenderCollection>> {
-        Ok(ManagesSendersController {
-            request_id,
-            response_rx: embedding_rx,
-            response_sender_collection: self.embedding_sender_collection.clone(),
-        })
+        self.receiver_from_message(
+            request_id.clone(),
+            self.embedding_sender_collection.clone(),
+            AgentJsonRpcMessage::Request(RequestEnvelope {
+                id: request_id,
+                request: AgentJsonRpcRequest::GenerateEmbeddingBatch(params),
+            }),
+        )
+        .await
     }
 
     pub async fn get_chat_template_override(
@@ -257,21 +262,22 @@ impl AgentController {
         }
     }
 
-    async fn receiver_from_message(
+    async fn receiver_from_message<TManagesSenders: ManagesSenders>(
         &self,
         request_id: String,
+        sender_collection: Arc<TManagesSenders>,
         message: AgentJsonRpcMessage,
-    ) -> Result<ManagesSendersController<GenerateTokensSenderCollection>> {
+    ) -> Result<ManagesSendersController<TManagesSenders>> {
         let (response_tx, response_rx) = mpsc::unbounded_channel();
 
-        self.generate_tokens_sender_collection
-            .register_sender(request_id.clone(), response_tx)?;
+        sender_collection.register_sender(request_id.clone(), response_tx)?;
+
         self.send_rpc_message(message).await?;
 
         Ok(ManagesSendersController {
             request_id,
             response_rx,
-            response_sender_collection: self.generate_tokens_sender_collection.clone(),
+            response_sender_collection: sender_collection.clone(),
         })
     }
 }

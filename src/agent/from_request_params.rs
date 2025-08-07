@@ -1,13 +1,14 @@
 use tokio::sync::mpsc;
 
-use crate::generated_token_envelope::GeneratedTokenEnvelope;
+use crate::agent::jsonrpc::response::Response;
 
 pub trait FromRequestParams: Send + Sync {
     type RequestParams;
+    type Response: Into<Response>;
 
     fn from_request_params(
-        request_params: Self::RequestParams,
-        generate_tokens_stop_rx: mpsc::UnboundedReceiver<()>,
-        generated_tokens_tx: mpsc::UnboundedSender<GeneratedTokenEnvelope>,
+        params: Self::RequestParams,
+        response_tx: mpsc::UnboundedSender<Self::Response>,
+        stop_rx: mpsc::UnboundedReceiver<()>,
     ) -> Self;
 }

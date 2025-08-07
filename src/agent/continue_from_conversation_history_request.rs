@@ -16,11 +16,12 @@ pub struct ContinueFromConversationHistoryRequest {
 
 impl FromRequestParams for ContinueFromConversationHistoryRequest {
     type RequestParams = ContinueFromConversationHistoryParams;
+    type Response = GeneratedTokenEnvelope;
 
     fn from_request_params(
         params: Self::RequestParams,
+        generated_tokens_tx: mpsc::UnboundedSender<Self::Response>,
         generate_tokens_stop_rx: mpsc::UnboundedReceiver<()>,
-        generated_tokens_tx: mpsc::UnboundedSender<GeneratedTokenEnvelope>,
     ) -> Self {
         ContinueFromConversationHistoryRequest {
             generate_tokens_stop_rx,

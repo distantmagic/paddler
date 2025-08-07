@@ -11,6 +11,6 @@ mod llamacpp_slot;
 mod llamacpp_slot_context;
 pub mod management_socket_client_service;
 pub mod model_metadata_holder;
-pub mod receive_tokens_stopper_collection;
-mod receive_tokens_stopper_drop_guard;
+pub mod receive_stream_stopper_collection;
+mod receive_stream_stopper_drop_guard;
 pub mod reconciliation_service;

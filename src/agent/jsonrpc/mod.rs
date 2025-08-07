@@ -2,7 +2,7 @@ mod message;
 mod notification;
 pub mod notification_params;
 mod request;
-mod response;
+pub mod response;
 
 pub use self::message::Message;
 pub use self::notification::Notification;

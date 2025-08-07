@@ -2,17 +2,17 @@ use std::sync::Arc;
 
 use log::error;
 
-use crate::agent::receive_tokens_stopper_collection::ReceiveTokensStopperCollection;
+use crate::agent::receive_stream_stopper_collection::ReceiveStreamStopperCollection;
 
-pub struct ReceiveTokensStopperDropGuard {
-    pub receive_tokens_stopper_collection: Arc<ReceiveTokensStopperCollection>,
+pub struct ReceiveStreamStopperDropGuard {
+    pub receive_stream_stopper_collection: Arc<ReceiveStreamStopperCollection>,
     pub request_id: String,
 }
 
-impl Drop for ReceiveTokensStopperDropGuard {
+impl Drop for ReceiveStreamStopperDropGuard {
     fn drop(&mut self) {
         if let Err(err) = self
-            .receive_tokens_stopper_collection
+            .receive_stream_stopper_collection
             .deregister_stopper(self.request_id.clone())
         {
             error!(
