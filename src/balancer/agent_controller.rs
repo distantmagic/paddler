@@ -24,8 +24,7 @@ use crate::balancer::agent_controller_update_result::AgentControllerUpdateResult
 use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
 use crate::balancer::embedding_sender_collection::EmbeddingSenderCollection;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
-use crate::balancer::handles_agent_request::HandlesAgentRequest;
-use crate::balancer::manages_senders::ManagesSenders as _;
+use crate::balancer::handles_agent_streaming_response::HandlesAgentStreamingResponse;
 use crate::balancer::manages_senders::ManagesSenders;
 use crate::balancer::manages_senders_controller::ManagesSendersController;
 use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
@@ -235,7 +234,7 @@ impl AgentController {
 }
 
 #[async_trait]
-impl HandlesAgentRequest<ContinueFromConversationHistoryParams> for AgentController {
+impl HandlesAgentStreamingResponse<ContinueFromConversationHistoryParams> for AgentController {
     type SenderCollection = GenerateTokensSenderCollection;
 
     async fn handle(
@@ -256,7 +255,7 @@ impl HandlesAgentRequest<ContinueFromConversationHistoryParams> for AgentControl
 }
 
 #[async_trait]
-impl HandlesAgentRequest<ContinueFromRawPromptParams> for AgentController {
+impl HandlesAgentStreamingResponse<ContinueFromRawPromptParams> for AgentController {
     type SenderCollection = GenerateTokensSenderCollection;
 
     async fn handle(
@@ -277,7 +276,7 @@ impl HandlesAgentRequest<ContinueFromRawPromptParams> for AgentController {
 }
 
 #[async_trait]
-impl HandlesAgentRequest<GenerateEmbeddingBatchParams> for AgentController {
+impl HandlesAgentStreamingResponse<GenerateEmbeddingBatchParams> for AgentController {
     type SenderCollection = EmbeddingSenderCollection;
 
     async fn handle(

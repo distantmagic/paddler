@@ -1,13 +1,21 @@
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::embedding_result::EmbeddingResult;
 use crate::generated_token_result::GeneratedTokenResult;
 
 #[derive(Deserialize, Serialize)]
 pub enum Response {
+    Embedding(EmbeddingResult),
     GeneratedToken(GeneratedTokenResult),
     Timeout,
     TooManyBufferedRequests,
+}
+
+impl From<EmbeddingResult> for Response {
+    fn from(result: EmbeddingResult) -> Self {
+        Response::Embedding(result)
+    }
 }
 
 impl From<GeneratedTokenResult> for Response {

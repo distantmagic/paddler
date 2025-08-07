@@ -6,7 +6,7 @@ use crate::balancer::manages_senders::ManagesSenders;
 use crate::balancer::manages_senders_controller::ManagesSendersController;
 
 #[async_trait]
-pub trait HandlesAgentRequest<TParams>
+pub trait HandlesAgentStreamingResponse<TParams>
 where
     TParams: Into<AgentJsonRpcRequest>,
 {

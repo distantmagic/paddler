@@ -13,7 +13,7 @@ pub mod chat_template_override_sender_collection;
 mod controls_manages_senders_endpoint;
 pub mod embedding_sender_collection;
 pub mod generate_tokens_sender_collection;
-mod handles_agent_request;
+mod handles_agent_streaming_response;
 mod http_route;
 pub mod inference_service;
 pub mod management_service;

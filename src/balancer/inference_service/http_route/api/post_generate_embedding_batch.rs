@@ -10,6 +10,7 @@ use actix_web::Responder;
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures::stream::StreamExt;
+use log::error;
 use nanoid::nanoid;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
@@ -26,10 +27,10 @@ pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
 }
 
-struct GenerateEmbeddingBatchController {}
+struct Controller {}
 
 #[async_trait]
-impl ControlsInferenceEndpoint for GenerateEmbeddingBatchController {
+impl ControlsInferenceEndpoint for Controller {
     type SessionController = ChunkForwardingSessionController;
 }
 
@@ -57,12 +58,36 @@ async fn respond(
     let (connection_close_tx, mut connection_close_rx) = broadcast::channel::<()>(1);
     let (chunk_tx, chunk_rx) = mpsc::unbounded_channel();
 
-    let request_batches = params.chunk_by_input_size(
-        agent_desired_state.inference_parameters.batch_n_tokens
-            * CHARACTERS_PER_TOKEN_APPROXIMATELY,
-    );
+    // Distribute the embeddings evenly across the available agents
+    params
+        .chunk_by_input_size(
+            agent_desired_state.inference_parameters.batch_n_tokens
+                * CHARACTERS_PER_TOKEN_APPROXIMATELY,
+        )
+        .for_each(|batch| {
+            let buffered_request_manager_clone = app_data.buffered_request_manager.clone();
+            let chunk_tx_clone = chunk_tx.clone();
+            let connection_close_tx_clone = connection_close_tx.clone();
+            let inference_service_configuration_clone =
+                app_data.inference_service_configuration.clone();
 
-    rt::spawn(async move {});
+            rt::spawn(async move {
+                if let Err(err) = Controller::request_from_agent(
+                    buffered_request_manager_clone,
+                    connection_close_tx_clone,
+                    inference_service_configuration_clone,
+                    batch,
+                    nanoid!(),
+                    ChunkForwardingSessionController {
+                        chunk_tx: chunk_tx_clone,
+                    },
+                )
+                .await
+                {
+                    error!("Failed to handle request: {err}");
+                }
+            });
+        });
 
     let stream = UnboundedReceiverStream::new(chunk_rx)
         .map(|chunk: String| Ok::<_, Error>(Bytes::from(format!("{chunk}\n"))))

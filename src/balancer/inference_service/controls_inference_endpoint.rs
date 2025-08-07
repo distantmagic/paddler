@@ -13,7 +13,7 @@ use crate::agent::jsonrpc::Request as AgentJsonRpcRequest;
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::buffered_request_agent_wait_result::BufferedRequestAgentWaitResult;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
-use crate::balancer::handles_agent_request::HandlesAgentRequest;
+use crate::balancer::handles_agent_streaming_response::HandlesAgentStreamingResponse;
 use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Message as OutgoingMessage;
 use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Response as OutgoingResponse;
@@ -39,8 +39,8 @@ pub trait ControlsInferenceEndpoint {
     ) -> Result<()>
     where
         TParams: Debug + Into<AgentJsonRpcRequest> + Send,
-        AgentController: HandlesAgentRequest<TParams>,
-        <<AgentController as HandlesAgentRequest<TParams>>::SenderCollection as ManagesSenders>::Value: Into<OutgoingResponse> + StreamableResult,
+        AgentController: HandlesAgentStreamingResponse<TParams>,
+        <<AgentController as HandlesAgentStreamingResponse<TParams>>::SenderCollection as ManagesSenders>::Value: Into<OutgoingResponse> + StreamableResult,
     {
         match Self::wait_for_agent_controller(
             buffered_request_manager.clone(),
@@ -55,6 +55,8 @@ pub trait ControlsInferenceEndpoint {
                     match agent_controller.handle(request_id.clone(), params).await {
                         Ok(receive_response_controller) => receive_response_controller,
                         Err(err) => {
+                            error!("Failed to handle request {request_id:?}: {err}");
+
                             Self::respond_with_error(
                                 JsonRpcError {
                                     code: 500,
