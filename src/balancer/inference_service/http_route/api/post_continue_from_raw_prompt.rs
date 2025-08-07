@@ -23,10 +23,10 @@ pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
 }
 
-struct ContinueFromRawPromptController {}
+struct Controller {}
 
 #[async_trait]
-impl ControlsInferenceEndpoint for ContinueFromRawPromptController {
+impl ControlsInferenceEndpoint for Controller {
     type SessionController = ChunkForwardingSessionController;
 }
 
@@ -40,7 +40,7 @@ async fn respond(
     let (chunk_tx, chunk_rx) = mpsc::unbounded_channel();
 
     rt::spawn(async move {
-        if let Err(err) = ContinueFromRawPromptController::continue_from(
+        if let Err(err) = Controller::request_from_agent(
             app_data.buffered_request_manager.clone(),
             connection_close_tx,
             app_data.inference_service_configuration.clone(),

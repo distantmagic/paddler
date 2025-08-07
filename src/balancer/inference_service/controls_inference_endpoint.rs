@@ -13,6 +13,7 @@ use crate::agent::jsonrpc::Request as AgentJsonRpcRequest;
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::buffered_request_agent_wait_result::BufferedRequestAgentWaitResult;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
+use crate::balancer::handles_agent_request::HandlesAgentRequest;
 use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Message as OutgoingMessage;
 use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Response as OutgoingResponse;
@@ -28,14 +29,19 @@ use crate::streamable_result::StreamableResult;
 pub trait ControlsInferenceEndpoint {
     type SessionController: SessionController<OutgoingMessage>;
 
-    async fn continue_from<TParams: Debug + Into<AgentJsonRpcRequest> + Send>(
+    async fn request_from_agent<TParams>(
         buffered_request_manager: Arc<BufferedRequestManager>,
         connection_close_tx: broadcast::Sender<()>,
         inference_service_configuration: InferenceServiceConfiguration,
         params: TParams,
         request_id: String,
         mut session_controller: Self::SessionController,
-    ) -> Result<()> {
+    ) -> Result<()>
+    where
+        TParams: Debug + Into<AgentJsonRpcRequest> + Send,
+        AgentController: HandlesAgentRequest<TParams>,
+        <<AgentController as HandlesAgentRequest<TParams>>::SenderCollection as ManagesSenders>::Value: Into<OutgoingResponse> + StreamableResult,
+    {
         match Self::wait_for_agent_controller(
             buffered_request_manager.clone(),
             connection_close_tx.subscribe(),
@@ -45,25 +51,23 @@ pub trait ControlsInferenceEndpoint {
         .await?
         {
             Some(agent_controller) => {
-                let receive_response_controller = match agent_controller
-                    .continue_from(request_id.clone(), params)
-                    .await
-                {
-                    Ok(receive_response_controller) => receive_response_controller,
-                    Err(err) => {
-                        Self::respond_with_error(
-                            JsonRpcError {
-                                code: 500,
-                                description: "Failed to generate response".to_string(),
-                            },
-                            request_id.clone(),
-                            &mut session_controller,
-                        )
-                        .await;
+                let receive_response_controller =
+                    match agent_controller.handle(request_id.clone(), params).await {
+                        Ok(receive_response_controller) => receive_response_controller,
+                        Err(err) => {
+                            Self::respond_with_error(
+                                JsonRpcError {
+                                    code: 500,
+                                    description: "Failed to generate response".to_string(),
+                                },
+                                request_id.clone(),
+                                &mut session_controller,
+                            )
+                            .await;
 
-                        return Ok(());
-                    }
-                };
+                            return Ok(());
+                        }
+                    };
 
                 Self::forward_responses_stream(
                     agent_controller,

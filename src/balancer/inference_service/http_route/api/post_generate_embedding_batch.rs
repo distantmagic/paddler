@@ -7,6 +7,7 @@ use actix_web::web;
 use actix_web::Error;
 use actix_web::HttpResponse;
 use actix_web::Responder;
+use async_trait::async_trait;
 use bytes::Bytes;
 use futures::stream::StreamExt;
 use nanoid::nanoid;
@@ -15,12 +16,21 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::balancer::inference_service::app_data::AppData;
+use crate::balancer::inference_service::chunk_forwarding_session_controller::ChunkForwardingSessionController;
+use crate::balancer::inference_service::controls_inference_endpoint::ControlsInferenceEndpoint;
 use crate::request_params::GenerateEmbeddingBatchParams;
 
 const CHARACTERS_PER_TOKEN_APPROXIMATELY: usize = 3;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
+}
+
+struct GenerateEmbeddingBatchController {}
+
+#[async_trait]
+impl ControlsInferenceEndpoint for GenerateEmbeddingBatchController {
+    type SessionController = ChunkForwardingSessionController;
 }
 
 #[post("/api/v1/generate_embedding_batch")]

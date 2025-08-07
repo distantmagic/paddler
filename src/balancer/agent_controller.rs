@@ -24,12 +24,15 @@ use crate::balancer::agent_controller_update_result::AgentControllerUpdateResult
 use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
 use crate::balancer::embedding_sender_collection::EmbeddingSenderCollection;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
+use crate::balancer::handles_agent_request::HandlesAgentRequest;
 use crate::balancer::manages_senders::ManagesSenders as _;
 use crate::balancer::manages_senders::ManagesSenders;
 use crate::balancer::manages_senders_controller::ManagesSendersController;
 use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
 use crate::jsonrpc::RequestEnvelope;
 use crate::produces_snapshot::ProducesSnapshot;
+use crate::request_params::ContinueFromConversationHistoryParams;
+use crate::request_params::ContinueFromRawPromptParams;
 use crate::request_params::GenerateEmbeddingBatchParams;
 use crate::sends_rpc_message::SendsRpcMessage;
 use crate::sets_desired_state::SetsDesiredState;
@@ -58,38 +61,6 @@ pub struct AgentController {
 }
 
 impl AgentController {
-    pub async fn continue_from<TParams: Into<AgentJsonRpcRequest>>(
-        &self,
-        request_id: String,
-        params: TParams,
-    ) -> Result<ManagesSendersController<GenerateTokensSenderCollection>> {
-        self.receiver_from_message(
-            request_id.clone(),
-            self.generate_tokens_sender_collection.clone(),
-            AgentJsonRpcMessage::Request(RequestEnvelope {
-                id: request_id,
-                request: params.into(),
-            }),
-        )
-        .await
-    }
-
-    pub async fn generate_embedding_batch(
-        &self,
-        request_id: String,
-        params: GenerateEmbeddingBatchParams,
-    ) -> Result<ManagesSendersController<EmbeddingSenderCollection>> {
-        self.receiver_from_message(
-            request_id.clone(),
-            self.embedding_sender_collection.clone(),
-            AgentJsonRpcMessage::Request(RequestEnvelope {
-                id: request_id,
-                request: AgentJsonRpcRequest::GenerateEmbeddingBatch(params),
-            }),
-        )
-        .await
-    }
-
     pub async fn get_chat_template_override(
         &self,
     ) -> Result<ManagesSendersController<ChatTemplateOverrideSenderCollection>> {
@@ -260,6 +231,69 @@ impl AgentController {
             response_rx,
             response_sender_collection: sender_collection.clone(),
         })
+    }
+}
+
+#[async_trait]
+impl HandlesAgentRequest<ContinueFromConversationHistoryParams> for AgentController {
+    type SenderCollection = GenerateTokensSenderCollection;
+
+    async fn handle(
+        &self,
+        request_id: String,
+        params: ContinueFromConversationHistoryParams,
+    ) -> Result<ManagesSendersController<Self::SenderCollection>> {
+        self.receiver_from_message(
+            request_id.clone(),
+            self.generate_tokens_sender_collection.clone(),
+            AgentJsonRpcMessage::Request(RequestEnvelope {
+                id: request_id,
+                request: params.into(),
+            }),
+        )
+        .await
+    }
+}
+
+#[async_trait]
+impl HandlesAgentRequest<ContinueFromRawPromptParams> for AgentController {
+    type SenderCollection = GenerateTokensSenderCollection;
+
+    async fn handle(
+        &self,
+        request_id: String,
+        params: ContinueFromRawPromptParams,
+    ) -> Result<ManagesSendersController<Self::SenderCollection>> {
+        self.receiver_from_message(
+            request_id.clone(),
+            self.generate_tokens_sender_collection.clone(),
+            AgentJsonRpcMessage::Request(RequestEnvelope {
+                id: request_id,
+                request: params.into(),
+            }),
+        )
+        .await
+    }
+}
+
+#[async_trait]
+impl HandlesAgentRequest<GenerateEmbeddingBatchParams> for AgentController {
+    type SenderCollection = EmbeddingSenderCollection;
+
+    async fn handle(
+        &self,
+        request_id: String,
+        params: GenerateEmbeddingBatchParams,
+    ) -> Result<ManagesSendersController<Self::SenderCollection>> {
+        self.receiver_from_message(
+            request_id.clone(),
+            self.embedding_sender_collection.clone(),
+            AgentJsonRpcMessage::Request(RequestEnvelope {
+                id: request_id,
+                request: params.into(),
+            }),
+        )
+        .await
     }
 }
 

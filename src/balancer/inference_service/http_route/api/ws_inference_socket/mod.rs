@@ -77,7 +77,7 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                 id,
                 request: InferenceJsonRpcRequest::ContinueFromConversationHistory(params),
             }) => {
-                Self::continue_from(
+                Self::request_from_agent(
                     context.buffered_request_manager.clone(),
                     connection_close_tx,
                     context.inference_service_configuration.clone(),
@@ -93,7 +93,7 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                 id,
                 request: InferenceJsonRpcRequest::ContinueFromRawPrompt(params),
             }) => {
-                Self::continue_from(
+                Self::request_from_agent(
                     context.buffered_request_manager.clone(),
                     connection_close_tx,
                     context.inference_service_configuration.clone(),

@@ -25,3 +25,9 @@ impl From<ContinueFromRawPromptParams> for Request {
         Request::ContinueFromRawPrompt(params)
     }
 }
+
+impl From<GenerateEmbeddingBatchParams> for Request {
+    fn from(params: GenerateEmbeddingBatchParams) -> Self {
+        Request::GenerateEmbeddingBatch(params)
+    }
+}
