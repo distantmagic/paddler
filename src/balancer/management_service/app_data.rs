@@ -18,4 +18,5 @@ pub struct AppData {
     pub generate_tokens_sender_collection: Arc<GenerateTokensSenderCollection>,
     pub model_metadata_sender_collection: Arc<ModelMetadataSenderCollection>,
     pub state_database: Arc<dyn StateDatabase>,
+    pub statsd_prefix: String,
 }

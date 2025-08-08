@@ -24,19 +24,20 @@ async fn respond(app_data: Data<AppData>) -> Result<impl Responder, Box<dyn Erro
         .buffered_request_manager
         .buffered_request_counter
         .get();
+    let statsd_prefix = app_data.statsd_prefix.clone();
 
     let metrics_response = formatdoc! {"
-        # HELP paddler_slots_processing Number of processing slots
-        # TYPE paddler_slots_processing gauge
-        paddler_slots_processing {slots_processing}
+        # HELP {statsd_prefix}slots_processing Number of processing slots
+        # TYPE {statsd_prefix}slots_processing gauge
+        {statsd_prefix}slots_processing {slots_processing}
 
-        # HELP paddler_slots_total Number of total slots
-        # TYPE paddler_slots_total gauge
-        paddler_slots_total {slots_total}
+        # HELP {statsd_prefix}slots_total Number of total slots
+        # TYPE {statsd_prefix}slots_total gauge
+        {statsd_prefix}slots_total {slots_total}
 
-        # HELP paddler_requests_buffered Number of buffered requests
-        # TYPE paddler_requests_buffered gauge
-        paddler_requests_buffered {buffered_requests_count}
+        # HELP {statsd_prefix}requests_buffered Number of buffered requests
+        # TYPE {statsd_prefix}requests_buffered gauge
+        {statsd_prefix}requests_buffered {buffered_requests_count}
     "};
 
     Ok(HttpResponse::Ok()
