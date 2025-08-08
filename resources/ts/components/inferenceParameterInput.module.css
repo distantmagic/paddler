@@ -20,10 +20,22 @@
     border: 2px solid white;
     height: 1em;
     outline: 2px solid var(--color-border);
+    position: relative;
     width: 1em;
 
-    &:checked {
+    &:checked:after {
+      /* checkbox checkmark shape */
+      /* thanks https://moderncss.dev/pure-css-custom-checkbox-style/ */
+      clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+
       background-color: var(--color-border);
+      content: "";
+      height: 100%;
+      left: 0;
+      position: absolute;
+      top: 0;
+      transform-origin: bottom left;
+      width: 100%;
     }
   }
 }

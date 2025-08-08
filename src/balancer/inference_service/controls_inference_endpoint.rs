@@ -51,25 +51,27 @@ pub trait ControlsInferenceEndpoint {
         .await?
         {
             Some(agent_controller) => {
-                let receive_response_controller =
-                    match agent_controller.handle(request_id.clone(), params).await {
-                        Ok(receive_response_controller) => receive_response_controller,
-                        Err(err) => {
-                            error!("Failed to handle request {request_id:?}: {err}");
+                let receive_response_controller = match agent_controller
+                    .handle_streaming_response(request_id.clone(), params)
+                    .await
+                {
+                    Ok(receive_response_controller) => receive_response_controller,
+                    Err(err) => {
+                        error!("Failed to handle request {request_id:?}: {err}");
 
-                            Self::respond_with_error(
-                                JsonRpcError {
-                                    code: 500,
-                                    description: "Failed to generate response".to_string(),
-                                },
-                                request_id.clone(),
-                                &mut session_controller,
-                            )
-                            .await;
+                        Self::respond_with_error(
+                            JsonRpcError {
+                                code: 500,
+                                description: "Failed to generate response".to_string(),
+                            },
+                            request_id.clone(),
+                            &mut session_controller,
+                        )
+                        .await;
 
-                            return Ok(());
-                        }
-                    };
+                        return Ok(());
+                    }
+                };
 
                 Self::forward_responses_stream(
                     agent_controller,
