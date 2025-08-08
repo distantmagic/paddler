@@ -19,9 +19,6 @@ jobs:
           - os: ubuntu-latest
             artifact_name: paddler-bin-linux-libc2.39-amd64
 
-          - os: windows-latest
-            artifact_name: paddler-bin-windows-amd64.exe
-
           - os: macos-latest
             artifact_name: paddler-bin-macos-amd64
 
@@ -32,10 +29,10 @@ jobs:
       - name: set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable        
+          toolchain: stable
 
       - name: build the binary
-        run: make build
+        run: make release
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -46,25 +43,13 @@ jobs:
           release-tag: "${{ github.ref_name }}"
 
       - name: rename the binary
-        run: |
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            cp ./target/release/paddler.exe ./${{ matrix.artifact_name }}
-          else
-            cp ./target/release/paddler ./${{ matrix.artifact_name }}
-          fi
+        run: mv ./target/release/paddler ./${{ matrix.artifact_name }}
         shell: bash
 
       - uses: ./.github/workflows/composite/assert-version
         with:
           filename: "./${{ matrix.artifact_name }}"
           expected-version: "${{ steps.release-version.outputs.version }}"
-
-      - name: Build and archive binary
-        uses: ./.github/workflows/composite/cargo-deb
-        with:
-          deb: ${{ matrix.artifact_name }}
-          os: ${{ matrix.os }}
-          before: cargo install cargo-deb
 
       - name: upload binaries to release
         uses: svenstaro/upload-release-action@v2
