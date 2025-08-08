@@ -4,9 +4,9 @@ use anyhow::Result;
 use async_trait::async_trait;
 use log::error;
 use tokio::sync::broadcast;
-use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
+use tokio::time::interval;
 
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;

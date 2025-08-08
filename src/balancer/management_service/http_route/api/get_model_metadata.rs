@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use actix_web::get;
-use actix_web::web;
 use actix_web::Error;
 use actix_web::HttpResponse;
+use actix_web::get;
+use actix_web::web;
 use async_trait::async_trait;
 use serde::Deserialize;
 

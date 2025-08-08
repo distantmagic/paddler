@@ -18,6 +18,7 @@ use crate::balancer::inference_service::app_data::AppData;
 use crate::balancer::inference_service::chunk_forwarding_session_controller::ChunkForwardingSessionController;
 use crate::balancer::inference_service::controls_inference_endpoint::ControlsInferenceEndpoint;
 use crate::request_params::ContinueFromConversationHistoryParams;
+use crate::request_params::continue_from_conversation_history_params::tool::tool_params::function_call::parameters_schema::raw_parameters_schema::RawParametersSchema;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
@@ -33,7 +34,7 @@ impl ControlsInferenceEndpoint for Controller {
 #[post("/api/v1/continue_from_conversation_history")]
 async fn respond(
     app_data: web::Data<AppData>,
-    params: web::Json<ContinueFromConversationHistoryParams>,
+    params: web::Json<ContinueFromConversationHistoryParams<RawParametersSchema>>,
 ) -> Result<impl Responder, Error> {
     let request_id: String = nanoid!();
     let (connection_close_tx, _connection_close_rx) = broadcast::channel(1);
@@ -44,7 +45,14 @@ async fn respond(
             app_data.buffered_request_manager.clone(),
             connection_close_tx,
             app_data.inference_service_configuration.clone(),
-            params.into_inner(),
+            match params.into_inner().validate() {
+                Ok(validated_params) => validated_params,
+                Err(validation_error) => {
+                    error!("Params validation error: {validation_error}");
+
+                    return;
+                }
+            },
             request_id,
             ChunkForwardingSessionController { chunk_tx },
         )

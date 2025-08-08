@@ -49,6 +49,7 @@ mod slot_status;
 #[cfg(feature = "web_admin_panel")]
 mod static_files;
 mod streamable_result;
+mod validates;
 mod websocket_session_controller;
 
 use anyhow::Result;
@@ -57,8 +58,8 @@ use clap::Subcommand;
 #[cfg(feature = "web_admin_panel")]
 use esbuild_metafile::instance::initialize_instance;
 use log::info;
-use tokio::signal::unix::signal;
 use tokio::signal::unix::SignalKind;
+use tokio::signal::unix::signal;
 use tokio::sync::oneshot;
 
 use crate::cmd::agent::Agent;

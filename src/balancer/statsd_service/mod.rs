@@ -10,8 +10,8 @@ use cadence::StatsdClient;
 use cadence::UdpMetricSink;
 use log::error;
 use tokio::sync::broadcast;
-use tokio::time::interval;
 use tokio::time::MissedTickBehavior;
+use tokio::time::interval;
 
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::agent_controller_pool_total_slots::AgentControllerPoolTotalSlots;

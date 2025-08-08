@@ -12,6 +12,7 @@ use nanoid::nanoid;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
+use crate::request_params::continue_from_conversation_history_params::tool::tool_params::function_call::parameters_schema::validated_parameters_schema::ValidatedParametersSchema;
 use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::jsonrpc::Message as AgentJsonRpcMessage;
 use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
@@ -236,13 +237,15 @@ impl AgentController {
 }
 
 #[async_trait]
-impl HandlesAgentStreamingResponse<ContinueFromConversationHistoryParams> for AgentController {
+impl HandlesAgentStreamingResponse<ContinueFromConversationHistoryParams<ValidatedParametersSchema>>
+    for AgentController
+{
     type SenderCollection = GenerateTokensSenderCollection;
 
     async fn handle_streaming_response(
         &self,
         request_id: String,
-        params: ContinueFromConversationHistoryParams,
+        params: ContinueFromConversationHistoryParams<ValidatedParametersSchema>,
     ) -> Result<ManagesSendersController<Self::SenderCollection>> {
         self.receiver_from_message(
             request_id.clone(),

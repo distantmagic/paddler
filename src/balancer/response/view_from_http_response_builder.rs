@@ -1,7 +1,7 @@
-use actix_web::error::ErrorInternalServerError;
 use actix_web::HttpResponse;
 use actix_web::HttpResponseBuilder;
 use actix_web::Result;
+use actix_web::error::ErrorInternalServerError;
 use askama::Template;
 
 pub fn view_from_http_response_builder<TTemplate: Template>(

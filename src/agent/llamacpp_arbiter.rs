@@ -1,20 +1,20 @@
 use core::num::NonZeroU32;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 use std::thread;
 
-use actix::sync::SyncArbiter;
 use actix::System;
-use anyhow::anyhow;
+use actix::sync::SyncArbiter;
 use anyhow::Context as _;
 use anyhow::Result;
+use anyhow::anyhow;
 use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::llama_backend::LlamaBackend;
-use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::model::LlamaModel;
 use llama_cpp_2::model::Special;
+use llama_cpp_2::model::params::LlamaModelParams;
 use log::error;
 use tokio::sync::oneshot;
 

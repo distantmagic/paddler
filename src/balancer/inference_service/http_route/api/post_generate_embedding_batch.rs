@@ -1,12 +1,12 @@
+use actix_web::Error;
+use actix_web::HttpResponse;
+use actix_web::Responder;
 use actix_web::error::ErrorNotImplemented;
 use actix_web::error::ErrorServiceUnavailable;
 use actix_web::http::header;
 use actix_web::post;
 use actix_web::rt;
 use actix_web::web;
-use actix_web::Error;
-use actix_web::HttpResponse;
-use actix_web::Responder;
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures::stream::StreamExt;
@@ -45,7 +45,7 @@ async fn respond(
         None => {
             return Err(ErrorServiceUnavailable(
                 "Balancer applicable state is not yet set",
-            ))
+            ));
         }
     };
 

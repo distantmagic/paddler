@@ -1,11 +1,11 @@
-use std::path::absolute;
 use std::path::Path;
 use std::path::PathBuf;
+use std::path::absolute;
 use std::str::FromStr;
 
-use anyhow::anyhow;
 use anyhow::Error;
 use anyhow::Result;
+use anyhow::anyhow;
 use indoc::formatdoc;
 use url::Url;
 

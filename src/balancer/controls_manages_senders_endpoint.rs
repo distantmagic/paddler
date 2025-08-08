@@ -3,8 +3,8 @@ use std::sync::Arc;
 use actix_web::Error;
 use actix_web::HttpResponse;
 use async_trait::async_trait;
-use tokio::time::sleep;
 use tokio::time::Duration;
+use tokio::time::sleep;
 
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::agent_controller_pool::AgentControllerPool;

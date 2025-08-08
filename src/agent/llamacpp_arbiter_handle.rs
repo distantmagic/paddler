@@ -1,8 +1,8 @@
 use std::thread;
 
 use actix::Addr;
-use anyhow::anyhow;
 use anyhow::Result;
+use anyhow::anyhow;
 use tokio::sync::oneshot;
 
 use crate::agent::llamacpp_slot::LlamaCppSlot;

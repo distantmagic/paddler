@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use actix::Message;
 use actix_web::rt;
-use anyhow::anyhow;
 use anyhow::Context as _;
 use anyhow::Result;
+use anyhow::anyhow;
 use async_trait::async_trait;
 use log::error;
 use log::info;
@@ -13,9 +13,9 @@ use log::warn;
 use tokio::fs;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
-use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
+use tokio::time::interval;
 
 use crate::agent::continue_from_conversation_history_request::ContinueFromConversationHistoryRequest;
 use crate::agent::continue_from_raw_prompt_request::ContinueFromRawPromptRequest;

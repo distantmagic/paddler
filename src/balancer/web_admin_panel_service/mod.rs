@@ -3,9 +3,9 @@ pub mod configuration;
 pub mod http_route;
 pub mod template_data;
 
-use actix_web::web::Data;
 use actix_web::App;
 use actix_web::HttpServer;
+use actix_web::web::Data;
 use anyhow::Result;
 use async_trait::async_trait;
 use log::error;

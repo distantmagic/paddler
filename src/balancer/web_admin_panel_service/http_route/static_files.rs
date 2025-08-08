@@ -1,7 +1,7 @@
-use actix_web::get;
-use actix_web::web;
 use actix_web::HttpResponse;
 use actix_web::Responder;
+use actix_web::get;
+use actix_web::web;
 use mime_guess::from_path;
 
 use crate::static_files::StaticFiles;

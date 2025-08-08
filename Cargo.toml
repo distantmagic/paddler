@@ -1,6 +1,6 @@
 [package]
 name = "paddler"
-edition = "2021"
+edition = "2024"
 description = "Stateful load balancer custom-tailored for llama.cpp"
 license = "MIT"
 authors = ["Intentee"]
