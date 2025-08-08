@@ -26,7 +26,7 @@ use crate::slot_aggregated_status_manager::SlotAggregatedStatusManager;
 #[derive(Parser)]
 pub struct Agent {
     #[arg(long, value_parser = parse_socket_addr)]
-    /// Address of the management server that the agent will report to
+    /// Address of the management server that the agent will connect to
     management_addr: SocketAddr,
 
     #[arg(long)]
@@ -34,6 +34,7 @@ pub struct Agent {
     name: Option<String>,
 
     #[arg(long)]
+    /// Number of parallel requests of any kind that the agent can handle at once
     slots: i32,
 }
 

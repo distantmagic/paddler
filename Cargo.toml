@@ -1,11 +1,11 @@
 [package]
 name = "paddler"
 edition = "2021"
-description = "Stateful load balancer custom-tailored for llama.cpp"
+description = "LLMOps platform for hosting and scaling open-source LLMs in your own infrastructure"
 license = "MIT"
 authors = ["Intentee"]
-repository = "https://github.com/distantmagic/paddler"
-documentation = "https://github.com/distantmagic/paddler/blob/main/README.md"
+repository = "https://github.com/intentee/paddler"
+documentation = "https://paddler.intentee.com"
 version = "2.0.0"
 
 [dependencies]
@@ -30,7 +30,12 @@ hf-hub = { version = "0.4.3", features = ["tokio"] }
 indoc = "2.0.6"
 llama-cpp-2 = { version = "0.1.108" }
 log = "0.4.27"
-minijinja-contrib = { version = "2.11.0", features = ["datetime", "pycompat", "wordcount", "wordwrap"] }
+minijinja-contrib = { version = "2.11.0", features = [
+    "datetime",
+    "pycompat",
+    "wordcount",
+    "wordwrap",
+] }
 nanoid = "0.4.0"
 nix = { version = "0.30.1", features = ["signal"] }
 rand = "0.9.2"
@@ -49,13 +54,20 @@ askama = { version = "0.14.0", optional = true }
 esbuild-metafile = { version = "0.2.1", optional = true }
 mime_guess = { version = "2.0.5", optional = true }
 minijinja = { version = "2.11.0", features = ["builtins", "json", "loader"] }
-rust-embed = { version = "8.7.2", optional = true, features = ["interpolate-folder-path"] }
+rust-embed = { version = "8.7.2", optional = true, features = [
+    "interpolate-folder-path",
+] }
 
 [features]
 default = ["web_admin_panel"]
 cuda = ["llama-cpp-2/cuda"]
 tests_that_use_llms = []
-web_admin_panel = ["dep:askama", "dep:esbuild-metafile", "dep:mime_guess", "dep:rust-embed"]
+web_admin_panel = [
+    "dep:askama",
+    "dep:esbuild-metafile",
+    "dep:mime_guess",
+    "dep:rust-embed",
+]
 vulkan = ["llama-cpp-2/vulkan"]
 
 [profile.release]
