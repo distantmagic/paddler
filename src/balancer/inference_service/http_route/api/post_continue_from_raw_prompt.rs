@@ -17,7 +17,11 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use crate::balancer::inference_service::app_data::AppData;
 use crate::balancer::inference_service::chunk_forwarding_session_controller::ChunkForwardingSessionController;
 use crate::balancer::inference_service::controls_inference_endpoint::ControlsInferenceEndpoint;
+use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Message as OutgoingMessage;
+use crate::jsonrpc::Error as JsonRpcError;
+use crate::jsonrpc::ErrorEnvelope;
 use crate::request_params::ContinueFromRawPromptParams;
+use crate::session_controller::SessionController as _;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
@@ -40,17 +44,28 @@ async fn respond(
     let (chunk_tx, chunk_rx) = mpsc::unbounded_channel();
 
     rt::spawn(async move {
+        let mut session_controller = ChunkForwardingSessionController { chunk_tx };
+
         if let Err(err) = Controller::request_from_agent(
             app_data.buffered_request_manager.clone(),
             connection_close_tx,
             app_data.inference_service_configuration.clone(),
             params.into_inner(),
-            request_id,
-            ChunkForwardingSessionController { chunk_tx },
+            request_id.clone(),
+            session_controller.clone(),
         )
         .await
         {
             error!("Failed to handle request: {err}");
+            session_controller
+                .send_response_safe(OutgoingMessage::Error(ErrorEnvelope {
+                    request_id: request_id.clone(),
+                    error: JsonRpcError {
+                        code: 500,
+                        description: format!("Request {request_id} failed: {err}"),
+                    },
+                }))
+                .await;
         }
     });
 

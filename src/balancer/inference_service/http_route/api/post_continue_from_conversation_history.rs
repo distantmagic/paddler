@@ -1,4 +1,5 @@
 use actix_web::http::header;
+use log::error;
 use actix_web::post;
 use actix_web::rt;
 use actix_web::web;
@@ -8,7 +9,6 @@ use actix_web::Responder;
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures::stream::StreamExt;
-use log::error;
 use nanoid::nanoid;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
@@ -20,6 +20,10 @@ use crate::balancer::inference_service::chunk_forwarding_session_controller::Chu
 use crate::balancer::inference_service::controls_inference_endpoint::ControlsInferenceEndpoint;
 use crate::request_params::ContinueFromConversationHistoryParams;
 use crate::request_params::continue_from_conversation_history_params::tool::tool_params::function_call::parameters_schema::raw_parameters_schema::RawParametersSchema;
+use crate::jsonrpc::Error as JsonRpcError;
+use crate::session_controller::SessionController as _;
+use crate::jsonrpc::ErrorEnvelope;
+use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Message as OutgoingMessage;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
@@ -42,6 +46,8 @@ async fn respond(
     let (chunk_tx, chunk_rx) = mpsc::unbounded_channel();
 
     rt::spawn(async move {
+        let mut session_controller = ChunkForwardingSessionController { chunk_tx };
+
         if let Err(err) = Controller::request_from_agent(
             app_data.buffered_request_manager.clone(),
             connection_close_tx,
@@ -49,17 +55,36 @@ async fn respond(
             match params.into_inner().validate() {
                 Ok(validated_params) => validated_params,
                 Err(validation_error) => {
-                    error!("Params validation error: {validation_error}");
+                    session_controller
+                        .send_response_safe(OutgoingMessage::Error(ErrorEnvelope {
+                            request_id: request_id.clone(),
+                            error: JsonRpcError {
+                                code: 400,
+                                description: format!(
+                                    "Request {request_id} failed: {validation_error}"
+                                ),
+                            },
+                        }))
+                        .await;
 
                     return;
                 }
             },
-            request_id,
-            ChunkForwardingSessionController { chunk_tx },
+            request_id.clone(),
+            session_controller.clone(),
         )
         .await
         {
             error!("Failed to handle request: {err}");
+            session_controller
+                .send_response_safe(OutgoingMessage::Error(ErrorEnvelope {
+                    request_id: request_id.clone(),
+                    error: JsonRpcError {
+                        code: 500,
+                        description: format!("Request {request_id} failed: {err}"),
+                    },
+                }))
+                .await;
         }
     });
 

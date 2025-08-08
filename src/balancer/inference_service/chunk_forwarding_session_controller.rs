@@ -4,6 +4,7 @@ use tokio::sync::mpsc;
 use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Message as OutgoingMessage;
 use crate::session_controller::SessionController;
 
+#[derive(Clone)]
 pub struct ChunkForwardingSessionController {
     pub chunk_tx: mpsc::UnboundedSender<String>,
 }
