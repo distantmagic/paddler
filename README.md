@@ -8,11 +8,11 @@ Paddler is an open-source platform for organizations that self-host and scale op
 
 <img align="right" src="https://github.com/user-attachments/assets/19e74262-1918-4b1d-9b4c-bcb4f0ab79f5">
 
-* Inference through a built-in llama.cpp engine
+* Inference through a built-in [llama.cpp](https://github.com/ggml-org/llama.cpp) engine
 * Load balancing
 * Works through agents that can be added dynamically, allowing integration with autoscaling tools
 * Request buffering, enabling scaling from zero hosts
-* Built-in web admin panel for monitoring and testing
+* Built-in web admin panel for management, monitoring and testing
 * Observability metrics
 
 ## For whom?
@@ -21,7 +21,7 @@ Paddler is an open-source platform for organizations that self-host and scale op
 * DevOps/LLMOps teams that need to run and deploy LLMs at scale
 * Organizations handling sensitive data with high compliance and privacy requirements (medical, financial, etc.)
 * Organizations wanting to achieve predictable LLM costs instead of being exposed to per-token pricing
-* Product leaders building LLM-heavy features who need reliable model performance to maintain consistent user experience
+* Product leaders who need reliable model performance to maintain consistent user experience of their AI-based features
 
 ## Documentation
 
@@ -37,11 +37,11 @@ The `balancer` exposes the following:
 
 - Inference service (used by applications that connect to it to obtain tokens or embeddings)
 - Management service, which manages the Paddler's setup internally
-- Web admin panel that lets you preview and test your Paddler setup
+- Web admin panel that lets you view and test your Paddler setup
 
-`Agents` are usually deployed on their separate instances. They further distribute the incoming requests to `slots`, which are responsible for generating tokens and embeddings.
+`Agents` are usually deployed on separate instances. They further distribute the incoming requests to `slots`, which are responsible for generating tokens and embeddings.
 
-Paddler uses a built-in llama.cpp engine for inference, but has its own implementation of llama.cpp slots. Paddler's slots keep their own context and KV cache.
+Paddler uses a built-in llama.cpp engine for inference, but has its own implementation of llama.cpp slots which keep their own context and KV cache.
 
 ## Installation
 
@@ -63,6 +63,8 @@ Read more about ([installation and initial setup](https://intentee.github.io/pad
 ## Starting out
 * [Setup a basic LLM cluster](https://intentee.github.io/paddler.intentee.com/docs/starting-out/setup-a-basic-llm-cluster/)
 * [Use Paddler's web admin panel](https://intentee.github.io/paddler.intentee.com/docs/starting-out/using-web-admin-panel/)
+* [Generate tokens and embeddings](https://intentee.github.io/paddler.intentee.com/docs/starting-out/generating-tokens-and-embeddings/)
+* [Use function calling](https://intentee.github.io/paddler.intentee.com/docs/starting-out/use-function-calling/)
 * [Create a multi agent fleet](https://intentee.github.io/paddler.intentee.com/docs/starting-out/multi-agent-fleet/)
 * [Go beyond a single device](https://intentee.github.io/paddler.intentee.com/docs/starting-out/going-beyond-a-single-device/)
 
