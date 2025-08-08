@@ -4,8 +4,8 @@ edition = "2024"
 description = "Stateful load balancer custom-tailored for llama.cpp"
 license = "MIT"
 authors = ["Intentee"]
-repository = "https://github.com/distantmagic/paddler"
-documentation = "https://github.com/distantmagic/paddler/blob/main/README.md"
+repository = "https://github.com/intentee/paddler"
+documentation = "https://paddler.intentee.com"
 version = "2.0.0"
 
 [dependencies]
@@ -55,7 +55,12 @@ rust-embed = { version = "8.7.2", optional = true, features = ["interpolate-fold
 default = ["web_admin_panel"]
 cuda = ["llama-cpp-2/cuda"]
 tests_that_use_llms = []
-web_admin_panel = ["dep:askama", "dep:esbuild-metafile", "dep:mime_guess", "dep:rust-embed"]
+web_admin_panel = [
+    "dep:askama",
+    "dep:esbuild-metafile",
+    "dep:mime_guess",
+    "dep:rust-embed",
+]
 vulkan = ["llama-cpp-2/vulkan"]
 
 [profile.release]

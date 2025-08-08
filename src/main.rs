@@ -71,7 +71,7 @@ pub const ESBUILD_META_CONTENTS: &str = include_str!("../esbuild-meta.json");
 
 #[derive(Parser)]
 #[command(arg_required_else_help(true), version, about, long_about = None)]
-/// Stateful load balancer for llama.cpp
+/// LLMOps platform for hosting and scaling open-source LLMs in your own infrastructure
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -80,9 +80,9 @@ struct Cli {
 #[expect(clippy::large_enum_variant)]
 #[derive(Subcommand)]
 enum Commands {
-    /// Agent for managing llama.cpp instances
+    /// Generates tokens and embeddings; connects to the balancer
     Agent(Agent),
-    /// Balances incoming requests to llama.cpp instances and optionally provides a web dashboard
+    /// Distributes incoming requests among agents
     Balancer(Balancer),
 }
 
