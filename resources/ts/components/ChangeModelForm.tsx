@@ -222,7 +222,7 @@ export function ChangeModelForm({
               name="top_p"
             />
             <InferenceParameterCheckbox
-              description="Enable Embeddings (if supported by the model)"
+              description="You need embeddings for stuff like semantic search, RAG, and more"
               name="enable_embeddings"
             />
             <InferenceParameterPoolingType

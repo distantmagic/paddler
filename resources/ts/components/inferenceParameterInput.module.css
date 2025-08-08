@@ -53,6 +53,9 @@
 }
 
 .inferenceParameterInput__select {
+  column-gap: var(--spacing-half);
+  display: flex;
+  flex-direction: row;
   height: var(--height-input);
 
   select {
@@ -71,5 +74,31 @@
     &:disabled {
       opacity: 0.3;
     }
+
+    &:open {
+      background-image: url("../../icons/arrow_drop_up.svg");
+    }
   }
+}
+
+.inferenceParameterInput__disabledHint {
+  position: relative;
+}
+
+.inferenceParameterInput__disabledHint__content {
+  --icon-size: calc(var(--font-size-small) * 1.6);
+
+  background-image: url("../../icons/arrow_back.svg");
+  background-position: left center;
+  background-repeat: no-repeat;
+  background-size: var(--icon-size);
+  font-size: var(--font-size-small);
+  font-style: italic;
+  left: 0;
+  padding-left: calc(var(--icon-size) + var(--spacing-half));
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  width: auto;
 }
