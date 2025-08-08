@@ -358,6 +358,7 @@ impl Handler<ContinueFromConversationHistoryRequest> for LlamaCppSlot {
                     enable_thinking,
                     conversation_history,
                     max_tokens,
+                    tools,
                 },
         }: ContinueFromConversationHistoryRequest,
         _ctx: &mut Self::Context,
@@ -378,6 +379,7 @@ impl Handler<ContinueFromConversationHistoryRequest> for LlamaCppSlot {
             eos_token => self.slot_context.token_eos_str,
             messages => conversation_history,
             nl_token => self.slot_context.token_nl_str,
+            tools => tools,
         }) {
             Ok(raw_prompt) => raw_prompt,
             Err(err) => {

@@ -5,7 +5,7 @@ use serde::Serialize;
 
 use self::tool_params::FunctionCall;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "type")]
 pub enum Tool {
     Function(FunctionCall),

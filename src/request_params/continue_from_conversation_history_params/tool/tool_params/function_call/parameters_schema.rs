@@ -13,7 +13,7 @@ fn validate_schema(schema: &Value) -> Result<()> {
     Ok(())
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(try_from = "RawParametersSchema")]
 pub struct ParametersSchema {
     #[serde(rename = "type")]

@@ -3,7 +3,7 @@ use serde::Serialize;
 
 use super::parameters::Parameters;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Function {
     pub name: String,
     pub description: String,

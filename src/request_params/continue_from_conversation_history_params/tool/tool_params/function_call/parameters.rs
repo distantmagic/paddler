@@ -3,7 +3,7 @@ use serde::Serialize;
 
 use super::parameters_schema::ParametersSchema;
 
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum Parameters {
     #[default]

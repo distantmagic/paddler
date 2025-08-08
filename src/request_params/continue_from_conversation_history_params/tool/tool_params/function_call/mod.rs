@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use self::function::Function;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct FunctionCall {
     pub function: Function,
 }
