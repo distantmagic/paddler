@@ -40,8 +40,8 @@ use crate::service_manager::ServiceManager;
 #[derive(Parser)]
 pub struct Balancer {
     #[arg(long, default_value = "10000", value_parser = parse_duration)]
-    /// The request timeout (in milliseconds). For all requests that a timely response from an
-    /// upstream isn't received for, the 504 (Gateway Timeout) error is issued.
+    /// Specifies how long a request can stay in the buffer before it is processed.
+    /// If the request stays in the buffer longer than this time, it is rejected with the 504 error
     buffered_request_timeout: Duration,
 
     #[arg(long, default_value = "127.0.0.1:8061", value_parser = parse_socket_addr)]
@@ -49,31 +49,30 @@ pub struct Balancer {
     inference_addr: SocketAddr,
 
     #[arg(long, default_value = "5000", value_parser = parse_duration)]
-    /// The timeout (in milliseconds) for generating a single token or a single embedding.
+    /// The timeout (in milliseconds) for generating a single token or a single embedding
     inference_item_timeout: Duration,
 
     #[arg(
         long = "inference-cors-allowed-host",
         action = clap::ArgAction::Append
     )]
-    /// Allowed CORS host (can be specified multiple times)
+    /// Allowed CORS host for the inference service (can be specified multiple times)
     inference_cors_allowed_hosts: Vec<String>,
 
     #[arg(long, default_value = "127.0.0.1:8060", value_parser = parse_socket_addr)]
-    /// Address of the management server that the balancer will report to
+    /// This is where you can manage your Paddler setup and the agents connect to
     management_addr: SocketAddr,
 
     #[arg(
         long = "management-cors-allowed-host",
         action = clap::ArgAction::Append
     )]
-    /// Allowed CORS host (can be specified multiple times)
+    /// Allowed CORS host for the management service (can be specified multiple times)
     management_cors_allowed_hosts: Vec<String>,
 
     #[arg(long, default_value = "30")]
-    /// The maximum number of buffered requests. Like with usual requests, the request timeout
-    /// is also applied to buffered ones. If the maximum number is reached, all new requests are
-    /// rejected with the 429 (Too Many Requests) error.
+    /// The maximum number of buffered requests.
+    /// If the buffer is full then new requests are rejected with the 503 error
     max_buffered_requests: i32,
 
     #[arg(long, default_value = "memory://")]
@@ -81,7 +80,7 @@ pub struct Balancer {
     state_database: StateDatabaseType,
 
     #[arg(long, value_parser = parse_socket_addr)]
-    /// Address of the statsd server to report metrics to
+    /// Address for the statsd server to report metrics to (enabled only if this address is specified)
     statsd_addr: Option<SocketAddr>,
 
     #[arg(long, default_value = "paddler_")]
@@ -93,7 +92,7 @@ pub struct Balancer {
     statsd_reporting_interval: Duration,
 
     #[arg(long, default_value = None, value_parser = parse_socket_addr)]
-    /// Address of the web management dashboard (if enabled)
+    /// Address of the web admin panel (enabled only if this address is specified)
     web_admin_panel_addr: Option<SocketAddr>,
 }
 
