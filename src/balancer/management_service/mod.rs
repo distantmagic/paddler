@@ -38,6 +38,7 @@ pub struct ManagementService {
     pub generate_tokens_sender_collection: Arc<GenerateTokensSenderCollection>,
     pub model_metadata_sender_collection: Arc<ModelMetadataSenderCollection>,
     pub state_database: Arc<dyn StateDatabase>,
+    pub statsd_prefix: String,
     #[cfg(feature = "web_admin_panel")]
     pub web_admin_panel_service_configuration: Option<WebAdminPanelServiceConfiguration>,
 }
@@ -70,6 +71,7 @@ impl Service for ManagementService {
             generate_tokens_sender_collection: self.generate_tokens_sender_collection.clone(),
             model_metadata_sender_collection: self.model_metadata_sender_collection.clone(),
             state_database: self.state_database.clone(),
+            statsd_prefix: self.statsd_prefix.clone(),
         });
 
         HttpServer::new(move || {

@@ -172,6 +172,7 @@ impl Handler for Balancer {
             generate_tokens_sender_collection,
             model_metadata_sender_collection,
             state_database: state_database.clone(),
+            statsd_prefix: self.statsd_prefix.clone(),
             #[cfg(feature = "web_admin_panel")]
             web_admin_panel_service_configuration: self.get_web_admin_panel_service_configuration(),
         });
