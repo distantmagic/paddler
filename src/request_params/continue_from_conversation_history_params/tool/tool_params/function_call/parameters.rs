@@ -20,8 +20,8 @@ impl<TParametersSchema: Default> Parameters<TParametersSchema> {
     }
 }
 
-impl Parameters<RawParametersSchema> {
-    pub fn validate(self) -> Result<Parameters<ValidatedParametersSchema>> {
+impl Validates<Parameters<ValidatedParametersSchema>> for Parameters<RawParametersSchema> {
+    fn validate(self) -> Result<Parameters<ValidatedParametersSchema>> {
         match self {
             Parameters::Empty => Ok(Parameters::Empty),
             Parameters::Schema(schema) => Ok(Parameters::Schema(schema.validate()?)),
