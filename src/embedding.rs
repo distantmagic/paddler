@@ -9,6 +9,7 @@ use crate::normalization::rms_norm;
 use crate::pooling_type::PoolingType;
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Embedding {
     pub embedding: Vec<f32>,
     pub normalization_method: EmbeddingNormalizationMethod,

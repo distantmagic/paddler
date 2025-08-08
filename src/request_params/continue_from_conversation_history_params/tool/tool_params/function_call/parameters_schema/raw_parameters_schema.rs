@@ -16,6 +16,7 @@ fn validate_schema(schema: &Value) -> Result<()> {
 }
 
 #[derive(Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct RawParametersSchema {
     #[serde(rename = "type")]
     pub schema_type: String,

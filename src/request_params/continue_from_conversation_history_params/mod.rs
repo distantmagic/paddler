@@ -11,6 +11,7 @@ use crate::request_params::continue_from_conversation_history_params::tool::tool
 use crate::request_params::continue_from_conversation_history_params::tool::tool_params::function_call::parameters_schema::validated_parameters_schema::ValidatedParametersSchema;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ContinueFromConversationHistoryParams<TParametersSchema: Default> {
     pub add_generation_prompt: bool,
     pub conversation_history: Vec<ConversationMessage>,

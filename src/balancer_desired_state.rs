@@ -11,6 +11,7 @@ use crate::converts_to_applicable_state::ConvertsToApplicableState;
 use crate::inference_parameters::InferenceParameters;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct BalancerDesiredState {
     pub chat_template_override: Option<ChatTemplate>,
     pub inference_parameters: InferenceParameters,

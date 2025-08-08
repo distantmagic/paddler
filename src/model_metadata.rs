@@ -4,6 +4,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ModelMetadata {
     pub metadata: BTreeMap<String, String>,
 }

@@ -5,6 +5,7 @@ use crate::embedding::Embedding;
 use crate::streamable_result::StreamableResult;
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub enum EmbeddingResult {
     Done,
     Embedding(Embedding),

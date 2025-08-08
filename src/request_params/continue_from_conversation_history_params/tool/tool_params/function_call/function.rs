@@ -8,6 +8,7 @@ use crate::request_params::continue_from_conversation_history_params::tool::tool
 use crate::validates::Validates;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Function<TParametersSchema: Default> {
     pub name: String,
     pub description: String,

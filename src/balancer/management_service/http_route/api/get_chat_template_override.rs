@@ -44,6 +44,7 @@ impl ControlsManagesSendersEndpoint for GetChatTemplateOverrideController {
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct PathParams {
     agent_id: String,
 }

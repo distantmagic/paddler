@@ -7,6 +7,7 @@ use crate::generated_token_result::GeneratedTokenResult;
 use crate::model_metadata::ModelMetadata;
 
 #[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub enum Response {
     ChatTemplateOverride(Option<ChatTemplate>),
     Embedding(EmbeddingResult),

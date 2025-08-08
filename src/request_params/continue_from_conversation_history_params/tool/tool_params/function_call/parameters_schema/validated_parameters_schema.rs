@@ -4,6 +4,7 @@ use serde_json::Map;
 use serde_json::Value;
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ValidatedParametersSchema {
     #[serde(rename = "type")]
     pub schema_type: String,

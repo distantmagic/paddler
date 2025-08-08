@@ -10,6 +10,7 @@ use crate::request_params::continue_from_conversation_history_params::tool::tool
 use crate::request_params::continue_from_conversation_history_params::tool::tool_params::function_call::parameters_schema::validated_parameters_schema::ValidatedParametersSchema;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 #[serde(tag = "type")]
 pub enum Tool<TParametersSchema: Default> {
     Function(FunctionCall<TParametersSchema>),

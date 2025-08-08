@@ -7,6 +7,7 @@ use crate::request_params::GenerateEmbeddingBatchParams;
 use crate::request_params::continue_from_conversation_history_params::tool::tool_params::function_call::parameters_schema::validated_parameters_schema::ValidatedParametersSchema;
 
 #[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub enum Request {
     ContinueFromConversationHistory(
         ContinueFromConversationHistoryParams<ValidatedParametersSchema>,

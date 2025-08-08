@@ -302,6 +302,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct PathParams {
     agent_id: String,
 }

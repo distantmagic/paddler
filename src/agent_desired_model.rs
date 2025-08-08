@@ -25,6 +25,7 @@ use crate::slot_aggregated_status_download_progress::SlotAggregatedStatusDownloa
 const LOCK_RETRY_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub enum AgentDesiredModel {
     HuggingFace(HuggingFaceModelReference),
     LocalToAgent(String),
