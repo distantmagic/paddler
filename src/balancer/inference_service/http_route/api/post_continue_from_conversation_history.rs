@@ -1,6 +1,7 @@
 use actix_web::http::header;
 use log::error;
 use actix_web::post;
+use actix_web::error::ErrorBadRequest;
 use actix_web::rt;
 use actix_web::web;
 use actix_web::Error;
@@ -45,6 +46,15 @@ async fn respond(
     let (connection_close_tx, _connection_close_rx) = broadcast::channel(1);
     let (chunk_tx, chunk_rx) = mpsc::unbounded_channel();
 
+    let validated_params = match params.into_inner().validate() {
+        Ok(validated_params) => validated_params,
+        Err(validation_error) => {
+            return Err(ErrorBadRequest(format!(
+                "Invalid request parameters: {validation_error}"
+            )));
+        }
+    };
+
     rt::spawn(async move {
         let mut session_controller = ChunkForwardingSessionController { chunk_tx };
 
@@ -52,24 +62,7 @@ async fn respond(
             app_data.buffered_request_manager.clone(),
             connection_close_tx,
             app_data.inference_service_configuration.clone(),
-            match params.into_inner().validate() {
-                Ok(validated_params) => validated_params,
-                Err(validation_error) => {
-                    session_controller
-                        .send_response_safe(OutgoingMessage::Error(ErrorEnvelope {
-                            request_id: request_id.clone(),
-                            error: JsonRpcError {
-                                code: 400,
-                                description: format!(
-                                    "Request {request_id} failed: {validation_error}"
-                                ),
-                            },
-                        }))
-                        .await;
-
-                    return;
-                }
-            },
+            validated_params,
             request_id.clone(),
             session_controller.clone(),
         )
