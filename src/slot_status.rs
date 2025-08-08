@@ -1,5 +1,5 @@
-use std::sync::atomic::AtomicI32;
 use std::sync::Arc;
+use std::sync::atomic::AtomicI32;
 
 use crate::atomic_value::AtomicValue;
 use crate::dispenses_slots::DispensesSlots;

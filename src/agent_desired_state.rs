@@ -13,6 +13,7 @@ use crate::inference_parameters::InferenceParameters;
 use crate::slot_aggregated_status::SlotAggregatedStatus;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct AgentDesiredState {
     pub chat_template_override: Option<ChatTemplate>,
     pub inference_parameters: InferenceParameters,

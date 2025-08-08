@@ -4,6 +4,7 @@ use serde::Serialize;
 use crate::pooling_type::PoolingType;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct InferenceParameters {
     pub batch_n_tokens: usize,
     pub context_size: u32,

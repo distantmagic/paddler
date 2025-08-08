@@ -4,6 +4,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub enum EmbeddingNormalizationMethod {
     L2,
     None,

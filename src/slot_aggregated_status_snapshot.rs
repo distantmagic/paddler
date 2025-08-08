@@ -7,6 +7,7 @@ use crate::agent_issue::AgentIssue;
 use crate::agent_state_application_status::AgentStateApplicationStatus;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct SlotAggregatedStatusSnapshot {
     pub desired_slots_total: i32,
     pub download_current: usize,

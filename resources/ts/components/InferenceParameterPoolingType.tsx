@@ -4,6 +4,8 @@ import { InferenceParametersContext } from "../contexts/InferenceParametersConte
 import { poolingTypes } from "../schemas/InferenceParameters";
 import {
   inferenceParameterInput,
+  inferenceParameterInput__disabledHint,
+  inferenceParameterInput__disabledHint__content,
   inferenceParameterInput__label,
   inferenceParameterInput__select,
 } from "./inferenceParameterInput.module.css";
@@ -56,6 +58,13 @@ export function InferenceParameterPoolingType({
             );
           })}
         </select>
+        {disabled && (
+          <div className={inferenceParameterInput__disabledHint}>
+            <div className={inferenceParameterInput__disabledHint__content}>
+              enable embeddings to turn this on
+            </div>
+          </div>
+        )}
       </div>
     </label>
   );

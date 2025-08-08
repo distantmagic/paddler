@@ -1,10 +1,10 @@
 use std::error::Error;
 
+use actix_web::HttpResponse;
+use actix_web::Responder;
 use actix_web::get;
 use actix_web::web::Data;
 use actix_web::web::ServiceConfig;
-use actix_web::HttpResponse;
-use actix_web::Responder;
 use indoc::formatdoc;
 
 use crate::balancer::agent_controller_pool_total_slots::AgentControllerPoolTotalSlots;

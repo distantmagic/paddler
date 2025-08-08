@@ -5,6 +5,7 @@ use crate::embedding_result::EmbeddingResult;
 use crate::generated_token_result::GeneratedTokenResult;
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub enum Response {
     Embedding(EmbeddingResult),
     GeneratedToken(GeneratedTokenResult),

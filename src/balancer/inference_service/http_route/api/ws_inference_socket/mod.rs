@@ -4,13 +4,13 @@ pub mod jsonrpc;
 
 use std::sync::Arc;
 
+use actix_web::Error;
+use actix_web::HttpRequest;
+use actix_web::HttpResponse;
 use actix_web::get;
 use actix_web::web::Data;
 use actix_web::web::Payload;
 use actix_web::web::ServiceConfig;
-use actix_web::Error;
-use actix_web::HttpRequest;
-use actix_web::HttpResponse;
 use anyhow::Result;
 use async_trait::async_trait;
 use log::error;
@@ -29,6 +29,7 @@ use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::ErrorEnvelope;
 use crate::jsonrpc::RequestEnvelope;
+use crate::validates::Validates as _;
 use crate::websocket_session_controller::WebSocketSessionController;
 
 pub fn register(cfg: &mut ServiceConfig) {
@@ -69,7 +70,9 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                 request_id,
                 error: JsonRpcError { code, description },
             }) => {
-                error!("Received error from client: code: {code}, description: {description:?}, request_id: {request_id:?}");
+                error!(
+                    "Received error from client: code: {code}, description: {description:?}, request_id: {request_id:?}"
+                );
 
                 return Ok(ContinuationDecision::Continue);
             }
@@ -81,7 +84,7 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                     context.buffered_request_manager.clone(),
                     connection_close_tx,
                     context.inference_service_configuration.clone(),
-                    params,
+                    params.validate()?,
                     id,
                     websocket_session_controller,
                 )

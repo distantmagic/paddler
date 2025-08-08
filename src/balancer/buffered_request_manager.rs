@@ -60,7 +60,7 @@ impl BufferedRequestManager {
                     Some(agent_controller) => {
                         return Ok::<_, anyhow::Error>(BufferedRequestAgentWaitResult::Found(
                             agent_controller,
-                        ))
+                        ));
                     }
                     None => agent_controller_pool.update_notifier.notified().await,
                 }

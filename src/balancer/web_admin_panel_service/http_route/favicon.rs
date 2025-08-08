@@ -1,7 +1,7 @@
-use actix_web::get;
-use actix_web::web;
 use actix_web::HttpResponse;
 use actix_web::Responder;
+use actix_web::get;
+use actix_web::web;
 
 const FAVICON: &[u8] = include_bytes!("../../../../resources/images/favicon.svg");
 

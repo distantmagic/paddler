@@ -20,10 +20,22 @@
     border: 2px solid white;
     height: 1em;
     outline: 2px solid var(--color-border);
+    position: relative;
     width: 1em;
 
-    &:checked {
+    &:checked:after {
+      /* checkbox checkmark shape */
+      /* thanks https://moderncss.dev/pure-css-custom-checkbox-style/ */
+      clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+
       background-color: var(--color-border);
+      content: "";
+      height: 100%;
+      left: 0;
+      position: absolute;
+      top: 0;
+      transform-origin: bottom left;
+      width: 100%;
     }
   }
 }
@@ -53,6 +65,9 @@
 }
 
 .inferenceParameterInput__select {
+  column-gap: var(--spacing-half);
+  display: flex;
+  flex-direction: row;
   height: var(--height-input);
 
   select {
@@ -71,5 +86,31 @@
     &:disabled {
       opacity: 0.3;
     }
+
+    &:open {
+      background-image: url("../../icons/arrow_drop_up.svg");
+    }
   }
+}
+
+.inferenceParameterInput__disabledHint {
+  position: relative;
+}
+
+.inferenceParameterInput__disabledHint__content {
+  --icon-size: calc(var(--font-size-small) * 1.6);
+
+  background-image: url("../../icons/arrow_back.svg");
+  background-position: left center;
+  background-repeat: no-repeat;
+  background-size: var(--icon-size);
+  font-size: var(--font-size-small);
+  font-style: italic;
+  left: 0;
+  padding-left: calc(var(--icon-size) + var(--spacing-half));
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  width: auto;
 }

@@ -1,19 +1,19 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use anyhow::anyhow;
 use anyhow::Result;
+use anyhow::anyhow;
 use async_trait::async_trait;
-use hf_hub::api::tokio::ApiBuilder;
-use hf_hub::api::tokio::ApiError;
 use hf_hub::Cache;
 use hf_hub::Repo;
 use hf_hub::RepoType;
+use hf_hub::api::tokio::ApiBuilder;
+use hf_hub::api::tokio::ApiError;
 use log::warn;
 use serde::Deserialize;
 use serde::Serialize;
-use tokio::time::sleep;
 use tokio::time::Duration;
+use tokio::time::sleep;
 
 use crate::agent_issue::AgentIssue;
 use crate::agent_issue_fix::AgentIssueFix;
@@ -25,6 +25,7 @@ use crate::slot_aggregated_status_download_progress::SlotAggregatedStatusDownloa
 const LOCK_RETRY_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub enum AgentDesiredModel {
     HuggingFace(HuggingFaceModelReference),
     LocalToAgent(String),
@@ -52,7 +53,9 @@ impl ConvertsToApplicableState for AgentDesiredModel {
                 if slot_aggregated_status.has_issue(&AgentIssue::HuggingFaceModelDoesNotExist(
                     model_path.clone(),
                 )) {
-                    return Err(anyhow!("Model '{model_path}' does not exist on Hugging Face. Not attempting to download it again."));
+                    return Err(anyhow!(
+                        "Model '{model_path}' does not exist on Hugging Face. Not attempting to download it again."
+                    ));
                 }
 
                 let hf_cache = Cache::default();
@@ -100,7 +103,10 @@ impl ConvertsToApplicableState for AgentDesiredModel {
 
                         sleep(LOCK_RETRY_TIMEOUT).await;
 
-                        return Err(anyhow!("Failed to acquire download lock '{}'. Is more than one agent running on this machine?", lock_path.display()));
+                        return Err(anyhow!(
+                            "Failed to acquire download lock '{}'. Is more than one agent running on this machine?",
+                            lock_path.display()
+                        ));
                     }
                     Err(ApiError::RequestError(reqwest_error)) => match reqwest_error.status() {
                         Some(reqwest::StatusCode::NOT_FOUND) => {
@@ -116,7 +122,7 @@ impl ConvertsToApplicableState for AgentDesiredModel {
                             return Err(anyhow!(
                                 "Failed to download model from Hugging Face: {}",
                                 reqwest_error
-                            ))
+                            ));
                         }
                     },
                     Err(err_other) => return Err(err_other.into()),

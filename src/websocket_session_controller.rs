@@ -31,7 +31,7 @@ where
 #[async_trait]
 impl<TResponse> SessionController<TResponse> for WebSocketSessionController<TResponse>
 where
-    TResponse: RpcMessage + Send + Serialize + Sync,
+    TResponse: RpcMessage + Send + Serialize + Sync + 'static,
 {
     async fn send_response(&mut self, message: TResponse) -> Result<()> {
         let serialized_message = serde_json::to_string(&message)?;

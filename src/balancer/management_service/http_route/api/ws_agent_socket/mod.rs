@@ -1,21 +1,21 @@
 mod agent_socket_controller_context;
 pub mod jsonrpc;
 
+use std::sync::Arc;
+use std::sync::RwLock;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicUsize;
-use std::sync::Arc;
-use std::sync::RwLock;
 
+use actix_web::Error;
+use actix_web::HttpRequest;
+use actix_web::HttpResponse;
 use actix_web::get;
 use actix_web::rt;
 use actix_web::web::Data;
 use actix_web::web::Path;
 use actix_web::web::Payload;
 use actix_web::web::ServiceConfig;
-use actix_web::Error;
-use actix_web::HttpRequest;
-use actix_web::HttpResponse;
 use actix_ws::Session;
 use anyhow::Context;
 use anyhow::Result;
@@ -27,14 +27,14 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
 use self::agent_socket_controller_context::AgentSocketControllerContext;
-use self::jsonrpc::notification_params::RegisterAgentParams;
-use self::jsonrpc::notification_params::UpdateAgentStatusParams;
 use self::jsonrpc::Message as ManagementJsonRpcMessage;
 use self::jsonrpc::Notification as ManagementJsonRpcNotification;
-use crate::agent::jsonrpc::notification_params::VersionParams;
+use self::jsonrpc::notification_params::RegisterAgentParams;
+use self::jsonrpc::notification_params::UpdateAgentStatusParams;
 use crate::agent::jsonrpc::Message as AgentJsonRpcMessage;
 use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
 use crate::agent::jsonrpc::Response as AgentJsonRpcResponse;
+use crate::agent::jsonrpc::notification_params::VersionParams;
 use crate::atomic_value::AtomicValue;
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
@@ -302,6 +302,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct PathParams {
     agent_id: String,
 }

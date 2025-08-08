@@ -9,6 +9,7 @@ use crate::jsonrpc::RequestEnvelope;
 use crate::rpc_message::RpcMessage;
 
 #[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub enum Message {
     Error(ErrorEnvelope<Error>),
     Notification(Notification),

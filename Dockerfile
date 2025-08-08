@@ -17,7 +17,7 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path && \
 
 WORKDIR /app
 
-RUN git clone https://github.com/distantmagic/paddler.git .
+RUN git clone https://github.com/intentee/paddler.git .
 
 RUN make
 

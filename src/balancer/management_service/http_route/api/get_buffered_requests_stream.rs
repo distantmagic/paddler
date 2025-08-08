@@ -1,10 +1,10 @@
 use std::convert::Infallible;
 use std::time::Duration;
 
-use actix_web::get;
-use actix_web::web;
 use actix_web::Error;
 use actix_web::Responder;
+use actix_web::get;
+use actix_web::web;
 use actix_web_lab::sse;
 use log::error;
 

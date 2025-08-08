@@ -3,24 +3,24 @@ use std::sync::Arc;
 use actix::Actor;
 use actix::Handler;
 use actix::SyncContext;
-use anyhow::anyhow;
 use anyhow::Context as _;
 use anyhow::Result;
-use llama_cpp_2::context::params::LlamaContextParams;
+use anyhow::anyhow;
+use llama_cpp_2::DecodeError;
 use llama_cpp_2::context::LlamaContext;
+use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::llama_batch::LlamaBatch;
 use llama_cpp_2::model::AddBos;
 use llama_cpp_2::model::LlamaModel;
 use llama_cpp_2::model::Special;
 use llama_cpp_2::sampling::LlamaSampler;
-use llama_cpp_2::DecodeError;
 use log::debug;
 use log::error;
 use log::info;
 use minijinja::context;
-use rand::rngs::ThreadRng;
 use rand::Rng as _;
+use rand::rngs::ThreadRng;
 use tokio::sync::mpsc;
 
 use crate::agent::continue_from_conversation_history_request::ContinueFromConversationHistoryRequest;
@@ -358,6 +358,7 @@ impl Handler<ContinueFromConversationHistoryRequest> for LlamaCppSlot {
                     enable_thinking,
                     conversation_history,
                     max_tokens,
+                    tools,
                 },
         }: ContinueFromConversationHistoryRequest,
         _ctx: &mut Self::Context,
@@ -378,6 +379,7 @@ impl Handler<ContinueFromConversationHistoryRequest> for LlamaCppSlot {
             eos_token => self.slot_context.token_eos_str,
             messages => conversation_history,
             nl_token => self.slot_context.token_nl_str,
+            tools => tools,
         }) {
             Ok(raw_prompt) => raw_prompt,
             Err(err) => {

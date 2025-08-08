@@ -12,6 +12,7 @@ use nanoid::nanoid;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
+use crate::request_params::continue_from_conversation_history_params::tool::tool_params::function_call::parameters_schema::validated_parameters_schema::ValidatedParametersSchema;
 use crate::agent::jsonrpc::notification_params::SetStateParams;
 use crate::agent::jsonrpc::Message as AgentJsonRpcMessage;
 use crate::agent::jsonrpc::Notification as AgentJsonRpcNotification;
@@ -63,18 +64,11 @@ impl AgentController {
     pub async fn get_chat_template_override(
         &self,
     ) -> Result<ManagesSendersController<ChatTemplateOverrideSenderCollection>> {
-        let request_id: String = nanoid!();
-
-        self.send_rpc_message(AgentJsonRpcMessage::Request(RequestEnvelope {
-            id: request_id.clone(),
-            request: AgentJsonRpcRequest::GetChatTemplateOverride,
-        }))
-        .await?;
-
-        ManagesSendersController::from_request_id(
-            request_id,
+        self.get_oneshot_response(
+            AgentJsonRpcRequest::GetChatTemplateOverride,
             self.chat_template_override_sender_collection.clone(),
         )
+        .await
     }
 
     pub fn get_download_filename(&self) -> Option<String> {
@@ -91,18 +85,11 @@ impl AgentController {
     pub async fn get_model_metadata(
         &self,
     ) -> Result<ManagesSendersController<ModelMetadataSenderCollection>> {
-        let request_id: String = nanoid!();
-
-        self.send_rpc_message(AgentJsonRpcMessage::Request(RequestEnvelope {
-            id: request_id.clone(),
-            request: AgentJsonRpcRequest::GetModelMetadata,
-        }))
-        .await?;
-
-        ManagesSendersController::from_request_id(
-            request_id,
+        self.get_oneshot_response(
+            AgentJsonRpcRequest::GetModelMetadata,
             self.model_metadata_sender_collection.clone(),
         )
+        .await
     }
 
     pub fn get_model_path(&self) -> Option<String> {
@@ -213,6 +200,22 @@ impl AgentController {
         }
     }
 
+    async fn get_oneshot_response<TManagesSenders: ManagesSenders>(
+        &self,
+        request: AgentJsonRpcRequest,
+        sender_collection: Arc<TManagesSenders>,
+    ) -> Result<ManagesSendersController<TManagesSenders>> {
+        let request_id: String = nanoid!();
+
+        self.send_rpc_message(AgentJsonRpcMessage::Request(RequestEnvelope {
+            id: request_id.clone(),
+            request,
+        }))
+        .await?;
+
+        ManagesSendersController::from_request_id(request_id, sender_collection)
+    }
+
     async fn receiver_from_message<TManagesSenders: ManagesSenders>(
         &self,
         request_id: String,
@@ -234,13 +237,15 @@ impl AgentController {
 }
 
 #[async_trait]
-impl HandlesAgentStreamingResponse<ContinueFromConversationHistoryParams> for AgentController {
+impl HandlesAgentStreamingResponse<ContinueFromConversationHistoryParams<ValidatedParametersSchema>>
+    for AgentController
+{
     type SenderCollection = GenerateTokensSenderCollection;
 
-    async fn handle(
+    async fn handle_streaming_response(
         &self,
         request_id: String,
-        params: ContinueFromConversationHistoryParams,
+        params: ContinueFromConversationHistoryParams<ValidatedParametersSchema>,
     ) -> Result<ManagesSendersController<Self::SenderCollection>> {
         self.receiver_from_message(
             request_id.clone(),
@@ -258,7 +263,7 @@ impl HandlesAgentStreamingResponse<ContinueFromConversationHistoryParams> for Ag
 impl HandlesAgentStreamingResponse<ContinueFromRawPromptParams> for AgentController {
     type SenderCollection = GenerateTokensSenderCollection;
 
-    async fn handle(
+    async fn handle_streaming_response(
         &self,
         request_id: String,
         params: ContinueFromRawPromptParams,
@@ -279,7 +284,7 @@ impl HandlesAgentStreamingResponse<ContinueFromRawPromptParams> for AgentControl
 impl HandlesAgentStreamingResponse<GenerateEmbeddingBatchParams> for AgentController {
     type SenderCollection = EmbeddingSenderCollection;
 
-    async fn handle(
+    async fn handle_streaming_response(
         &self,
         request_id: String,
         params: GenerateEmbeddingBatchParams,

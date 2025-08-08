@@ -12,7 +12,7 @@ where
 {
     type SenderCollection: ManagesSenders + Send + Sync;
 
-    async fn handle(
+    async fn handle_streaming_response(
         &self,
         request_id: String,
         params: TParams,

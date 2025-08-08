@@ -7,10 +7,10 @@ pub mod http_route;
 use std::sync::Arc;
 
 use actix_cors::Cors;
-use actix_web::http::header;
-use actix_web::web::Data;
 use actix_web::App;
 use actix_web::HttpServer;
+use actix_web::http::header;
+use actix_web::web::Data;
 use anyhow::Result;
 use async_trait::async_trait;
 use log::error;

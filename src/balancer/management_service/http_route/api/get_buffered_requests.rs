@@ -1,8 +1,8 @@
+use actix_web::Error;
+use actix_web::HttpResponse;
 use actix_web::error::ErrorInternalServerError;
 use actix_web::get;
 use actix_web::web;
-use actix_web::Error;
-use actix_web::HttpResponse;
 
 use crate::balancer::management_service::app_data::AppData;
 use crate::produces_snapshot::ProducesSnapshot as _;

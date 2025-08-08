@@ -1,12 +1,12 @@
+use actix_web::Error;
+use actix_web::HttpResponse;
+use actix_web::Responder;
 use actix_web::error::ErrorNotImplemented;
 use actix_web::error::ErrorServiceUnavailable;
 use actix_web::http::header;
 use actix_web::post;
 use actix_web::rt;
 use actix_web::web;
-use actix_web::Error;
-use actix_web::HttpResponse;
-use actix_web::Responder;
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures::stream::StreamExt;
@@ -19,7 +19,11 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use crate::balancer::inference_service::app_data::AppData;
 use crate::balancer::inference_service::chunk_forwarding_session_controller::ChunkForwardingSessionController;
 use crate::balancer::inference_service::controls_inference_endpoint::ControlsInferenceEndpoint;
+use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Message as OutgoingMessage;
+use crate::jsonrpc::Error as JsonRpcError;
+use crate::jsonrpc::ErrorEnvelope;
 use crate::request_params::GenerateEmbeddingBatchParams;
+use crate::session_controller::SessionController as _;
 
 const CHARACTERS_PER_TOKEN_APPROXIMATELY: usize = 3;
 
@@ -45,7 +49,7 @@ async fn respond(
         None => {
             return Err(ErrorServiceUnavailable(
                 "Balancer applicable state is not yet set",
-            ))
+            ));
         }
     };
 
@@ -70,19 +74,31 @@ async fn respond(
             app_data.inference_service_configuration.clone();
 
         rt::spawn(async move {
+            let request_id: String = nanoid!();
+            let mut session_controller = ChunkForwardingSessionController {
+                chunk_tx: chunk_tx_clone,
+            };
+
             if let Err(err) = Controller::request_from_agent(
                 buffered_request_manager_clone,
                 connection_close_tx_clone,
                 inference_service_configuration_clone,
                 batch,
-                nanoid!(),
-                ChunkForwardingSessionController {
-                    chunk_tx: chunk_tx_clone,
-                },
+                request_id.clone(),
+                session_controller.clone(),
             )
             .await
             {
                 error!("Failed to handle request: {err}");
+                session_controller
+                    .send_response_safe(OutgoingMessage::Error(ErrorEnvelope {
+                        request_id: request_id.clone(),
+                        error: JsonRpcError {
+                            code: 500,
+                            description: format!("Request {request_id} failed: {err}"),
+                        },
+                    }))
+                    .await;
             }
         });
     }

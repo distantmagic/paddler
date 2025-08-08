@@ -1,11 +1,11 @@
 use std::net::SocketAddr;
 
+use actix_web::Responder;
 use actix_web::get;
 use actix_web::web;
-use actix_web::Responder;
 use askama::Template;
-use esbuild_metafile::filters;
 use esbuild_metafile::HttpPreloader;
+use esbuild_metafile::filters;
 
 use crate::balancer::response::view;
 use crate::balancer::web_admin_panel_service::app_data::AppData;

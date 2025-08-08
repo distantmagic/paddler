@@ -5,9 +5,9 @@ use async_trait::async_trait;
 use log::error;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
-use tokio::time::interval;
 use tokio::time::Duration;
 use tokio::time::MissedTickBehavior;
+use tokio::time::interval;
 
 use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
 use crate::agent_desired_state::AgentDesiredState;

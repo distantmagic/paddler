@@ -8,8 +8,8 @@ use async_trait::async_trait;
 use log::warn;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
-use tokio::sync::broadcast;
 use tokio::sync::RwLock;
+use tokio::sync::broadcast;
 
 use self::schema::Schema;
 use super::StateDatabase;

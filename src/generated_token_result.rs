@@ -4,6 +4,7 @@ use serde::Serialize;
 use crate::streamable_result::StreamableResult;
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub enum GeneratedTokenResult {
     ChatTemplateError(String),
     Done,

@@ -16,24 +16,24 @@ use crate::balancer::buffered_request_manager::BufferedRequestManager;
 use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
 use crate::balancer::embedding_sender_collection::EmbeddingSenderCollection;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
-use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::balancer::inference_service::InferenceService;
-use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
+use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::balancer::management_service::ManagementService;
+use crate::balancer::management_service::configuration::Configuration as ManagementServiceConfiguration;
 use crate::balancer::model_metadata_sender_collection::ModelMetadataSenderCollection;
 use crate::balancer::reconciliation_service::ReconciliationService;
 use crate::balancer::state_database::File;
 use crate::balancer::state_database::Memory;
 use crate::balancer::state_database::StateDatabase;
 use crate::balancer::state_database_type::StateDatabaseType;
-use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
 use crate::balancer::statsd_service::StatsdService;
+use crate::balancer::statsd_service::configuration::Configuration as StatsdServiceConfiguration;
+#[cfg(feature = "web_admin_panel")]
+use crate::balancer::web_admin_panel_service::WebAdminPanelService;
 #[cfg(feature = "web_admin_panel")]
 use crate::balancer::web_admin_panel_service::configuration::Configuration as WebAdminPanelServiceConfiguration;
 #[cfg(feature = "web_admin_panel")]
 use crate::balancer::web_admin_panel_service::template_data::TemplateData;
-#[cfg(feature = "web_admin_panel")]
-use crate::balancer::web_admin_panel_service::WebAdminPanelService;
 use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::service_manager::ServiceManager;
 
