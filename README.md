@@ -84,7 +84,7 @@ And use GUI to test the inference:
 
 ## Why the Name
 
-We initially wanted to use [Raft](https://raft.github.io/) consensus algorithm (thus Paddler, because it paddles on a Raft), but eventuall dropped that idea. The name stayed, though.
+We initially wanted to use [Raft](https://raft.github.io/) consensus algorithm (thus Paddler, because it paddles on a Raft), but eventually dropped that idea. The name stayed, though.
 
 Later, people started sending us the "that's a paddlin'" clip from The Simpsons, and we just embraced it.
 
