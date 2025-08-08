@@ -13,6 +13,7 @@ use crate::request_params::continue_from_conversation_history_params::tool::tool
 #[serde(deny_unknown_fields)]
 #[serde(tag = "type")]
 pub enum Tool<TParametersSchema: Default> {
+    #[serde(rename = "function")]
     Function(FunctionCall<TParametersSchema>),
 }
 
