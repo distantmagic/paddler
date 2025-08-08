@@ -14,6 +14,7 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
+use crate::validates::Validates as _;
 use crate::balancer::inference_service::app_data::AppData;
 use crate::balancer::inference_service::chunk_forwarding_session_controller::ChunkForwardingSessionController;
 use crate::balancer::inference_service::controls_inference_endpoint::ControlsInferenceEndpoint;

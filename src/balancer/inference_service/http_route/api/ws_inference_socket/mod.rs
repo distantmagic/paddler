@@ -29,6 +29,7 @@ use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::ErrorEnvelope;
 use crate::jsonrpc::RequestEnvelope;
+use crate::validates::Validates as _;
 use crate::websocket_session_controller::WebSocketSessionController;
 
 pub fn register(cfg: &mut ServiceConfig) {

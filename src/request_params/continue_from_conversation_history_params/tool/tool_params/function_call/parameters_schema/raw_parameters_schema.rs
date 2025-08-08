@@ -1,4 +1,3 @@
-use anyhow::Error;
 use anyhow::Result;
 use anyhow::anyhow;
 use serde::Deserialize;
@@ -7,6 +6,7 @@ use serde_json::Map;
 use serde_json::Value;
 
 use super::validated_parameters_schema::ValidatedParametersSchema;
+use crate::validates::Validates;
 
 fn validate_schema(schema: &Value) -> Result<()> {
     // Try to create a validator - this validates the schema structure
@@ -25,11 +25,9 @@ pub struct RawParametersSchema {
     pub additional_properties: Option<Value>,
 }
 
-impl TryFrom<RawParametersSchema> for ValidatedParametersSchema {
-    type Error = Error;
-
-    fn try_from(raw: RawParametersSchema) -> Result<Self, Self::Error> {
-        if let (Some(required), Some(properties)) = (&raw.required, &raw.properties) {
+impl Validates<ValidatedParametersSchema> for RawParametersSchema {
+    fn validate(self) -> Result<ValidatedParametersSchema> {
+        if let (Some(required), Some(properties)) = (&self.required, &self.properties) {
             for field in required {
                 if !properties.contains_key(field) {
                     return Err(anyhow!("Required field '{field}' not found in properties"));
@@ -37,14 +35,14 @@ impl TryFrom<RawParametersSchema> for ValidatedParametersSchema {
             }
         }
 
-        if let Some(ref properties) = raw.properties {
+        if let Some(ref properties) = self.properties {
             for (key, schema) in properties {
                 validate_schema(schema)
                     .map_err(|err| anyhow!("Invalid schema for property '{key}': {err}"))?;
             }
         }
 
-        if let Some(ref additional) = raw.additional_properties
+        if let Some(ref additional) = self.additional_properties
             && !additional.is_boolean()
         {
             validate_schema(additional)
@@ -52,10 +50,10 @@ impl TryFrom<RawParametersSchema> for ValidatedParametersSchema {
         }
 
         Ok(ValidatedParametersSchema {
-            schema_type: raw.schema_type,
-            properties: raw.properties,
-            required: raw.required,
-            additional_properties: raw.additional_properties,
+            schema_type: self.schema_type,
+            properties: self.properties,
+            required: self.required,
+            additional_properties: self.additional_properties,
         })
     }
 }
@@ -79,7 +77,7 @@ mod tests {
         });
 
         let raw_schema: RawParametersSchema = serde_json::from_value(input).unwrap();
-        let schema: ValidatedParametersSchema = raw_schema.try_into().unwrap();
+        let schema: ValidatedParametersSchema = raw_schema.validate().unwrap();
 
         assert_eq!(schema.schema_type, "object");
         assert!(schema.properties.is_some());
@@ -98,7 +96,7 @@ mod tests {
         });
 
         let raw_schema: RawParametersSchema = serde_json::from_value(input).unwrap();
-        let result: Result<ValidatedParametersSchema, _> = raw_schema.try_into();
+        let result: Result<ValidatedParametersSchema, _> = raw_schema.validate();
 
         assert!(result.is_err());
 
@@ -118,7 +116,7 @@ mod tests {
         });
 
         let raw_schema: RawParametersSchema = serde_json::from_value(input).unwrap();
-        let result: Result<ValidatedParametersSchema, _> = raw_schema.try_into();
+        let result: Result<ValidatedParametersSchema, _> = raw_schema.validate();
 
         assert!(result.is_err());
 
@@ -135,7 +133,7 @@ mod tests {
         });
 
         let raw_schema: RawParametersSchema = serde_json::from_value(input).unwrap();
-        let result: Result<ValidatedParametersSchema, _> = raw_schema.try_into();
+        let result: Result<ValidatedParametersSchema, _> = raw_schema.validate();
 
         assert!(result.is_err());
 
