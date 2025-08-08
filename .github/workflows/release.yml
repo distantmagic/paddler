@@ -20,7 +20,7 @@ jobs:
             artifact_name: paddler-bin-linux-libc2.39-amd64
 
           - os: macos-latest
-            artifact_name: paddler-bin-macos-amd64
+            artifact_name: paddler-bin-macos-arm
 
     steps:
       - name: checkout code
