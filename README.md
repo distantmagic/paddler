@@ -2,7 +2,7 @@
 
 Digital products and their users need privacy, reliability, cost control and an option to be independent from third party vendors.
 
-Paddler is an open-source platform for organizations that self-host and scale open-source models in their own infrastructure.
+Paddler is an open-source LLMOps platform for organizations that host and scale open-source models in their own infrastructure.
 
 ## Key features
 
@@ -58,7 +58,7 @@ The entire Paddler functionality is available through the `paddler` command.
 
 You can run `paddler --help` to see the available commands and options.
 
-Read more about ([installation and initial setup](https://intentee.github.io/paddler.intentee.com/docs/introduction/installation/))
+Read more about [installation and initial setup](https://intentee.github.io/paddler.intentee.com/docs/introduction/installation/)
 
 ## Starting out
 * [Setup a basic LLM cluster](https://intentee.github.io/paddler.intentee.com/docs/starting-out/setup-a-basic-llm-cluster/)
