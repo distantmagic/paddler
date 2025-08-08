@@ -1,7 +1,7 @@
 [package]
 name = "paddler"
 edition = "2024"
-description = "Stateful load balancer custom-tailored for llama.cpp"
+description = "Open-source LLMOps platform for hosting and scaling AI in your own infrastructure"
 license = "MIT"
 authors = ["Intentee"]
 repository = "https://github.com/intentee/paddler"
