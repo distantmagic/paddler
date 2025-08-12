@@ -143,9 +143,13 @@ impl TransformsOutgoingMessage for OpenAICombinedResponseTransfomer {
             _ => Err(anyhow!("Unexpected message type: {:?}", message)),
         }
     }
+
+    fn stringify(&self, message: &Self::TransformedMessage) -> anyhow::Result<String> {
+        Ok(message.clone())
+    }
 }
 
-#[post("/v1/chat_completions")]
+#[post("/v1/chat/completions")]
 async fn respond(
     app_data: web::Data<AppData>,
     openai_params: web::Json<OpenAICompletionRequestParams>,
