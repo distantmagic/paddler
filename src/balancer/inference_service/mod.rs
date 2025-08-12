@@ -1,7 +1,6 @@
 pub mod app_data;
-pub mod chunk_forwarding_session_controller;
+mod chunk_forwarding_session_controller;
 pub mod configuration;
-pub mod controls_inference_endpoint;
 pub mod http_route;
 
 use std::sync::Arc;

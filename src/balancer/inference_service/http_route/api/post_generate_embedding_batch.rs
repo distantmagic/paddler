@@ -7,7 +7,6 @@ use actix_web::http::header;
 use actix_web::post;
 use actix_web::rt;
 use actix_web::web;
-use async_trait::async_trait;
 use bytes::Bytes;
 use futures::stream::StreamExt;
 use log::error;
@@ -18,8 +17,8 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::balancer::inference_service::app_data::AppData;
 use crate::balancer::inference_service::chunk_forwarding_session_controller::ChunkForwardingSessionController;
-use crate::balancer::inference_service::controls_inference_endpoint::ControlsInferenceEndpoint;
 use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Message as OutgoingMessage;
+use crate::balancer::request_from_agent::request_from_agent;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::ErrorEnvelope;
 use crate::request_params::GenerateEmbeddingBatchParams;
@@ -29,13 +28,6 @@ const CHARACTERS_PER_TOKEN_APPROXIMATELY: usize = 3;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
     cfg.service(respond);
-}
-
-struct Controller {}
-
-#[async_trait]
-impl ControlsInferenceEndpoint for Controller {
-    type SessionController = ChunkForwardingSessionController;
 }
 
 #[post("/api/v1/generate_embedding_batch")]
@@ -79,7 +71,7 @@ async fn respond(
                 chunk_tx: chunk_tx_clone,
             };
 
-            if let Err(err) = Controller::request_from_agent(
+            if let Err(err) = request_from_agent(
                 buffered_request_manager_clone,
                 connection_close_tx_clone,
                 inference_service_configuration_clone,

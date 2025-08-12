@@ -44,6 +44,11 @@ pub struct Balancer {
     /// If the request stays in the buffer longer than this time, it is rejected with the 504 error
     buffered_request_timeout: Duration,
 
+    #[cfg(feature = "compat_openai")]
+    #[arg(long, default_value = "127.0.0.1:8070", value_parser = parse_socket_addr)]
+    /// Address of the OpenAI-compatible API server (enabled only if this address is specified)
+    compat_openai_addr: Option<SocketAddr>,
+
     #[arg(long, default_value = "127.0.0.1:8061", value_parser = parse_socket_addr)]
     /// Address of the inference server
     inference_addr: SocketAddr,

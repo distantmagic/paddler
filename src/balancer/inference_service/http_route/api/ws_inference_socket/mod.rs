@@ -23,7 +23,7 @@ use self::jsonrpc::Request as InferenceJsonRpcRequest;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
 use crate::balancer::inference_service::app_data::AppData;
 use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
-use crate::balancer::inference_service::controls_inference_endpoint::ControlsInferenceEndpoint;
+use crate::balancer::request_from_agent::request_from_agent;
 use crate::controls_websocket_endpoint::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::jsonrpc::Error as JsonRpcError;
@@ -39,11 +39,6 @@ pub fn register(cfg: &mut ServiceConfig) {
 struct InferenceSocketController {
     buffered_request_manager: Arc<BufferedRequestManager>,
     inference_service_configuration: InferenceServiceConfiguration,
-}
-
-#[async_trait]
-impl ControlsInferenceEndpoint for InferenceSocketController {
-    type SessionController = WebSocketSessionController<OutgoingMessage>;
 }
 
 #[async_trait]
@@ -80,7 +75,7 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                 id,
                 request: InferenceJsonRpcRequest::ContinueFromConversationHistory(params),
             }) => {
-                Self::request_from_agent(
+                request_from_agent(
                     context.buffered_request_manager.clone(),
                     connection_close_tx,
                     context.inference_service_configuration.clone(),
@@ -96,7 +91,7 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
                 id,
                 request: InferenceJsonRpcRequest::ContinueFromRawPrompt(params),
             }) => {
-                Self::request_from_agent(
+                request_from_agent(
                     context.buffered_request_manager.clone(),
                     connection_close_tx,
                     context.inference_service_configuration.clone(),
