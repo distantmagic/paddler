@@ -13,9 +13,9 @@ use crate::balancer::agent_controller::AgentController;
 use crate::balancer::buffered_request_agent_wait_result::BufferedRequestAgentWaitResult;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
 use crate::balancer::handles_agent_streaming_response::HandlesAgentStreamingResponse;
+use crate::balancer::inference_client::Message as OutgoingMessage;
+use crate::balancer::inference_client::Response as OutgoingResponse;
 use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
-use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Message as OutgoingMessage;
-use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Response as OutgoingResponse;
 use crate::balancer::manages_senders::ManagesSenders;
 use crate::balancer::manages_senders_controller::ManagesSendersController;
 use crate::controls_session::ControlsSession;
@@ -24,7 +24,7 @@ use crate::jsonrpc::ErrorEnvelope;
 use crate::jsonrpc::ResponseEnvelope;
 use crate::streamable_result::StreamableResult;
 
-pub async fn request_from_agent<TParams, TControlsSession>(
+pub async fn request_from_agent<TControlsSession, TParams>(
     buffered_request_manager: Arc<BufferedRequestManager>,
     connection_close_tx: broadcast::Sender<()>,
     inference_service_configuration: InferenceServiceConfiguration,
@@ -33,10 +33,10 @@ pub async fn request_from_agent<TParams, TControlsSession>(
     mut session_controller: TControlsSession,
 ) -> Result<()>
 where
+    TControlsSession: ControlsSession<OutgoingMessage>,
     TParams: Debug + Into<AgentJsonRpcRequest> + Send,
     AgentController: HandlesAgentStreamingResponse<TParams>,
     <<AgentController as HandlesAgentStreamingResponse<TParams>>::SenderCollection as ManagesSenders>::Value: Debug + Into<OutgoingResponse> + StreamableResult,
-    TControlsSession: ControlsSession<OutgoingMessage>,
 {
     match wait_for_agent_controller(
         buffered_request_manager.clone(),
@@ -85,7 +85,7 @@ where
     }
 }
 
-async fn forward_responses_stream<TManagesSenders, TControlsSession>(
+async fn forward_responses_stream<TControlsSession, TManagesSenders>(
     agent_controller: Arc<AgentController>,
     mut connection_close_rx: broadcast::Receiver<()>,
     inference_service_configuration: InferenceServiceConfiguration,
@@ -94,9 +94,9 @@ async fn forward_responses_stream<TManagesSenders, TControlsSession>(
     mut session_controller: TControlsSession,
 ) -> Result<()>
 where
+    TControlsSession: ControlsSession<OutgoingMessage>,
     TManagesSenders: ManagesSenders + Send + Sync,
     TManagesSenders::Value: Debug + Into<OutgoingResponse> + Send + StreamableResult,
-    TControlsSession: ControlsSession<OutgoingMessage>,
 {
     debug!("Found available agent controller for request: {request_id:?}");
 
@@ -187,14 +187,14 @@ async fn respond_with_error<TControlsSession>(
         });
 }
 
-async fn send_response_to_client<TResponse, TControlsSession>(
+async fn send_response_to_client<TControlsSession, TResponse>(
     agent_controller: Arc<AgentController>,
     response: TResponse,
     request_id: String,
     session_controller: &mut TControlsSession,
 ) where
-    TResponse: Into<OutgoingResponse> + Send,
     TControlsSession: ControlsSession<OutgoingMessage>,
+    TResponse: Into<OutgoingResponse> + Send,
 {
     if let Err(err) = session_controller
         .send_response(OutgoingMessage::Response(ResponseEnvelope {
