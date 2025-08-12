@@ -2,12 +2,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use actix_web::Error;
-use actix_web::HttpResponse;
-use actix_web::Responder;
-use actix_web::http::header;
 use actix_web::rt;
-use bytes::Bytes;
-use futures::stream::StreamExt;
 use log::error;
 use nanoid::nanoid;
 use tokio::sync::broadcast;
@@ -30,12 +25,12 @@ use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::ErrorEnvelope;
 use crate::streamable_result::StreamableResult;
 
-pub async fn stream_from_agent<TParams, TTransformsOutgoingMessage>(
+pub fn unbounded_stream_from_agent<TParams, TTransformsOutgoingMessage>(
     buffered_request_manager: Arc<BufferedRequestManager>,
     inference_service_configuration: InferenceServiceConfiguration,
     params: TParams,
     transformer: TTransformsOutgoingMessage,
-) -> Result<impl Responder, Error>
+) -> Result<UnboundedReceiverStream<String>, Error>
 where
     TParams: Debug + Into<AgentJsonRpcRequest> + Send + 'static,
     AgentController: HandlesAgentStreamingResponse<TParams>,
@@ -44,7 +39,7 @@ where
 {
     let request_id: String = nanoid!();
     let (connection_close_tx, _connection_close_rx) = broadcast::channel(1);
-    let (chunk_tx, chunk_rx) = mpsc::unbounded_channel();
+    let (chunk_tx, chunk_rx) = mpsc::unbounded_channel::<String>();
 
     rt::spawn(async move {
         let mut session_controller = ChunkForwardingSessionController::new(chunk_tx, transformer);
@@ -73,11 +68,5 @@ where
         }
     });
 
-    let stream = UnboundedReceiverStream::new(chunk_rx)
-        .map(|chunk: String| Ok::<_, Error>(Bytes::from(format!("{chunk}\n"))));
-
-    Ok(HttpResponse::Ok()
-        .insert_header(header::ContentType::json())
-        .insert_header((header::CACHE_CONTROL, "no-cache"))
-        .streaming(stream))
+    Ok(UnboundedReceiverStream::new(chunk_rx))
 }

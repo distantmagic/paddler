@@ -1,12 +1,13 @@
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
+use actix_web::HttpResponse;
 use actix_web::Error;
-use actix_web::Responder;
 use actix_web::post;
 use actix_web::web;
 use async_trait::async_trait;
 use nanoid::nanoid;
+use tokio_stream::StreamExt as _;
 use serde::Deserialize;
 use serde_json::json;
 
@@ -14,7 +15,8 @@ use crate::balancer::chunk_forwarding_session_controller::transforms_outgoing_me
 use crate::balancer::compatibility::openai_service::app_data::AppData;
 use crate::balancer::inference_client::Message as OutgoingMessage;
 use crate::balancer::inference_client::Response as OutgoingResponse;
-use crate::balancer::stream_from_agent::stream_from_agent;
+use crate::balancer::unbounded_stream_from_agent::unbounded_stream_from_agent;
+use crate::balancer::http_stream_from_agent::http_stream_from_agent;
 use crate::conversation_message::ConversationMessage;
 use crate::generated_token_result::GeneratedTokenResult;
 use crate::jsonrpc::ResponseEnvelope;
@@ -61,6 +63,7 @@ struct OpenAICompletionRequestParams {
 #[derive(Clone)]
 struct OpenAIResponseTransformer {
     model: String,
+    system_fingerprint: String,
 }
 
 #[async_trait]
@@ -68,17 +71,34 @@ impl TransformsOutgoingMessage for OpenAIResponseTransformer {
     type TransformedMessage = serde_json::Value;
 
     async fn transform(&self, message: OutgoingMessage) -> anyhow::Result<serde_json::Value> {
-        if let OutgoingMessage::Response(ResponseEnvelope {
-            request_id,
-            response: OutgoingResponse::GeneratedToken(GeneratedTokenResult::Token(token)),
-        }) = message
-        {
-            Ok(json!({
+        match message {
+            OutgoingMessage::Response(ResponseEnvelope {
+                request_id,
+                response: OutgoingResponse::GeneratedToken(GeneratedTokenResult::Done),
+            }) => Ok(json!({
                 "id": request_id,
                 "object": "chat.completion.chunk",
                 "created": current_timestamp(),
                 "model": self.model,
-                "system_fingerprint": nanoid!(),
+                "system_fingerprint": self.system_fingerprint,
+                "choices": [
+                    {
+                        "index": 0,
+                        "delta": {},
+                        "logprobs": null,
+                        "finish_reason": "stop"
+                    }
+                ]
+            })),
+            OutgoingMessage::Response(ResponseEnvelope {
+                request_id,
+                response: OutgoingResponse::GeneratedToken(GeneratedTokenResult::Token(token)),
+            }) => Ok(json!({
+                "id": request_id,
+                "object": "chat.completion.chunk",
+                "created": current_timestamp(),
+                "model": self.model,
+                "system_fingerprint": self.system_fingerprint,
                 "choices": [
                     {
                         "index": 0,
@@ -90,9 +110,8 @@ impl TransformsOutgoingMessage for OpenAIResponseTransformer {
                         "finish_reason": null
                     }
                 ]
-            }))
-        } else {
-            Ok(serde_json::to_value(&message)?)
+            })),
+            _ => Ok(serde_json::to_value(&message)?),
         }
     }
 }
@@ -100,25 +119,74 @@ impl TransformsOutgoingMessage for OpenAIResponseTransformer {
 #[post("/v1/chat_completions")]
 async fn respond(
     app_data: web::Data<AppData>,
-    params: web::Json<OpenAICompletionRequestParams>,
-) -> Result<impl Responder, Error> {
-    stream_from_agent(
-        app_data.buffered_request_manager.clone(),
-        app_data.inference_service_configuration.clone(),
-        ContinueFromConversationHistoryParams {
-            add_generation_prompt: true,
-            conversation_history: params
-                .messages
-                .iter()
-                .map(|openai_message| openai_message.to_paddler_message())
-                .collect(),
-            enable_thinking: true,
-            max_tokens: params.max_completion_tokens.unwrap_or(2000),
-            tools: vec![],
-        },
-        OpenAIResponseTransformer {
-            model: params.model.clone(),
-        },
-    )
-    .await
+    openai_params: web::Json<OpenAICompletionRequestParams>,
+) -> Result<HttpResponse, Error> {
+    let paddler_params = ContinueFromConversationHistoryParams {
+        add_generation_prompt: true,
+        conversation_history: openai_params
+            .messages
+            .iter()
+            .map(|openai_message| openai_message.to_paddler_message())
+            .collect(),
+        enable_thinking: true,
+        max_tokens: openai_params.max_completion_tokens.unwrap_or(2000),
+        tools: vec![],
+    };
+
+    let response_transformer = OpenAIResponseTransformer {
+        model: openai_params.model.clone(),
+        system_fingerprint: nanoid!(),
+    };
+
+    if openai_params.stream {
+        http_stream_from_agent(
+            app_data.buffered_request_manager.clone(),
+            app_data.inference_service_configuration.clone(),
+            paddler_params,
+            response_transformer,
+        )
+    } else {
+        let combined_response = unbounded_stream_from_agent(
+            app_data.buffered_request_manager.clone(),
+            app_data.inference_service_configuration.clone(),
+            paddler_params,
+            response_transformer,
+        )?.collect::<Vec<String>>().await.join("");
+
+        Ok(HttpResponse::Ok().json(json!({
+          "id": nanoid!(),
+          "object": "chat.completion",
+          "created": current_timestamp(),
+          "model": openai_params.model,
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": combined_response,
+                "refusal": null,
+                "annotations": []
+              },
+              "logprobs": null,
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "audio_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": 0,
+              "accepted_prediction_tokens": 0,
+              "rejected_prediction_tokens": 0
+            }
+          },
+          "service_tier": "default"
+        })))
+    }
 }
