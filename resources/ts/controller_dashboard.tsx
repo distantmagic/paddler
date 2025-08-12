@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 
 import { Home } from "./components/Home";
+import { PaddlerConfigurationContext } from "./contexts/PaddlerConfigurationContext";
 
 class RootNode {
   constructor(private rootNodeElement: HTMLElement) {}
@@ -32,17 +33,21 @@ const rootNode = new RootNode(rootNodeElement);
 const root = createRoot(rootNodeElement);
 
 root.render(
-  <Home
-    bufferedRequestTimeoutMillis={rootNode.getIntFromDataset(
-      "bufferedRequestTimeoutMillis",
-    )}
-    inferenceAddr={rootNode.getStringFromDataset("inferenceAddr")}
-    managementAddr={rootNode.getStringFromDataset("managementAddr")}
-    maxBufferedRequests={rootNode.getIntFromDataset("maxBufferedRequests")}
-    statsdAddr={rootNode.getStringFromDataset("statsdAddr")}
-    statsdPrefix={rootNode.getStringFromDataset("statsdPrefix")}
-    statsdReportingIntervalMillis={rootNode.getIntFromDataset(
-      "statsdReportingIntervalMillis",
-    )}
-  />,
+  <PaddlerConfigurationContext.Provider
+    value={{
+      bufferedRequestTimeoutMillis: rootNode.getIntFromDataset(
+        "bufferedRequestTimeoutMillis",
+      ),
+      inferenceAddr: rootNode.getStringFromDataset("inferenceAddr"),
+      managementAddr: rootNode.getStringFromDataset("managementAddr"),
+      maxBufferedRequests: rootNode.getIntFromDataset("maxBufferedRequests"),
+      statsdAddr: rootNode.getStringFromDataset("statsdAddr"),
+      statsdPrefix: rootNode.getStringFromDataset("statsdPrefix"),
+      statsdReportingIntervalMillis: rootNode.getIntFromDataset(
+        "statsdReportingIntervalMillis",
+      ),
+    }}
+  >
+    <Home />
+  </PaddlerConfigurationContext.Provider>,
 );

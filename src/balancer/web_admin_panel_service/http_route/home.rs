@@ -18,6 +18,7 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 #[template(path = "web_admin_panel.html")]
 struct WebAdminPanelTemplate {
     buffered_request_timeout_millis: u128,
+    compat_openai_addr: String,
     inference_addr: SocketAddr,
     management_addr: SocketAddr,
     max_buffered_requests: i32,
@@ -34,6 +35,10 @@ async fn respond(preloads: HttpPreloader, app_data: web::Data<AppData>) -> impl 
             .template_data
             .buffered_request_timeout
             .as_millis(),
+        compat_openai_addr: match app_data.template_data.compat_openai_addr {
+            Some(addr) => addr.to_string(),
+            None => String::new(),
+        },
         inference_addr: app_data.template_data.inference_addr,
         management_addr: app_data.template_data.management_addr,
         max_buffered_requests: app_data.template_data.max_buffered_requests,

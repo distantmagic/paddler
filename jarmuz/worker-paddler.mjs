@@ -18,6 +18,7 @@ spawner(async function ({ buildId, command }) {
   const results = await Promise.all([
     command(`
       target/debug/paddler balancer
+        --compat-openai-addr 127.0.0.1:8070
         --inference-addr 127.0.0.1:8061
         --management-addr 127.0.0.1:8060
         --state-database file://${stateDatabase}

@@ -1,5 +1,6 @@
 import React, { useContext } from "react";
 
+import { PaddlerConfigurationContext } from "../contexts/PaddlerConfigurationContext";
 import { PromptContext } from "../contexts/PromptContext";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { matchWebSocketState } from "../matchWebSocketState";
@@ -15,7 +16,8 @@ import {
   promptPage__promptForm,
 } from "./PromptPage.module.css";
 
-export function PromptPage({ inferenceAddr }: { inferenceAddr: string }) {
+export function PromptPage() {
+  const { inferenceAddr } = useContext(PaddlerConfigurationContext);
   const { submittedPrompt } = useContext(PromptContext);
   const webSocketState = useWebSocket({
     endpoint: `${webSocketProtocol(window.location.protocol)}//${inferenceAddr}/api/v1/inference_socket`,

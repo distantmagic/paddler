@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useContext } from "react";
 
+import { PaddlerConfigurationContext } from "../contexts/PaddlerConfigurationContext";
 import { AgentListStream } from "./AgentListStream";
 import { BufferedRequestsStream } from "./BufferedRequestsStream";
 import { DashboardPageAddAgent } from "./DashboardPageAddAgent";
@@ -13,23 +14,15 @@ import {
   dashboardPage__serviceBlock,
 } from "./DashboardPage.module.css";
 
-export function DashboardPage({
-  bufferedRequestTimeoutMillis,
-  inferenceAddr,
-  managementAddr,
-  maxBufferedRequests,
-  statsdAddr,
-  statsdPrefix,
-  statsdReportingIntervalMillis,
-}: {
-  bufferedRequestTimeoutMillis: number;
-  inferenceAddr: string;
-  managementAddr: string;
-  maxBufferedRequests: number;
-  statsdAddr: string;
-  statsdPrefix: string;
-  statsdReportingIntervalMillis: number;
-}) {
+export function DashboardPage() {
+  const {
+    inferenceAddr,
+    managementAddr,
+    statsdAddr,
+    statsdPrefix,
+    statsdReportingIntervalMillis,
+  } = useContext(PaddlerConfigurationContext);
+
   return (
     <div className={dashboardPage}>
       <div className={dashboardPage__blocks}>
@@ -62,15 +55,11 @@ export function DashboardPage({
           </div>
         </div>
         <div className={dashboardPage__serviceBlock}>
-          <BufferedRequestsStream
-            bufferedRequestTimeoutMillis={bufferedRequestTimeoutMillis}
-            managementAddr={managementAddr}
-            maxBufferedRequests={maxBufferedRequests}
-          />
+          <BufferedRequestsStream />
         </div>
         <div className={dashboardPage__serviceBlock}>
-          <AgentListStream managementAddr={managementAddr} />
-          <DashboardPageAddAgent managementAddr={managementAddr} />
+          <AgentListStream />
+          <DashboardPageAddAgent />
         </div>
       </div>
     </div>

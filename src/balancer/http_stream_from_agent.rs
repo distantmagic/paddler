@@ -7,7 +7,6 @@ use actix_web::http::header;
 use bytes::Bytes;
 use futures::stream::StreamExt;
 
-use crate::balancer::unbounded_stream_from_agent::unbounded_stream_from_agent;
 use crate::agent::jsonrpc::Request as AgentJsonRpcRequest;
 use crate::balancer::agent_controller::AgentController;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
@@ -16,6 +15,7 @@ use crate::balancer::handles_agent_streaming_response::HandlesAgentStreamingResp
 use crate::balancer::inference_client::Response as OutgoingResponse;
 use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::balancer::manages_senders::ManagesSenders;
+use crate::balancer::unbounded_stream_from_agent::unbounded_stream_from_agent;
 use crate::streamable_result::StreamableResult;
 
 pub fn http_stream_from_agent<TParams, TTransformsOutgoingMessage>(
@@ -35,7 +35,8 @@ where
         inference_service_configuration,
         params,
         transformer,
-    )?.map(|chunk: String| Ok::<_, Error>(Bytes::from(format!("{chunk}\n"))));
+    )?
+    .map(|chunk: String| Ok::<_, Error>(Bytes::from(format!("{chunk}\n"))));
 
     Ok(HttpResponse::Ok()
         .insert_header(header::ContentType::json())

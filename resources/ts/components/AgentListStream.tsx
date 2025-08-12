@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useContext } from "react";
 
+import { PaddlerConfigurationContext } from "../contexts/PaddlerConfigurationContext";
 import { useEventSourceUpdates } from "../hooks/useEventSourceUpdates";
 import { matchEventSourceUpdateState } from "../matchEventSourceUpdateState";
 import { AgentsResponseSchema } from "../schemas/AgentsResponse";
@@ -8,11 +9,8 @@ import { AgentList } from "./AgentList";
 import { agentListStream__placeholder } from "./AgentListStream.module.css";
 import { dashboardSectionStreamLoader } from "./dashboardSectionStreamLoader.module.css";
 
-export function AgentListStream({
-  managementAddr,
-}: {
-  managementAddr: string;
-}) {
+export function AgentListStream() {
+  const { managementAddr } = useContext(PaddlerConfigurationContext);
   const eventSourceUpdateState = useEventSourceUpdates({
     schema: AgentsResponseSchema,
     endpoint: `//${managementAddr}/api/v1/agents/stream`,

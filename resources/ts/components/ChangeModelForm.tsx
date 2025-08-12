@@ -9,6 +9,7 @@ import { useLocation } from "wouter";
 
 import { ChatTemplateContext } from "../contexts/ChatTemplateContext";
 import { InferenceParametersContext } from "../contexts/InferenceParametersContext";
+import { PaddlerConfigurationContext } from "../contexts/PaddlerConfigurationContext";
 import { useAgentDesiredModelUrl } from "../hooks/useAgentDesiredModelUrl";
 import { type BalancerDesiredState } from "../schemas/BalancerDesiredState";
 import { ChatTemplateBehavior } from "./ChatTemplateBehavior";
@@ -33,15 +34,14 @@ import {
 
 export function ChangeModelForm({
   defaultModelUri,
-  managementAddr,
 }: {
   defaultModelUri: null | string;
-  managementAddr: string;
 }) {
   const [, navigate] = useLocation();
   const { chatTemplateOverride, useChatTemplateOverride } =
     useContext(ChatTemplateContext);
   const { parameters } = useContext(InferenceParametersContext);
+  const { managementAddr } = useContext(PaddlerConfigurationContext);
   const { agentDesiredModelState, modelUri, setModelUri } =
     useAgentDesiredModelUrl({
       defaultModelUri,

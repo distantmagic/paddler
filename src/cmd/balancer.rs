@@ -14,9 +14,7 @@ use super::parse_socket_addr;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
 use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
-#[cfg(feature = "compat_openai")]
 use crate::balancer::compatibility::openai_service::OpenAIService;
-#[cfg(feature = "compat_openai")]
 use crate::balancer::compatibility::openai_service::configuration::Configuration as OpenAIServiceConfiguration;
 use crate::balancer::embedding_sender_collection::EmbeddingSenderCollection;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
@@ -48,7 +46,6 @@ pub struct Balancer {
     /// If the request stays in the buffer longer than this time, it is rejected with the 504 error
     buffered_request_timeout: Duration,
 
-    #[cfg(feature = "compat_openai")]
     #[arg(long, value_parser = parse_socket_addr)]
     /// Address of the OpenAI-compatible API server (enabled only if this address is specified)
     compat_openai_addr: Option<SocketAddr>,
@@ -130,6 +127,7 @@ impl Balancer {
                 addr: web_admin_panel_addr,
                 template_data: TemplateData {
                     buffered_request_timeout: self.buffered_request_timeout,
+                    compat_openai_addr: self.compat_openai_addr,
                     max_buffered_requests: self.max_buffered_requests,
                     management_addr: self.management_addr,
                     inference_addr: self.inference_addr,
@@ -215,7 +213,6 @@ impl Handler for Balancer {
             service_manager.add_service(WebAdminPanelService { configuration });
         }
 
-        #[cfg(feature = "compat_openai")]
         if let Some(compat_openai_addr) = self.compat_openai_addr {
             service_manager.add_service(OpenAIService {
                 buffered_request_manager,
