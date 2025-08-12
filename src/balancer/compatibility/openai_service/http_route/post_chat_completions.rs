@@ -127,6 +127,10 @@ struct OpenAICombinedResponseTransfomer {}
 impl TransformsOutgoingMessage for OpenAICombinedResponseTransfomer {
     type TransformedMessage = String;
 
+    fn stringify(&self, message: &Self::TransformedMessage) -> anyhow::Result<String> {
+        Ok(message.clone())
+    }
+
     async fn transform(
         &self,
         message: OutgoingMessage,
@@ -142,10 +146,6 @@ impl TransformsOutgoingMessage for OpenAICombinedResponseTransfomer {
             }) => Ok(token),
             _ => Err(anyhow!("Unexpected message type: {:?}", message)),
         }
-    }
-
-    fn stringify(&self, message: &Self::TransformedMessage) -> anyhow::Result<String> {
-        Ok(message.clone())
     }
 }
 
