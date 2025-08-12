@@ -8,8 +8,6 @@
 }
 
 .agentList {
-  --width-border-agent: 2px;
-
   animation: fadeIn 200ms ease-in-out;
   display: flex;
   flex-direction: column;
@@ -20,13 +18,13 @@
     background-color: var(--color-arrow);
     content: "";
     height: calc(
-      var(--width-border-agent) + 100% - var(--height-agent) -
+      var(--width-border-dashboard-box) + 100% - var(--height-agent) -
         calc(0.5 * var(--thickness-arrow))
     );
     left: calc(-1 * var(--spacing-base));
     pointer-events: none;
     position: absolute;
-    top: calc(var(--width-border-agent) + 0.5 * var(--height-agent));
+    top: calc(var(--width-border-dashboard-box) + 0.5 * var(--height-agent));
     transform: translate3d(-100%, 0, 0);
     width: var(--thickness-arrow);
   }

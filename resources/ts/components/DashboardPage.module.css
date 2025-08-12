@@ -2,6 +2,7 @@
   --color-arrow: var(--color-border);
   --height-agent: 92px;
   --thickness-arrow: 2px;
+  --width-border-dashboard-box: 2px;
 
   align-items: center;
   display: flex;
@@ -27,16 +28,20 @@
 }
 
 .dashboardPage__genericAddr {
-  border: 2px solid var(--color-border);
-  display: flex;
-  flex-direction: column;
-  padding: var(--spacing-base);
+  border: var(--width-border-dashboard-box) solid var(--color-border);
+}
+
+.dashboardPage__genericAddr.dashboardPage__inferenceAddr {
+  align-content: center;
+  display: grid;
+  grid-template-rows: repeat(2, auto);
+  height: var(--height-agent);
+  padding: 0 var(--spacing-base);
+  position: relative;
   row-gap: var(--spacing-half);
 }
 
-.dashboardPage__inferenceAddr {
-  position: relative;
-
+.dashboardPage__genericAddr.dashboardPage__inferenceServiceAddr {
   &::after,
   &::before {
     content: "";
@@ -60,8 +65,53 @@
     right: 0;
     position: absolute;
     top: calc(0.5 * var(--height-agent));
-    transform: translate3d(calc(var(--spacing-2x) + 2px), -50%, 0);
+    transform: translate3d(calc(var(--spacing-2x) + 1px), -50%, 0);
     width: 0px;
+  }
+}
+
+.dashboardPage__genericAddr.dashboardPage__compatibilityServiceAddr {
+  position: relative;
+
+  &::after {
+    background-color: var(--color-arrow);
+    content: "";
+    height: var(--thickness-arrow);
+    position: absolute;
+    top: calc(0.5 * var(--height-agent));
+    right: -1px;
+    transform: translate3d(100%, -50%, 0);
+    width: calc(var(--spacing-base) - 1px);
+  }
+}
+
+.dashboardPage__genericAddr.dashboardPage__managementAddr,
+.dashboardPage__genericAddr.dashboardPage__statsdAddr {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-base);
+  row-gap: var(--spacing-half);
+}
+
+.dashboardPage__inferenceAddrList {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  row-gap: var(--spacing-base);
+
+  &::after {
+    background-color: var(--color-arrow);
+    content: "";
+    height: calc(
+      var(--width-border-dashboard-box) + 100% - var(--height-agent) -
+        calc(0.5 * var(--thickness-arrow)) - 1px
+    );
+    right: calc(-1 * var(--spacing-base));
+    pointer-events: none;
+    position: absolute;
+    top: calc(var(--width-border-dashboard-box) + 0.5 * var(--height-agent));
+    transform: translate3d(-50%, 0, 0);
+    width: var(--thickness-arrow);
   }
 }
 
