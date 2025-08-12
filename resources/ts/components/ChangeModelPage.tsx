@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useContext } from "react";
 
+import { PaddlerConfigurationContext } from "../contexts/PaddlerConfigurationContext";
 import { useBalancerDesiredState } from "../hooks/useBalancerDesiredState";
 import { matchFetchJsonState } from "../matchFetchJsonState";
 import { type AgentDesiredModel } from "../schemas/AgentDesiredModel";
@@ -26,11 +27,8 @@ function modelSchemaToUrl(model: AgentDesiredModel): string {
   throw new Error(`Unsupported model schema: ${JSON.stringify(model)}`);
 }
 
-export function ChangeModelPage({
-  managementAddr,
-}: {
-  managementAddr: string;
-}) {
+export function ChangeModelPage() {
+  const { managementAddr } = useContext(PaddlerConfigurationContext);
   const loadingState = useBalancerDesiredState({ managementAddr });
 
   return matchFetchJsonState(loadingState, {
@@ -63,10 +61,7 @@ export function ChangeModelPage({
           <InferenceParametersContextProvider
             defaultInferenceParameters={inference_parameters}
           >
-            <ChangeModelForm
-              defaultModelUri={modelSchemaToUrl(model)}
-              managementAddr={managementAddr}
-            />
+            <ChangeModelForm defaultModelUri={modelSchemaToUrl(model)} />
           </InferenceParametersContextProvider>
         </ChatTemplateContextProvider>
       );

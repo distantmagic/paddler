@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useContext } from "react";
 
+import { PaddlerConfigurationContext } from "../contexts/PaddlerConfigurationContext";
 import { useEventSourceUpdates } from "../hooks/useEventSourceUpdates";
 import { matchEventSourceUpdateState } from "../matchEventSourceUpdateState";
 import { BufferedRequestsResponseSchema } from "../schemas/BufferedRequestsResponse";
@@ -7,15 +8,9 @@ import { BufferedRequests } from "./BufferedRequests";
 
 import { dashboardSectionStreamLoader } from "./dashboardSectionStreamLoader.module.css";
 
-export function BufferedRequestsStream({
-  bufferedRequestTimeoutMillis,
-  managementAddr,
-  maxBufferedRequests,
-}: {
-  bufferedRequestTimeoutMillis: number;
-  managementAddr: string;
-  maxBufferedRequests: number;
-}) {
+export function BufferedRequestsStream() {
+  const { managementAddr } = useContext(PaddlerConfigurationContext);
+
   const eventSourceUpdateState = useEventSourceUpdates({
     schema: BufferedRequestsResponseSchema,
     endpoint: `//${managementAddr}/api/v1/buffered_requests/stream`,
@@ -39,11 +34,7 @@ export function BufferedRequestsStream({
     },
     dataSnapshot({ data: { buffered_requests_current } }) {
       return (
-        <BufferedRequests
-          bufferedRequestTimeoutMillis={bufferedRequestTimeoutMillis}
-          currentBufferedRequests={buffered_requests_current}
-          maxBufferedRequests={maxBufferedRequests}
-        />
+        <BufferedRequests currentBufferedRequests={buffered_requests_current} />
       );
     },
     deserializationError() {

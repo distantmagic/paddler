@@ -1,22 +1,22 @@
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
-use actix_web::HttpResponse;
 use actix_web::Error;
+use actix_web::HttpResponse;
 use actix_web::post;
 use actix_web::web;
 use async_trait::async_trait;
 use nanoid::nanoid;
-use tokio_stream::StreamExt as _;
 use serde::Deserialize;
 use serde_json::json;
+use tokio_stream::StreamExt as _;
 
 use crate::balancer::chunk_forwarding_session_controller::transforms_outgoing_message::TransformsOutgoingMessage;
 use crate::balancer::compatibility::openai_service::app_data::AppData;
+use crate::balancer::http_stream_from_agent::http_stream_from_agent;
 use crate::balancer::inference_client::Message as OutgoingMessage;
 use crate::balancer::inference_client::Response as OutgoingResponse;
 use crate::balancer::unbounded_stream_from_agent::unbounded_stream_from_agent;
-use crate::balancer::http_stream_from_agent::http_stream_from_agent;
 use crate::conversation_message::ConversationMessage;
 use crate::generated_token_result::GeneratedTokenResult;
 use crate::jsonrpc::ResponseEnvelope;
@@ -151,7 +151,10 @@ async fn respond(
             app_data.inference_service_configuration.clone(),
             paddler_params,
             response_transformer,
-        )?.collect::<Vec<String>>().await.join("");
+        )?
+        .collect::<Vec<String>>()
+        .await
+        .join("");
 
         Ok(HttpResponse::Ok().json(json!({
           "id": nanoid!(),

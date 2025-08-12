@@ -1,5 +1,11 @@
-import React, { useCallback, useState, type MouseEvent } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useState,
+  type MouseEvent,
+} from "react";
 
+import { PaddlerConfigurationContext } from "../contexts/PaddlerConfigurationContext";
 import { CodeEditor } from "./CodeEditor";
 import { ModalWindow } from "./ModalWindow";
 
@@ -9,11 +15,8 @@ import {
   dashboardPageAddAgent__instructions,
 } from "./DashboardPageAddAgent.module.css";
 
-export function DashboardPageAddAgent({
-  managementAddr,
-}: {
-  managementAddr: string;
-}) {
+export function DashboardPageAddAgent() {
+  const { managementAddr } = useContext(PaddlerConfigurationContext);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
 
   const onClick = useCallback(
