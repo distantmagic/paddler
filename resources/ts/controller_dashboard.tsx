@@ -38,6 +38,7 @@ root.render(
       bufferedRequestTimeoutMillis: rootNode.getIntFromDataset(
         "bufferedRequestTimeoutMillis",
       ),
+      compatOpenAIAddr: rootNode.getStringFromDataset("compatOpenaiAddr"),
       inferenceAddr: rootNode.getStringFromDataset("inferenceAddr"),
       managementAddr: rootNode.getStringFromDataset("managementAddr"),
       maxBufferedRequests: rootNode.getIntFromDataset("maxBufferedRequests"),

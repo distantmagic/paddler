@@ -2,6 +2,7 @@ import { createContext } from "react";
 
 export type PaddlerConfigurationContextValue = {
   bufferedRequestTimeoutMillis: number;
+  compatOpenAIAddr: string;
   inferenceAddr: string;
   managementAddr: string;
   maxBufferedRequests: number;
@@ -13,6 +14,9 @@ export type PaddlerConfigurationContextValue = {
 export const PaddlerConfigurationContext =
   createContext<PaddlerConfigurationContextValue>({
     get bufferedRequestTimeoutMillis(): never {
+      throw new Error("PaddlerConfigurationContext not provided");
+    },
+    get compatOpenAIAddr(): never {
       throw new Error("PaddlerConfigurationContext not provided");
     },
     get inferenceAddr(): never {
