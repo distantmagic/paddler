@@ -4,7 +4,7 @@ import { jarmuz } from "jarmuz";
 
 jarmuz({
   once: true,
-  pipeline: ["prettier", "cargo-fmt"],
+  pipeline: ["cargo-fmt", "prettier"],
   watch: ["jarmuz", "resources", "src", "templates", "*.mjs"],
 }).decide(function ({ matches, schedule }) {
   switch (true) {

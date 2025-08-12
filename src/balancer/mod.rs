@@ -10,6 +10,7 @@ mod buffered_request_counter;
 pub mod buffered_request_manager;
 mod buffered_request_manager_snapshot;
 pub mod chat_template_override_sender_collection;
+pub mod compatibility;
 mod controls_manages_senders_endpoint;
 pub mod embedding_sender_collection;
 pub mod generate_tokens_sender_collection;
@@ -21,6 +22,7 @@ mod manages_senders;
 mod manages_senders_controller;
 pub mod model_metadata_sender_collection;
 pub mod reconciliation_service;
+mod request_from_agent;
 #[cfg(feature = "web_admin_panel")]
 mod response;
 pub mod state_database;
