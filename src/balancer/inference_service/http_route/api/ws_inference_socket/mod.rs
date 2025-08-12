@@ -1,4 +1,3 @@
-pub mod client;
 mod inference_socket_controller_context;
 pub mod jsonrpc;
 
@@ -16,11 +15,11 @@ use async_trait::async_trait;
 use log::error;
 use tokio::sync::broadcast;
 
-use self::client::Message as OutgoingMessage;
 use self::inference_socket_controller_context::InferenceSocketControllerContext;
 use self::jsonrpc::Message as InferenceJsonRpcMessage;
 use self::jsonrpc::Request as InferenceJsonRpcRequest;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
+use crate::balancer::inference_client::Message as OutgoingMessage;
 use crate::balancer::inference_service::app_data::AppData;
 use crate::balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::balancer::request_from_agent::request_from_agent;

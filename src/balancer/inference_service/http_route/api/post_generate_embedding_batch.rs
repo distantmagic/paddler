@@ -15,9 +15,10 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
+use crate::balancer::chunk_forwarding_session_controller::ChunkForwardingSessionController;
+use crate::balancer::chunk_forwarding_session_controller::identity_transformer::IdentityTransformer;
+use crate::balancer::inference_client::Message as OutgoingMessage;
 use crate::balancer::inference_service::app_data::AppData;
-use crate::balancer::inference_service::chunk_forwarding_session_controller::ChunkForwardingSessionController;
-use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Message as OutgoingMessage;
 use crate::balancer::request_from_agent::request_from_agent;
 use crate::controls_session::ControlsSession as _;
 use crate::jsonrpc::Error as JsonRpcError;
@@ -67,9 +68,8 @@ async fn respond(
 
         rt::spawn(async move {
             let request_id: String = nanoid!();
-            let mut session_controller = ChunkForwardingSessionController {
-                chunk_tx: chunk_tx_clone,
-            };
+            let mut session_controller =
+                ChunkForwardingSessionController::new(chunk_tx_clone, IdentityTransformer::new());
 
             if let Err(err) = request_from_agent(
                 buffered_request_manager_clone,
