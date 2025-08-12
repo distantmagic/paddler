@@ -5,7 +5,7 @@ use actix_web::web;
 
 use crate::balancer::chunk_forwarding_session_controller::identity_transformer::IdentityTransformer;
 use crate::balancer::inference_service::app_data::AppData;
-use crate::balancer::stream_from_agent::stream_from_agent;
+use crate::balancer::http_stream_from_agent::http_stream_from_agent;
 use crate::request_params::ContinueFromRawPromptParams;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
@@ -17,11 +17,10 @@ async fn respond(
     app_data: web::Data<AppData>,
     params: web::Json<ContinueFromRawPromptParams>,
 ) -> Result<impl Responder, Error> {
-    stream_from_agent(
+    http_stream_from_agent(
         app_data.buffered_request_manager.clone(),
         app_data.inference_service_configuration.clone(),
         params.into_inner(),
         IdentityTransformer::new(),
     )
-    .await
 }

@@ -8,7 +8,7 @@ use crate::validates::Validates as _;
 use crate::balancer::inference_service::app_data::AppData;
 use crate::request_params::ContinueFromConversationHistoryParams;
 use crate::request_params::continue_from_conversation_history_params::tool::tool_params::function_call::parameters_schema::raw_parameters_schema::RawParametersSchema;
-use crate::balancer::stream_from_agent::stream_from_agent;
+use crate::balancer::http_stream_from_agent::http_stream_from_agent;
 use crate::balancer::chunk_forwarding_session_controller::identity_transformer::IdentityTransformer;
 
 pub fn register(cfg: &mut web::ServiceConfig) {
@@ -20,7 +20,7 @@ async fn respond(
     app_data: web::Data<AppData>,
     params: web::Json<ContinueFromConversationHistoryParams<RawParametersSchema>>,
 ) -> Result<impl Responder, Error> {
-    stream_from_agent(
+    http_stream_from_agent(
         app_data.buffered_request_manager.clone(),
         app_data.inference_service_configuration.clone(),
         match params.into_inner().validate() {
@@ -33,5 +33,4 @@ async fn respond(
         },
         IdentityTransformer::new(),
     )
-    .await
 }

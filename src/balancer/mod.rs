@@ -11,6 +11,8 @@ pub mod buffered_request_manager;
 mod buffered_request_manager_snapshot;
 pub mod chat_template_override_sender_collection;
 mod chunk_forwarding_session_controller;
+mod http_stream_from_agent;
+mod unbounded_stream_from_agent;
 pub mod compatibility;
 mod controls_manages_senders_endpoint;
 pub mod embedding_sender_collection;
@@ -30,6 +32,5 @@ mod response;
 pub mod state_database;
 pub mod state_database_type;
 pub mod statsd_service;
-mod stream_from_agent;
 #[cfg(feature = "web_admin_panel")]
 pub mod web_admin_panel_service;
