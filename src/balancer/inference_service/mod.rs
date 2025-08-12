@@ -4,10 +4,8 @@ pub mod http_route;
 
 use std::sync::Arc;
 
-use actix_cors::Cors;
 use actix_web::App;
 use actix_web::HttpServer;
-use actix_web::http::header;
 use actix_web::web::Data;
 use anyhow::Result;
 use async_trait::async_trait;
@@ -21,24 +19,8 @@ use crate::balancer::inference_service::configuration::Configuration as Inferenc
 #[cfg(feature = "web_admin_panel")]
 use crate::balancer::web_admin_panel_service::configuration::Configuration as WebAdminPanelServiceConfiguration;
 use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
+use crate::create_cors_middleware::create_cors_middleware;
 use crate::service::Service;
-
-fn create_cors_middleware(allowed_hosts: Arc<Vec<String>>) -> Cors {
-    let mut cors = Cors::default()
-        .allowed_methods(vec!["GET", "POST", "OPTIONS"])
-        .allowed_headers(vec![
-            header::ACCEPT,
-            header::AUTHORIZATION,
-            header::CONTENT_TYPE,
-        ])
-        .max_age(3600);
-
-    for host in allowed_hosts.iter() {
-        cors = cors.allowed_origin(host);
-    }
-
-    cors
-}
 
 pub struct InferenceService {
     pub balancer_applicable_state_holder: Arc<BalancerApplicableStateHolder>,

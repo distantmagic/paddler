@@ -14,6 +14,10 @@ use super::parse_socket_addr;
 use crate::balancer::agent_controller_pool::AgentControllerPool;
 use crate::balancer::buffered_request_manager::BufferedRequestManager;
 use crate::balancer::chat_template_override_sender_collection::ChatTemplateOverrideSenderCollection;
+#[cfg(feature = "compat_openai")]
+use crate::balancer::compatibility::openai_service::OpenAIService;
+#[cfg(feature = "compat_openai")]
+use crate::balancer::compatibility::openai_service::configuration::Configuration as OpenAIServiceConfiguration;
 use crate::balancer::embedding_sender_collection::EmbeddingSenderCollection;
 use crate::balancer::generate_tokens_sender_collection::GenerateTokensSenderCollection;
 use crate::balancer::inference_service::InferenceService;
@@ -45,7 +49,7 @@ pub struct Balancer {
     buffered_request_timeout: Duration,
 
     #[cfg(feature = "compat_openai")]
-    #[arg(long, default_value = "127.0.0.1:8070", value_parser = parse_socket_addr)]
+    #[arg(long, value_parser = parse_socket_addr)]
     /// Address of the OpenAI-compatible API server (enabled only if this address is specified)
     compat_openai_addr: Option<SocketAddr>,
 
@@ -109,6 +113,14 @@ impl Balancer {
         }
     }
 
+    fn get_inference_service_configuration(&self) -> InferenceServiceConfiguration {
+        InferenceServiceConfiguration {
+            addr: self.inference_addr,
+            cors_allowed_hosts: self.inference_cors_allowed_hosts.clone(),
+            inference_item_timeout: self.inference_item_timeout,
+        }
+    }
+
     #[cfg(feature = "web_admin_panel")]
     fn get_web_admin_panel_service_configuration(
         &self,
@@ -158,11 +170,7 @@ impl Handler for Balancer {
         service_manager.add_service(InferenceService {
             balancer_applicable_state_holder: balancer_applicable_state_holder.clone(),
             buffered_request_manager: buffered_request_manager.clone(),
-            configuration: InferenceServiceConfiguration {
-                addr: self.inference_addr,
-                cors_allowed_hosts: self.inference_cors_allowed_hosts.clone(),
-                inference_item_timeout: self.inference_item_timeout,
-            },
+            configuration: self.get_inference_service_configuration(),
             #[cfg(feature = "web_admin_panel")]
             web_admin_panel_service_configuration: self.get_web_admin_panel_service_configuration(),
         });
@@ -193,7 +201,7 @@ impl Handler for Balancer {
         if let Some(statsd_addr) = self.statsd_addr {
             service_manager.add_service(StatsdService {
                 agent_controller_pool,
-                buffered_request_manager,
+                buffered_request_manager: buffered_request_manager.clone(),
                 configuration: StatsdServiceConfiguration {
                     statsd_addr,
                     statsd_prefix: self.statsd_prefix.clone(),
@@ -205,6 +213,17 @@ impl Handler for Balancer {
         #[cfg(feature = "web_admin_panel")]
         if let Some(configuration) = self.get_web_admin_panel_service_configuration() {
             service_manager.add_service(WebAdminPanelService { configuration });
+        }
+
+        #[cfg(feature = "compat_openai")]
+        if let Some(compat_openai_addr) = self.compat_openai_addr {
+            service_manager.add_service(OpenAIService {
+                buffered_request_manager,
+                inference_service_configuration: self.get_inference_service_configuration(),
+                openai_service_configuration: OpenAIServiceConfiguration {
+                    addr: compat_openai_addr,
+                },
+            });
         }
 
         service_manager.run_forever(shutdown_rx).await
