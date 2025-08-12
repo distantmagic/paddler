@@ -40,7 +40,7 @@ where
 {
     async fn send_response(&mut self, message: OutgoingMessage) -> anyhow::Result<()> {
         let transformed_message = self.transformer.transform(message).await?;
-        let stringified_message = serde_json::to_string(&transformed_message)?;
+        let stringified_message = self.transformer.stringify(&transformed_message)?;
 
         self.chunk_tx.send(stringified_message)?;
 
