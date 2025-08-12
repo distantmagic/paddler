@@ -5,6 +5,7 @@ use actix_web::Error;
 use actix_web::HttpResponse;
 use actix_web::post;
 use actix_web::web;
+use anyhow::anyhow;
 use async_trait::async_trait;
 use nanoid::nanoid;
 use serde::Deserialize;
@@ -61,16 +62,19 @@ struct OpenAICompletionRequestParams {
 }
 
 #[derive(Clone)]
-struct OpenAIResponseTransformer {
+struct OpenAIStreamingResponseTransformer {
     model: String,
     system_fingerprint: String,
 }
 
 #[async_trait]
-impl TransformsOutgoingMessage for OpenAIResponseTransformer {
+impl TransformsOutgoingMessage for OpenAIStreamingResponseTransformer {
     type TransformedMessage = serde_json::Value;
 
-    async fn transform(&self, message: OutgoingMessage) -> anyhow::Result<serde_json::Value> {
+    async fn transform(
+        &self,
+        message: OutgoingMessage,
+    ) -> anyhow::Result<Self::TransformedMessage> {
         match message {
             OutgoingMessage::Response(ResponseEnvelope {
                 request_id,
@@ -116,6 +120,31 @@ impl TransformsOutgoingMessage for OpenAIResponseTransformer {
     }
 }
 
+#[derive(Clone)]
+struct OpenAICombinedResponseTransfomer {}
+
+#[async_trait]
+impl TransformsOutgoingMessage for OpenAICombinedResponseTransfomer {
+    type TransformedMessage = String;
+
+    async fn transform(
+        &self,
+        message: OutgoingMessage,
+    ) -> anyhow::Result<Self::TransformedMessage> {
+        match message {
+            OutgoingMessage::Response(ResponseEnvelope {
+                response: OutgoingResponse::GeneratedToken(GeneratedTokenResult::Done),
+                ..
+            }) => Ok("".to_string()),
+            OutgoingMessage::Response(ResponseEnvelope {
+                response: OutgoingResponse::GeneratedToken(GeneratedTokenResult::Token(token)),
+                ..
+            }) => Ok(token),
+            _ => Err(anyhow!("Unexpected message type: {:?}", message)),
+        }
+    }
+}
+
 #[post("/v1/chat_completions")]
 async fn respond(
     app_data: web::Data<AppData>,
@@ -133,24 +162,22 @@ async fn respond(
         tools: vec![],
     };
 
-    let response_transformer = OpenAIResponseTransformer {
-        model: openai_params.model.clone(),
-        system_fingerprint: nanoid!(),
-    };
-
     if openai_params.stream {
         http_stream_from_agent(
             app_data.buffered_request_manager.clone(),
             app_data.inference_service_configuration.clone(),
             paddler_params,
-            response_transformer,
+            OpenAIStreamingResponseTransformer {
+                model: openai_params.model.clone(),
+                system_fingerprint: nanoid!(),
+            },
         )
     } else {
         let combined_response = unbounded_stream_from_agent(
             app_data.buffered_request_manager.clone(),
             app_data.inference_service_configuration.clone(),
             paddler_params,
-            response_transformer,
+            OpenAICombinedResponseTransfomer {},
         )?
         .collect::<Vec<String>>()
         .await
