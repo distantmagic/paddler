@@ -6,7 +6,7 @@ use serde::Serialize;
 use crate::rpc_message::RpcMessage;
 
 #[async_trait]
-pub trait SessionController<TResponse>: Send + Sync
+pub trait ControlsSession<TResponse>: Send + Sync
 where
     TResponse: RpcMessage + Send + Serialize + Sync + 'static,
 {

@@ -18,25 +18,25 @@ use crate::balancer::inference_service::http_route::api::ws_inference_socket::cl
 use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Response as OutgoingResponse;
 use crate::balancer::manages_senders::ManagesSenders;
 use crate::balancer::manages_senders_controller::ManagesSendersController;
+use crate::controls_session::ControlsSession;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::ErrorEnvelope;
 use crate::jsonrpc::ResponseEnvelope;
-use crate::session_controller::SessionController;
 use crate::streamable_result::StreamableResult;
 
-pub async fn request_from_agent<TParams, TSessionController>(
+pub async fn request_from_agent<TParams, TControlsSession>(
     buffered_request_manager: Arc<BufferedRequestManager>,
     connection_close_tx: broadcast::Sender<()>,
     inference_service_configuration: InferenceServiceConfiguration,
     params: TParams,
     request_id: String,
-    mut session_controller: TSessionController,
+    mut session_controller: TControlsSession,
 ) -> Result<()>
 where
     TParams: Debug + Into<AgentJsonRpcRequest> + Send,
     AgentController: HandlesAgentStreamingResponse<TParams>,
     <<AgentController as HandlesAgentStreamingResponse<TParams>>::SenderCollection as ManagesSenders>::Value: Debug + Into<OutgoingResponse> + StreamableResult,
-    TSessionController: SessionController<OutgoingMessage>,
+    TControlsSession: ControlsSession<OutgoingMessage>,
 {
     match wait_for_agent_controller(
         buffered_request_manager.clone(),
@@ -85,18 +85,18 @@ where
     }
 }
 
-async fn forward_responses_stream<TManagesSenders, TSessionController>(
+async fn forward_responses_stream<TManagesSenders, TControlsSession>(
     agent_controller: Arc<AgentController>,
     mut connection_close_rx: broadcast::Receiver<()>,
     inference_service_configuration: InferenceServiceConfiguration,
     mut receive_response_controller: ManagesSendersController<TManagesSenders>,
     request_id: String,
-    mut session_controller: TSessionController,
+    mut session_controller: TControlsSession,
 ) -> Result<()>
 where
     TManagesSenders: ManagesSenders + Send + Sync,
     TManagesSenders::Value: Debug + Into<OutgoingResponse> + Send + StreamableResult,
-    TSessionController: SessionController<OutgoingMessage>,
+    TControlsSession: ControlsSession<OutgoingMessage>,
 {
     debug!("Found available agent controller for request: {request_id:?}");
 
@@ -169,12 +169,12 @@ where
     Ok(())
 }
 
-async fn respond_with_error<TSessionController>(
+async fn respond_with_error<TControlsSession>(
     error: JsonRpcError,
     request_id: String,
-    session_controller: &mut TSessionController,
+    session_controller: &mut TControlsSession,
 ) where
-    TSessionController: SessionController<OutgoingMessage>,
+    TControlsSession: ControlsSession<OutgoingMessage>,
 {
     session_controller
         .send_response(OutgoingMessage::Error(ErrorEnvelope {
@@ -187,14 +187,14 @@ async fn respond_with_error<TSessionController>(
         });
 }
 
-async fn send_response_to_client<TResponse, TSessionController>(
+async fn send_response_to_client<TResponse, TControlsSession>(
     agent_controller: Arc<AgentController>,
     response: TResponse,
     request_id: String,
-    session_controller: &mut TSessionController,
+    session_controller: &mut TControlsSession,
 ) where
     TResponse: Into<OutgoingResponse> + Send,
-    TSessionController: SessionController<OutgoingMessage>,
+    TControlsSession: ControlsSession<OutgoingMessage>,
 {
     if let Err(err) = session_controller
         .send_response(OutgoingMessage::Response(ResponseEnvelope {
@@ -214,14 +214,14 @@ async fn send_response_to_client<TResponse, TSessionController>(
     }
 }
 
-async fn wait_for_agent_controller<TSessionController>(
+async fn wait_for_agent_controller<TControlsSession>(
     buffered_request_manager: Arc<BufferedRequestManager>,
     mut connection_close_rx: broadcast::Receiver<()>,
     request_id: String,
-    session_controller: &mut TSessionController,
+    session_controller: &mut TControlsSession,
 ) -> Result<Option<Arc<AgentController>>>
 where
-    TSessionController: SessionController<OutgoingMessage>,
+    TControlsSession: ControlsSession<OutgoingMessage>,
 {
     let buffered_request_manager = buffered_request_manager.clone();
 
