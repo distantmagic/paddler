@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use tokio::sync::mpsc;
 
 use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Message as OutgoingMessage;
-use crate::session_controller::SessionController;
+use crate::controls_session::ControlsSession;
 
 #[derive(Clone)]
 pub struct ChunkForwardingSessionController {
@@ -10,7 +10,7 @@ pub struct ChunkForwardingSessionController {
 }
 
 #[async_trait]
-impl SessionController<OutgoingMessage> for ChunkForwardingSessionController {
+impl ControlsSession<OutgoingMessage> for ChunkForwardingSessionController {
     async fn send_response(&mut self, message: OutgoingMessage) -> anyhow::Result<()> {
         self.chunk_tx.send(serde_json::to_string(&message)?)?;
 

@@ -19,10 +19,10 @@ use crate::balancer::inference_service::app_data::AppData;
 use crate::balancer::inference_service::chunk_forwarding_session_controller::ChunkForwardingSessionController;
 use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Message as OutgoingMessage;
 use crate::balancer::request_from_agent::request_from_agent;
+use crate::controls_session::ControlsSession as _;
 use crate::jsonrpc::Error as JsonRpcError;
 use crate::jsonrpc::ErrorEnvelope;
 use crate::request_params::GenerateEmbeddingBatchParams;
-use crate::session_controller::SessionController as _;
 
 const CHARACTERS_PER_TOKEN_APPROXIMATELY: usize = 3;
 

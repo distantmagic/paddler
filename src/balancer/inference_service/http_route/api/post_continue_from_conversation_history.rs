@@ -21,7 +21,7 @@ use crate::balancer::request_from_agent::request_from_agent;
 use crate::request_params::ContinueFromConversationHistoryParams;
 use crate::request_params::continue_from_conversation_history_params::tool::tool_params::function_call::parameters_schema::raw_parameters_schema::RawParametersSchema;
 use crate::jsonrpc::Error as JsonRpcError;
-use crate::session_controller::SessionController as _;
+use crate::controls_session::ControlsSession as _;
 use crate::jsonrpc::ErrorEnvelope;
 use crate::balancer::inference_service::http_route::api::ws_inference_socket::client::Message as OutgoingMessage;
 

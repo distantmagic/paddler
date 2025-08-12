@@ -5,8 +5,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde::Serialize;
 
+use crate::controls_session::ControlsSession;
 use crate::rpc_message::RpcMessage;
-use crate::session_controller::SessionController;
 
 pub struct WebSocketSessionController<TResponse>
 where
@@ -29,7 +29,7 @@ where
 }
 
 #[async_trait]
-impl<TResponse> SessionController<TResponse> for WebSocketSessionController<TResponse>
+impl<TResponse> ControlsSession<TResponse> for WebSocketSessionController<TResponse>
 where
     TResponse: RpcMessage + Send + Serialize + Sync + 'static,
 {
