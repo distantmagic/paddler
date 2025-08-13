@@ -18,6 +18,6 @@ impl TransformsOutgoingMessage for IdentityTransformer {
     type TransformedMessage = OutgoingMessage;
 
     async fn transform(&self, message: OutgoingMessage) -> Result<Self::TransformedMessage> {
-        return Ok(message);
+        Ok(message)
     }
 }
