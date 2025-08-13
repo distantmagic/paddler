@@ -121,10 +121,10 @@ impl TransformsOutgoingMessage for OpenAIStreamingResponseTransformer {
 }
 
 #[derive(Clone)]
-struct OpenAICombinedResponseTransfomer {}
+struct OpenAICombinedResponseTransformer {}
 
 #[async_trait]
-impl TransformsOutgoingMessage for OpenAICombinedResponseTransfomer {
+impl TransformsOutgoingMessage for OpenAICombinedResponseTransformer {
     type TransformedMessage = String;
 
     fn stringify(&self, message: &Self::TransformedMessage) -> anyhow::Result<String> {
@@ -181,7 +181,7 @@ async fn respond(
             app_data.buffered_request_manager.clone(),
             app_data.inference_service_configuration.clone(),
             paddler_params,
-            OpenAICombinedResponseTransfomer {},
+            OpenAICombinedResponseTransformer {},
         )?
         .collect::<Vec<String>>()
         .await
