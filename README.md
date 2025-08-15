@@ -29,9 +29,7 @@ Visit our [documentation page](https://paddler.intentee.com/docs/introduction/wh
 
 [API documentation](https://paddler.intentee.com/api/introduction/using-paddler-api/) is also available.
 
-## Video overview
-
-[![Paddler video overview](https://github.com/user-attachments/assets/71954cc0-a33e-44b5-aa8d-c72223dd365f)](https://www.youtube.com/watch?v=aT6QCL8lk08)
+[Video overview](https://www.youtube.com/watch?v=aT6QCL8lk08)
 
 ## Installation
 
