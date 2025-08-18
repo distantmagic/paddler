@@ -1,11 +1,11 @@
 [package]
-name = "paddler"
-edition = "2024"
-description = "Open-source LLMOps platform for hosting and scaling AI in your own infrastructure"
-license = "Apache-2.0"
 authors = ["Intentee"]
+description = "Open-source LLMOps platform for hosting and scaling AI in your own infrastructure"
+edition = "2024"
+homepage = "https://paddler.intentee.com/"
+license = "Apache-2.0"
+name = "paddler"
 repository = "https://github.com/intentee/paddler"
-documentation = "https://paddler.intentee.com"
 version = "2.1.1"
 
 [dependencies]
