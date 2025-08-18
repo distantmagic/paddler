@@ -6,7 +6,7 @@ license = "Apache-2.0"
 authors = ["Intentee"]
 repository = "https://github.com/intentee/paddler"
 documentation = "https://paddler.intentee.com"
-version = "2.1.0"
+version = "2.1.1"
 
 [dependencies]
 actix = "0.13.5"
