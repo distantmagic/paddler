@@ -12,12 +12,6 @@ pub struct ReceiveStreamStopperCollection {
 }
 
 impl ReceiveStreamStopperCollection {
-    pub fn new() -> Self {
-        Self {
-            receive_stoppers: DashMap::new(),
-        }
-    }
-
     pub fn deregister_stopper(&self, request_id: String) -> Result<()> {
         if let Some(stopper) = self.receive_stoppers.remove(&request_id) {
             drop(stopper);
@@ -64,6 +58,14 @@ impl ReceiveStreamStopperCollection {
             Ok(())
         } else {
             Err(anyhow!("No stopper found for request_id {request_id}"))
+        }
+    }
+}
+
+impl Default for ReceiveStreamStopperCollection {
+    fn default() -> Self {
+        Self {
+            receive_stoppers: DashMap::new(),
         }
     }
 }

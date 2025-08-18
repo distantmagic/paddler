@@ -8,12 +8,6 @@ pub struct BalancerApplicableStateHolder {
 }
 
 impl BalancerApplicableStateHolder {
-    pub fn new() -> Self {
-        Self {
-            balancer_applicable_state: RwLock::new(None),
-        }
-    }
-
     pub fn get_agent_desired_state(&self) -> Option<AgentDesiredState> {
         self.balancer_applicable_state
             .read()
@@ -32,5 +26,13 @@ impl BalancerApplicableStateHolder {
             .expect("Failed to get balancer state lock");
 
         *lock = balancer_applicable_state;
+    }
+}
+
+impl Default for BalancerApplicableStateHolder {
+    fn default() -> Self {
+        Self {
+            balancer_applicable_state: RwLock::new(None),
+        }
     }
 }

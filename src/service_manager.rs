@@ -10,17 +10,12 @@ use tokio::sync::oneshot;
 
 use crate::service::Service;
 
+#[derive(Default)]
 pub struct ServiceManager {
     services: Vec<Box<dyn Service>>,
 }
 
 impl ServiceManager {
-    pub fn new() -> Self {
-        Self {
-            services: Vec::new(),
-        }
-    }
-
     pub fn add_service<TService: Service>(&mut self, service: TService) {
         self.services.push(Box::new(service));
     }

@@ -9,8 +9,8 @@ pub struct EmbeddingSenderCollection {
     senders: DashMap<String, mpsc::UnboundedSender<EmbeddingResult>>,
 }
 
-impl EmbeddingSenderCollection {
-    pub fn new() -> Self {
+impl Default for EmbeddingSenderCollection {
+    fn default() -> Self {
         Self {
             senders: DashMap::new(),
         }

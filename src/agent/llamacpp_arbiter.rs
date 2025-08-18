@@ -98,7 +98,7 @@ impl LlamaCppArbiter {
                 return Err(anyhow!(message));
             }
 
-            let mut model_metadata = ModelMetadata::new();
+            let mut model_metadata = ModelMetadata::default();
 
             for i in 0..model.meta_count() {
                 model_metadata

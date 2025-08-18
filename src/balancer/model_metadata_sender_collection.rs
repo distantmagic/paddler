@@ -9,8 +9,8 @@ pub struct ModelMetadataSenderCollection {
     senders: DashMap<String, mpsc::UnboundedSender<Option<ModelMetadata>>>,
 }
 
-impl ModelMetadataSenderCollection {
-    pub fn new() -> Self {
+impl Default for ModelMetadataSenderCollection {
+    fn default() -> Self {
         Self {
             senders: DashMap::new(),
         }

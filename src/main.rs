@@ -1,70 +1,15 @@
-mod agent;
-mod agent_applicable_state;
-mod agent_applicable_state_holder;
-mod agent_desired_model;
-mod agent_desired_state;
-mod agent_issue;
-mod agent_issue_fix;
-mod agent_issue_params;
-mod agent_state_application_status;
-mod atomic_value;
-mod balancer;
-mod balancer_applicable_state;
-mod balancer_applicable_state_holder;
-mod balancer_desired_state;
-mod chat_template;
-mod chat_template_renderer;
-mod cmd;
-mod controls_session;
-mod controls_websocket_endpoint;
-mod conversation_message;
-mod converts_to_applicable_state;
-mod create_cors_middleware;
-mod dispenses_slots;
-mod embedding;
-mod embedding_input_document;
-mod embedding_input_tokenized;
-mod embedding_normalization_method;
-mod embedding_result;
-mod generated_token_result;
-mod huggingface_model_reference;
-mod inference_parameters;
-mod jsonrpc;
-mod model_metadata;
-mod normalization;
-mod pooling_type;
-mod produces_snapshot;
-mod request_params;
-mod rpc_message;
-mod sends_rpc_message;
-mod service;
-mod service_manager;
-mod sets_desired_state;
-mod slot_aggregated_status;
-mod slot_aggregated_status_download_progress;
-mod slot_aggregated_status_manager;
-mod slot_aggregated_status_snapshot;
-mod slot_request_drop_guard;
-mod slot_status;
-#[cfg(feature = "web_admin_panel")]
-mod static_files;
-mod streamable_result;
-mod validates;
-mod websocket_session_controller;
-
 use anyhow::Result;
 use clap::Parser;
 use clap::Subcommand;
 #[cfg(feature = "web_admin_panel")]
 use esbuild_metafile::instance::initialize_instance;
 use log::info;
+use paddler::cmd::agent::Agent;
+use paddler::cmd::balancer::Balancer;
+use paddler::cmd::handler::Handler as _;
 use tokio::signal::unix::SignalKind;
 use tokio::signal::unix::signal;
 use tokio::sync::oneshot;
-
-use crate::cmd::agent::Agent;
-use crate::cmd::balancer::Balancer;
-use crate::cmd::handler::Handler as _;
 
 #[cfg(feature = "web_admin_panel")]
 pub const ESBUILD_META_CONTENTS: &str = include_str!("../esbuild-meta.json");
