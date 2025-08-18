@@ -9,8 +9,8 @@ pub struct ChatTemplateOverrideSenderCollection {
     senders: DashMap<String, mpsc::UnboundedSender<Option<ChatTemplate>>>,
 }
 
-impl ChatTemplateOverrideSenderCollection {
-    pub fn new() -> Self {
+impl Default for ChatTemplateOverrideSenderCollection {
+    fn default() -> Self {
         Self {
             senders: DashMap::new(),
         }

@@ -144,19 +144,19 @@ impl Handler for Balancer {
     async fn handle(&self, shutdown_rx: oneshot::Receiver<()>) -> Result<()> {
         let (balancer_desired_state_tx, balancer_desired_state_rx) = broadcast::channel(100);
 
-        let agent_controller_pool = Arc::new(AgentControllerPool::new());
-        let balancer_applicable_state_holder = Arc::new(BalancerApplicableStateHolder::new());
+        let agent_controller_pool = Arc::new(AgentControllerPool::default());
+        let balancer_applicable_state_holder = Arc::new(BalancerApplicableStateHolder::default());
         let buffered_request_manager = Arc::new(BufferedRequestManager::new(
             agent_controller_pool.clone(),
             self.buffered_request_timeout,
             self.max_buffered_requests,
         ));
         let chat_template_override_sender_collection =
-            Arc::new(ChatTemplateOverrideSenderCollection::new());
-        let embedding_sender_collection = Arc::new(EmbeddingSenderCollection::new());
-        let generate_tokens_sender_collection = Arc::new(GenerateTokensSenderCollection::new());
-        let model_metadata_sender_collection = Arc::new(ModelMetadataSenderCollection::new());
-        let mut service_manager = ServiceManager::new();
+            Arc::new(ChatTemplateOverrideSenderCollection::default());
+        let embedding_sender_collection = Arc::new(EmbeddingSenderCollection::default());
+        let generate_tokens_sender_collection = Arc::new(GenerateTokensSenderCollection::default());
+        let model_metadata_sender_collection = Arc::new(ModelMetadataSenderCollection::default());
+        let mut service_manager = ServiceManager::default();
         let state_database: Arc<dyn StateDatabase> = match &self.state_database {
             StateDatabaseType::File(path) => Arc::new(File::new(
                 balancer_desired_state_tx.clone(),

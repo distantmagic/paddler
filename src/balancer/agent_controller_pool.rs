@@ -19,13 +19,6 @@ pub struct AgentControllerPool {
 }
 
 impl AgentControllerPool {
-    pub fn new() -> Self {
-        AgentControllerPool {
-            agents: DashMap::new(),
-            update_notifier: Arc::new(Notify::new()),
-        }
-    }
-
     pub fn take_least_busy_agent_controller(&self) -> Option<Arc<AgentController>> {
         let agent_controller: Option<Arc<AgentController>> = self
             .agents
@@ -86,6 +79,15 @@ impl AgentControllerPool {
         AgentControllerPoolTotalSlots {
             slots_processing,
             slots_total,
+        }
+    }
+}
+
+impl Default for AgentControllerPool {
+    fn default() -> Self {
+        AgentControllerPool {
+            agents: DashMap::new(),
+            update_notifier: Arc::new(Notify::new()),
         }
     }
 }
