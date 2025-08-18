@@ -11,15 +11,6 @@ pub struct AgentApplicableStateHolder {
 }
 
 impl AgentApplicableStateHolder {
-    pub fn new() -> Self {
-        let (change_notifier, _) = watch::channel::<Option<AgentApplicableState>>(None);
-
-        Self {
-            agent_applicable_state: RwLock::new(None),
-            change_notifier,
-        }
-    }
-
     pub fn get_agent_applicable_state(&self) -> Option<AgentApplicableState> {
         self.agent_applicable_state
             .read()
@@ -45,5 +36,16 @@ impl AgentApplicableStateHolder {
 
     pub fn subscribe(&self) -> watch::Receiver<Option<AgentApplicableState>> {
         self.change_notifier.subscribe()
+    }
+}
+
+impl Default for AgentApplicableStateHolder {
+    fn default() -> Self {
+        let (change_notifier, _) = watch::channel(None);
+
+        Self {
+            agent_applicable_state: RwLock::new(None),
+            change_notifier,
+        }
     }
 }

@@ -9,8 +9,8 @@ pub struct GenerateTokensSenderCollection {
     senders: DashMap<String, mpsc::UnboundedSender<GeneratedTokenResult>>,
 }
 
-impl GenerateTokensSenderCollection {
-    pub fn new() -> Self {
+impl Default for GenerateTokensSenderCollection {
+    fn default() -> Self {
         Self {
             senders: DashMap::new(),
         }

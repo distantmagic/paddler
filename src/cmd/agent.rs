@@ -16,7 +16,6 @@ use crate::agent::generate_embedding_batch_request::GenerateEmbeddingBatchReques
 use crate::agent::llamacpp_arbiter_service::LlamaCppArbiterService;
 use crate::agent::management_socket_client_service::ManagementSocketClientService;
 use crate::agent::model_metadata_holder::ModelMetadataHolder;
-use crate::agent::receive_stream_stopper_collection::ReceiveStreamStopperCollection;
 use crate::agent::reconciliation_service::ReconciliationService;
 use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
 use crate::agent_desired_state::AgentDesiredState;
@@ -52,9 +51,9 @@ impl Handler for Agent {
         let (generate_embedding_batch_request_tx, generate_embedding_batch_request_rx) =
             mpsc::unbounded_channel::<GenerateEmbeddingBatchRequest>();
 
-        let agent_applicable_state_holder = Arc::new(AgentApplicableStateHolder::new());
-        let model_metadata_holder = Arc::new(ModelMetadataHolder::new());
-        let mut service_manager = ServiceManager::new();
+        let agent_applicable_state_holder = Arc::new(AgentApplicableStateHolder::default());
+        let model_metadata_holder = Arc::new(ModelMetadataHolder::default());
+        let mut service_manager = ServiceManager::default();
         let slot_aggregated_status_manager = Arc::new(SlotAggregatedStatusManager::new(self.slots));
 
         service_manager.add_service(LlamaCppArbiterService {
@@ -78,7 +77,7 @@ impl Handler for Agent {
             generate_embedding_batch_request_tx,
             model_metadata_holder,
             name: self.name.clone(),
-            receive_stream_stopper_collection: Arc::new(ReceiveStreamStopperCollection::new()),
+            receive_stream_stopper_collection: Default::default(),
             slot_aggregated_status: slot_aggregated_status_manager
                 .slot_aggregated_status
                 .clone(),
