@@ -12,6 +12,7 @@ Paddler is an open-source LLMOps platform for organizations that host and scale 
 * Load balancing
 * Works through agents that can be added dynamically, allowing integration with autoscaling tools
 * Request buffering, enabling scaling from zero hosts
+* Dynamic model swapping
 * Built-in web admin panel for management, monitoring and testing
 * Observability metrics
 
