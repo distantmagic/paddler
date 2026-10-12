@@ -5,9 +5,16 @@ use llama_cpp_bindings::model::LlamaModel;
 use llama_cpp_bindings::model::ParseSpecialTokens;
 use llama_cpp_bindings::token::LlamaToken;
 
+use paddler_messaging::chat_template_message::ChatTemplateMessage;
+use paddler_messaging::chat_template_message_content::ChatTemplateMessageContent;
+
+use crate::chat_prompt_render_request::ChatPromptRenderRequest;
+use crate::chat_prompt_renderer::ChatPromptRenderer;
 use crate::model_bos_token::ModelBosToken;
 use crate::require_prompt_fits_sequence_context::require_prompt_fits_sequence_context;
 use crate::text_generation_error::TextGenerationError;
+
+const LEADING_BOS_PROBE_TEXT: &str = "hi";
 
 pub struct PromptTokenizer {
     pub model: Arc<LlamaModel>,
@@ -16,11 +23,24 @@ pub struct PromptTokenizer {
 }
 
 impl PromptTokenizer {
-    pub fn renders_its_own_bos_token(&self, prompt: &str) -> Result<bool, TextGenerationError> {
-        self.tokens_with_special_tokens(prompt)
-            .map(|prompt_tokens| {
+    pub fn template_renders_its_own_bos_token(
+        &self,
+        chat_prompt_renderer: &ChatPromptRenderer,
+    ) -> Result<bool, TextGenerationError> {
+        let probe_prompt = chat_prompt_renderer.render(ChatPromptRenderRequest {
+            add_generation_prompt: true,
+            enable_thinking: false,
+            messages: &[ChatTemplateMessage {
+                content: ChatTemplateMessageContent::Text(LEADING_BOS_PROBE_TEXT.to_owned()),
+                role: "user".to_owned(),
+            }],
+            tools: &[],
+        })?;
+
+        self.tokens_with_special_tokens(&probe_prompt)
+            .map(|probe_tokens| {
                 self.model_bos_token
-                    .is_duplicated_at_start_of(&prompt_tokens)
+                    .is_duplicated_at_start_of(&probe_tokens)
             })
     }
 

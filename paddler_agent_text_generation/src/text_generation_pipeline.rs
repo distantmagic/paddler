@@ -120,12 +120,18 @@ impl TextGenerationPipeline {
                     .into_llama_context_params(),
                 )?;
                 let sequence_context_size = llama_context.n_ctx_seq();
+                let prompt_tokenizer = PromptTokenizer {
+                    model: loaded_llama_model.model.clone(),
+                    model_bos_token: ModelBosToken::of(&loaded_llama_model.model),
+                    sequence_context_size,
+                };
 
                 continue_startup_unless_shutting_down(agent_shutdown, || {
                     let image_input = self.image_input(
                         &loaded_llama_model.model,
                         &llama_context,
-                        sequence_context_size,
+                        &prompt_tokenizer,
+                        &token_generation_support.chat_prompt_renderer,
                     )?;
                     let mut batch = LlamaBatch::new(
                         self.model_runtime_parameters.n_batch.tokens_usize(),
@@ -154,13 +160,7 @@ impl TextGenerationPipeline {
                                             .text_generation_settings
                                             .image_resize_to_fit,
                                         loaded_llama_model: loaded_llama_model.clone(),
-                                        prompt_tokenizer: PromptTokenizer {
-                                            model: loaded_llama_model.model.clone(),
-                                            model_bos_token: ModelBosToken::of(
-                                                &loaded_llama_model.model,
-                                            ),
-                                            sequence_context_size,
-                                        },
+                                        prompt_tokenizer,
                                         sampler_chain_factory: SamplerChainFactory {
                                             sampling_parameters: self
                                                 .text_generation_settings
@@ -308,7 +308,8 @@ impl TextGenerationPipeline {
         &self,
         model: &LlamaModel,
         llama_context: &LlamaContext<'_>,
-        sequence_context_size: u32,
+        prompt_tokenizer: &PromptTokenizer,
+        chat_prompt_renderer: &ChatPromptRenderer,
     ) -> Result<ImageInput, TextGenerationError> {
         let MultimodalProjection::File(multimodal_projection_path) =
             &self.text_generation_settings.multimodal_projection
@@ -335,13 +336,15 @@ impl TextGenerationPipeline {
                 );
 
                 Ok(ImageInput::Supported(MultimodalPromptSupport {
+                    add_special_tokens: !prompt_tokenizer
+                        .template_renders_its_own_bos_token(chat_prompt_renderer)?,
                     micro_batch_tokens: micro_batch_tokens(
                         llama_context,
                         self.model_runtime_parameters.n_batch.tokens(),
                     ),
                     multimodal_context: Arc::new(multimodal_context),
                     n_batch: self.model_runtime_parameters.n_batch.tokens_i32(),
-                    sequence_context_size,
+                    sequence_context_size: prompt_tokenizer.sequence_context_size,
                 }))
             }
             Err(source) => {

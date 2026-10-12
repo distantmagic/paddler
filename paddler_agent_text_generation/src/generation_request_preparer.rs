@@ -129,22 +129,15 @@ impl GenerationRequestPreparer {
         })?;
 
         let prompt = match prompt_modality {
-            PromptModality::Multimodal(multimodal_prompt_support) => {
-                let add_special_tokens = !self
-                    .prompt_tokenizer
-                    .renders_its_own_bos_token(&raw_prompt)?;
-
-                PreparedPrompt::Multimodal(
-                    multimodal_prompt_support.prepare_prompt(
-                        &image_urls
-                            .iter()
-                            .map(|image_url| self.decode_image_bitmap(image_url))
-                            .collect::<Result<Vec<MtmdBitmap>, TextGenerationError>>()?,
-                        raw_prompt,
-                        add_special_tokens,
-                    )?,
-                )
-            }
+            PromptModality::Multimodal(multimodal_prompt_support) => PreparedPrompt::Multimodal(
+                multimodal_prompt_support.prepare_prompt(
+                    &image_urls
+                        .iter()
+                        .map(|image_url| self.decode_image_bitmap(image_url))
+                        .collect::<Result<Vec<MtmdBitmap>, TextGenerationError>>()?,
+                    raw_prompt,
+                )?,
+            ),
             PromptModality::TextOnly => {
                 PreparedPrompt::TextTokens(self.prompt_tokenizer.tokenize(&raw_prompt)?)
             }

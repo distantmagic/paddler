@@ -38,6 +38,7 @@ fn a_multimodal_prompt_that_cannot_be_ingested_ends_the_generation() {
     let sequence_context_size = llama_context.n_ctx_seq();
     let n_batch = runtime.model_runtime_parameters.n_batch;
     let mut ingestion = MultimodalPromptSupport {
+        add_special_tokens: true,
         micro_batch_tokens: micro_batch_tokens(&llama_context, n_batch.tokens()),
         multimodal_context: Arc::new(
             MtmdContext::init_from_file(
@@ -54,7 +55,7 @@ fn a_multimodal_prompt_that_cannot_be_ingested_ends_the_generation() {
         n_batch: n_batch.tokens_i32(),
         sequence_context_size,
     }
-    .prepare_prompt(&[], "Describe the picture".to_owned(), true)
+    .prepare_prompt(&[], "Describe the picture".to_owned())
     .expect("the multimodal prompt must be prepared");
 
     ingestion.next_chunk_index = ingestion.chunks.len();

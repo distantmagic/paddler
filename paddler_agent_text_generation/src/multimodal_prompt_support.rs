@@ -9,6 +9,7 @@ use crate::require_prompt_fits_sequence_context::require_prompt_fits_sequence_co
 use crate::text_generation_error::TextGenerationError;
 
 pub struct MultimodalPromptSupport {
+    pub add_special_tokens: bool,
     pub micro_batch_tokens: u32,
     pub multimodal_context: Arc<MtmdContext>,
     pub n_batch: i32,
@@ -20,7 +21,6 @@ impl MultimodalPromptSupport {
         &self,
         bitmaps: &[MtmdBitmap],
         text: String,
-        add_special_tokens: bool,
     ) -> Result<MultimodalPromptIngestion, TextGenerationError> {
         let bitmap_refs: Vec<&MtmdBitmap> = bitmaps.iter().collect();
         let chunks = self
@@ -28,7 +28,7 @@ impl MultimodalPromptSupport {
             .tokenize(
                 MtmdInputText {
                     text,
-                    add_special: add_special_tokens,
+                    add_special: self.add_special_tokens,
                     parse_special: true,
                 },
                 &bitmap_refs,
