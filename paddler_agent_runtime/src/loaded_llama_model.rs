@@ -40,6 +40,7 @@ fn read_model_metadata(model: &LlamaModel) -> Result<ModelMetadata, AgentRuntime
 pub struct LoadedLlamaModel {
     pub llama_backend: Arc<LlamaBackend>,
     pub model: Arc<LlamaModel>,
+    pub model_metadata: ModelMetadata,
 }
 
 impl LoadedLlamaModel {
@@ -49,21 +50,18 @@ impl LoadedLlamaModel {
         model_params: &LlamaModelParams,
     ) -> Result<Self, AgentRuntimeError> {
         let model_issue_path = ModelPath::from(model_path);
-        let loaded = Self::load_from_file(model_path, model_params);
+        let loaded = Self::load_from_file(inference_runtime_context, model_path, model_params);
 
         match &loaded {
-            Ok(Self { model, .. }) => {
+            Ok(_loaded_llama_model) => {
                 inference_runtime_context
                     .slot_aggregated_status
                     .register_fix(&AgentIssueFix::ModelIsLoaded(model_issue_path));
-                inference_runtime_context
-                    .model_metadata_holder
-                    .set_model_metadata(read_model_metadata(model)?);
             }
             Err(_load_failure) => {
                 inference_runtime_context
                     .slot_aggregated_status
-                    .register_issue(AgentIssue::ModelCannotBeLoaded(model_issue_path));
+                    .register_pipeline_issue(AgentIssue::ModelCannotBeLoaded(model_issue_path));
             }
         }
 
@@ -85,10 +83,12 @@ impl LoadedLlamaModel {
                 for slot_index in 0..n_seq_max {
                     inference_runtime_context
                         .slot_aggregated_status
-                        .register_issue(AgentIssue::SlotCannotStart(SlotCannotStartParams {
-                            error: error.clone(),
-                            slot_index,
-                        }));
+                        .register_pipeline_issue(AgentIssue::SlotCannotStart(
+                            SlotCannotStartParams {
+                                error: error.clone(),
+                                slot_index,
+                            },
+                        ));
                 }
 
                 context_creation_failure
@@ -122,21 +122,26 @@ impl LoadedLlamaModel {
     }
 
     fn load_from_file(
+        inference_runtime_context: &InferenceRuntimeContext,
         model_path: &Path,
         model_params: &LlamaModelParams,
     ) -> Result<Self, AgentRuntimeError> {
-        let llama_backend =
-            Arc::new(LlamaBackend::init().map_err(AgentRuntimeError::BackendInitializationFailed)?);
+        let llama_backend = inference_runtime_context
+            .llama_backend
+            .get_or_init()
+            .map_err(AgentRuntimeError::BackendInitializationFailed)?;
         let model = LlamaModel::load_from_file(&llama_backend, model_path, model_params).map_err(
             |source| AgentRuntimeError::ModelLoadFailed {
                 model_path: model_path.to_path_buf(),
                 source,
             },
         )?;
+        let model_metadata = read_model_metadata(&model)?;
 
         Ok(Self {
             llama_backend,
             model: Arc::new(model),
+            model_metadata,
         })
     }
 }

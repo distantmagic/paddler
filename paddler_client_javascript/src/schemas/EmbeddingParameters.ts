@@ -11,7 +11,7 @@ export const poolingTypes = [
 
 export const EmbeddingParametersSchema = z
   .object({
-    embedding_batch_size: z.number().int().min(1),
+    embedding_batch_size: z.number().int(),
     pooling_type: z.enum(poolingTypes),
   })
   .strict();

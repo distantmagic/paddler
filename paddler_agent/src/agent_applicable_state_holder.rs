@@ -40,8 +40,8 @@ impl AgentApplicableStateHolder {
 mod tests {
     use std::path::PathBuf;
 
-    use paddler_inference_parameters::embedding_parameters::EmbeddingParameters;
     use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
+    use paddler_inference_parameters::pooling_type::PoolingType;
 
     use super::AgentApplicableStateHolder;
     use crate::agent_applicable_state::AgentApplicableState;
@@ -51,9 +51,9 @@ mod tests {
         let holder = AgentApplicableStateHolder::default();
 
         let applied_state = AgentApplicableState::Embeddings {
-            embedding_parameters: EmbeddingParameters::default(),
             model_path: PathBuf::from("model.gguf"),
             model_runtime_parameters: ModelRuntimeParameters::default(),
+            pooling_type: PoolingType::Last,
         };
 
         holder.set_agent_applicable_state(applied_state.clone());
@@ -68,9 +68,9 @@ mod tests {
     fn an_identical_state_is_not_applied_again() {
         let holder = AgentApplicableStateHolder::default();
         let applied_state = AgentApplicableState::Embeddings {
-            embedding_parameters: EmbeddingParameters::default(),
             model_path: PathBuf::from("model.gguf"),
             model_runtime_parameters: ModelRuntimeParameters::default(),
+            pooling_type: PoolingType::Last,
         };
 
         holder.set_agent_applicable_state(applied_state.clone());

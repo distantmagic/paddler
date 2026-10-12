@@ -1,5 +1,3 @@
-use tokio::task::yield_now;
-
 use paddler_local_http_fixture::fixture_response::FixtureResponse;
 use paddler_local_http_fixture::local_http_fixture::LocalHttpFixture;
 use paddler_messaging::agent_desired_model::AgentDesiredModel;
@@ -18,9 +16,10 @@ async fn agent_shuts_down_cleanly_while_downloading_its_model() {
     .await
     .expect("a single-agent cluster must start");
 
-    while fixture.request_count() == 0 {
-        yield_now().await;
-    }
+    fixture
+        .wait_for_requests(1)
+        .await
+        .expect("the agent must start downloading its model");
 
     cluster
         .shutdown()

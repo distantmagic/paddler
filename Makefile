@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := target/release/paddler
 
-.NOTINTERMEDIATE: target/kev_%/backbone/config.json
+.PRECIOUS: target/kev_%/backbone/config.json
 
 .NOTPARALLEL:
 
@@ -117,7 +117,7 @@ target/cuda/release/paddler: $(PADDLER_SOURCES) esbuild-meta.json
 target/debug/paddler: $(PADDLER_SOURCES)
 	cargo build -p paddler_cli
 
-target/kev_%/backbone/config.json target/kev_%/pointer_head.gguf &: $(KEV_CONVERTER_SOURCES) paddler_kev_converter_python/.venv
+target/kev_%/backbone/config.json target/kev_%/pointer_head.gguf: $(KEV_CONVERTER_SOURCES) paddler_kev_converter_python/.venv
 	poetry -C paddler_kev_converter_python run paddler-kev-converter convert --checkpoint $(KEV_CHECKPOINT_$*) --backbone-directory $(CURDIR)/target/kev_$*/backbone --pointer-head $(CURDIR)/target/kev_$*/pointer_head.gguf
 
 target/kev_%/model.gguf: target/kev_%/backbone/config.json paddler_llama_cpp_converter_python/.venv

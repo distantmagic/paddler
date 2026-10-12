@@ -2,15 +2,14 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use tokio::sync::watch;
 use trzcina::Service;
 use trzcina::ServiceBundle;
 
 use paddler_balancer::agent_controller_pool::AgentControllerPool;
 use paddler_balancer::agent_response_senders::AgentResponseSenders;
 use paddler_balancer::balancer_addresses::BalancerAddresses;
-use paddler_balancer::balancer_applicable_state::BalancerApplicableState;
 use paddler_balancer::balancer_applicable_state_holder::BalancerApplicableStateHolder;
+use paddler_balancer::balancer_desired_state_store::BalancerDesiredStateStore;
 use paddler_balancer::buffered_request_manager::BufferedRequestManager;
 use paddler_balancer::compatibility::compatibility_service::CompatibilityService;
 #[cfg(feature = "web_admin_panel")]
@@ -28,7 +27,6 @@ use paddler_balancer::web_admin_panel_service::WebAdminPanelService;
 use paddler_balancer::web_admin_panel_service::configuration::Configuration as WebAdminPanelServiceConfiguration;
 #[cfg(feature = "web_admin_panel")]
 use paddler_balancer::web_admin_panel_service::template_data::TemplateData;
-use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_state_database::file::File;
 use paddler_state_database::memory::Memory;
 use paddler_state_database::state_database::StateDatabase;
@@ -39,8 +37,7 @@ use crate::bootstrap_error::BootstrapError;
 
 pub struct BalancerServiceBundle {
     pub addresses: BalancerAddresses,
-    pub balancer_desired_state_tx: watch::Sender<BalancerDesiredState>,
-    pub state_database: Arc<dyn StateDatabase>,
+    pub balancer_applicable_state_holder: Arc<BalancerApplicableStateHolder>,
     inference_service: InferenceService,
     management_service: ManagementService,
     reconciliation_service: ReconciliationService,
@@ -78,9 +75,6 @@ impl BalancerServiceBundle {
             return Err(BootstrapError::StatsdReportingIntervalIsZero);
         }
 
-        let (balancer_desired_state_tx, _initial_desired_state_rx) =
-            watch::channel(BalancerDesiredState::default());
-
         let agent_controller_pool = Arc::new(AgentControllerPool::default());
         let buffered_request_manager = Arc::new(BufferedRequestManager::new(
             agent_controller_pool.clone(),
@@ -88,25 +82,18 @@ impl BalancerServiceBundle {
             max_buffered_requests,
         ));
         let state_database: Arc<dyn StateDatabase> = match state_database_type {
-            StateDatabaseType::File(path) => {
-                Arc::new(File::new(balancer_desired_state_tx.clone(), path))
+            StateDatabaseType::File(path) => Arc::new(File::new(path)),
+            StateDatabaseType::Memory(stored_balancer_desired_state) => {
+                Arc::new(Memory::new(*stored_balancer_desired_state))
             }
-            StateDatabaseType::Memory(initial_desired_state) => Arc::new(Memory::new(
-                balancer_desired_state_tx.clone(),
-                *initial_desired_state,
-            )),
         };
-
-        let initial_desired_state = state_database
-            .read_balancer_desired_state()
-            .await
-            .map_err(|source| BootstrapError::StateDatabaseReadFailed { source })?;
-
-        balancer_desired_state_tx.send_replace(initial_desired_state.clone());
-
-        let balancer_applicable_state_holder = Arc::new(BalancerApplicableStateHolder::new(
-            BalancerApplicableState::from(initial_desired_state),
-        ));
+        let balancer_desired_state_store = Arc::new(
+            BalancerDesiredStateStore::load(state_database)
+                .await
+                .map_err(|source| BootstrapError::StateDatabaseReadFailed { source })?,
+        );
+        let balancer_applicable_state_holder =
+            Arc::new(balancer_desired_state_store.applicable_state_holder());
 
         let inference_addr = inference_service_configuration.addr.socket_addr;
         let inference_http_listener = HttpListener::bind(inference_addr).map_err(|source| {
@@ -204,8 +191,8 @@ impl BalancerServiceBundle {
             agent_response_senders: AgentResponseSenders::default(),
             buffered_request_manager: buffered_request_manager.clone(),
             configuration: management_service_configuration,
+            balancer_desired_state_store,
             http_listener: management_http_listener,
-            state_database: state_database.clone(),
             statsd_prefix: statsd_prefix.clone(),
             web_admin_panel_addr,
         };
@@ -213,7 +200,6 @@ impl BalancerServiceBundle {
         let reconciliation_service = ReconciliationService {
             agent_controller_pool: agent_controller_pool.clone(),
             balancer_applicable_state_holder: balancer_applicable_state_holder.clone(),
-            balancer_desired_state_rx: balancer_desired_state_tx.subscribe(),
         };
 
         let openai_service = openai_http_listener.map(|http_listener| CompatibilityService {
@@ -241,8 +227,7 @@ impl BalancerServiceBundle {
 
         Ok(Self {
             addresses,
-            balancer_desired_state_tx,
-            state_database,
+            balancer_applicable_state_holder,
             inference_service,
             management_service,
             reconciliation_service,
@@ -299,6 +284,7 @@ mod tests {
     #[cfg(feature = "web_admin_panel")]
     use paddler_balancer::web_admin_panel_service::configuration::Configuration as WebAdminPanelServiceConfiguration;
     use paddler_state_database::state_database_type::StateDatabaseType;
+    use paddler_state_database::stored_balancer_desired_state::StoredBalancerDesiredState;
     use paddler_test_cluster_harness::ephemeral_loopback_addr::EPHEMERAL_LOOPBACK_ADDR;
 
     use super::BalancerServiceBundle;
@@ -325,7 +311,9 @@ mod tests {
             openai_service_configuration: Some(CompatibilityServiceConfiguration {
                 addr: ResolvedSocketAddr::from(EPHEMERAL_LOOPBACK_ADDR),
             }),
-            state_database_type: StateDatabaseType::Memory(Box::default()),
+            state_database_type: StateDatabaseType::Memory(Box::new(
+                StoredBalancerDesiredState::NothingStored,
+            )),
             statsd_prefix: "paddler_bootstrap_test_".to_owned(),
             statsd_service_configuration: Some(StatsdServiceConfiguration {
                 statsd_addr: ResolvedSocketAddr::from(EPHEMERAL_LOOPBACK_ADDR),

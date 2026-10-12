@@ -57,7 +57,7 @@ impl AssembleBatchPhase {
             pass.batch.add(
                 pending_token,
                 request.state.current_token_position,
-                &[request.sequence_id_guard.sequence_id()],
+                &[request.sequence_id_guard.sequence_id().llama_sequence_id()],
                 true,
             )?;
 
@@ -112,7 +112,7 @@ impl AssembleBatchPhase {
                 pass.batch.add(
                     &SampledToken::Content(*token),
                     position,
-                    &[request.sequence_id_guard.sequence_id()],
+                    &[request.sequence_id_guard.sequence_id().llama_sequence_id()],
                     is_last_token_of_prompt,
                 )?;
 

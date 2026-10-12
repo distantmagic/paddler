@@ -53,7 +53,8 @@ impl ModelSource {
             model_path: uri.to_owned(),
         };
         let url = Url::parse(uri).map_err(|source| {
-            slot_aggregated_status.register_issue(AgentIssue::ModelUriIsUnparseable(model_path()));
+            slot_aggregated_status
+                .register_desired_state_issue(AgentIssue::ModelUriIsUnparseable(model_path()));
 
             ModelSourceError::ModelUriUnparseable {
                 source,
@@ -65,8 +66,9 @@ impl ModelSource {
             return huggingface_model_reference(&url)
                 .map(Self::HuggingFace)
                 .ok_or_else(|| {
-                    slot_aggregated_status
-                        .register_issue(AgentIssue::HuggingFaceModelUriIsMalformed(model_path()));
+                    slot_aggregated_status.register_desired_state_issue(
+                        AgentIssue::HuggingFaceModelUriIsMalformed(model_path()),
+                    );
 
                     ModelSourceError::HuggingFaceModelUriMalformed {
                         uri: uri.to_owned(),
@@ -81,8 +83,10 @@ impl ModelSource {
         DownloadUrl::try_from(url)
             .map(Self::Url)
             .map_err(|download_error| {
-                slot_aggregated_status
-                    .register_issue(download_error_agent_issue(&download_error, model_path()));
+                slot_aggregated_status.register_desired_state_issue(download_error_agent_issue(
+                    &download_error,
+                    model_path(),
+                ));
 
                 ModelSourceError::ModelUriNotDownloadable {
                     source: download_error,

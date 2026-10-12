@@ -11,6 +11,7 @@ pub mod spawn_agent_subprocess;
 pub mod spawn_agent_subprocess_params;
 pub mod spawn_balancer_subprocess;
 pub mod spawned_balancer_subprocess;
+pub mod stallable_tcp_relay;
 pub mod start_pausable_agent_cluster;
 pub mod start_signalled_subprocess_cluster;
 pub mod start_subprocess_cluster;

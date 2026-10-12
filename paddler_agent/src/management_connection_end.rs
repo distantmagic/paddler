@@ -16,6 +16,7 @@ pub enum ManagementConnectionEnd {
     BalancerMessageUndeserializable,
     BalancerReusedInFlightRequestId,
     BalancerSentUnsupportedFrame,
+    BalancerStoppedAnsweringPings,
     IncomingStreamFailed,
     OutgoingMessageUnserializable,
     OutgoingStreamFailed,
@@ -30,6 +31,7 @@ impl ManagementConnectionEnd {
                 "Agent shutting down",
             )),
             Self::BalancerClosedConnection
+            | Self::BalancerStoppedAnsweringPings
             | Self::IncomingStreamFailed
             | Self::OutgoingStreamFailed => None,
             Self::BalancerMessageUndeserializable => Some(described_close_frame(

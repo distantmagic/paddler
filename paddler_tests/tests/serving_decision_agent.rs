@@ -47,29 +47,20 @@ impl ServingDecisionAgent {
         let (decision_result_tx, decision_result_rx) = mpsc::unbounded_channel();
 
         self.serving_pipeline_arbiter
-            .pipeline_arbiter_state
-            .forward(
-                self.serving_pipeline_arbiter
-                    .inference_runtime_context
-                    .agent_name
-                    .as_deref(),
-                PipelineRequest::Decide(AgentRequest {
-                    params: raw_decide_params
-                        .validate()
-                        .expect("the decision parameters must be valid"),
-                    response_tx: decision_result_tx,
-                    slot_guard: self.serving_pipeline_arbiter.slot_guard(),
-                    stop_rx: decision_stop_rx,
-                }),
-            );
+            .pipeline_arbiter
+            .forward(PipelineRequest::Decide(AgentRequest {
+                params: raw_decide_params
+                    .validate()
+                    .expect("the decision parameters must be valid"),
+                response_tx: decision_result_tx,
+                slot_guard: self.serving_pipeline_arbiter.slot_guard(),
+                stop_rx: decision_stop_rx,
+            }));
 
         decision_result_rx
     }
 
     pub async fn shut_down(self) {
-        self.serving_pipeline_arbiter
-            .shut_down()
-            .await
-            .expect("the agent must shut down cleanly");
+        self.serving_pipeline_arbiter.shut_down().await;
     }
 }

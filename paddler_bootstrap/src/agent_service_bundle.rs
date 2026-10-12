@@ -4,6 +4,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use nanoid::nanoid;
 use tokio::sync::mpsc;
+use tokio::sync::watch;
 use trzcina::Service;
 use trzcina::ServiceBundle;
 
@@ -16,6 +17,7 @@ use paddler_agent::pipeline_request::PipelineRequest;
 use paddler_agent::reconciliation_service::ReconciliationService;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::model_metadata_holder::ModelMetadataHolder;
+use paddler_agent_runtime::shared_llama_backend::SharedLlamaBackend;
 use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
 use paddler_messaging::agent_desired_state::AgentDesiredState;
 use paddler_messaging::api_path::ApiPath;
@@ -37,32 +39,38 @@ impl AgentServiceBundle {
             slots,
         }: AgentBootstrapConfig,
     ) -> Self {
-        let (agent_desired_state_tx, agent_desired_state_rx) =
-            mpsc::unbounded_channel::<AgentDesiredState>();
+        let (agent_desired_state_tx, mut agent_desired_state_rx) =
+            watch::channel(AgentDesiredState::default());
+
+        agent_desired_state_rx.mark_changed();
+
         let (pipeline_request_tx, pipeline_request_rx) =
             mpsc::unbounded_channel::<PipelineRequest>();
 
         let agent_applicable_state_holder = Arc::new(AgentApplicableStateHolder::default());
         let model_metadata_holder = Arc::new(ModelMetadataHolder::default());
+        let served_applicable_state_holder = Arc::new(AgentApplicableStateHolder::default());
         let slot_aggregated_status = Arc::new(SlotAggregatedStatus::new(slots));
 
         let llamacpp_arbiter = LlamaCppArbiterService {
             agent_applicable_state_holder: agent_applicable_state_holder.clone(),
             inference_runtime_context: InferenceRuntimeContext {
                 agent_name: agent_name.clone(),
+                llama_backend: Arc::new(SharedLlamaBackend::default()),
                 model_metadata_holder: model_metadata_holder.clone(),
                 slot_aggregated_status: slot_aggregated_status.clone(),
             },
             pipeline_request_rx,
+            served_applicable_state_holder: served_applicable_state_holder.clone(),
         };
 
         let management_socket_client = ManagementSocketClientService {
             balancer_message_context: BalancerMessageContext {
-                agent_applicable_state_holder: agent_applicable_state_holder.clone(),
                 agent_desired_state_tx,
-                pipeline_request_tx,
                 model_metadata_holder,
+                pipeline_request_tx,
                 request_stoppers: Arc::default(),
+                served_applicable_state_holder,
                 slot_aggregated_status: slot_aggregated_status.clone(),
             },
             name: agent_name,

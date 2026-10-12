@@ -10,7 +10,6 @@ use tokio_util::sync::CancellationToken;
 
 use paddler_agent_runtime::receives_stop_request::ReceivesStopRequest as _;
 use paddler_agent_runtime::scheduler_message::SchedulerMessage;
-use paddler_agent_runtime::send_result_or_warn::send_result_or_warn;
 use paddler_messaging::decision_result::DecisionResult;
 
 use crate::active_decision_request::ActiveDecisionRequest;
@@ -20,6 +19,7 @@ use crate::decision_decoder::DecisionDecoder;
 use crate::decision_error::DecisionError;
 use crate::decision_scheduler_context::DecisionSchedulerContext;
 use crate::prepared_decision_request::PreparedDecisionRequest;
+use crate::reports_decision_outcome::ReportsDecisionOutcome as _;
 
 pub struct DecisionScheduler<'model> {
     pub active_requests: VecDeque<ActiveDecisionRequest>,
@@ -81,10 +81,9 @@ impl DecisionScheduler<'_> {
     fn admit_pending_requests(&mut self) {
         while let Some(mut request) = self.pending_requests.pop_front() {
             if request.decision_stop_rx.is_stop_requested() {
-                send_result_or_warn(
+                DecisionResult::StopRequested.report(
                     self.scheduler_context.agent_name.as_deref(),
                     &request.decision_result_tx,
-                    DecisionResult::StopRequested,
                 );
 
                 continue;
@@ -125,13 +124,7 @@ impl DecisionScheduler<'_> {
 
                 request.finish_with(&mut decoder, agent_name, summary);
             }
-            Err(advance_error) => {
-                if let Err(release_error) = request.release_sequences(&mut decoder) {
-                    release_error.report(agent_name, &request.decision_result_tx);
-                }
-
-                advance_error.report(agent_name, &request.decision_result_tx);
-            }
+            Err(advance_error) => request.finish_with(&mut decoder, agent_name, advance_error),
         }
     }
 

@@ -3,23 +3,23 @@ use std::rc::Rc;
 
 #[derive(Clone)]
 pub struct SequenceIdPool {
-    available_ids: Rc<RefCell<Vec<i32>>>,
+    available_ids: Rc<RefCell<Vec<u16>>>,
 }
 
 impl SequenceIdPool {
     #[must_use]
     pub fn new(max_sequences: u16) -> Self {
         Self {
-            available_ids: Rc::new(RefCell::new((0..i32::from(max_sequences)).rev().collect())),
+            available_ids: Rc::new(RefCell::new((0..max_sequences).rev().collect())),
         }
     }
 
     #[must_use]
-    pub fn acquire(&self) -> Option<i32> {
+    pub fn acquire(&self) -> Option<u16> {
         self.available_ids.borrow_mut().pop()
     }
 
-    pub fn release(&self, sequence_id: i32) {
+    pub fn release(&self, sequence_id: u16) {
         self.available_ids.borrow_mut().push(sequence_id);
     }
 

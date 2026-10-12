@@ -5,6 +5,7 @@ use paddler_messaging::agent_desired_model::AgentDesiredModel;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_messaging::inference_mode::InferenceMode;
 use paddler_state_database::state_database_type::StateDatabaseType;
+use paddler_state_database::stored_balancer_desired_state::StoredBalancerDesiredState;
 
 use crate::ephemeral_balancer_runner_params::ephemeral_balancer_runner_params;
 
@@ -17,15 +18,18 @@ async fn balancer_runner_serves_the_desired_state_it_starts_with() {
     };
     let mut params = ephemeral_balancer_runner_params(CancellationToken::new());
 
-    params.bootstrap_config.state_database_type =
-        StateDatabaseType::Memory(Box::new(initial_desired_state.clone()));
+    params.bootstrap_config.state_database_type = StateDatabaseType::Memory(Box::new(
+        StoredBalancerDesiredState::Stored(initial_desired_state.clone()),
+    ));
 
     let mut runner = BalancerRunner::start(params)
         .await
         .expect("a runner starting with a desired state must start");
 
     assert_eq!(
-        *runner.balancer_desired_state_tx.borrow(),
+        runner
+            .balancer_applicable_state_holder
+            .get_balancer_desired_state(),
         initial_desired_state
     );
 

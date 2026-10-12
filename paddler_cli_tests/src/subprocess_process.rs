@@ -5,7 +5,6 @@ use std::sync::atomic::Ordering;
 use anyhow::Result;
 use async_trait::async_trait;
 use log::warn;
-use nix::errno::Errno;
 use nix::unistd::Pid;
 use tokio::process::Child;
 
@@ -45,14 +44,7 @@ impl ManagedProcess for SubprocessProcess {
             return Ok(());
         };
 
-        match signals.terminate() {
-            Ok(())
-            | Err(SubprocessClusterError::SignalUndeliverable {
-                source: Errno::ESRCH,
-                ..
-            }) => Ok(()),
-            Err(signal_error) => Err(signal_error.into()),
-        }
+        Ok(signals.terminate()?)
     }
 
     async fn exited(&mut self) -> ProcessEnd {

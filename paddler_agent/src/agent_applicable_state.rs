@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use paddler_agent_text_generation::text_generation_settings::TextGenerationSettings;
-use paddler_inference_parameters::embedding_parameters::EmbeddingParameters;
 use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
+use paddler_inference_parameters::pooling_type::PoolingType;
 use paddler_messaging::chat_template::ChatTemplate;
 use paddler_messaging::chat_template_source::ChatTemplateSource;
 
@@ -14,9 +14,9 @@ pub enum AgentApplicableState {
         pointer_head_path: PathBuf,
     },
     Embeddings {
-        embedding_parameters: EmbeddingParameters,
         model_path: PathBuf,
         model_runtime_parameters: ModelRuntimeParameters,
+        pooling_type: PoolingType,
     },
     #[default]
     NotConfigured,
@@ -51,5 +51,28 @@ impl AgentApplicableState {
             | Self::TextGeneration { .. }
             | Self::TextGenerationWithoutModel { .. } => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use paddler_messaging::chat_template::ChatTemplate;
+    use paddler_messaging::chat_template_source::ChatTemplateSource;
+
+    use super::AgentApplicableState;
+
+    #[test]
+    fn a_text_generation_state_without_a_model_overrides_its_chat_template() {
+        let chat_template = ChatTemplate {
+            content: "{{ messages }}".to_owned(),
+        };
+
+        assert_eq!(
+            AgentApplicableState::TextGenerationWithoutModel {
+                chat_template_source: ChatTemplateSource::Override(chat_template.clone()),
+            }
+            .chat_template_override(),
+            Some(chat_template)
+        );
     }
 }

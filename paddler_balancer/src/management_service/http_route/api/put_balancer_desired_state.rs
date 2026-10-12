@@ -4,40 +4,23 @@ use actix_web::Responder;
 use actix_web::error::ErrorInternalServerError;
 use actix_web::web;
 use actix_web::web::put;
-use tokio::select;
 
 use paddler_messaging::api_path::ApiPath;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
-use paddler_messaging::subscribes_to_updates::SubscribesToUpdates as _;
 
-use crate::balancer_shutdown_error::balancer_shutdown_error;
 use crate::management_service::app_data::AppData;
 
 async fn respond(
     app_data: web::Data<AppData>,
     balancer_desired_state: web::Json<BalancerDesiredState>,
 ) -> Result<impl Responder, Error> {
-    let mut applied_state_rx = app_data
-        .balancer_applicable_state_holder
-        .subscribe_to_updates();
-
     app_data
-        .state_database
-        .store_balancer_desired_state(&balancer_desired_state.into_inner())
+        .balancer_desired_state_store
+        .replace(balancer_desired_state.into_inner())
         .await
         .map_err(ErrorInternalServerError)?;
 
-    select! {
-        biased;
-        applied_state_change = applied_state_rx.changed() => {
-            applied_state_change.map_err(ErrorInternalServerError)?;
-
-            Ok(HttpResponse::NoContent().finish())
-        }
-        () = app_data.shutdown.cancelled() => {
-            Ok(HttpResponse::ServiceUnavailable().json(balancer_shutdown_error()))
-        }
-    }
+    Ok(HttpResponse::NoContent().finish())
 }
 
 pub fn put_balancer_desired_state(cfg: &mut web::ServiceConfig) {
@@ -51,7 +34,6 @@ mod tests {
 
     use actix_web::App;
     use actix_web::http::StatusCode;
-    use actix_web::rt::spawn;
     use actix_web::test::TestRequest;
     use actix_web::test::call_service;
     use actix_web::test::init_service;
@@ -59,9 +41,7 @@ mod tests {
     use serde_json::json;
     use serde_json::to_value;
     use tempfile::TempDir;
-    use tokio::sync::watch;
     use tokio_util::sync::CancellationToken;
-    use trzcina::Service as _;
 
     use paddler_messaging::agent_desired_model::AgentDesiredModel;
     use paddler_messaging::api_path::ApiPath;
@@ -69,22 +49,26 @@ mod tests {
     use paddler_state_database::file::File;
     use paddler_state_database::memory::Memory;
     use paddler_state_database::state_database::StateDatabase;
+    use paddler_state_database::stored_balancer_desired_state::StoredBalancerDesiredState;
 
     use super::put_balancer_desired_state;
     use crate::agent_controller_pool::AgentControllerPool;
     use crate::agent_response_senders::AgentResponseSenders;
-    use crate::balancer_applicable_state::BalancerApplicableState;
-    use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
+    use crate::balancer_desired_state_store::BalancerDesiredStateStore;
     use crate::buffered_request_manager::BufferedRequestManager;
     use crate::management_service::app_data::AppData;
-    use crate::reconciliation_service::ReconciliationService;
 
-    fn build_app_data(state_database: Arc<dyn StateDatabase>) -> Data<AppData> {
+    async fn build_app_data(state_database: Arc<dyn StateDatabase>) -> Data<AppData> {
+        let balancer_desired_state_store = BalancerDesiredStateStore::load(state_database)
+            .await
+            .expect("the desired state store must load");
+
         Data::new(AppData {
             agent_controller_pool: Arc::new(AgentControllerPool::default()),
-            balancer_applicable_state_holder: Arc::new(BalancerApplicableStateHolder::new(
-                BalancerApplicableState::from(BalancerDesiredState::default()),
-            )),
+            balancer_applicable_state_holder: Arc::new(
+                balancer_desired_state_store.applicable_state_holder(),
+            ),
+            balancer_desired_state_store: Arc::new(balancer_desired_state_store),
             buffered_request_manager: Arc::new(BufferedRequestManager::new(
                 Arc::new(AgentControllerPool::default()),
                 Duration::from_secs(1),
@@ -92,28 +76,16 @@ mod tests {
             )),
             agent_response_senders: AgentResponseSenders::default(),
             shutdown: CancellationToken::new(),
-            state_database,
             statsd_prefix: "paddler".to_owned(),
         })
     }
 
     #[actix_web::test]
-    async fn responds_once_the_stored_state_is_applicable() {
-        let (balancer_desired_state_notify_tx, balancer_desired_state_rx) =
-            watch::channel(BalancerDesiredState::default());
+    async fn applies_the_desired_state_before_responding() {
         let app_data = build_app_data(Arc::new(Memory::new(
-            balancer_desired_state_notify_tx,
-            BalancerDesiredState::default(),
-        )));
-        let reconciliation_shutdown = CancellationToken::new();
-        let reconciliation = spawn(
-            Box::new(ReconciliationService {
-                agent_controller_pool: app_data.agent_controller_pool.clone(),
-                balancer_applicable_state_holder: app_data.balancer_applicable_state_holder.clone(),
-                balancer_desired_state_rx,
-            })
-            .run(reconciliation_shutdown.clone()),
-        );
+            StoredBalancerDesiredState::NothingStored,
+        )))
+        .await;
         let app = init_service(
             App::new()
                 .app_data(app_data.clone())
@@ -140,50 +112,18 @@ mod tests {
                 .model,
             applied_model
         );
-
-        reconciliation_shutdown.cancel();
-        reconciliation.await.unwrap().unwrap();
-    }
-
-    #[actix_web::test]
-    async fn responds_with_service_unavailable_when_the_balancer_shuts_down_before_applying() {
-        let (balancer_desired_state_notify_tx, _balancer_desired_state_notify_rx) =
-            watch::channel(BalancerDesiredState::default());
-        let app_data = build_app_data(Arc::new(Memory::new(
-            balancer_desired_state_notify_tx,
-            BalancerDesiredState::default(),
-        )));
-        let app = init_service(
-            App::new()
-                .app_data(app_data.clone())
-                .configure(put_balancer_desired_state),
-        )
-        .await;
-        let request = TestRequest::put()
-            .uri(ApiPath::BALANCER_DESIRED_STATE)
-            .set_json(BalancerDesiredState::default())
-            .to_request();
-
-        app_data.shutdown.cancel();
-
-        assert_eq!(
-            call_service(&app, request).await.status(),
-            StatusCode::SERVICE_UNAVAILABLE
-        );
     }
 
     #[actix_web::test]
     async fn responds_with_bad_request_when_model_runtime_parameters_are_invalid() {
-        let (balancer_desired_state_notify_tx, balancer_desired_state_notify_rx) =
-            watch::channel(BalancerDesiredState::default());
-        let state_database = Arc::new(Memory::new(
-            balancer_desired_state_notify_tx,
-            BalancerDesiredState::default(),
-        ));
-        let app_data = build_app_data(state_database);
         let app = init_service(
             App::new()
-                .app_data(app_data)
+                .app_data(
+                    build_app_data(Arc::new(Memory::new(
+                        StoredBalancerDesiredState::NothingStored,
+                    )))
+                    .await,
+                )
                 .configure(put_balancer_desired_state),
         )
         .await;
@@ -195,35 +135,45 @@ mod tests {
             .uri(ApiPath::BALANCER_DESIRED_STATE)
             .set_json(invalid_desired_state)
             .to_request();
-        let response = call_service(&app, request).await;
 
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-
-        drop(balancer_desired_state_notify_rx);
+        assert_eq!(
+            call_service(&app, request).await.status(),
+            StatusCode::BAD_REQUEST
+        );
     }
 
     #[actix_web::test]
     async fn responds_with_internal_server_error_when_store_fails() {
-        let (balancer_desired_state_notify_tx, _balancer_desired_state_notify_rx) =
-            watch::channel(BalancerDesiredState::default());
         let directory_in_place_of_the_state_file =
             TempDir::new().expect("a temporary directory must be creatable");
-        let app_data = build_app_data(Arc::new(File::new(
-            balancer_desired_state_notify_tx,
-            directory_in_place_of_the_state_file.path().to_path_buf(),
-        )));
         let app = init_service(
             App::new()
-                .app_data(app_data)
+                .app_data(
+                    build_app_data(Arc::new(File::new(
+                        directory_in_place_of_the_state_file
+                            .path()
+                            .join("state.json"),
+                    )))
+                    .await,
+                )
                 .configure(put_balancer_desired_state),
         )
         .await;
         let request = TestRequest::put()
             .uri(ApiPath::BALANCER_DESIRED_STATE)
-            .set_json(BalancerDesiredState::default())
+            .set_json(BalancerDesiredState {
+                model: AgentDesiredModel::Uri("unstorable-model".to_owned()),
+                ..BalancerDesiredState::default()
+            })
             .to_request();
-        let response = call_service(&app, request).await;
 
-        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        directory_in_place_of_the_state_file
+            .close()
+            .expect("the temporary directory must be removable");
+
+        assert_eq!(
+            call_service(&app, request).await.status(),
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
     }
 }

@@ -18,12 +18,9 @@ async fn an_agent_serving_decisions_rejects_embedding_batches() {
     let (response_tx, mut response_rx) = mpsc::unbounded_channel();
     let (_stop_tx, stop_rx) = mpsc::unbounded_channel();
 
-    serving_pipeline_arbiter.pipeline_arbiter_state.forward(
-        serving_pipeline_arbiter
-            .inference_runtime_context
-            .agent_name
-            .as_deref(),
-        PipelineRequest::GenerateEmbeddingBatch(AgentRequest {
+    serving_pipeline_arbiter
+        .pipeline_arbiter
+        .forward(PipelineRequest::GenerateEmbeddingBatch(AgentRequest {
             params: GenerateEmbeddingBatchParams {
                 input_batch: vec![EmbeddingInputDocument {
                     content: "Hello world".to_owned(),
@@ -34,8 +31,7 @@ async fn an_agent_serving_decisions_rejects_embedding_batches() {
             response_tx,
             slot_guard: serving_pipeline_arbiter.slot_guard(),
             stop_rx,
-        }),
-    );
+        }));
 
     assert_eq!(
         response_rx.recv().await,

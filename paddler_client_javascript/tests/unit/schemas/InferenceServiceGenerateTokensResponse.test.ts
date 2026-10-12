@@ -35,7 +35,6 @@ const terminalErrorCodes = [
   { code: 500, variant: "SamplerError" },
   { code: 500, variant: "SamplingCandidatesExhausted" },
   { code: 503, variant: "SchedulerUnavailable" },
-  { code: 500, variant: "SequenceIdOutOfRange" },
   { code: 503, variant: "InferenceModeMismatch" },
   { code: 400, variant: "ToolSchemaInvalid" },
   { code: 500, variant: "ToolsSerializationFailed" },

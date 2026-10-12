@@ -6,7 +6,7 @@ use tokio::sync::mpsc;
 
 use paddler_agent_pointer_head::pointer_head::PointerHead;
 use paddler_agent_runtime::receives_stop_request::ReceivesStopRequest as _;
-use paddler_agent_runtime::send_result_or_warn::send_result_or_warn;
+use paddler_agent_runtime::sequence_id::SequenceId;
 use paddler_agent_runtime::sequence_id_guard::SequenceIdGuard;
 use paddler_agent_status::slot_guard::SlotGuard;
 use paddler_messaging::decision_answer::DecisionAnswer;
@@ -23,6 +23,7 @@ use crate::decision_token_layout::DecisionTokenLayout;
 use crate::prepared_decision_request::PreparedDecisionRequest;
 use crate::promised_decision_cells::PromisedDecisionCells;
 use crate::question_lane::QuestionLane;
+use crate::reports_decision_outcome::ReportsDecisionOutcome;
 
 pub struct ActiveDecisionRequest {
     pub current_question: DecisionQuestionRow,
@@ -120,14 +121,14 @@ impl ActiveDecisionRequest {
         }
     }
 
-    pub fn finish_with(
+    pub fn finish_with<TOutcome: ReportsDecisionOutcome>(
         self,
         decoder: &mut DecisionDecoder,
         agent_name: Option<&str>,
-        terminal_result: DecisionResult,
+        outcome: TOutcome,
     ) {
         match self.release_sequences(decoder) {
-            Ok(()) => send_result_or_warn(agent_name, &self.decision_result_tx, terminal_result),
+            Ok(()) => outcome.report(agent_name, &self.decision_result_tx),
             Err(release_error) => release_error.report(agent_name, &self.decision_result_tx),
         }
     }
@@ -136,7 +137,7 @@ impl ActiveDecisionRequest {
         self.decision_stop_rx.is_stop_requested()
     }
 
-    pub fn release_sequences(&self, decoder: &mut DecisionDecoder) -> Result<(), DecisionError> {
+    fn release_sequences(&self, decoder: &mut DecisionDecoder) -> Result<(), DecisionError> {
         decoder.remove_sequence(self.state_sequence.sequence_id())?;
 
         if let QuestionLane::Reserved(lane) = &self.question_lane {
@@ -178,7 +179,7 @@ impl ActiveDecisionRequest {
         &mut self,
         decoder: &mut DecisionDecoder,
         pointer_head: &PointerHead,
-        lane_sequence_id: i32,
+        lane_sequence_id: SequenceId,
         next_offset: usize,
     ) -> Result<DecisionAdvance, DecisionError> {
         if next_offset == 0 {
@@ -202,7 +203,7 @@ impl ActiveDecisionRequest {
     fn decode_question_chunk(
         &mut self,
         decoder: &mut DecisionDecoder,
-        sequence_id: i32,
+        sequence_id: SequenceId,
         next_offset: usize,
     ) -> Result<usize, DecisionError> {
         decoder.decode_row_chunk(

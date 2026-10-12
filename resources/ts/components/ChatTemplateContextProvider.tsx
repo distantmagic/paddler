@@ -1,7 +1,6 @@
-import React, { useContext, useMemo, type ReactNode } from "react";
+import React, { useContext, useMemo, useState, type ReactNode } from "react";
 
-import { type BalancerTextGenerationSettings } from "@intentee/paddler-client/schemas/BalancerTextGenerationSettings";
-import { type ChatTemplate } from "@intentee/paddler-client/schemas/ChatTemplate";
+import { type ChatTemplateSource } from "@intentee/paddler-client/schemas/ChatTemplateSource";
 import { BalancerDesiredStateContext } from "../contexts/BalancerDesiredStateContext";
 import {
   ChatTemplateContext,
@@ -16,43 +15,58 @@ export function ChatTemplateContextProvider({
   const { balancerDesiredState, setBalancerDesiredState } = useContext(
     BalancerDesiredStateContext,
   );
+  const [
+    overrideContentWhileUsingTheModelTemplate,
+    setOverrideContentWhileUsingTheModelTemplate,
+  ] = useState("");
 
   const value = useMemo<ChatTemplateContextValue>(
     function () {
       const { text_generation: textGenerationSettings } = balancerDesiredState;
+      const { chat_template_source: chatTemplateSource } =
+        textGenerationSettings;
+      const chatTemplateOverrideContent =
+        chatTemplateSource === "EmbeddedInModel"
+          ? overrideContentWhileUsingTheModelTemplate
+          : chatTemplateSource.Override.content;
 
-      function setTextGenerationSettings(
-        changedSettings: Partial<BalancerTextGenerationSettings>,
+      function setChatTemplateSource(
+        changedChatTemplateSource: ChatTemplateSource,
       ) {
         setBalancerDesiredState({
           ...balancerDesiredState,
           text_generation: {
             ...textGenerationSettings,
-            ...changedSettings,
+            chat_template_source: changedChatTemplateSource,
           },
         });
       }
 
       return Object.freeze({
-        chatTemplateOverride: textGenerationSettings.chat_template_override,
-        setChatTemplateOverride(chatTemplateOverride: null | ChatTemplate) {
-          setTextGenerationSettings({
-            chat_template_override: chatTemplateOverride,
-          });
-        },
+        chatTemplateOverrideContent,
         setChatTemplateOverrideContent(content: string) {
-          setTextGenerationSettings({ chat_template_override: { content } });
+          setChatTemplateSource({ Override: { content } });
         },
         setUseChatTemplateOverride(useChatTemplateOverride: boolean) {
-          setTextGenerationSettings({
-            use_chat_template_override: useChatTemplateOverride,
-          });
+          if (useChatTemplateOverride) {
+            setChatTemplateSource({
+              Override: { content: chatTemplateOverrideContent },
+            });
+          } else {
+            setOverrideContentWhileUsingTheModelTemplate(
+              chatTemplateOverrideContent,
+            );
+            setChatTemplateSource("EmbeddedInModel");
+          }
         },
-        useChatTemplateOverride:
-          textGenerationSettings.use_chat_template_override,
+        useChatTemplateOverride: chatTemplateSource !== "EmbeddedInModel",
       });
     },
-    [balancerDesiredState, setBalancerDesiredState],
+    [
+      balancerDesiredState,
+      overrideContentWhileUsingTheModelTemplate,
+      setBalancerDesiredState,
+    ],
   );
 
   return (

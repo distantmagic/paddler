@@ -23,12 +23,13 @@ impl PausableAgent {
             binary_path,
             config,
             expected_slots_total,
+            management_addr,
         }: PausableAgentParams,
     ) -> Result<Self> {
         let agent_process =
             SubprocessProcess::new(spawn_agent_subprocess(SpawnAgentSubprocessParams {
                 binary_path,
-                management_addr: cluster.balancer.addresses.management,
+                management_addr,
                 name: config.name.clone(),
                 slots: config.slot_count,
             })?);

@@ -1,3 +1,9 @@
+use std::path::PathBuf;
+
+use hf_hub::Cache;
+use hf_hub::Repo;
+use hf_hub::RepoType;
+
 use paddler_messaging::agent_issue_params::model_path::ModelPath;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -19,6 +25,16 @@ impl HuggingFaceModelReference {
         ModelPath {
             model_path: format!("{repo_id}/{revision}/{filename}"),
         }
+    }
+
+    #[must_use]
+    pub fn repo(&self) -> Repo {
+        Repo::with_revision(self.repo_id.clone(), RepoType::Model, self.revision.clone())
+    }
+
+    #[must_use]
+    pub fn cached_path(&self, cache: &Cache) -> Option<PathBuf> {
+        cache.repo(self.repo()).get(&self.filename)
     }
 }
 

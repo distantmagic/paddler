@@ -2,29 +2,23 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use log::error;
 use tokio::select;
 use tokio::sync::mpsc;
-use tokio::time::Duration;
-use tokio::time::Instant;
-use tokio::time::MissedTickBehavior;
-use tokio::time::interval_at;
 use tokio_util::sync::CancellationToken;
 use trzcina::Service;
 
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
-use paddler_messaging::agent_state_application_status::AgentStateApplicationStatus;
 
 use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
-use crate::pipeline_arbiter_state::PipelineArbiterState;
+use crate::pipeline_arbiter::PipelineArbiter;
+use crate::pipeline_arbiter_params::PipelineArbiterParams;
 use crate::pipeline_request::PipelineRequest;
-
-const STATE_APPLICATION_RETRY_INTERVAL: Duration = Duration::from_secs(1);
 
 pub struct LlamaCppArbiterService {
     pub agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
     pub inference_runtime_context: InferenceRuntimeContext,
     pub pipeline_request_rx: mpsc::UnboundedReceiver<PipelineRequest>,
+    pub served_applicable_state_holder: Arc<AgentApplicableStateHolder>,
 }
 
 #[async_trait]
@@ -38,64 +32,35 @@ impl Service for LlamaCppArbiterService {
             agent_applicable_state_holder,
             inference_runtime_context,
             mut pipeline_request_rx,
+            served_applicable_state_holder,
         } = *self;
+        let mut agent_applicable_state_rx = agent_applicable_state_holder.subscribe();
+        let mut pipeline_arbiter = PipelineArbiter::new(PipelineArbiterParams {
+            agent_shutdown: shutdown.clone(),
+            inference_runtime_context,
+            served_applicable_state_holder,
+        });
 
-        let mut arbiter_state = PipelineArbiterState::Idle;
-        let mut reconciled_state = agent_applicable_state_holder.subscribe();
-        let mut ticker = interval_at(
-            Instant::now() + STATE_APPLICATION_RETRY_INTERVAL,
-            STATE_APPLICATION_RETRY_INTERVAL,
-        );
-
-        ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
-
-        let shutdown_outcome = loop {
+        let service_outcome = loop {
             select! {
                 biased;
                 () = shutdown.cancelled() => break Ok(()),
-                _ = ticker.tick() => {
-                    let slot_aggregated_status = &inference_runtime_context.slot_aggregated_status;
-                    let current_status = slot_aggregated_status.get_state_application_status();
-
-                    if current_status.should_try_to_apply() {
-                        slot_aggregated_status.set_state_application_status(
-                            if matches!(current_status, AgentStateApplicationStatus::AttemptedAndRetrying) {
-                                AgentStateApplicationStatus::Stuck
-                            } else {
-                                AgentStateApplicationStatus::AttemptedAndRetrying
-                            }
-                        );
-
-                        let agent_applicable_state = reconciled_state.borrow().clone();
-
-                        arbiter_state = arbiter_state
-                            .apply(&shutdown, agent_applicable_state, &inference_runtime_context)
-                            .await;
-                    }
+                Ok(()) = agent_applicable_state_rx.changed() => {
+                    pipeline_arbiter.apply(agent_applicable_state_rx.borrow_and_update().clone());
                 }
-                Ok(()) = reconciled_state.changed() => {
-                    let agent_applicable_state = reconciled_state.borrow_and_update().clone();
-
-                    inference_runtime_context
-                        .slot_aggregated_status
-                        .set_state_application_status(AgentStateApplicationStatus::Fresh);
-
-                    arbiter_state = arbiter_state
-                        .apply(&shutdown, agent_applicable_state, &inference_runtime_context)
-                        .await;
+                finished_pipeline_startup = pipeline_arbiter.next_finished_startup() => {
+                    pipeline_arbiter.conclude(finished_pipeline_startup);
                 }
-                request = pipeline_request_rx.recv() => match request {
-                    Some(request) => arbiter_state.forward(inference_runtime_context.agent_name.as_deref(), request),
+                pipeline_request = pipeline_request_rx.recv() => match pipeline_request {
+                    Some(pipeline_request) => pipeline_arbiter.forward(pipeline_request),
                     None => break Ok(()),
                 },
             }
         };
 
-        if let Err(shutdown_error) = arbiter_state.shut_down().await {
-            error!("Failed to shut down arbiter cleanly: {shutdown_error:#}");
-        }
+        pipeline_arbiter.shut_down().await;
 
-        shutdown_outcome
+        service_outcome
     }
 }
 
@@ -109,6 +74,7 @@ mod tests {
 
     use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
     use paddler_agent_runtime::model_metadata_holder::ModelMetadataHolder;
+    use paddler_agent_runtime::shared_llama_backend::SharedLlamaBackend;
     use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
 
     use super::LlamaCppArbiterService;
@@ -121,10 +87,12 @@ mod tests {
             agent_applicable_state_holder: Arc::new(AgentApplicableStateHolder::default()),
             inference_runtime_context: InferenceRuntimeContext {
                 agent_name: None,
+                llama_backend: Arc::new(SharedLlamaBackend::default()),
                 model_metadata_holder: Arc::new(ModelMetadataHolder::default()),
                 slot_aggregated_status: Arc::new(SlotAggregatedStatus::new(1)),
             },
             pipeline_request_rx,
+            served_applicable_state_holder: Arc::new(AgentApplicableStateHolder::default()),
         };
 
         drop(pipeline_request_tx);

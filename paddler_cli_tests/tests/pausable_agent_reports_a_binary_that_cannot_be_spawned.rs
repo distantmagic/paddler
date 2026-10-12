@@ -22,12 +22,14 @@ async fn pausable_agent_reports_a_binary_that_cannot_be_spawned() {
     .await
     .expect("a cluster without agents must start");
 
+    let management_addr = cluster.balancer.addresses.management;
     let join_error = PausableAgent::join(
         &mut cluster,
         PausableAgentParams {
             binary_path: MISSING_BINARY_PATH.to_owned(),
             config: AgentConfig::single(1),
             expected_slots_total: 1,
+            management_addr,
         },
     )
     .await

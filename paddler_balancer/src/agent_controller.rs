@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 
+use log::debug;
 use nanoid::nanoid;
 use parking_lot::RwLock;
 use tokio::sync::mpsc;
@@ -25,7 +26,6 @@ use crate::agent_relay_error::AgentRelayError;
 use crate::agent_response_receiver::AgentResponseReceiver;
 use crate::agent_response_senders::AgentResponseSenders;
 use crate::agent_streaming_request::AgentStreamingRequest;
-use crate::desired_state_delivery::DesiredStateDelivery;
 use crate::response_senders::ResponseSenders;
 
 pub struct AgentController {
@@ -59,13 +59,15 @@ impl AgentController {
         )
     }
 
-    pub fn set_desired_state(&self, desired_state: AgentDesiredState) -> DesiredStateDelivery {
-        match self
+    pub fn set_desired_state(&self, desired_state: AgentDesiredState) {
+        if let Err(SendError(_undelivered_message)) = self
             .agent_message_tx
             .send(agent_desired_state_notification(desired_state))
         {
-            Ok(()) => DesiredStateDelivery::Delivered,
-            Err(SendError(_undelivered_message)) => DesiredStateDelivery::AgentDisconnected,
+            debug!(
+                "Skipping the desired state for disconnected agent {}",
+                self.id
+            );
         }
     }
 

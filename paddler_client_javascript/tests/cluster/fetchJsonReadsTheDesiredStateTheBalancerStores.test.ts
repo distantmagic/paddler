@@ -19,7 +19,11 @@ test("fetchJson reads the desired state the balancer stores", async function () 
             inference_mode: "Decision",
             text_generation: {
               ...storedDesiredState.text_generation,
-              use_chat_template_override: true,
+              chat_template_source: {
+                Override: {
+                  content: "{{ messages }}",
+                },
+              },
             },
           };
         },

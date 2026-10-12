@@ -38,7 +38,6 @@ pub enum GeneratedTokenResult {
     SamplerError(String),
     SamplingCandidatesExhausted(String),
     SchedulerUnavailable(String),
-    SequenceIdOutOfRange(String),
     ToolCallParseFailed(String),
     ToolCallParsed(Vec<ParsedToolCall>),
     ToolCallToken(String),
@@ -115,7 +114,6 @@ impl StreamableResult for GeneratedTokenResult {
                 | Self::SamplerError(_)
                 | Self::SamplingCandidatesExhausted(_)
                 | Self::SchedulerUnavailable(_)
-                | Self::SequenceIdOutOfRange(_)
                 | Self::ToolSchemaInvalid(_)
                 | Self::ToolsSerializationFailed(_)
         )
@@ -171,7 +169,6 @@ mod tests {
             GeneratedTokenResult::SamplerError("failure".to_owned()),
             GeneratedTokenResult::SamplingCandidatesExhausted("failure".to_owned()),
             GeneratedTokenResult::SchedulerUnavailable("failure".to_owned()),
-            GeneratedTokenResult::SequenceIdOutOfRange("failure".to_owned()),
             GeneratedTokenResult::ToolSchemaInvalid("failure".to_owned()),
             GeneratedTokenResult::ToolsSerializationFailed("failure".to_owned()),
         ] {

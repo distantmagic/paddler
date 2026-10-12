@@ -37,6 +37,13 @@ pub enum StateDatabaseError {
         #[source]
         source: io::Error,
     },
+    #[error("Unable to replace the state database file '{path_display}' with '{replacement_path_display}'", path_display = path.display(), replacement_path_display = replacement_path.display())]
+    FileReplaceFailed {
+        path: PathBuf,
+        replacement_path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
     #[error("Unable to sync the state database file '{path_display}'", path_display = path.display())]
     FileSyncFailed {
         path: PathBuf,

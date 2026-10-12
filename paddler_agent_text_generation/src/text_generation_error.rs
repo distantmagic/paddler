@@ -1,4 +1,3 @@
-use std::num::TryFromIntError;
 use std::path::PathBuf;
 use std::str::Utf8Error;
 
@@ -157,13 +156,6 @@ pub enum TextGenerationError {
 
     #[error("failed to clear the KV cache of the sequence: {0}")]
     KvCacheClearFailed(#[source] ClearKvCacheSeqError),
-
-    #[error("sequence id {sequence_id} cannot address a KV cache sequence: {source}")]
-    SequenceIdOutOfRange {
-        sequence_id: i32,
-        #[source]
-        source: TryFromIntError,
-    },
 }
 
 impl TextGenerationError {
@@ -290,9 +282,6 @@ impl TextGenerationError {
             }
             Self::BatchAssemblyFailed(_) => GeneratedTokenResult::BatchAssemblyFailed(message),
             Self::KvCacheClearFailed(_) => GeneratedTokenResult::KvCacheClearFailed(message),
-            Self::SequenceIdOutOfRange { .. } => {
-                GeneratedTokenResult::SequenceIdOutOfRange(message)
-            }
         }
     }
 }
@@ -627,13 +616,6 @@ mod tests {
                     SamplingError::SamplerUnavailable { sampler: "grammar" },
                 ),
                 into_result: GeneratedTokenResult::SamplerChainCreationFailed,
-            },
-            ExpectedReport {
-                rejection: TextGenerationError::SequenceIdOutOfRange {
-                    sequence_id: -1,
-                    source: u32::try_from(-1_i32).unwrap_err(),
-                },
-                into_result: GeneratedTokenResult::SequenceIdOutOfRange,
             },
             ExpectedReport {
                 rejection: TextGenerationError::TokenDataUnreadable(LogitsError::NullLogits),

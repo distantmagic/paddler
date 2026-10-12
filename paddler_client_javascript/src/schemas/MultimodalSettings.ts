@@ -4,7 +4,7 @@ import { AgentDesiredModelSchema } from "./AgentDesiredModel";
 
 export const MultimodalSettingsSchema = z
   .object({
-    image_resize_to_fit: z.number().int().min(1),
+    image_resize_to_fit: z.number().int(),
     projection: AgentDesiredModelSchema,
   })
   .strict();

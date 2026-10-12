@@ -1,13 +1,13 @@
-use std::mem::discriminant;
-use std::thread::spawn;
+use std::collections::BTreeMap;
 
-use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
 
-use paddler_agent_runtime::await_scheduler_startup::await_scheduler_startup;
+use paddler_agent_runtime::run_scheduler_unless_startup_abandoned::run_scheduler_unless_startup_abandoned;
+use paddler_agent_runtime::scheduler_handle::SchedulerHandle;
+use paddler_agent_runtime::scheduler_ready::SchedulerReady;
 use paddler_agent_runtime::scheduler_spawn_outcome::SchedulerSpawnOutcome;
-use paddler_agent_runtime::send_startup_signal::send_startup_signal;
-use paddler_agent_runtime::startup_signal_delivery::StartupSignalDelivery;
+use paddler_agent_runtime::start_scheduler_thread::start_scheduler_thread;
+use paddler_messaging::model_metadata::ModelMetadata;
 
 use crate::number_request_preparer::NumberRequestPreparer;
 
@@ -16,26 +16,32 @@ async fn a_scheduler_that_signals_readiness_starts() {
     let NumberRequestPreparer {
         request_preparer, ..
     } = NumberRequestPreparer::new();
-    let (scheduler_ready_tx, scheduler_ready_rx) = oneshot::channel();
-    let scheduler_thread_handle = spawn(move || -> Result<(), String> {
-        assert!(matches!(
-            send_startup_signal(scheduler_ready_tx, request_preparer),
-            StartupSignalDelivery::Delivered
-        ));
+    let signalled_model_metadata = ModelMetadata {
+        metadata: BTreeMap::from([("general.name".to_owned(), "signalled".to_owned())]),
+    };
+    let handed_over_model_metadata = signalled_model_metadata.clone();
 
-        Ok(())
-    });
-
-    let spawn_outcome = await_scheduler_startup(
+    let spawn_outcome = start_scheduler_thread::<_, String, _>(
         &CancellationToken::new(),
-        scheduler_ready_rx,
-        scheduler_thread_handle,
+        move |_agent_shutdown, scheduler_startup_tx| {
+            run_scheduler_unless_startup_abandoned(
+                scheduler_startup_tx,
+                Ok(SchedulerReady {
+                    model_metadata: handed_over_model_metadata,
+                    request_preparer,
+                }),
+                || {},
+            );
+
+            Ok(())
+        },
     )
     .await
     .expect("a scheduler that signalled readiness must start");
 
-    assert_ne!(
-        discriminant(&spawn_outcome),
-        discriminant(&SchedulerSpawnOutcome::Cancelled)
-    );
+    assert!(matches!(
+        spawn_outcome,
+        SchedulerSpawnOutcome::Ready(SchedulerHandle { model_metadata, .. })
+            if model_metadata == signalled_model_metadata
+    ));
 }

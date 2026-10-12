@@ -24,12 +24,9 @@ async fn an_agent_serving_text_generation_rejects_decisions() {
     let (response_tx, mut response_rx) = mpsc::unbounded_channel();
     let (_stop_tx, stop_rx) = mpsc::unbounded_channel();
 
-    serving_pipeline_arbiter.pipeline_arbiter_state.forward(
-        serving_pipeline_arbiter
-            .inference_runtime_context
-            .agent_name
-            .as_deref(),
-        PipelineRequest::Decide(AgentRequest {
+    serving_pipeline_arbiter
+        .pipeline_arbiter
+        .forward(PipelineRequest::Decide(AgentRequest {
             params: DecideParams {
                 last_question: DecisionQuestion {
                     id: "paid".to_owned(),
@@ -42,8 +39,7 @@ async fn an_agent_serving_text_generation_rejects_decisions() {
             response_tx,
             slot_guard: serving_pipeline_arbiter.slot_guard(),
             stop_rx,
-        }),
-    );
+        }));
 
     assert_eq!(
         response_rx.recv().await,
@@ -52,8 +48,5 @@ async fn an_agent_serving_text_generation_rejects_decisions() {
         ))
     );
 
-    serving_pipeline_arbiter
-        .shut_down()
-        .await
-        .expect("the agent must shut down cleanly");
+    serving_pipeline_arbiter.shut_down().await;
 }

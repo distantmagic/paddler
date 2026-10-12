@@ -12,12 +12,12 @@ use actix_web::web::Data;
 use actix_web::web::Payload;
 use actix_web::web::ServiceConfig;
 use actix_web::web::get;
-use actix_ws::Session;
 use anyhow::Result;
 use log::debug;
 use log::error;
 use serde_json::Error as SerdeJsonError;
 use serde_json::from_str;
+use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 
 use paddler_messaging::api_path::ApiPath;
@@ -50,6 +50,7 @@ use crate::inference_service::configuration::Configuration as InferenceServiceCo
 use crate::invalid_request_parameters_description::invalid_request_parameters_description;
 use crate::request_from_agent::request_from_agent;
 use crate::respond_with_error::respond_with_error;
+use crate::websocket_outbound_frame::WebSocketOutboundFrame;
 use crate::websocket_session_controller::WebSocketSessionController;
 
 async fn send_inference_mode_mismatch(
@@ -276,12 +277,12 @@ impl ControlsWebSocketEndpoint for InferenceSocketController {
     async fn on_connection_start(
         connection_close: CancellationToken,
         context: Arc<Self::Context>,
-        session: &mut Session,
+        outbound_tx: &UnboundedSender<WebSocketOutboundFrame>,
     ) {
         report_cluster_inference_mode(
             context.balancer_applicable_state_holder.clone(),
             connection_close,
-            session.clone(),
+            outbound_tx.clone(),
         )
         .await;
     }

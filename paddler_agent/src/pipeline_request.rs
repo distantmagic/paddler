@@ -8,6 +8,7 @@ use paddler_messaging::request_params::continue_from_raw_prompt_params::Continue
 use paddler_messaging::request_params::decide_params::DecideParams;
 use paddler_messaging::request_params::generate_embedding_batch_params::GenerateEmbeddingBatchParams;
 use paddler_agent_decision::decision_error::DecisionError;
+use paddler_agent_decision::reports_decision_outcome::ReportsDecisionOutcome as _;
 use paddler_agent_embeddings::embedding_error::EmbeddingError;
 use paddler_agent_runtime::agent_request::AgentRequest;
 use paddler_agent_text_generation::text_generation_error::TextGenerationError;

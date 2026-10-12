@@ -101,6 +101,7 @@ mod tests {
     use serde_json::json;
     use tokio::sync::mpsc::error::TryRecvError;
 
+    use paddler_messaging::decision_result::DecisionResult;
     use paddler_messaging::embedding_result::EmbeddingResult;
     use paddler_messaging::inference_client::message::Message as InferenceMessage;
     use paddler_messaging::inference_client::response::Response;
@@ -178,35 +179,46 @@ mod tests {
     }
 
     #[test]
-    fn a_finished_embedding_batch_releases_its_request() {
-        let pending = Arc::new(PendingRequests::default());
-        let mut response_rx = pending
-            .register("request-1".to_owned())
-            .expect("an open registry must accept a request");
+    fn a_terminal_response_releases_its_request() {
+        for (wire_response, terminal_response) in [
+            (
+                json!({ "Embedding": "Done" }),
+                Response::Embedding(EmbeddingResult::Done),
+            ),
+            (
+                json!({ "Decision": "StopRequested" }),
+                Response::Decision(DecisionResult::StopRequested),
+            ),
+        ] {
+            let pending = Arc::new(PendingRequests::default());
+            let mut response_rx = pending
+                .register("request-1".to_owned())
+                .expect("an open registry must accept a request");
 
-        router_for(&pending).route_text(
-            &json!({
-                "Response": {
-                    "generated_by": null,
-                    "request_id": "request-1",
-                    "response": { "Embedding": "Done" }
-                }
-            })
-            .to_string(),
-        );
+            router_for(&pending).route_text(
+                &json!({
+                    "Response": {
+                        "generated_by": null,
+                        "request_id": "request-1",
+                        "response": wire_response
+                    }
+                })
+                .to_string(),
+            );
 
-        assert!(matches!(
-            response_rx.try_recv(),
-            Ok(Ok(InferenceMessage::Response(ResponseEnvelope {
-                response: Response::Embedding(embedding_result),
-                ..
-            }))) if embedding_result == EmbeddingResult::Done
-        ));
-        assert!(
-            response_rx
-                .try_recv()
-                .is_err_and(|receive_error| receive_error == TryRecvError::Disconnected)
-        );
+            assert!(matches!(
+                response_rx.try_recv(),
+                Ok(Ok(InferenceMessage::Response(ResponseEnvelope {
+                    response,
+                    ..
+                }))) if response == terminal_response
+            ));
+            assert!(
+                response_rx
+                    .try_recv()
+                    .is_err_and(|receive_error| receive_error == TryRecvError::Disconnected)
+            );
+        }
     }
 
     #[test]

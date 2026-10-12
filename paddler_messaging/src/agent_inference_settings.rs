@@ -1,9 +1,9 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-use paddler_inference_parameters::embedding_parameters::EmbeddingParameters;
+use paddler_inference_parameters::pooling_type::PoolingType;
 
-use crate::agent_text_generation_settings::AgentTextGenerationSettings;
+use crate::balancer_text_generation_settings::BalancerTextGenerationSettings;
 use crate::decision_settings::DecisionSettings;
 use crate::inference_mode::InferenceMode;
 
@@ -11,8 +11,8 @@ use crate::inference_mode::InferenceMode;
 #[serde(deny_unknown_fields)]
 pub enum AgentInferenceSettings {
     Decision(DecisionSettings),
-    Embeddings(EmbeddingParameters),
-    TextGeneration(AgentTextGenerationSettings),
+    Embeddings(PoolingType),
+    TextGeneration(BalancerTextGenerationSettings),
 }
 
 impl AgentInferenceSettings {

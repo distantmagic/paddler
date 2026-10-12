@@ -2,10 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use log::error;
 use tokio::select;
-use tokio::sync::mpsc;
-use tokio::time::Duration;
-use tokio::time::MissedTickBehavior;
-use tokio::time::interval;
+use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 use trzcina::Service;
 
@@ -13,11 +10,11 @@ use paddler_messaging::agent_desired_state::AgentDesiredState;
 
 use crate::desired_state_reconciler::DesiredStateReconciler;
 use crate::desired_state_reconciliation::DesiredStateReconciliation;
-
-const DESIRED_STATE_CONVERSION_RETRY_INTERVAL: Duration = Duration::from_secs(1);
+use crate::desired_state_reconciliation_attempt::DesiredStateReconciliationAttempt;
+use crate::retry_delay::RetryDelay;
 
 pub struct ReconciliationService {
-    pub agent_desired_state_rx: mpsc::UnboundedReceiver<AgentDesiredState>,
+    pub agent_desired_state_rx: watch::Receiver<AgentDesiredState>,
     pub desired_state_reconciler: DesiredStateReconciler,
 }
 
@@ -32,36 +29,46 @@ impl Service for ReconciliationService {
             mut agent_desired_state_rx,
             desired_state_reconciler,
         } = *self;
+        let mut reconciliation_attempt = DesiredStateReconciliationAttempt::Idle;
 
-        let mut reconciliation = DesiredStateReconciliation::Reconciled;
-        let mut ticker = interval(DESIRED_STATE_CONVERSION_RETRY_INTERVAL);
-
-        ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
-
-        loop {
+        let service_outcome = loop {
             select! {
                 biased;
                 () = shutdown.cancelled() => break Ok(()),
-                _ = ticker.tick() => {
-                    if let DesiredStateReconciliation::Pending(agent_desired_state) = reconciliation {
-                        reconciliation = desired_state_reconciler
-                            .reconcile(&shutdown, *agent_desired_state)
-                            .await;
-                    }
-                },
-                next_agent_desired_state = agent_desired_state_rx.recv() => {
-                    let Some(agent_desired_state) = next_agent_desired_state else {
+                desired_state_change = agent_desired_state_rx.changed() => {
+                    if desired_state_change.is_err() {
                         error!("Agent desired state channel closed, stopping reconciliation service.");
 
                         break Ok(());
-                    };
+                    }
 
-                    reconciliation = desired_state_reconciler
-                        .reconcile_replacement(&shutdown, agent_desired_state)
-                        .await;
+                    reconciliation_attempt.abandon();
+                    desired_state_reconciler
+                        .slot_aggregated_status
+                        .begin_desired_state();
+                    reconciliation_attempt = DesiredStateReconciliationAttempt::start(
+                        desired_state_reconciler.clone(),
+                        agent_desired_state_rx.borrow_and_update().clone(),
+                        &shutdown,
+                        RetryDelay::Immediately,
+                    );
+                }
+                desired_state_reconciliation = reconciliation_attempt.finish() => {
+                    if let DesiredStateReconciliation::Pending(agent_desired_state) = desired_state_reconciliation {
+                        reconciliation_attempt = DesiredStateReconciliationAttempt::start(
+                            desired_state_reconciler.clone(),
+                            *agent_desired_state,
+                            &shutdown,
+                            RetryDelay::AfterRetryInterval,
+                        );
+                    }
                 }
             }
-        }
+        };
+
+        reconciliation_attempt.abandon();
+
+        service_outcome
     }
 }
 

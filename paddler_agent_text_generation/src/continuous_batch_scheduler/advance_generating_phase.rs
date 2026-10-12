@@ -57,7 +57,7 @@ impl AdvanceGeneratingPhase<'_> {
                 Ok(SamplingOutcome::Token(token)) => token,
                 Ok(SamplingOutcome::AllCandidatesEliminated) => {
                     error!(
-                        "{:?}: sequence {} sampling exhausted candidates",
+                        "{:?}: sequence {:?} sampling exhausted candidates",
                         self.scheduler_context.agent_name,
                         request.sequence_id_guard.sequence_id()
                     );
@@ -69,7 +69,7 @@ impl AdvanceGeneratingPhase<'_> {
                 }
                 Ok(SamplingOutcome::GrammarRejectedModelOutput(message)) => {
                     error!(
-                        "{:?}: sequence {} grammar rejected sampled token: {message}",
+                        "{:?}: sequence {:?} grammar rejected sampled token: {message}",
                         self.scheduler_context.agent_name,
                         request.sequence_id_guard.sequence_id()
                     );
@@ -96,7 +96,7 @@ impl AdvanceGeneratingPhase<'_> {
             Ok(progress) => progress,
             Err(detokenization_error) => {
                 error!(
-                    "{:?}: sequence {} token classification failed: {detokenization_error}",
+                    "{:?}: sequence {:?} token classification failed: {detokenization_error}",
                     self.scheduler_context.agent_name,
                     request.sequence_id_guard.sequence_id()
                 );
@@ -168,7 +168,7 @@ impl AdvanceGeneratingPhase<'_> {
                 request.generated_tokens_tx.send(tool_call_result).is_err()
             }) {
                 warn!(
-                    "{:?}: sequence {} client disconnected (receiver dropped)",
+                    "{:?}: sequence {:?} client disconnected (receiver dropped)",
                     self.scheduler_context.agent_name,
                     request.sequence_id_guard.sequence_id()
                 );
@@ -189,7 +189,7 @@ impl AdvanceGeneratingPhase<'_> {
             && request.generated_tokens_tx.send(tool_call_result).is_err()
         {
             warn!(
-                "{:?}: sequence {} client disconnected (receiver dropped) while resolving tool calls at completion",
+                "{:?}: sequence {:?} client disconnected (receiver dropped) while resolving tool calls at completion",
                 self.scheduler_context.agent_name,
                 request.sequence_id_guard.sequence_id()
             );

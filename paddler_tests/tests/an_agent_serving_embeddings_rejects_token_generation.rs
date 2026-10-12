@@ -38,12 +38,9 @@ async fn an_agent_serving_embeddings_rejects_token_generation() {
     let (conversation_response_tx, mut conversation_response_rx) = mpsc::unbounded_channel();
     let (_conversation_stop_tx, conversation_stop_rx) = mpsc::unbounded_channel();
 
-    serving_pipeline_arbiter.pipeline_arbiter_state.forward(
-        serving_pipeline_arbiter
-            .inference_runtime_context
-            .agent_name
-            .as_deref(),
-        PipelineRequest::ContinueFromRawPrompt(AgentRequest {
+    serving_pipeline_arbiter
+        .pipeline_arbiter
+        .forward(PipelineRequest::ContinueFromRawPrompt(AgentRequest {
             params: ContinueFromRawPromptParams {
                 grammar: None,
                 max_tokens: NonZeroU32::MIN,
@@ -52,13 +49,8 @@ async fn an_agent_serving_embeddings_rejects_token_generation() {
             response_tx: raw_prompt_response_tx,
             slot_guard: serving_pipeline_arbiter.slot_guard(),
             stop_rx: raw_prompt_stop_rx,
-        }),
-    );
-    serving_pipeline_arbiter.pipeline_arbiter_state.forward(
-        serving_pipeline_arbiter
-            .inference_runtime_context
-            .agent_name
-            .as_deref(),
+        }));
+    serving_pipeline_arbiter.pipeline_arbiter.forward(
         PipelineRequest::ContinueFromConversationHistory(AgentRequest {
             params: ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
@@ -91,8 +83,5 @@ async fn an_agent_serving_embeddings_rejects_token_generation() {
         ))
     );
 
-    serving_pipeline_arbiter
-        .shut_down()
-        .await
-        .expect("the agent must shut down cleanly");
+    serving_pipeline_arbiter.shut_down().await;
 }

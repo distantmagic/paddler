@@ -34,6 +34,7 @@ use tokio_util::sync::CancellationToken;
 
 use paddler_agent_runtime::receives_stop_request::ReceivesStopRequest as _;
 use paddler_agent_runtime::scheduler_message::SchedulerMessage;
+use paddler_agent_runtime::sequence_id::SequenceId;
 use paddler_agent_runtime::sequence_id_guard::SequenceIdGuard;
 use paddler_agent_runtime::sequence_id_pool::SequenceIdPool;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
@@ -189,7 +190,7 @@ impl ContinuousBatchScheduler {
         match self.admit_generation_request(request) {
             Ok(active_request) => {
                 debug!(
-                    "{:?}: accepted generation request on sequence {}",
+                    "{:?}: accepted generation request on sequence {:?}",
                     self.scheduler_context.agent_name,
                     active_request.sequence_id_guard.sequence_id()
                 );
@@ -424,16 +425,12 @@ impl ContinuousBatchScheduler {
         }
     }
 
-    fn clear_kv_cache_for_sequence(&mut self, sequence_id: i32) -> Result<(), TextGenerationError> {
-        let kv_cache_sequence_id = u32::try_from(sequence_id).map_err(|source| {
-            TextGenerationError::SequenceIdOutOfRange {
-                sequence_id,
-                source,
-            }
-        })?;
-
+    fn clear_kv_cache_for_sequence(
+        &mut self,
+        sequence_id: SequenceId,
+    ) -> Result<(), TextGenerationError> {
         self.llama_context
-            .clear_kv_cache_seq(Some(kv_cache_sequence_id), None, None)
+            .clear_kv_cache_seq(Some(sequence_id.kv_cache_sequence_id()), None, None)
             .map_err(TextGenerationError::KvCacheClearFailed)
     }
 
@@ -445,13 +442,13 @@ impl ContinuousBatchScheduler {
 
         if let Err(rejection) = self.clear_kv_cache_for_sequence(sequence_id) {
             error!(
-                "{:?}: {rejection}; the next request admitted to sequence {sequence_id} clears it again",
+                "{:?}: {rejection}; the next request admitted to sequence {sequence_id:?} clears it again",
                 self.scheduler_context.agent_name
             );
         }
 
         debug!(
-            "{:?}: cleaned up sequence {sequence_id} ({} completion tokens generated)",
+            "{:?}: cleaned up sequence {sequence_id:?} ({} completion tokens generated)",
             self.scheduler_context.agent_name,
             usage.completion_tokens(),
         );

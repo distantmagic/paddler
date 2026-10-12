@@ -6,8 +6,8 @@ use tokio_util::sync::CancellationToken;
 
 use paddler_agent_embeddings::embedding_pipeline::EmbeddingPipeline;
 use paddler_agent_runtime::scheduler_spawn_outcome::SchedulerSpawnOutcome;
-use paddler_inference_parameters::embedding_parameters::EmbeddingParameters;
 use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
+use paddler_inference_parameters::pooling_type::PoolingType;
 use paddler_messaging::produces_snapshot::ProducesSnapshot as _;
 use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
 
@@ -19,10 +19,10 @@ async fn an_embedding_pipeline_started_during_shutdown_loads_nothing() {
     agent_shutdown.cancel();
 
     let spawn_outcome = EmbeddingPipeline {
-        embedding_parameters: EmbeddingParameters::default(),
         inference_runtime_context: inference_runtime_context.clone(),
         model_path: PathBuf::from("model-that-is-never-read.gguf"),
         model_runtime_parameters: ModelRuntimeParameters::default(),
+        pooling_type: PoolingType::Last,
     }
     .spawn(&agent_shutdown)
     .await

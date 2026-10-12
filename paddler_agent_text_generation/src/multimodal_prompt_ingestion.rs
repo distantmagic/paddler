@@ -7,6 +7,8 @@ use llama_cpp_bindings::ingest_prompt_chunk;
 use llama_cpp_bindings::mtmd::MtmdContext;
 use llama_cpp_bindings::mtmd::MtmdInputChunks;
 
+use paddler_agent_runtime::sequence_id::SequenceId;
+
 use crate::multimodal_ingestion_progress::MultimodalIngestionProgress;
 
 #[derive(Debug)]
@@ -22,7 +24,7 @@ impl MultimodalPromptIngestion {
         &mut self,
         token_classifier: &mut SampledTokenClassifier<'_>,
         llama_context: &LlamaContext,
-        sequence_id: i32,
+        sequence_id: SequenceId,
         start_position: i32,
     ) -> Result<MultimodalIngestionProgress, EvalMultimodalChunksError> {
         let chunk_index = self.next_chunk_index;
@@ -35,7 +37,7 @@ impl MultimodalPromptIngestion {
             &self.multimodal_context,
             llama_context,
             start_position,
-            sequence_id,
+            sequence_id.llama_sequence_id(),
             self.n_batch,
             is_last_chunk,
         )?;

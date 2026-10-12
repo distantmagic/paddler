@@ -7,6 +7,7 @@ use log::warn;
 use serde_json::from_str;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::SendError;
+use tokio::sync::watch;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
 use paddler_agent_runtime::agent_request::AgentRequest;
@@ -35,11 +36,11 @@ use crate::pipeline_request::PipelineRequest;
 use crate::pipeline_response_stream::PipelineResponseStream;
 
 pub struct BalancerMessageContext {
-    pub agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
-    pub agent_desired_state_tx: mpsc::UnboundedSender<AgentDesiredState>,
-    pub pipeline_request_tx: mpsc::UnboundedSender<PipelineRequest>,
+    pub agent_desired_state_tx: watch::Sender<AgentDesiredState>,
     pub model_metadata_holder: Arc<ModelMetadataHolder>,
+    pub pipeline_request_tx: mpsc::UnboundedSender<PipelineRequest>,
     pub request_stoppers: Arc<RequestRegistry<mpsc::UnboundedSender<()>>>,
+    pub served_applicable_state_holder: Arc<AgentApplicableStateHolder>,
     pub slot_aggregated_status: Arc<SlotAggregatedStatus>,
 }
 
@@ -76,17 +77,26 @@ impl BalancerMessageContext {
     ) -> ManagementConnectionStep {
         match deserialized_message {
             JsonRpcMessage::Notification(JsonRpcNotification::SetState(set_state_params)) => {
-                match self
-                    .agent_desired_state_tx
-                    .send(set_state_params.desired_state)
-                {
-                    Ok(()) => ManagementConnectionStep::Continue,
-                    Err(SendError(_undelivered_desired_state)) => {
-                        error!("The desired state reconciler stopped; deregistering the agent");
+                if self.agent_desired_state_tx.is_closed() {
+                    error!("The desired state reconciler stopped; deregistering the agent");
 
-                        ManagementConnectionStep::Deregister
-                    }
+                    return ManagementConnectionStep::Deregister;
                 }
+
+                let desired_state = set_state_params.desired_state;
+
+                self.agent_desired_state_tx
+                    .send_if_modified(|current_desired_state| {
+                        if *current_desired_state == desired_state {
+                            return false;
+                        }
+
+                        *current_desired_state = desired_state;
+
+                        true
+                    });
+
+                ManagementConnectionStep::Continue
             }
             JsonRpcMessage::Notification(JsonRpcNotification::StopRespondingTo(request_id)) => {
                 match self.request_stoppers.send_to(&request_id, ()) {
@@ -139,7 +149,7 @@ impl BalancerMessageContext {
             }) => ManagementConnectionStep::Write(agent_response_message(
                 id,
                 JsonRpcResponse::ChatTemplateOverride(
-                    self.agent_applicable_state_holder
+                    self.served_applicable_state_holder
                         .get_agent_applicable_state()
                         .chat_template_override(),
                 ),
@@ -211,6 +221,7 @@ mod tests {
     use tokio_tungstenite::tungstenite::Bytes;
     use tokio_tungstenite::tungstenite::protocol::Message;
 
+    use paddler_messaging::agent_desired_model::AgentDesiredModel;
     use paddler_messaging::agent_desired_state::AgentDesiredState;
     use paddler_messaging::balancer_desired_state::BalancerDesiredState;
     use paddler_messaging::jsonrpc::request_envelope::RequestEnvelope;
@@ -257,6 +268,29 @@ mod tests {
             )),
             ManagementConnectionStep::Deregister
         ));
+    }
+
+    #[test]
+    fn an_identical_desired_state_does_not_restart_the_reconciliation() {
+        let BalancerMessageContextFixture {
+            mut agent_desired_state_rx,
+            context,
+            ..
+        } = BalancerMessageContextFixture::default();
+        let set_state = || {
+            JsonRpcMessage::Notification(JsonRpcNotification::SetState(Box::new(SetStateParams {
+                desired_state: AgentDesiredState::from(BalancerDesiredState {
+                    model: AgentDesiredModel::Uri("agent:///model.gguf".to_owned()),
+                    ..BalancerDesiredState::default()
+                }),
+            })))
+        };
+
+        context.handle_deserialized_message(set_state());
+        agent_desired_state_rx.borrow_and_update();
+        context.handle_deserialized_message(set_state());
+
+        assert!(!agent_desired_state_rx.has_changed().unwrap());
     }
 
     #[test]

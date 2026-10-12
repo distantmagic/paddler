@@ -3,7 +3,6 @@ use std::sync::Arc;
 use anyhow::Result;
 use dashmap::DashMap;
 use dashmap::mapref::entry::Entry;
-use log::debug;
 use tokio::sync::watch;
 
 use paddler_messaging::agent_controller_pool_snapshot::AgentControllerPoolSnapshot;
@@ -17,14 +16,13 @@ use super::agent_controller_pool_total_slots::AgentControllerPoolTotalSlots;
 use crate::agent_controller_pool_updates::AgentControllerPoolUpdates;
 use crate::agent_controller_registration::AgentControllerRegistration;
 use crate::agent_controller_slot_guard::AgentControllerSlotGuard;
-use crate::desired_state_delivery::DesiredStateDelivery;
 use crate::dispatch_candidate::DispatchCandidate;
 use crate::dispatched_agent::DispatchedAgent;
 use crate::registered_agent_controller_guard::RegisteredAgentControllerGuard;
 
 #[derive(Default)]
 pub struct AgentControllerPool {
-    pub agents: DashMap<String, Arc<AgentController>>,
+    agents: DashMap<String, Arc<AgentController>>,
     updates: Arc<AgentControllerPoolUpdates>,
 }
 
@@ -140,17 +138,13 @@ impl AgentControllerPool {
 
     pub fn set_desired_state(&self, desired_state: &AgentDesiredState) {
         for agent in &self.agents {
-            let agent_controller = agent.value();
-
-            if matches!(
-                agent_controller.set_desired_state(desired_state.clone()),
-                DesiredStateDelivery::AgentDisconnected
-            ) {
-                let agent_id = &agent_controller.id;
-
-                debug!("Skipping the desired state for disconnected agent {agent_id}");
-            }
+            agent.value().set_desired_state(desired_state.clone());
         }
+    }
+
+    #[must_use]
+    pub fn agent_count(&self) -> usize {
+        self.agents.len()
     }
 
     pub fn signal_update(&self) {

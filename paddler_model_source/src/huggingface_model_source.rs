@@ -2,8 +2,6 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use hf_hub::Cache;
-use hf_hub::Repo;
-use hf_hub::RepoType;
 use hf_hub::api::tokio::ApiBuilder;
 use hf_hub::api::tokio::ApiError;
 use log::warn;
@@ -40,11 +38,6 @@ impl ResolvesModelSource for HuggingFaceModelSource {
         slot_aggregated_status: Arc<SlotAggregatedStatus>,
     ) -> Result<DesiredModelResolution, ModelSourceError> {
         let Self { cache, reference } = self;
-        let HuggingFaceModelReference {
-            filename,
-            repo_id,
-            revision,
-        } = reference;
         let model_path = reference.model_path();
 
         if slot_aggregated_status.has_issue(&AgentIssue::HuggingFaceModelDoesNotExist(
@@ -55,9 +48,7 @@ impl ResolvesModelSource for HuggingFaceModelSource {
             });
         }
 
-        let repo = Repo::with_revision(repo_id.to_owned(), RepoType::Model, revision.to_owned());
-
-        if let Some(cached_path) = cache.repo(repo.clone()).get(filename) {
+        if let Some(cached_path) = reference.cached_path(cache) {
             slot_aggregated_status.set_download_status(ModelDownloadStatus::NotDownloading);
 
             return Ok(DesiredModelResolution::Resolved(cached_path));
@@ -66,10 +57,10 @@ impl ResolvesModelSource for HuggingFaceModelSource {
         let hf_repo = ApiBuilder::from_cache(cache.clone())
             .build()
             .map_err(ModelSourceError::HuggingFaceClientUnavailable)?
-            .repo(repo);
+            .repo(reference.repo());
         let Some(download_result) = cancellation_token
             .run_until_cancelled(hf_repo.download_with_progress(
-                filename,
+                &reference.filename,
                 HuggingFaceDownloadProgress {
                     model_path: model_path.clone(),
                     slot_aggregated_status: slot_aggregated_status.clone(),
@@ -90,12 +81,12 @@ impl ResolvesModelSource for HuggingFaceModelSource {
             Err(ApiError::LockAcquisition(lock_path)) => {
                 let lock_path = lock_path.display().to_string();
 
-                slot_aggregated_status.register_issue(AgentIssue::HuggingFaceCannotAcquireLock(
-                    HuggingFaceDownloadLock {
+                slot_aggregated_status.register_desired_state_issue(
+                    AgentIssue::HuggingFaceCannotAcquireLock(HuggingFaceDownloadLock {
                         lock_path: lock_path.clone(),
                         model_path,
-                    },
-                ));
+                    }),
+                );
 
                 warn!(
                     "Waiting to acquire download lock for '{lock_path}'. Sleeping for {} secs",
@@ -117,7 +108,7 @@ impl ResolvesModelSource for HuggingFaceModelSource {
             }
             Err(ApiError::RequestError(reqwest_error)) => match reqwest_error.status() {
                 Some(StatusCode::NOT_FOUND) => {
-                    slot_aggregated_status.register_issue(
+                    slot_aggregated_status.register_desired_state_issue(
                         AgentIssue::HuggingFaceModelDoesNotExist(model_path.clone()),
                     );
 
@@ -126,8 +117,9 @@ impl ResolvesModelSource for HuggingFaceModelSource {
                     })
                 }
                 Some(StatusCode::FORBIDDEN | StatusCode::UNAUTHORIZED) => {
-                    slot_aggregated_status
-                        .register_issue(AgentIssue::HuggingFacePermissions(model_path.clone()));
+                    slot_aggregated_status.register_desired_state_issue(
+                        AgentIssue::HuggingFacePermissions(model_path.clone()),
+                    );
 
                     Err(ModelSourceError::HuggingFacePermissionDenied {
                         model_path: model_path.model_path,

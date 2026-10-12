@@ -12,7 +12,7 @@ use paddler_messaging::agent_desired_state::AgentDesiredState;
 use paddler_messaging::agent_inference_settings::AgentInferenceSettings;
 use paddler_messaging::agent_issue::AgentIssue;
 use paddler_messaging::agent_issue_params::model_path::ModelPath;
-use paddler_messaging::agent_text_generation_settings::AgentTextGenerationSettings;
+use paddler_messaging::balancer_text_generation_settings::BalancerTextGenerationSettings;
 use paddler_messaging::decision_settings::DecisionSettings;
 use paddler_messaging::multimodal_settings::MultimodalSettings;
 use paddler_model_source::desired_model_resolution::DesiredModelResolution;
@@ -61,16 +61,16 @@ impl AgentDesiredStateConverter {
                     _ => AgentApplicableState::NotConfigured,
                 }
             }
-            AgentInferenceSettings::Embeddings(embedding_parameters) => {
+            AgentInferenceSettings::Embeddings(pooling_type) => {
                 model_path.map_or(AgentApplicableState::NotConfigured, |model_path| {
                     AgentApplicableState::Embeddings {
-                        embedding_parameters: embedding_parameters.clone(),
                         model_path,
                         model_runtime_parameters: model_runtime_parameters.clone(),
+                        pooling_type: pooling_type.clone(),
                     }
                 })
             }
-            AgentInferenceSettings::TextGeneration(AgentTextGenerationSettings {
+            AgentInferenceSettings::TextGeneration(BalancerTextGenerationSettings {
                 chat_template_source,
                 multimodal:
                     MultimodalSettings {
@@ -127,7 +127,9 @@ impl AgentDesiredStateConverter {
             DesiredModelResolution::Resolved(path) => Ok(ControlFlow::Continue(Some(path))),
             DesiredModelResolution::LocalFileMissing(path) => {
                 self.slot_aggregated_status
-                    .register_issue(local_file_missing_issue(ModelPath::from(path.as_path())));
+                    .register_desired_state_issue(local_file_missing_issue(ModelPath::from(
+                        path.as_path(),
+                    )));
 
                 Err(ModelSourceError::LocalFileMissing { path })
             }
@@ -147,14 +149,14 @@ mod tests {
 
     use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
     use paddler_agent_text_generation::multimodal_projection::MultimodalProjection;
-    use paddler_inference_parameters::embedding_parameters::EmbeddingParameters;
     use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
+    use paddler_inference_parameters::pooling_type::PoolingType;
     use paddler_messaging::agent_desired_model::AgentDesiredModel;
     use paddler_messaging::agent_desired_state::AgentDesiredState;
     use paddler_messaging::agent_inference_settings::AgentInferenceSettings;
     use paddler_messaging::agent_issue::AgentIssue;
     use paddler_messaging::agent_issue_params::model_path::ModelPath;
-    use paddler_messaging::agent_text_generation_settings::AgentTextGenerationSettings;
+    use paddler_messaging::balancer_text_generation_settings::BalancerTextGenerationSettings;
     use paddler_messaging::chat_template::ChatTemplate;
     use paddler_messaging::chat_template_source::ChatTemplateSource;
     use paddler_messaging::decision_settings::DecisionSettings;
@@ -192,12 +194,12 @@ mod tests {
     ) -> AgentDesiredState {
         AgentDesiredState {
             inference_settings: AgentInferenceSettings::TextGeneration(
-                AgentTextGenerationSettings {
+                BalancerTextGenerationSettings {
                     multimodal: MultimodalSettings {
                         projection: multimodal_projection,
                         ..MultimodalSettings::default()
                     },
-                    ..AgentTextGenerationSettings::default()
+                    ..BalancerTextGenerationSettings::default()
                 },
             ),
             model,
@@ -353,9 +355,7 @@ mod tests {
     async fn an_embeddings_state_without_a_model_is_not_configured() {
         assert_eq!(
             converted(&AgentDesiredState {
-                inference_settings: AgentInferenceSettings::Embeddings(
-                    EmbeddingParameters::default()
-                ),
+                inference_settings: AgentInferenceSettings::Embeddings(PoolingType::Last),
                 model: AgentDesiredModel::None,
                 model_runtime_parameters: ModelRuntimeParameters::default(),
             })
@@ -372,18 +372,16 @@ mod tests {
 
         assert_eq!(
             converted(&AgentDesiredState {
-                inference_settings: AgentInferenceSettings::Embeddings(
-                    EmbeddingParameters::default()
-                ),
+                inference_settings: AgentInferenceSettings::Embeddings(PoolingType::Last),
                 model: local_model(&model_file),
                 model_runtime_parameters: ModelRuntimeParameters::default(),
             })
             .await,
             Some(AgentDesiredStateConversion::Converted(
                 AgentApplicableState::Embeddings {
-                    embedding_parameters: EmbeddingParameters::default(),
                     model_path: model_file.path().to_path_buf(),
                     model_runtime_parameters: ModelRuntimeParameters::default(),
+                    pooling_type: PoolingType::Last,
                 }
             ))
         );
@@ -421,9 +419,9 @@ mod tests {
         assert_eq!(
             converted(&AgentDesiredState {
                 inference_settings: AgentInferenceSettings::TextGeneration(
-                    AgentTextGenerationSettings {
+                    BalancerTextGenerationSettings {
                         chat_template_source: ChatTemplateSource::Override(chat_template.clone()),
-                        ..AgentTextGenerationSettings::default()
+                        ..BalancerTextGenerationSettings::default()
                     },
                 ),
                 model: AgentDesiredModel::None,

@@ -9,6 +9,7 @@ use paddler_messaging::decision_result::DecisionResult;
 use crate::decision_capacity_demand::DecisionCapacityDemand;
 use crate::decision_error::DecisionError;
 use crate::decision_token_layout::DecisionTokenLayout;
+use crate::reports_decision_outcome::ReportsDecisionOutcome as _;
 
 pub struct PreparedDecisionRequest {
     pub capacity_demand: DecisionCapacityDemand,

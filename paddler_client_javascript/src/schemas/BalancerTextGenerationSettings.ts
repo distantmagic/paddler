@@ -1,15 +1,14 @@
 import { z } from "zod";
 
-import { ChatTemplateSchema } from "./ChatTemplate";
+import { ChatTemplateSourceSchema } from "./ChatTemplateSource";
 import { MultimodalSettingsSchema } from "./MultimodalSettings";
 import { SamplingParametersSchema } from "./SamplingParameters";
 
 export const BalancerTextGenerationSettingsSchema = z
   .object({
-    chat_template_override: ChatTemplateSchema.nullable(),
+    chat_template_source: ChatTemplateSourceSchema,
     multimodal: MultimodalSettingsSchema,
     sampling_parameters: SamplingParametersSchema,
-    use_chat_template_override: z.boolean(),
   })
   .strict();
 

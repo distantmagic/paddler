@@ -22,9 +22,10 @@ use crate::dispenses_slots::DispensesSlots;
 
 pub struct SlotAggregatedStatus {
     pub desired_slots_total: u16,
+    desired_state_issues: DashSet<AgentIssue>,
     download_status: RwLock<ModelDownloadStatus>,
-    issues: DashSet<AgentIssue>,
     model_path: RwLock<Option<String>>,
+    pipeline_issues: DashSet<AgentIssue>,
     runtime: RwLock<AgentRuntimeStatus>,
     slots_processing_tx: watch::Sender<u64>,
     state_application_status: RwLock<AgentStateApplicationStatus>,
@@ -41,9 +42,10 @@ impl SlotAggregatedStatus {
 
         Self {
             desired_slots_total,
+            desired_state_issues: DashSet::new(),
             download_status: RwLock::new(ModelDownloadStatus::NotDownloading),
-            issues: DashSet::new(),
             model_path: RwLock::new(None),
+            pipeline_issues: DashSet::new(),
             runtime: RwLock::new(AgentRuntimeStatus::Idle),
             state_application_status: RwLock::new(AgentStateApplicationStatus::Fresh),
             slots_processing_tx,
@@ -63,15 +65,16 @@ impl SlotAggregatedStatus {
     }
 
     pub fn has_issue(&self, issue: &AgentIssue) -> bool {
-        self.issues.contains(issue)
+        self.desired_state_issues.contains(issue) || self.pipeline_issues.contains(issue)
     }
 
     pub fn has_issue_like<TFunction>(&self, issue_like: TFunction) -> bool
     where
         TFunction: Fn(&AgentIssue) -> bool,
     {
-        self.issues
+        self.desired_state_issues
             .iter()
+            .chain(self.pipeline_issues.iter())
             .any(|ref_multi| issue_like(ref_multi.key()))
     }
 
@@ -82,32 +85,72 @@ impl SlotAggregatedStatus {
         self.announce_change();
     }
 
-    pub fn fail_download(&self, issue: AgentIssue) {
+    pub fn begin_desired_state(&self) {
+        self.desired_state_issues.clear();
         *self.download_status.write() = ModelDownloadStatus::NotDownloading;
-        self.issues.insert(issue);
         self.announce_change();
     }
 
-    pub fn register_issue(&self, issue: AgentIssue) {
-        if self.issues.insert(issue) {
+    pub fn begin_pipeline(&self) {
+        self.pipeline_issues.clear();
+        *self.state_application_status.write() = AgentStateApplicationStatus::Fresh;
+        self.announce_change();
+    }
+
+    pub fn retry_pipeline(&self) {
+        {
+            let mut state_application_status = self.state_application_status.write();
+
+            *state_application_status = match *state_application_status {
+                AgentStateApplicationStatus::AttemptedAndRetrying
+                | AgentStateApplicationStatus::Stuck => AgentStateApplicationStatus::Stuck,
+                AgentStateApplicationStatus::Applied
+                | AgentStateApplicationStatus::AttemptedAndNotAppliable
+                | AgentStateApplicationStatus::Fresh => {
+                    AgentStateApplicationStatus::AttemptedAndRetrying
+                }
+            };
+        }
+
+        self.announce_change();
+    }
+
+    pub fn fail_download(&self, issue: AgentIssue) {
+        *self.download_status.write() = ModelDownloadStatus::NotDownloading;
+        self.desired_state_issues.insert(issue);
+        self.announce_change();
+    }
+
+    pub fn register_desired_state_issue(&self, issue: AgentIssue) {
+        if self.desired_state_issues.insert(issue) {
+            self.announce_change();
+        }
+    }
+
+    pub fn register_pipeline_issue(&self, issue: AgentIssue) {
+        if self.pipeline_issues.insert(issue) {
             self.announce_change();
         }
     }
 
     pub fn register_fix(&self, fix: &AgentIssueFix) {
-        let size_before = self.issues.len();
+        let issues_before = self.desired_state_issues.len() + self.pipeline_issues.len();
 
-        self.issues.retain(|issue| !fix.can_fix(issue));
+        self.desired_state_issues
+            .retain(|issue| !fix.can_fix(issue));
+        self.pipeline_issues.retain(|issue| !fix.can_fix(issue));
 
-        if self.issues.len() < size_before {
+        if self.desired_state_issues.len() + self.pipeline_issues.len() < issues_before {
             self.announce_change();
         }
     }
 
-    pub fn reset(&self) {
-        self.issues.clear();
-        self.set_model_path(None);
+    pub fn serve_nothing(&self, uses_chat_template_override: bool) {
+        *self.model_path.write() = None;
         *self.runtime.write() = AgentRuntimeStatus::Idle;
+        *self.state_application_status.write() = AgentStateApplicationStatus::Applied;
+        self.uses_chat_template_override
+            .set(uses_chat_template_override);
         self.announce_change();
     }
 
@@ -116,35 +159,24 @@ impl SlotAggregatedStatus {
         self.announce_change();
     }
 
-    pub fn set_model_path(&self, model_path: Option<String>) {
-        {
-            let mut path_lock = self.model_path.write();
-
-            *path_lock = model_path;
-        }
-
-        self.announce_change();
-    }
-
-    pub fn set_state_application_status(&self, status: AgentStateApplicationStatus) {
-        *self.state_application_status.write() = status;
-        self.announce_change();
-    }
-
-    pub fn set_uses_chat_template_override(&self, uses: bool) {
-        self.uses_chat_template_override.set(uses);
-        self.announce_change();
-    }
-
-    pub fn start_serving(&self, inference_mode: InferenceMode) {
+    pub fn start_serving(
+        &self,
+        inference_mode: InferenceMode,
+        model_path: String,
+        uses_chat_template_override: bool,
+    ) {
         for slot_index in 0..u32::from(self.desired_slots_total) {
             self.register_fix(&AgentIssueFix::SlotStarted(slot_index));
         }
 
+        *self.model_path.write() = Some(model_path);
         *self.runtime.write() = AgentRuntimeStatus::Serving {
             inference_mode,
             slots_total: u64::from(self.desired_slots_total),
         };
+        *self.state_application_status.write() = AgentStateApplicationStatus::Applied;
+        self.uses_chat_template_override
+            .set(uses_chat_template_override);
         self.announce_change();
     }
 
@@ -187,7 +219,12 @@ impl ProducesSnapshot for SlotAggregatedStatus {
             status: AgentStatus {
                 desired_slots_total: self.desired_slots_total,
                 download_status: self.download_status.read().clone(),
-                issues: self.issues.iter().map(|item| item.clone()).collect(),
+                issues: self
+                    .desired_state_issues
+                    .iter()
+                    .chain(self.pipeline_issues.iter())
+                    .map(|issue| issue.clone())
+                    .collect(),
                 model_path: self.model_path.read().clone(),
                 runtime: *self.runtime.read(),
                 state_application_status: self.get_state_application_status(),
@@ -258,7 +295,7 @@ mod tests {
 
         assert!(!status.has_issue(&issue));
 
-        status.register_issue(issue.clone());
+        status.register_desired_state_issue(issue.clone());
 
         assert!(status.has_issue(&issue));
     }
@@ -268,7 +305,7 @@ mod tests {
         let status = SlotAggregatedStatus::new(2);
         let issue = AgentIssue::ModelFileDoesNotExist(model_path("model_test"));
 
-        status.register_issue(issue.clone());
+        status.register_desired_state_issue(issue.clone());
         status.register_fix(&AgentIssueFix::ModelFileExists(model_path("model_test")));
 
         assert!(!status.has_issue(&issue));
@@ -282,11 +319,13 @@ mod tests {
     fn has_issue_like_matches_with_predicate() {
         let status = SlotAggregatedStatus::new(2);
 
-        status.register_issue(AgentIssue::ModelFileDoesNotExist(model_path("model_test")));
+        status.register_desired_state_issue(AgentIssue::ModelFileDoesNotExist(model_path(
+            "model_test",
+        )));
 
         assert!(!status.has_issue_like(is_slot_cannot_start));
 
-        status.register_issue(AgentIssue::SlotCannotStart(SlotCannotStartParams {
+        status.register_pipeline_issue(AgentIssue::SlotCannotStart(SlotCannotStartParams {
             error: "failed".to_owned(),
             slot_index: 3,
         }));
@@ -303,23 +342,23 @@ mod tests {
         let status = SlotAggregatedStatus::new(2);
 
         for slot_index in 0..2 {
-            status.register_issue(AgentIssue::SlotCannotStart(SlotCannotStartParams {
+            status.register_pipeline_issue(AgentIssue::SlotCannotStart(SlotCannotStartParams {
                 error: "context creation failed".to_owned(),
                 slot_index,
             }));
         }
 
-        status.start_serving(InferenceMode::TextGeneration);
+        status.start_serving(InferenceMode::TextGeneration, "model".to_owned(), false);
 
         assert!(!status.has_issue_like(is_slot_cannot_start));
     }
 
     #[test]
-    fn resetting_a_serving_agent_makes_it_idle() {
+    fn serving_nothing_makes_the_agent_idle() {
         let status = SlotAggregatedStatus::new(2);
 
-        status.start_serving(InferenceMode::Embeddings);
-        status.reset();
+        status.start_serving(InferenceMode::Embeddings, "model".to_owned(), false);
+        status.serve_nothing(false);
 
         assert_eq!(
             status.make_snapshot().status.runtime,
@@ -328,11 +367,10 @@ mod tests {
     }
 
     #[test]
-    fn snapshot_reports_the_desired_slots_and_the_model_path() {
+    fn starting_to_serve_reports_the_model_its_mode_and_the_applied_state() {
         let status = SlotAggregatedStatus::new(4);
 
-        status.set_model_path(Some("test_model".to_owned()));
-        status.start_serving(InferenceMode::Embeddings);
+        status.start_serving(InferenceMode::Embeddings, "test_model".to_owned(), false);
 
         let snapshot = status.make_snapshot();
 
@@ -347,29 +385,33 @@ mod tests {
         );
         assert_eq!(
             snapshot.status.state_application_status,
-            AgentStateApplicationStatus::Fresh
+            AgentStateApplicationStatus::Applied
         );
     }
 
     #[test]
-    fn get_state_application_status_reflects_set_value() {
+    fn a_retried_pipeline_reports_retrying_then_stuck_until_the_next_pipeline() {
         let status = SlotAggregatedStatus::new(2);
+        let mut reported_statuses = vec![status.get_state_application_status()];
+
+        status.retry_pipeline();
+        reported_statuses.push(status.get_state_application_status());
+        status.retry_pipeline();
+        reported_statuses.push(status.get_state_application_status());
+        status.retry_pipeline();
+        reported_statuses.push(status.get_state_application_status());
+        status.begin_pipeline();
+        reported_statuses.push(status.make_snapshot().status.state_application_status);
 
         assert_eq!(
-            status.get_state_application_status(),
-            AgentStateApplicationStatus::Fresh
-        );
-
-        status.set_state_application_status(AgentStateApplicationStatus::Applied);
-
-        assert_eq!(
-            status.get_state_application_status(),
-            AgentStateApplicationStatus::Applied
-        );
-
-        assert_eq!(
-            status.make_snapshot().status.state_application_status,
-            AgentStateApplicationStatus::Applied
+            reported_statuses,
+            [
+                AgentStateApplicationStatus::Fresh,
+                AgentStateApplicationStatus::AttemptedAndRetrying,
+                AgentStateApplicationStatus::Stuck,
+                AgentStateApplicationStatus::Stuck,
+                AgentStateApplicationStatus::Fresh,
+            ]
         );
     }
 
@@ -378,8 +420,8 @@ mod tests {
         let status = SlotAggregatedStatus::new(2);
         let issue = AgentIssue::ModelFileDoesNotExist(model_path("model_test"));
 
-        status.register_issue(issue.clone());
-        status.register_issue(issue);
+        status.register_desired_state_issue(issue.clone());
+        status.register_desired_state_issue(issue);
 
         assert_eq!(status.make_snapshot().status.issues.len(), 1);
     }
@@ -389,7 +431,7 @@ mod tests {
         let status = SlotAggregatedStatus::new(2);
         let issue = AgentIssue::ModelFileDoesNotExist(model_path("model_test"));
 
-        status.register_issue(issue.clone());
+        status.register_desired_state_issue(issue.clone());
         status.register_fix(&AgentIssueFix::ModelFileExists(model_path("other_model")));
 
         assert!(status.has_issue(&issue));
@@ -411,22 +453,67 @@ mod tests {
     }
 
     #[test]
-    fn reset_clears_state_but_keeps_requests_in_flight() {
+    fn serving_nothing_forgets_the_model_but_keeps_requests_in_flight() {
         let status = SlotAggregatedStatus::new(2);
 
-        status.set_model_path(Some("test_model".to_owned()));
-        status.start_serving(InferenceMode::TextGeneration);
+        status.start_serving(
+            InferenceMode::TextGeneration,
+            "test_model".to_owned(),
+            false,
+        );
         status.take_slot();
-        status.register_issue(AgentIssue::ModelFileDoesNotExist(model_path("model_test")));
 
-        status.reset();
+        status.serve_nothing(false);
 
         let snapshot = status.make_snapshot();
 
         assert_eq!(snapshot.status.runtime, AgentRuntimeStatus::Idle);
         assert_eq!(status.slots_processing_count(), 1);
         assert_eq!(snapshot.status.model_path, None);
-        assert!(snapshot.status.issues.is_empty());
+    }
+
+    #[test]
+    fn beginning_a_desired_state_clears_only_the_desired_state_issues() {
+        let status = SlotAggregatedStatus::new(2);
+        let pipeline_issue = AgentIssue::ModelCannotBeLoaded(model_path("serving_model"));
+
+        status.set_download_status(ModelDownloadStatus::Downloading {
+            downloaded_bytes: 500,
+            model_path: "https://example.com/model.gguf".to_owned(),
+            total_bytes: 1000,
+        });
+        status.register_desired_state_issue(AgentIssue::ModelFileDoesNotExist(model_path(
+            "replaced_model",
+        )));
+        status.register_pipeline_issue(pipeline_issue.clone());
+
+        status.begin_desired_state();
+
+        let snapshot = status.make_snapshot();
+
+        assert_eq!(snapshot.status.issues, BTreeSet::from([pipeline_issue]));
+        assert_eq!(
+            snapshot.status.download_status,
+            ModelDownloadStatus::NotDownloading
+        );
+    }
+
+    #[test]
+    fn beginning_a_pipeline_clears_only_the_pipeline_issues() {
+        let status = SlotAggregatedStatus::new(2);
+        let desired_state_issue = AgentIssue::ModelFileDoesNotExist(model_path("desired_model"));
+
+        status.register_desired_state_issue(desired_state_issue.clone());
+        status.register_pipeline_issue(AgentIssue::ModelCannotBeLoaded(model_path(
+            "replaced_model",
+        )));
+
+        status.begin_pipeline();
+
+        assert_eq!(
+            status.make_snapshot().status.issues,
+            BTreeSet::from([desired_state_issue])
+        );
     }
 
     #[test]
@@ -451,16 +538,16 @@ mod tests {
     }
 
     #[test]
-    fn set_uses_chat_template_override() {
+    fn serving_reports_whether_the_served_state_overrides_the_chat_template() {
         let status = SlotAggregatedStatus::new(2);
 
         assert!(!status.make_snapshot().status.uses_chat_template_override);
 
-        status.set_uses_chat_template_override(true);
+        status.start_serving(InferenceMode::TextGeneration, "model".to_owned(), true);
 
         assert!(status.make_snapshot().status.uses_chat_template_override);
 
-        status.set_uses_chat_template_override(false);
+        status.serve_nothing(false);
 
         assert!(!status.make_snapshot().status.uses_chat_template_override);
     }

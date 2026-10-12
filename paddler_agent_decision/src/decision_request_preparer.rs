@@ -16,6 +16,7 @@ use crate::decision_error::DecisionError;
 use crate::decision_text_tokenizer::DecisionTextTokenizer;
 use crate::decision_token_layout::DecisionTokenLayout;
 use crate::prepared_decision_request::PreparedDecisionRequest;
+use crate::reports_decision_outcome::ReportsDecisionOutcome as _;
 use crate::tokenized_decision_question::TokenizedDecisionQuestion;
 
 pub struct DecisionRequestPreparer {

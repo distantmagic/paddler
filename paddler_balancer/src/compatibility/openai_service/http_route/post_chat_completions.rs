@@ -70,6 +70,7 @@ mod tests {
     use std::net::SocketAddr;
     use std::sync::Arc;
     use std::time::Duration;
+    use tokio::sync::watch;
 
     use actix_web::App;
     use actix_web::http::StatusCode;
@@ -100,7 +101,10 @@ mod tests {
     fn app_data_without_agents(max_buffered_requests: u64) -> CompatibilityAppData {
         CompatibilityAppData {
             balancer_applicable_state_holder: Arc::new(BalancerApplicableStateHolder::new(
-                BalancerApplicableState::from(BalancerDesiredState::default()),
+                watch::channel(Arc::new(BalancerApplicableState::from(
+                    BalancerDesiredState::default(),
+                )))
+                .1,
             )),
             buffered_request_manager: Arc::new(BufferedRequestManager::new(
                 Arc::new(AgentControllerPool::default()),

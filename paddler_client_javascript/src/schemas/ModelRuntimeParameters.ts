@@ -12,26 +12,15 @@ export const cacheDtypes = [
   "Q5_1",
 ] as const;
 
-const I32_MAX = 2_147_483_647;
-
 export const ModelRuntimeParametersSchema = z
   .object({
-    context_size: z.number().int().min(1),
+    context_size: z.number().int(),
     k_cache_dtype: z.enum(cacheDtypes),
-    n_batch: z.number().int().min(1).max(I32_MAX),
-    n_gpu_layers: z.number().int().min(-1),
+    n_batch: z.number().int(),
+    n_gpu_layers: z.number().int(),
     v_cache_dtype: z.enum(cacheDtypes),
   })
-  .strict()
-  .superRefine(function (parameters, context) {
-    if (parameters.n_batch > parameters.context_size) {
-      context.addIssue({
-        code: "custom",
-        message: "n_batch must not exceed context_size",
-        path: ["n_batch"],
-      });
-    }
-  });
+  .strict();
 
 export type ModelRuntimeParameters = z.infer<
   typeof ModelRuntimeParametersSchema

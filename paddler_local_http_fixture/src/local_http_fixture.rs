@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use tokio::net::TcpListener;
 use tokio::spawn;
+use tokio::sync::watch::error::RecvError;
 use tokio::task::JoinHandle;
 
 use crate::fixture_response::FixtureResponse;
@@ -60,6 +61,21 @@ impl LocalHttpFixture {
     #[must_use]
     pub fn last_range_header(&self) -> Option<Vec<u8>> {
         self.observed_requests.last_range_header()
+    }
+
+    pub async fn wait_for_requests(&self, expected_request_count: u32) -> Result<(), RecvError> {
+        self.observed_requests
+            .wait_for_count(expected_request_count)
+            .await
+    }
+
+    pub async fn wait_for_abandoned_trickles(
+        &self,
+        expected_abandoned_trickle_count: u32,
+    ) -> Result<(), RecvError> {
+        self.observed_requests
+            .wait_for_abandoned_trickles(expected_abandoned_trickle_count)
+            .await
     }
 }
 

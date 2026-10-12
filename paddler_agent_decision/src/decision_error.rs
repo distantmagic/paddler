@@ -19,6 +19,8 @@ use paddler_messaging::decision_result::DecisionResult;
 use paddler_messaging::inference_mode::InferenceMode;
 use paddler_messaging::oversized_decision_details::OversizedDecisionDetails;
 
+use crate::reports_decision_outcome::ReportsDecisionOutcome;
+
 #[derive(Debug, thiserror::Error)]
 pub enum DecisionError {
     #[error(transparent)]
@@ -101,8 +103,8 @@ pub enum DecisionError {
     },
 }
 
-impl DecisionError {
-    pub fn report(
+impl ReportsDecisionOutcome for DecisionError {
+    fn report(
         self,
         agent_name: Option<&str>,
         decision_result_tx: &mpsc::UnboundedSender<DecisionResult>,
@@ -159,6 +161,7 @@ mod tests {
     use paddler_messaging::oversized_decision_details::OversizedDecisionDetails;
 
     use super::DecisionError;
+    use crate::reports_decision_outcome::ReportsDecisionOutcome as _;
 
     fn reported(decision_error: DecisionError) -> Option<DecisionResult> {
         let (decision_result_tx, mut decision_result_rx) = mpsc::unbounded_channel();

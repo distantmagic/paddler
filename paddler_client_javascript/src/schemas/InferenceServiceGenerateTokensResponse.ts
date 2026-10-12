@@ -73,7 +73,6 @@ const GeneratedTokenResultSchema = z.union([
   z.object({ SamplerChainCreationFailed: z.string() }),
   z.object({ SamplingCandidatesExhausted: z.string() }),
   z.object({ SchedulerUnavailable: z.string() }),
-  z.object({ SequenceIdOutOfRange: z.string() }),
   z.object({ ToolsSerializationFailed: z.string() }),
   z.object({ SamplerError: z.string() }),
   z.object({ ToolCallParsed: z.array(ParsedToolCallSchema) }),
@@ -459,15 +458,6 @@ export const InferenceServiceGenerateTokensResponseSchema = z
         generated_by,
         503,
         variant.SchedulerUnavailable,
-      );
-    }
-
-    if ("SequenceIdOutOfRange" in variant) {
-      return terminalError(
-        request_id,
-        generated_by,
-        500,
-        variant.SequenceIdOutOfRange,
       );
     }
 

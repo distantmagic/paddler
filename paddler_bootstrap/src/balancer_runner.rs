@@ -1,7 +1,7 @@
-use tokio::sync::watch;
+use std::sync::Arc;
 
 use paddler_balancer::balancer_addresses::BalancerAddresses;
-use paddler_messaging::balancer_desired_state::BalancerDesiredState;
+use paddler_balancer::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 
 use crate::balancer_runner_params::BalancerRunnerParams;
 use crate::balancer_service_bundle::BalancerServiceBundle;
@@ -11,7 +11,7 @@ use crate::service_thread::ServiceThread;
 
 pub struct BalancerRunner {
     pub addresses: BalancerAddresses,
-    pub balancer_desired_state_tx: watch::Sender<BalancerDesiredState>,
+    pub balancer_applicable_state_holder: Arc<BalancerApplicableStateHolder>,
     thread: ServiceThread,
 }
 
@@ -26,7 +26,7 @@ impl BalancerRunner {
         let bundle = BalancerServiceBundle::new(bootstrap_config).await?;
 
         let addresses = bundle.addresses;
-        let balancer_desired_state_tx = bundle.balancer_desired_state_tx.clone();
+        let balancer_applicable_state_holder = bundle.balancer_applicable_state_holder.clone();
 
         let thread = ServiceThread::spawn(cancellation_token, move |task_shutdown| {
             run_service_manager(bundle, task_shutdown, shutdown_options)
@@ -34,7 +34,7 @@ impl BalancerRunner {
 
         Ok(Self {
             addresses,
-            balancer_desired_state_tx,
+            balancer_applicable_state_holder,
             thread,
         })
     }

@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::mpsc::channel;
-use std::thread;
 
 use encoding_rs::Decoder;
 use encoding_rs::UTF_8;
@@ -17,20 +16,21 @@ use llama_cpp_bindings::mtmd::micro_batch_tokens;
 use llama_cpp_bindings::mtmd::mtmd_default_marker;
 use llama_cpp_bindings::token::LlamaToken;
 use log::info;
-use tokio::sync::oneshot;
+use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
 use paddler_agent_runtime::agent_runtime_error::AgentRuntimeError;
-use paddler_agent_runtime::await_scheduler_startup::await_scheduler_startup;
 use paddler_agent_runtime::continue_startup_unless_shutting_down::continue_startup_unless_shutting_down;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::inference_thread_count::inference_thread_count;
 use paddler_agent_runtime::llama_context_settings::LlamaContextSettings;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
 use paddler_agent_runtime::run_scheduler_unless_startup_abandoned::run_scheduler_unless_startup_abandoned;
+use paddler_agent_runtime::scheduler_ready::SchedulerReady;
 use paddler_agent_runtime::scheduler_request_preparer::SchedulerRequestPreparer;
 use paddler_agent_runtime::scheduler_spawn_outcome::SchedulerSpawnOutcome;
+use paddler_agent_runtime::start_scheduler_thread::start_scheduler_thread;
 use paddler_agent_status::agent_issue_fix::AgentIssueFix;
 use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
 use paddler_messaging::agent_issue::AgentIssue;
@@ -75,20 +75,12 @@ impl TextGenerationPipeline {
     pub async fn spawn(
         self,
         cancellation_token: &CancellationToken,
-    ) -> Result<
-        SchedulerSpawnOutcome<GenerationRequestPreparer, TextGenerationError>,
-        TextGenerationError,
-    > {
-        let (scheduler_ready_tx, scheduler_ready_rx) = oneshot::channel();
-        let agent_shutdown = cancellation_token.clone();
-
-        let scheduler_thread_handle =
-            thread::spawn(move || self.run_scheduler(&agent_shutdown, scheduler_ready_tx));
-
-        await_scheduler_startup(
+    ) -> Result<SchedulerSpawnOutcome<GenerationRequestPreparer>, TextGenerationError> {
+        start_scheduler_thread(
             cancellation_token,
-            scheduler_ready_rx,
-            scheduler_thread_handle,
+            move |agent_shutdown, scheduler_startup_tx| {
+                self.run_scheduler(agent_shutdown, scheduler_startup_tx)
+            },
         )
         .await
     }
@@ -96,8 +88,8 @@ impl TextGenerationPipeline {
     fn run_scheduler(
         self,
         agent_shutdown: &CancellationToken,
-        scheduler_ready_tx: oneshot::Sender<
-            Arc<SchedulerRequestPreparer<GenerationRequestPreparer>>,
+        scheduler_startup_tx: &UnboundedSender<
+            Result<SchedulerReady<GenerationRequestPreparer>, TextGenerationError>,
         >,
     ) -> Result<(), TextGenerationError> {
         let desired_slots_total = self
@@ -117,10 +109,6 @@ impl TextGenerationPipeline {
             continue_startup_unless_shutting_down(agent_shutdown, || {
                 let token_generation_support =
                     self.token_generation_support(&loaded_llama_model.model)?;
-
-                self.inference_runtime_context
-                    .slot_aggregated_status
-                    .set_model_path(Some(ModelPath::from(self.model_path.as_path()).model_path));
 
                 let mut llama_context = loaded_llama_model.create_llama_context(
                     &self.inference_runtime_context,
@@ -155,33 +143,36 @@ impl TextGenerationPipeline {
                         let (scheduler_message_tx, scheduler_message_rx) = channel();
 
                         run_scheduler_unless_startup_abandoned(
-                            scheduler_ready_tx,
-                            Arc::new(SchedulerRequestPreparer {
-                                agent_name: self.inference_runtime_context.agent_name.clone(),
-                                preparation: GenerationRequestPreparer {
-                                    image_input,
-                                    image_resize_to_fit: self
-                                        .text_generation_settings
-                                        .image_resize_to_fit,
-                                    loaded_llama_model: loaded_llama_model.clone(),
-                                    prompt_tokenizer: PromptTokenizer {
-                                        model: loaded_llama_model.model.clone(),
-                                        model_bos_token: ModelBosToken::of(
-                                            &loaded_llama_model.model,
-                                        ),
-                                        sequence_context_size,
-                                    },
-                                    sampler_chain_factory: SamplerChainFactory {
-                                        sampling_parameters: self
+                            scheduler_startup_tx,
+                            Ok(SchedulerReady {
+                                model_metadata: loaded_llama_model.model_metadata.clone(),
+                                request_preparer: Arc::new(SchedulerRequestPreparer {
+                                    agent_name: self.inference_runtime_context.agent_name.clone(),
+                                    preparation: GenerationRequestPreparer {
+                                        image_input,
+                                        image_resize_to_fit: self
                                             .text_generation_settings
-                                            .sampling_parameters
-                                            .clone(),
-                                        n_vocab: loaded_llama_model.model.n_vocab(),
+                                            .image_resize_to_fit,
+                                        loaded_llama_model: loaded_llama_model.clone(),
+                                        prompt_tokenizer: PromptTokenizer {
+                                            model: loaded_llama_model.model.clone(),
+                                            model_bos_token: ModelBosToken::of(
+                                                &loaded_llama_model.model,
+                                            ),
+                                            sequence_context_size,
+                                        },
+                                        sampler_chain_factory: SamplerChainFactory {
+                                            sampling_parameters: self
+                                                .text_generation_settings
+                                                .sampling_parameters
+                                                .clone(),
+                                            n_vocab: loaded_llama_model.model.n_vocab(),
+                                        },
+                                        token_generation_support,
                                     },
-                                    token_generation_support,
-                                },
-                                preparation_tasks: TaskTracker::new(),
-                                scheduler_message_tx,
+                                    preparation_tasks: TaskTracker::new(),
+                                    scheduler_message_tx,
+                                }),
                             }),
                             || {
                                 ContinuousBatchScheduler::new(ContinuousBatchSchedulerParams {
@@ -273,8 +264,9 @@ impl TextGenerationPipeline {
                     .register_fix(&AgentIssueFix::ModelChatTemplateIsLoaded(model_issue_path));
             }
             Err(_chat_template_unavailable) => {
-                slot_aggregated_status
-                    .register_issue(AgentIssue::UnableToFindChatTemplate(model_issue_path));
+                slot_aggregated_status.register_pipeline_issue(
+                    AgentIssue::UnableToFindChatTemplate(model_issue_path),
+                );
             }
         }
 
@@ -297,13 +289,13 @@ impl TextGenerationPipeline {
                 Ok(chat_template_renderer)
             }
             Err(compile_error) => {
-                slot_aggregated_status.register_issue(AgentIssue::ChatTemplateDoesNotCompile(
-                    ChatTemplateDoesNotCompileParams {
+                slot_aggregated_status.register_pipeline_issue(
+                    AgentIssue::ChatTemplateDoesNotCompile(ChatTemplateDoesNotCompileParams {
                         error: format!("{compile_error}"),
                         model_path: model_issue_path,
                         template_content,
-                    },
-                ));
+                    }),
+                );
 
                 Err(TextGenerationError::ChatTemplateDoesNotCompile(
                     compile_error,
@@ -353,7 +345,7 @@ impl TextGenerationPipeline {
                 }))
             }
             Err(source) => {
-                slot_aggregated_status.register_issue(
+                slot_aggregated_status.register_pipeline_issue(
                     AgentIssue::MultimodalProjectionCannotBeLoaded(
                         multimodal_projection_issue_path,
                     ),

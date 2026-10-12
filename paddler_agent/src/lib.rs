@@ -7,17 +7,26 @@ pub mod agent_response_message;
 pub mod balancer_message_context;
 pub mod desired_state_reconciler;
 pub mod desired_state_reconciliation;
+pub mod desired_state_reconciliation_attempt;
+pub mod enqueue_management_message;
+pub mod enqueue_outbound_frame;
+pub mod finished_pipeline_startup;
+pub mod forward_outbound_frames;
 pub mod last_announced_agent_status;
 pub mod llamacpp_arbiter_service;
 pub mod management_connection_end;
 pub mod management_connection_step;
 pub mod management_socket_client_service;
-pub mod pipeline_arbiter_state;
+pub mod pipeline_arbiter;
+pub mod pipeline_arbiter_params;
 pub mod pipeline_request;
 pub mod pipeline_response_stream;
+pub mod pipeline_startup;
 pub mod reconciliation_service;
+pub mod retry_delay;
 pub mod running_pipeline;
-pub mod write_management_message;
+pub mod serving_pipeline;
+pub mod started_pipeline;
 
 #[cfg(test)]
 mod balancer_message_context_fixture;

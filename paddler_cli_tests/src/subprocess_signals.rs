@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
+use nix::errno::Errno;
 use nix::sys::signal::Signal;
 use nix::sys::signal::kill;
 use nix::sys::wait::WaitPidFlag;
@@ -45,7 +46,14 @@ impl SubprocessSignals {
     }
 
     pub fn terminate(&self) -> Result<(), SubprocessClusterError> {
-        self.send(Signal::SIGTERM)
+        match self.send(Signal::SIGTERM) {
+            Ok(())
+            | Err(SubprocessClusterError::SignalUndeliverable {
+                source: Errno::ESRCH,
+                ..
+            }) => Ok(()),
+            Err(signal_error) => Err(signal_error),
+        }
     }
 
     fn send(&self, signal: Signal) -> Result<(), SubprocessClusterError> {
@@ -54,5 +62,75 @@ impl SubprocessSignals {
             signal,
             source,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::BufRead as _;
+    use std::io::BufReader;
+    use std::process::Command;
+    use std::process::Stdio;
+    use std::sync::Arc;
+
+    use nix::errno::Errno;
+    use nix::sys::signal::Signal;
+    use nix::sys::signal::kill;
+    use nix::unistd::Pid;
+    use nix::unistd::Uid;
+
+    use super::SubprocessSignals;
+    use crate::subprocess_cluster_error::SubprocessClusterError;
+
+    fn signals_for(pid: Pid) -> SubprocessSignals {
+        SubprocessSignals {
+            kill_requested: Arc::default(),
+            pid,
+        }
+    }
+
+    #[test]
+    fn terminating_a_process_this_user_may_not_signal_is_refused() {
+        assert!(
+            !Uid::effective().is_root(),
+            "only an unprivileged user is refused when signalling the init process"
+        );
+
+        assert!(matches!(
+            signals_for(Pid::from_raw(1)).terminate(),
+            Err(SubprocessClusterError::SignalUndeliverable {
+                signal: Signal::SIGTERM,
+                source: Errno::EPERM,
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn pausing_a_process_this_harness_did_not_spawn_is_unobservable() {
+        let mut shell = Command::new("sh")
+            .args(["-c", "sleep 60 & echo $!; wait"])
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let mut grandchild_pid = String::new();
+
+        BufReader::new(shell.stdout.take().unwrap())
+            .read_line(&mut grandchild_pid)
+            .unwrap();
+
+        let grandchild = Pid::from_raw(grandchild_pid.trim_end().parse().unwrap());
+        let pause_result = signals_for(grandchild).pause();
+
+        kill(grandchild, Signal::SIGKILL).unwrap();
+        shell.wait().unwrap();
+
+        assert!(matches!(
+            pause_result,
+            Err(SubprocessClusterError::ProcessUnobservable {
+                pid,
+                source: Errno::ECHILD,
+            }) if pid == grandchild
+        ));
     }
 }

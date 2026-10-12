@@ -116,7 +116,6 @@ impl From<GeneratedTokenResult> for GenerationEvent {
             | GeneratedTokenResult::SamplerChainCreationFailed(description)
             | GeneratedTokenResult::SamplerError(description)
             | GeneratedTokenResult::SamplingCandidatesExhausted(description)
-            | GeneratedTokenResult::SequenceIdOutOfRange(description)
             | GeneratedTokenResult::ToolCallParseFailed(description)
             | GeneratedTokenResult::ToolsSerializationFailed(description) => {
                 Self::failed(GenerationFailureCause::AgentFailed, description)
@@ -336,10 +335,6 @@ mod tests {
                 ),
                 (
                     GeneratedTokenResult::SamplingCandidatesExhausted("agent failure".to_owned()),
-                    "agent failure",
-                ),
-                (
-                    GeneratedTokenResult::SequenceIdOutOfRange("agent failure".to_owned()),
                     "agent failure",
                 ),
                 (

@@ -27,12 +27,14 @@ pub async fn start_pausable_agent_cluster(
         },
     )
     .await?;
+    let management_addr = cluster.balancer.addresses.management;
     let pausable_agent = PausableAgent::join(
         &mut cluster,
         PausableAgentParams {
             binary_path,
             config: AgentConfig::single(slot_count),
             expected_slots_total,
+            management_addr,
         },
     )
     .await?;

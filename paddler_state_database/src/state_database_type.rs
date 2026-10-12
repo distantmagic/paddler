@@ -6,9 +6,8 @@ use std::str::FromStr;
 use shellexpand::tilde;
 use url::Url;
 
-use paddler_messaging::balancer_desired_state::BalancerDesiredState;
-
 use crate::state_database_error::StateDatabaseError;
+use crate::stored_balancer_desired_state::StoredBalancerDesiredState;
 
 fn relative_path_error(path: &str) -> StateDatabaseError {
     match absolute(tilde(path).to_string()) {
@@ -23,7 +22,7 @@ fn relative_path_error(path: &str) -> StateDatabaseError {
 #[derive(Clone)]
 pub enum StateDatabaseType {
     File(PathBuf),
-    Memory(Box<BalancerDesiredState>),
+    Memory(Box<StoredBalancerDesiredState>),
 }
 
 impl FromStr for StateDatabaseType {
@@ -54,7 +53,9 @@ impl FromStr for StateDatabaseType {
 
                 Ok(Self::File(PathBuf::from(path)))
             }
-            "memory" => Ok(Self::Memory(Box::default())),
+            "memory" => Ok(Self::Memory(Box::new(
+                StoredBalancerDesiredState::NothingStored,
+            ))),
             scheme => Err(StateDatabaseError::SchemeUnsupported {
                 scheme: scheme.to_owned(),
             }),
@@ -71,19 +72,18 @@ mod tests {
 
     use tempfile::TempDir;
 
-    use paddler_messaging::balancer_desired_state::BalancerDesiredState;
-
     use super::StateDatabaseType;
     use crate::state_database_error::StateDatabaseError;
+    use crate::stored_balancer_desired_state::StoredBalancerDesiredState;
 
     #[test]
-    fn parses_a_memory_url_into_the_default_state() {
+    fn parses_a_memory_url_into_an_empty_database() {
         let result = StateDatabaseType::from_str("memory://").unwrap();
 
         assert!(matches!(
             result,
-            StateDatabaseType::Memory(initial_desired_state)
-                if *initial_desired_state == BalancerDesiredState::default()
+            StateDatabaseType::Memory(stored_balancer_desired_state)
+                if *stored_balancer_desired_state == StoredBalancerDesiredState::NothingStored
         ));
     }
 

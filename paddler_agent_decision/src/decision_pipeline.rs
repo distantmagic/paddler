@@ -2,25 +2,25 @@ use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::mpsc::channel;
-use std::thread;
 
 use llama_cpp_bindings::llama_batch::LlamaBatch;
 use llama_cpp_bindings::model::params::LlamaModelParams;
-use tokio::sync::oneshot;
+use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
 use paddler_agent_pointer_head::pointer_head::PointerHead;
 use paddler_agent_runtime::agent_runtime_error::AgentRuntimeError;
-use paddler_agent_runtime::await_scheduler_startup::await_scheduler_startup;
 use paddler_agent_runtime::continue_startup_unless_shutting_down::continue_startup_unless_shutting_down;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::inference_thread_count::inference_thread_count;
 use paddler_agent_runtime::llama_context_settings::LlamaContextSettings;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
 use paddler_agent_runtime::run_scheduler_unless_startup_abandoned::run_scheduler_unless_startup_abandoned;
+use paddler_agent_runtime::scheduler_ready::SchedulerReady;
 use paddler_agent_runtime::scheduler_request_preparer::SchedulerRequestPreparer;
 use paddler_agent_runtime::scheduler_spawn_outcome::SchedulerSpawnOutcome;
+use paddler_agent_runtime::start_scheduler_thread::start_scheduler_thread;
 use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
 use paddler_messaging::agent_issue::AgentIssue;
 use paddler_messaging::agent_issue_params::model_architecture_unsupported_for_decisions_params::ModelArchitectureUnsupportedForDecisionsParams;
@@ -32,6 +32,7 @@ use paddler_messaging::agent_issue_params::slots_insufficient_for_decisions_para
 use crate::decision_capacity_ledger::DecisionCapacityLedger;
 use crate::decision_delimiter_tokens::DecisionDelimiterTokens;
 use crate::decision_error::DecisionError;
+use crate::decision_llama_context_settings::DecisionLlamaContextSettings;
 use crate::decision_request_preparer::DecisionRequestPreparer;
 use crate::decision_scheduler::DecisionScheduler;
 use crate::decision_scheduler_context::DecisionSchedulerContext;
@@ -51,17 +52,12 @@ impl DecisionPipeline {
     pub async fn spawn(
         self,
         cancellation_token: &CancellationToken,
-    ) -> Result<SchedulerSpawnOutcome<DecisionRequestPreparer, DecisionError>, DecisionError> {
-        let (scheduler_ready_tx, scheduler_ready_rx) = oneshot::channel();
-        let agent_shutdown = cancellation_token.clone();
-
-        let scheduler_thread_handle =
-            thread::spawn(move || self.run_scheduler(&agent_shutdown, scheduler_ready_tx));
-
-        await_scheduler_startup(
+    ) -> Result<SchedulerSpawnOutcome<DecisionRequestPreparer>, DecisionError> {
+        start_scheduler_thread(
             cancellation_token,
-            scheduler_ready_rx,
-            scheduler_thread_handle,
+            move |agent_shutdown, scheduler_startup_tx| {
+                self.run_scheduler(agent_shutdown, scheduler_startup_tx)
+            },
         )
         .await
     }
@@ -72,7 +68,7 @@ impl DecisionPipeline {
     ) -> DecisionError {
         self.inference_runtime_context
             .slot_aggregated_status
-            .register_issue(AgentIssue::PointerHeadIncompatibleWithModel(
+            .register_pipeline_issue(AgentIssue::PointerHeadIncompatibleWithModel(
                 PointerHeadIncompatibleWithModelParams {
                     incompatibility: incompatibility.clone(),
                     pointer_head_path: ModelPath::from(self.pointer_head_path.as_path()),
@@ -86,7 +82,7 @@ impl DecisionPipeline {
         PointerHead::load(&self.pointer_head_path).map_err(|source| {
             self.inference_runtime_context
                 .slot_aggregated_status
-                .register_issue(AgentIssue::PointerHeadCannotBeLoaded(ModelPath::from(
+                .register_pipeline_issue(AgentIssue::PointerHeadCannotBeLoaded(ModelPath::from(
                     self.pointer_head_path.as_path(),
                 )));
 
@@ -109,7 +105,7 @@ impl DecisionPipeline {
 
         self.inference_runtime_context
             .slot_aggregated_status
-            .register_issue(AgentIssue::ModelArchitectureUnsupportedForDecisions(
+            .register_pipeline_issue(AgentIssue::ModelArchitectureUnsupportedForDecisions(
                 ModelArchitectureUnsupportedForDecisionsParams {
                     architecture: architecture.clone(),
                     model_path: ModelPath::from(self.model_path.as_path()),
@@ -131,7 +127,7 @@ impl DecisionPipeline {
 
         self.inference_runtime_context
             .slot_aggregated_status
-            .register_issue(AgentIssue::SlotsInsufficientForDecisions(
+            .register_pipeline_issue(AgentIssue::SlotsInsufficientForDecisions(
                 SlotsInsufficientForDecisionsParams {
                     desired_slots,
                     required_slots: DECISION_SLOTS_MINIMUM,
@@ -160,8 +156,10 @@ impl DecisionPipeline {
             ));
         }
 
-        match DecisionDelimiterTokens::resolve(&loaded_llama_model.model, &pointer_head.delimiters)
-        {
+        match DecisionDelimiterTokens::resolve(
+            loaded_llama_model.model.as_ref(),
+            &pointer_head.delimiters,
+        ) {
             Err(DecisionError::PointerHeadIncompatibleWithModel { incompatibility }) => {
                 Err(self.register_incompatibility(incompatibility))
             }
@@ -172,7 +170,9 @@ impl DecisionPipeline {
     fn run_scheduler(
         self,
         agent_shutdown: &CancellationToken,
-        scheduler_ready_tx: oneshot::Sender<Arc<SchedulerRequestPreparer<DecisionRequestPreparer>>>,
+        scheduler_startup_tx: &UnboundedSender<
+            Result<SchedulerReady<DecisionRequestPreparer>, DecisionError>,
+        >,
     ) -> Result<(), DecisionError> {
         continue_startup_unless_shutting_down(agent_shutdown, || {
             let desired_slots_total = self.require_enough_slots()?;
@@ -187,27 +187,18 @@ impl DecisionPipeline {
             )?;
 
             continue_startup_unless_shutting_down(agent_shutdown, || {
-                self.inference_runtime_context
-                    .slot_aggregated_status
-                    .set_model_path(Some(ModelPath::from(self.model_path.as_path()).model_path));
                 self.require_decision_architecture(&loaded_llama_model)?;
 
                 let delimiter_tokens =
                     self.resolve_delimiter_tokens(&loaded_llama_model, &pointer_head)?;
-                let mut llama_context = loaded_llama_model.create_llama_context(
-                    &self.inference_runtime_context,
-                    LlamaContextSettings {
+                let mut llama_context = DecisionLlamaContextSettings {
+                    llama_context_settings: LlamaContextSettings {
                         model_runtime_parameters: &self.model_runtime_parameters,
                         n_seq_max: u32::from(desired_slots_total),
                         thread_count,
-                    }
-                    .into_llama_context_params()
-                    .with_kv_unified(true),
-                )?;
-
-                llama_context
-                    .enable_masked_nextn_embeddings()
-                    .map_err(DecisionError::HiddenStatesUnsupported)?;
+                    },
+                }
+                .create_llama_context(&loaded_llama_model, &self.inference_runtime_context)?;
 
                 let mut batch = LlamaBatch::new(n_batch, 1)
                     .map_err(AgentRuntimeError::BatchAllocationFailed)?;
@@ -223,18 +214,21 @@ impl DecisionPipeline {
                     let (scheduler_message_tx, scheduler_message_rx) = channel();
 
                     run_scheduler_unless_startup_abandoned(
-                        scheduler_ready_tx,
-                        Arc::new(SchedulerRequestPreparer {
-                            agent_name: self.inference_runtime_context.agent_name.clone(),
-                            preparation: DecisionRequestPreparer {
-                                context_cells,
-                                delimiter_tokens,
-                                text_tokenizer: DecisionTextTokenizer {
-                                    loaded_llama_model: loaded_llama_model.clone(),
+                        scheduler_startup_tx,
+                        Ok(SchedulerReady {
+                            model_metadata: loaded_llama_model.model_metadata.clone(),
+                            request_preparer: Arc::new(SchedulerRequestPreparer {
+                                agent_name: self.inference_runtime_context.agent_name.clone(),
+                                preparation: DecisionRequestPreparer {
+                                    context_cells,
+                                    delimiter_tokens,
+                                    text_tokenizer: DecisionTextTokenizer {
+                                        loaded_llama_model: loaded_llama_model.clone(),
+                                    },
                                 },
-                            },
-                            preparation_tasks: TaskTracker::new(),
-                            scheduler_message_tx,
+                                preparation_tasks: TaskTracker::new(),
+                                scheduler_message_tx,
+                            }),
                         }),
                         || {
                             DecisionScheduler {

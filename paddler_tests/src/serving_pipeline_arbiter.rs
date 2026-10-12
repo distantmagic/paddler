@@ -3,10 +3,10 @@ use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent::agent_applicable_state_holder::AgentApplicableStateHolder;
-use paddler_agent::agent_error::AgentError;
 use paddler_agent::desired_state_reconciler::DesiredStateReconciler;
 use paddler_agent::desired_state_reconciliation::DesiredStateReconciliation;
-use paddler_agent::pipeline_arbiter_state::PipelineArbiterState;
+use paddler_agent::pipeline_arbiter::PipelineArbiter;
+use paddler_agent::pipeline_arbiter_params::PipelineArbiterParams;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_status::slot_guard::SlotGuard;
 use paddler_messaging::agent_desired_state::AgentDesiredState;
@@ -17,7 +17,7 @@ use crate::agent_inference_runtime_context::agent_inference_runtime_context;
 pub struct ServingPipelineArbiter {
     pub desired_state_reconciliation: DesiredStateReconciliation,
     pub inference_runtime_context: InferenceRuntimeContext,
-    pub pipeline_arbiter_state: PipelineArbiterState,
+    pub pipeline_arbiter: PipelineArbiter,
 }
 
 impl ServingPipelineArbiter {
@@ -33,18 +33,22 @@ impl ServingPipelineArbiter {
             AgentDesiredState::from(desired_state),
         )
         .await;
-        let pipeline_arbiter_state = PipelineArbiterState::Idle
-            .apply(
-                &CancellationToken::new(),
-                agent_applicable_state_holder.get_agent_applicable_state(),
-                &inference_runtime_context,
-            )
-            .await;
+        let mut pipeline_arbiter = PipelineArbiter::new(PipelineArbiterParams {
+            agent_shutdown: CancellationToken::new(),
+            inference_runtime_context: inference_runtime_context.clone(),
+            served_applicable_state_holder: Arc::new(AgentApplicableStateHolder::default()),
+        });
+
+        pipeline_arbiter.apply(agent_applicable_state_holder.get_agent_applicable_state());
+
+        let finished_pipeline_startup = pipeline_arbiter.next_finished_startup().await;
+
+        pipeline_arbiter.conclude(finished_pipeline_startup);
 
         Self {
             desired_state_reconciliation,
             inference_runtime_context,
-            pipeline_arbiter_state,
+            pipeline_arbiter,
         }
     }
 
@@ -57,7 +61,7 @@ impl ServingPipelineArbiter {
         )
     }
 
-    pub async fn shut_down(self) -> Result<(), AgentError> {
-        self.pipeline_arbiter_state.shut_down().await
+    pub async fn shut_down(self) {
+        self.pipeline_arbiter.shut_down().await;
     }
 }

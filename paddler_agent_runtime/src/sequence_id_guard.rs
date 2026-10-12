@@ -1,7 +1,8 @@
+use crate::sequence_id::SequenceId;
 use crate::sequence_id_pool::SequenceIdPool;
 
 pub struct SequenceIdGuard {
-    sequence_id: i32,
+    sequence_id: u16,
     sequence_id_pool: SequenceIdPool,
 }
 
@@ -15,8 +16,8 @@ impl SequenceIdGuard {
     }
 
     #[must_use]
-    pub const fn sequence_id(&self) -> i32 {
-        self.sequence_id
+    pub const fn sequence_id(&self) -> SequenceId {
+        SequenceId(self.sequence_id)
     }
 }
 
@@ -29,6 +30,7 @@ impl Drop for SequenceIdGuard {
 #[cfg(test)]
 mod tests {
     use super::SequenceIdGuard;
+    use crate::sequence_id::SequenceId;
     use crate::sequence_id_pool::SequenceIdPool;
 
     #[test]
@@ -37,7 +39,7 @@ mod tests {
 
         let guard = SequenceIdGuard::acquire(&sequence_id_pool).unwrap();
 
-        assert_eq!(guard.sequence_id(), 0);
+        assert_eq!(guard.sequence_id(), SequenceId(0));
         assert_eq!(sequence_id_pool.available_count(), 0);
     }
 
