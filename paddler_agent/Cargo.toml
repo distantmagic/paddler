@@ -39,8 +39,12 @@ metal = ["paddler_agent_decision/metal", "paddler_agent_embeddings/metal", "padd
 vulkan = ["paddler_agent_decision/vulkan", "paddler_agent_embeddings/vulkan", "paddler_agent_runtime/vulkan", "paddler_agent_text_generation/vulkan"]
 
 [dev-dependencies]
+http = { workspace = true }
 nix = { workspace = true }
 tempfile = { workspace = true }
+tokio = { workspace = true, features = ["test-util"] }
+
+paddler_local_http_fixture = { workspace = true }
 
 [lints]
 workspace = true
