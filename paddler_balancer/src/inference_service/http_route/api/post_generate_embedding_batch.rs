@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use actix_web::Error;
 use actix_web::HttpResponse;
 use actix_web::Responder;
@@ -31,7 +33,9 @@ use crate::chunk_forwarding_session_controller::identity_transformer::IdentityTr
 use crate::chunk_forwarding_session_controller::transform_result::TransformResult;
 use crate::chunk_forwarding_session_controller::transforms_outgoing_message::TransformsOutgoingMessage;
 use crate::controls_session::ControlsSession as _;
+use crate::distinct_embedding_documents::DistinctEmbeddingDocuments;
 use crate::embedding_chunk_dispatch::EmbeddingChunkDispatch;
+use crate::embedding_document_duplicates::EmbeddingDocumentDuplicates;
 use crate::inference_service::app_data::AppData;
 use crate::request_from_agent::request_from_agent;
 use crate::request_from_dispatched_agent::request_from_dispatched_agent;
@@ -54,7 +58,12 @@ async fn respond(
 
     let mut chunk_tasks: JoinSet<()> = JoinSet::new();
 
-    let batches = params.into_inner().chunk_evenly_with_cap(
+    let DistinctEmbeddingDocuments {
+        duplicates,
+        params: distinct_params,
+    } = DistinctEmbeddingDocuments::from(params.into_inner());
+    let embedding_document_duplicates = Arc::new(duplicates);
+    let batches = distinct_params.chunk_evenly_with_cap(
         app_data.agent_controller_pool.agent_count(),
         embedding_batch_size,
     );
@@ -76,8 +85,12 @@ async fn respond(
         .collect();
 
     for chunk_dispatch in chunk_dispatches {
-        let session_controller =
-            ChunkForwardingSessionController::new(chunk_tx.clone(), EmbeddingChunkBodyTransformer);
+        let session_controller = ChunkForwardingSessionController::new(
+            chunk_tx.clone(),
+            EmbeddingChunkBodyTransformer {
+                embedding_document_duplicates: embedding_document_duplicates.clone(),
+            },
+        );
 
         match chunk_dispatch {
             EmbeddingChunkDispatch::Claimed {
@@ -135,7 +148,9 @@ async fn respond(
         .streaming(stream))
 }
 
-struct EmbeddingChunkBodyTransformer;
+struct EmbeddingChunkBodyTransformer {
+    embedding_document_duplicates: Arc<EmbeddingDocumentDuplicates>,
+}
 
 #[async_trait]
 impl TransformsOutgoingMessage for EmbeddingChunkBodyTransformer {
@@ -153,9 +168,15 @@ impl TransformsOutgoingMessage for EmbeddingChunkBodyTransformer {
             return Ok(vec![TransformResult::Discard]);
         }
 
-        to_string(&message)
-            .map(|serialized| vec![TransformResult::Chunk(serialized)])
-            .map_err(AgentRelayError::MessageUnserializable)
+        self.embedding_document_duplicates
+            .fan_out(message)
+            .iter()
+            .map(|fanned_out_message| {
+                to_string(fanned_out_message)
+                    .map(TransformResult::Chunk)
+                    .map_err(AgentRelayError::MessageUnserializable)
+            })
+            .collect()
     }
 }
 

@@ -1,5 +1,3 @@
-use crate::normalized_probabilities::normalized_probabilities;
-
 #[expect(
     clippy::cast_precision_loss,
     reason = "score levels stay within the 255 levels a TypeSafe question may carry"
@@ -11,11 +9,10 @@ pub fn score_confidence(probabilities: &[f64]) -> f64 {
     }
 
     let level_count = probabilities.len() as f64;
-    let normalized = normalized_probabilities(probabilities);
     let mut most_likely_level = 0;
 
-    for (level, probability) in normalized.iter().enumerate() {
-        if *probability > normalized[most_likely_level] {
+    for (level, probability) in probabilities.iter().enumerate() {
+        if *probability > probabilities[most_likely_level] {
             most_likely_level = level;
         }
     }
@@ -24,7 +21,7 @@ pub fn score_confidence(probabilities: &[f64]) -> f64 {
         .map(|level| (level as f64 - (level_count - 1.0) / 2.0).abs())
         .sum::<f64>()
         / level_count;
-    let expected_deviation: f64 = normalized
+    let expected_deviation: f64 = probabilities
         .iter()
         .enumerate()
         .map(|(level, probability)| probability * (level as f64 - most_likely_level as f64).abs())

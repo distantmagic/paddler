@@ -1,5 +1,4 @@
 pub mod choice_confidence;
-pub mod normalized_probabilities;
 pub mod python_float_repr;
 pub mod render_json_content;
 pub mod round_probability;
