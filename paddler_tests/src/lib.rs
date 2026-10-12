@@ -21,6 +21,7 @@ pub mod kev_0_8b_target_path;
 pub mod kev_parity_record;
 pub mod llama_runtime;
 pub mod many_question_decision;
+pub mod max_tokens_for_forced_text;
 pub mod ministral_3_cluster_params;
 pub mod next_reported_cluster_inference_mode;
 pub mod nomic_embed_desired_state_with_chat_template_override;

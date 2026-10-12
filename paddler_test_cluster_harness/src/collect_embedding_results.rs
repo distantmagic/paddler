@@ -20,7 +20,6 @@ pub async fn collect_embedding_results(
 ) -> Result<CollectedEmbeddingResults> {
     let mut embeddings: Vec<EmbeddingWithProducer> = Vec::new();
     let mut failures: Vec<EmbeddingResult> = Vec::new();
-    let mut model_not_loaded_count: usize = 0;
     let mut no_embeddings_produced_count: usize = 0;
     let mut oversized_documents = Vec::new();
     let mut request_ids = BTreeSet::new();
@@ -58,11 +57,9 @@ pub async fn collect_embedding_results(
                     | EmbeddingResult::EmbeddingsUnavailable(_)
                     | EmbeddingResult::InferenceModeMismatch(_)
                     | EmbeddingResult::InputTokenizationFailed(_)
+                    | EmbeddingResult::ModelNotLoaded(_)
                     | EmbeddingResult::SchedulerUnavailable(_)) => {
                         failures.push(failure);
-                    }
-                    EmbeddingResult::ModelNotLoaded(_) => {
-                        model_not_loaded_count += 1;
                     }
                     EmbeddingResult::NoEmbeddingsProduced => {
                         no_embeddings_produced_count += 1;
@@ -85,7 +82,6 @@ pub async fn collect_embedding_results(
     Ok(CollectedEmbeddingResults {
         embeddings,
         failures,
-        model_not_loaded_count,
         no_embeddings_produced_count,
         oversized_documents,
         request_ids,

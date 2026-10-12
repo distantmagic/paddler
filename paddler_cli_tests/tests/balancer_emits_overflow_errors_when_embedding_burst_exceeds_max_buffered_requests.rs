@@ -70,13 +70,14 @@ async fn balancer_emits_overflow_errors_when_embedding_burst_exceeds_max_buffere
         "stream must terminate cleanly with Done even when some sub-batches overflow",
     );
 
+    let embedding_count = collected.embeddings.len();
+    let wire_error_count = collected.wire_errors.len();
+    let overflow_error_count = overflow_errors.len();
+
     assert_eq!(
-        collected.embeddings.len() + collected.wire_errors.len(),
+        embedding_count + wire_error_count,
         TOTAL_DOCUMENTS,
-        "every sub-batch must be accounted for as either a successful embedding or a wire error (503 overflow or 504 timeout): {} embeddings + {} wire errors ({} of which are 503 overflow) ≠ {TOTAL_DOCUMENTS}",
-        collected.embeddings.len(),
-        collected.wire_errors.len(),
-        overflow_errors.len(),
+        "every sub-batch must be accounted for as either a successful embedding or a wire error (503 overflow or 504 timeout): {embedding_count} embeddings + {wire_error_count} wire errors ({overflow_error_count} of which are 503 overflow) ≠ {TOTAL_DOCUMENTS}",
     );
 
     cluster

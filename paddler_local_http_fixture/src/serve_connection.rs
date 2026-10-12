@@ -77,7 +77,6 @@ pub async fn serve_connection(
     observed_requests.record(read_range_header(&mut stream).await?);
 
     match response {
-        FixtureResponse::CloseBeforeHeaders => stream.shutdown().await,
         FixtureResponse::EndlessTrickle { byte_interval } => {
             let trickle_end = trickle_until_the_client_leaves(&mut stream, *byte_interval).await;
 

@@ -154,23 +154,18 @@ impl ProducesSnapshot for AgentController {
 #[cfg(test)]
 mod tests {
     use std::num::NonZeroU32;
-    use std::sync::atomic::AtomicU64;
-
-    use parking_lot::RwLock;
-    use tokio::sync::mpsc;
-    use tokio_util::sync::CancellationToken;
+    use std::sync::Arc;
 
     use paddler_messaging::agent_runtime_status::AgentRuntimeStatus;
     use paddler_messaging::agent_status::AgentStatus;
-    use paddler_messaging::atomic_value::AtomicValue;
     use paddler_messaging::inference_mode::InferenceMode;
     use paddler_messaging::request_params::continue_from_raw_prompt_params::ContinueFromRawPromptParams;
     use paddler_messaging::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 
     use super::AgentController;
+    use crate::agent_controller_fixture::AgentControllerFixture;
     use crate::agent_controller_update_result::AgentControllerUpdateResult;
     use crate::agent_relay_error::AgentRelayError;
-    use crate::agent_response_senders::AgentResponseSenders;
 
     fn reported(version: u64, slots_total: u64) -> SlotAggregatedStatusSnapshot {
         SlotAggregatedStatusSnapshot {
@@ -185,18 +180,10 @@ mod tests {
         }
     }
 
-    fn agent_controller_with(reported_status: SlotAggregatedStatusSnapshot) -> AgentController {
-        let (agent_message_tx, _agent_message_rx) = mpsc::unbounded_channel();
-
-        AgentController {
-            agent_message_tx,
-            agent_response_senders: AgentResponseSenders::default(),
-            connection_close: CancellationToken::new(),
-            id: "agent".to_owned(),
-            name: None,
-            reported_status: RwLock::new(reported_status),
-            slots_processing: AtomicValue::<AtomicU64>::new(0),
-        }
+    fn agent_controller_with(
+        reported_status: SlotAggregatedStatusSnapshot,
+    ) -> Arc<AgentController> {
+        AgentControllerFixture::whose_socket_is_gone("agent", reported_status)
     }
 
     #[test]
@@ -272,11 +259,10 @@ mod tests {
 
     #[test]
     fn refuses_a_second_stream_under_a_request_id_in_flight() {
-        let (agent_message_tx, _agent_message_rx) = mpsc::unbounded_channel();
-        let agent_controller = AgentController {
-            agent_message_tx,
-            ..agent_controller_with(reported(1, 4))
-        };
+        let AgentControllerFixture {
+            agent_controller,
+            agent_message_rx: _agent_message_rx,
+        } = AgentControllerFixture::reporting("agent", reported(1, 4));
         let _in_flight_stream = agent_controller
             .stream_responses_to("request".to_owned(), raw_prompt_params())
             .expect("the first stream must reach the agent");

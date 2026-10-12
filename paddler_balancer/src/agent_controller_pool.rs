@@ -193,16 +193,10 @@ impl ProducesSnapshot for AgentControllerPool {
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
-    use std::sync::atomic::AtomicU64;
-
-    use parking_lot::RwLock;
-    use tokio::sync::mpsc;
-    use tokio_util::sync::CancellationToken;
 
     use paddler_messaging::agent_desired_state::AgentDesiredState;
     use paddler_messaging::agent_runtime_status::AgentRuntimeStatus;
     use paddler_messaging::agent_status::AgentStatus;
-    use paddler_messaging::atomic_value::AtomicValue;
     use paddler_messaging::balancer_desired_state::BalancerDesiredState;
     use paddler_messaging::inference_mode::InferenceMode;
     use paddler_messaging::management_socket::agent::message::Message as AgentJsonRpcMessage;
@@ -210,40 +204,24 @@ mod tests {
     use paddler_messaging::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 
     use super::AgentControllerPool;
-    use crate::agent_controller::AgentController;
+    use crate::agent_controller_fixture::AgentControllerFixture;
     use crate::agent_controller_registration::AgentControllerRegistration;
-    use crate::agent_response_senders::AgentResponseSenders;
 
-    struct AgentWithInbox {
-        controller: Arc<AgentController>,
-        inbox: mpsc::UnboundedReceiver<AgentJsonRpcMessage>,
-    }
-
-    fn agent_with_inbox(agent_id: &str) -> AgentWithInbox {
+    fn agent_with_inbox(agent_id: &str) -> AgentControllerFixture {
         agent_reporting(agent_id, AgentRuntimeStatus::Idle)
     }
 
-    fn agent_reporting(agent_id: &str, runtime: AgentRuntimeStatus) -> AgentWithInbox {
-        let (agent_message_tx, inbox) = mpsc::unbounded_channel();
-
-        AgentWithInbox {
-            controller: Arc::new(AgentController {
-                agent_message_tx,
-                agent_response_senders: AgentResponseSenders::default(),
-                connection_close: CancellationToken::new(),
-                id: agent_id.to_owned(),
-                name: None,
-                reported_status: RwLock::new(SlotAggregatedStatusSnapshot {
-                    status: AgentStatus {
-                        runtime,
-                        ..AgentStatus::default()
-                    },
-                    version: 0,
-                }),
-                slots_processing: AtomicValue::<AtomicU64>::new(0),
-            }),
-            inbox,
-        }
+    fn agent_reporting(agent_id: &str, runtime: AgentRuntimeStatus) -> AgentControllerFixture {
+        AgentControllerFixture::reporting(
+            agent_id,
+            SlotAggregatedStatusSnapshot {
+                status: AgentStatus {
+                    runtime,
+                    ..AgentStatus::default()
+                },
+                version: 0,
+            },
+        )
     }
 
     fn serving(inference_mode: InferenceMode) -> AgentRuntimeStatus {
@@ -257,9 +235,9 @@ mod tests {
     fn dispatches_only_to_agents_with_free_slots() {
         let pool = Arc::new(AgentControllerPool::default());
         let registrations = [
-            pool.register_agent_controller(agent_with_inbox("idle").controller),
+            pool.register_agent_controller(agent_with_inbox("idle").agent_controller),
             pool.register_agent_controller(
-                agent_reporting("embeddings", serving(InferenceMode::Embeddings)).controller,
+                agent_reporting("embeddings", serving(InferenceMode::Embeddings)).agent_controller,
             ),
         ];
 
@@ -278,7 +256,7 @@ mod tests {
     fn does_not_dispatch_to_agents_serving_another_inference_mode() {
         let pool = Arc::new(AgentControllerPool::default());
         let registration = pool.register_agent_controller(
-            agent_reporting("decision", serving(InferenceMode::Decision)).controller,
+            agent_reporting("decision", serving(InferenceMode::Decision)).agent_controller,
         );
 
         assert!(matches!(
@@ -295,9 +273,9 @@ mod tests {
     fn counts_only_the_slots_of_serving_agents() {
         let pool = Arc::new(AgentControllerPool::default());
         let _registrations = [
-            pool.register_agent_controller(agent_with_inbox("idle").controller),
+            pool.register_agent_controller(agent_with_inbox("idle").agent_controller),
             pool.register_agent_controller(
-                agent_reporting("serving", serving(InferenceMode::TextGeneration)).controller,
+                agent_reporting("serving", serving(InferenceMode::TextGeneration)).agent_controller,
             ),
         ];
 
@@ -310,11 +288,11 @@ mod tests {
         let disconnected_agent = agent_with_inbox("disconnected");
         let mut connected_agent = agent_with_inbox("connected");
 
-        drop(disconnected_agent.inbox);
+        drop(disconnected_agent.agent_message_rx);
 
         let registrations = [
-            pool.register_agent_controller(disconnected_agent.controller),
-            pool.register_agent_controller(connected_agent.controller),
+            pool.register_agent_controller(disconnected_agent.agent_controller),
+            pool.register_agent_controller(connected_agent.agent_controller),
         ];
 
         assert!(registrations.iter().all(|registration| matches!(
@@ -325,7 +303,7 @@ mod tests {
         pool.set_desired_state(&AgentDesiredState::from(BalancerDesiredState::default()));
 
         assert!(matches!(
-            connected_agent.inbox.try_recv(),
+            connected_agent.agent_message_rx.try_recv(),
             Ok(AgentJsonRpcMessage::Notification(
                 AgentJsonRpcNotification::SetState(set_state_params)
             )) if set_state_params.desired_state == AgentDesiredState::from(BalancerDesiredState::default())

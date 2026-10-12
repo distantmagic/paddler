@@ -152,3 +152,72 @@ pub async fn forward_responses_stream<TControlsSession, TResponse>(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use tokio::sync::mpsc::unbounded_channel;
+    use tokio_util::sync::CancellationToken;
+
+    use paddler_messaging::generated_token_result::GeneratedTokenResult;
+    use paddler_messaging::inference_client::message::Message as OutgoingMessage;
+    use paddler_messaging::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
+    use paddler_request_registry::request_delivery::RequestDelivery;
+
+    use super::forward_responses_stream;
+    use crate::agent_controller_fixture::AgentControllerFixture;
+    use crate::agent_controller_pool_updates::AgentControllerPoolUpdates;
+    use crate::agent_controller_slot_guard::AgentControllerSlotGuard;
+    use crate::agent_response_receiver::AgentResponseReceiver;
+    use crate::dispatched_agent::DispatchedAgent;
+    use crate::unexpiring_inference_service_configuration::unexpiring_inference_service_configuration;
+    use crate::websocket_session_controller::WebSocketSessionController;
+
+    #[tokio::test]
+    async fn forwarding_to_a_gone_client_for_a_gone_agent_releases_the_agent_slot() {
+        let agent_controller = AgentControllerFixture::whose_socket_is_gone(
+            "agent",
+            SlotAggregatedStatusSnapshot::default(),
+        );
+        let receive_response_controller = AgentResponseReceiver::register(
+            &agent_controller.agent_response_senders.generated_tokens,
+            "agent-request".to_owned(),
+        )
+        .unwrap();
+        let (outbound_tx, outbound_rx) = unbounded_channel();
+
+        drop(outbound_rx);
+        agent_controller.slots_processing.increment();
+
+        assert_eq!(
+            agent_controller
+                .agent_response_senders
+                .generated_tokens
+                .send_to(
+                    "agent-request",
+                    GeneratedTokenResult::ContentToken("piece".to_owned())
+                ),
+            RequestDelivery::Delivered
+        );
+
+        forward_responses_stream(
+            CancellationToken::new(),
+            DispatchedAgent::new(
+                agent_controller.clone(),
+                AgentControllerSlotGuard::new(
+                    agent_controller.clone(),
+                    Arc::new(AgentControllerPoolUpdates::default()),
+                ),
+            ),
+            unexpiring_inference_service_configuration(),
+            receive_response_controller,
+            "client-request".to_owned(),
+            WebSocketSessionController::<OutgoingMessage>::new(outbound_tx),
+            CancellationToken::new(),
+        )
+        .await;
+
+        assert_eq!(agent_controller.slots_processing.get(), 0);
+    }
+}

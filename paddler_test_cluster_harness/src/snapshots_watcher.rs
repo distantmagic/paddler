@@ -155,11 +155,16 @@ impl SnapshotsWatcher<BufferedRequestManagerSnapshot> {
 
 #[cfg(test)]
 mod tests {
+    use std::mem::discriminant;
+
     use futures_util::stream::iter;
 
+    use paddler_client::error::Error as ClientError;
     use paddler_messaging::buffered_request_manager_snapshot::BufferedRequestManagerSnapshot;
 
     use super::SnapshotsWatcher;
+    use crate::cluster_harness_error::ClusterHarnessError;
+    use crate::snapshots_stream::SnapshotsStream;
 
     fn snapshot(buffered_requests_current: u64) -> BufferedRequestManagerSnapshot {
         BufferedRequestManagerSnapshot {
@@ -187,5 +192,27 @@ mod tests {
             .expect("the newest snapshot already received satisfies the second wait");
 
         assert_eq!(satisfied_by.buffered_requests_current, 2);
+    }
+
+    #[tokio::test]
+    async fn a_failed_snapshot_is_reported_as_a_stream_failure() {
+        let connection_error = SnapshotsWatcher::of_buffered_requests(Box::pin(iter(vec![Err(
+            ClientError::NonUtf8StreamLine {
+                source: String::from_utf8(vec![0xFF]).unwrap_err(),
+            },
+        )])))
+        .await
+        .err()
+        .expect("a failed snapshot must not start the watcher");
+
+        assert_eq!(
+            discriminant(&connection_error),
+            discriminant(&ClusterHarnessError::SnapshotsStreamFailed {
+                snapshots_stream: SnapshotsStream::BufferedRequests,
+                source: ClientError::NonUtf8StreamLine {
+                    source: String::from_utf8(vec![0xFF]).unwrap_err(),
+                },
+            })
+        );
     }
 }

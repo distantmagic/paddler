@@ -10,6 +10,7 @@ use paddler_messaging::conversation_history::ConversationHistory;
 use paddler_messaging::conversation_message::ConversationMessage;
 use paddler_messaging::conversation_message_content::ConversationMessageContent;
 use paddler_messaging::conversation_message_content_part::ConversationMessageContentPart;
+use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_messaging::image_url::ImageUrl;
 use paddler_messaging::request_params::continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
@@ -53,21 +54,11 @@ fn drive_normal_image_fixture(
     );
 
     Ok(async move {
-        let collected = generation.await?;
-
-        let saw_token = collected
-            .token_results
-            .iter()
-            .any(|result| result.token_result.is_token());
+        let token_results = generation.await?.into_token_results();
 
         assert!(
-            saw_token,
-            "fixture {fixture_name} should produce at least one content/reasoning/tool-call token with adequate n_batch; got {:?}",
-            collected
-                .token_results
-                .iter()
-                .map(|result| &result.token_result)
-                .collect::<Vec<_>>(),
+            token_results.iter().any(GeneratedTokenResult::is_token),
+            "fixture {fixture_name} should produce at least one content/reasoning/tool-call token with adequate n_batch; got {token_results:?}",
         );
 
         Ok(())

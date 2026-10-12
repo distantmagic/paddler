@@ -11,7 +11,6 @@ use paddler_messaging::conversation_history::ConversationHistory;
 use paddler_messaging::conversation_message::ConversationMessage;
 use paddler_messaging::conversation_message_content::ConversationMessageContent;
 use paddler_messaging::conversation_message_content_part::ConversationMessageContentPart;
-use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_messaging::image_url::ImageUrl;
 use paddler_messaging::request_params::continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
@@ -109,15 +108,8 @@ async fn agent_serves_request_being_prepared_when_state_change_begins() {
         .expect("the image request task must not panic")
         .expect("the message must be readable");
 
-    assert!(
-        matches!(
-            collected
-                .token_results
-                .last()
-                .map(|token_result_with_producer| &token_result_with_producer.token_result),
-            Some(GeneratedTokenResult::Done(_))
-        ),
-        "the request that was being prepared when the state change began must be served to completion"
+    collected.summary().expect(
+        "the request that was being prepared when the state change began must be served to completion",
     );
 
     cluster

@@ -1,4 +1,6 @@
 pub mod agent_controller;
+#[cfg(test)]
+mod agent_controller_fixture;
 pub mod agent_controller_pool;
 mod agent_controller_pool_total_slots;
 pub mod agent_controller_pool_updates;
@@ -67,6 +69,8 @@ pub mod static_files;
 pub mod statsd_service;
 mod unbounded_stream_from_agent;
 mod unbounded_stream_from_agent_params;
+#[cfg(test)]
+mod unexpiring_inference_service_configuration;
 #[cfg(feature = "web_admin_panel")]
 pub mod web_admin_panel_service;
 pub mod websocket_close_cause;

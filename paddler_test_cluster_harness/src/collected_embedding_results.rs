@@ -9,7 +9,6 @@ use crate::embedding_with_producer::EmbeddingWithProducer;
 pub struct CollectedEmbeddingResults {
     pub embeddings: Vec<EmbeddingWithProducer>,
     pub failures: Vec<EmbeddingResult>,
-    pub model_not_loaded_count: usize,
     pub no_embeddings_produced_count: usize,
     pub oversized_documents: Vec<OversizedEmbeddingDocumentDetails>,
     pub request_ids: BTreeSet<String>,

@@ -71,23 +71,11 @@ async fn agent_rejects_structurally_invalid_tool_schema() {
         .await
         .expect("the inference request must be accepted");
 
-    let schema_invalid_message = collected
-        .token_results
-        .iter()
-        .find_map(|event| match &event.token_result {
-            GeneratedTokenResult::ToolSchemaInvalid(message) => Some(message.clone()),
-            _ => None,
-        })
-        .unwrap_or_else(|| {
-            panic!(
-                "expected a ToolSchemaInvalid event when a tool's JSON Schema is invalid; got:\n{}",
-                collected.text
-            )
-        });
-
-    assert!(
-        schema_invalid_message.contains("get_weather"),
-        "the schema-invalid message should name the offending tool; got: {schema_invalid_message}"
+    assert_eq!(
+        collected.into_token_results(),
+        vec![GeneratedTokenResult::ToolSchemaInvalid(
+            "test-agent: tool \"get_weather\" parameters are not a valid JSON Schema: 123 is not valid under any of the schemas listed in the 'anyOf' keyword".to_owned()
+        )]
     );
 
     cluster

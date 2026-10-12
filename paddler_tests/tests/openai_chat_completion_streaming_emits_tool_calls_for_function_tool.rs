@@ -54,27 +54,22 @@ async fn openai_chat_completion_streaming_emits_tool_calls_for_function_tool() {
     assert_eq!(
         chunks_with_tool_calls.len(),
         1,
-        "expected exactly one structured tool-call chunk per call (got {})",
-        chunks_with_tool_calls.len()
+        "expected exactly one structured tool-call chunk per call"
     );
 
     let structured_chunk = chunks_with_tool_calls[0];
 
-    let function_name = structured_chunk
-        .pointer("/choices/0/delta/tool_calls/0/function/name")
-        .and_then(Value::as_str)
-        .unwrap_or_else(|| {
-            panic!("structured tool-call chunk missing function.name: {structured_chunk}")
-        });
-
-    assert_eq!(function_name, "get_weather");
+    assert_eq!(
+        structured_chunk
+            .pointer("/choices/0/delta/tool_calls/0/function/name")
+            .and_then(Value::as_str),
+        Some("get_weather")
+    );
 
     let function_arguments = structured_chunk
         .pointer("/choices/0/delta/tool_calls/0/function/arguments")
         .and_then(Value::as_str)
-        .unwrap_or_else(|| {
-            panic!("structured tool-call chunk missing function.arguments: {structured_chunk}")
-        });
+        .expect("the structured tool-call chunk must carry the function arguments");
 
     let parsed_arguments: Value =
         from_str(function_arguments).expect("the output must be valid JSON");

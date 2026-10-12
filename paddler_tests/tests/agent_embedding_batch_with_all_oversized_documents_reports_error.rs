@@ -57,8 +57,12 @@ async fn agent_embedding_batch_with_all_oversized_documents_reports_error() {
         "no embeddings should be produced when all documents are oversized",
     );
     assert_eq!(
-        collected.oversized_documents.len(),
-        2,
+        collected
+            .oversized_documents
+            .iter()
+            .map(|details| details.source_document_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["huge-1", "huge-2"],
         "both oversized documents should be reported",
     );
     assert!(
@@ -66,14 +70,8 @@ async fn agent_embedding_batch_with_all_oversized_documents_reports_error() {
         "stream must terminate with the balancer's final Done so the client unblocks",
     );
     assert_eq!(
-        collected.no_embeddings_produced_count,
-        1,
-        "the agent must terminate its sub-stream with a single NoEmbeddingsProduced variant when zero embeddings are produced; got oversized_documents: {:?}, errors: {:?}",
-        collected
-            .oversized_documents
-            .iter()
-            .map(|details| &details.source_document_id)
-            .collect::<Vec<_>>(),
+        collected.no_embeddings_produced_count, 1,
+        "the agent must terminate its sub-stream with a single NoEmbeddingsProduced variant when zero embeddings are produced; got errors: {:?}",
         collected.failures,
     );
 

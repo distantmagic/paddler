@@ -65,19 +65,17 @@ async fn agent_reports_oversized_document_and_embeds_the_rest() {
     );
 
     assert_eq!(
-        collected.oversized_documents.len(),
-        1,
-        "exactly one DocumentExceedsBatchSize event expected; got {:?}",
         collected
             .oversized_documents
             .iter()
-            .map(|details| &details.source_document_id)
+            .map(|details| details.source_document_id.as_str())
             .collect::<Vec<_>>(),
+        vec!["huge"],
+        "exactly one DocumentExceedsBatchSize event expected",
     );
 
     let oversized = &collected.oversized_documents[0];
 
-    assert_eq!(oversized.source_document_id, "huge");
     assert_eq!(oversized.n_batch, N_BATCH);
     assert!(
         oversized.document_tokens > oversized.n_batch,
@@ -87,16 +85,14 @@ async fn agent_reports_oversized_document_and_embeds_the_rest() {
     );
 
     assert_eq!(
-        collected.embeddings.len(),
-        1,
-        "the small document must still be embedded; got {:?}",
         collected
             .embeddings
             .iter()
-            .map(|produced| &produced.embedding.source_document_id)
+            .map(|produced| produced.embedding.source_document_id.as_str())
             .collect::<Vec<_>>(),
+        vec!["tiny"],
+        "the small document must still be embedded",
     );
-    assert_eq!(collected.embeddings[0].embedding.source_document_id, "tiny",);
 
     cluster
         .shutdown()

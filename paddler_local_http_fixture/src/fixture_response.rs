@@ -4,7 +4,6 @@ use http::StatusCode;
 
 #[derive(Clone)]
 pub enum FixtureResponse {
-    CloseBeforeHeaders,
     EndlessTrickle {
         byte_interval: Duration,
     },
