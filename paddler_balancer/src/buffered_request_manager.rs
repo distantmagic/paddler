@@ -52,6 +52,8 @@ impl BufferedRequestManager {
         &self,
         inference_mode: InferenceMode,
     ) -> BufferedRequestAgentWaitResult {
+        let agent_availability_changed = self.agent_controller_pool.agent_availability_changed();
+
         if let Some(dispatched_agent) = self.take_available_agent(inference_mode) {
             return BufferedRequestAgentWaitResult::Found(dispatched_agent);
         }
@@ -63,7 +65,7 @@ impl BufferedRequestManager {
         match timeout(
             self.buffered_request_timeout,
             self.agent_controller_pool
-                .next_available_agent(inference_mode),
+                .next_available_agent(agent_availability_changed, inference_mode),
         )
         .await
         {

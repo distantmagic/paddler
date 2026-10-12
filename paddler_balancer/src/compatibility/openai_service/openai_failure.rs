@@ -22,23 +22,24 @@ pub enum OpenAIFailure {
 impl OpenAIFailure {
     #[must_use]
     pub fn into_error_body(self) -> OpenAIErrorBody {
-        let error_type = if self.status_code().is_client_error() {
-            OpenAIErrorType::InvalidRequestError
-        } else {
-            OpenAIErrorType::ServerError
-        };
+        let status_code = self.status_code();
 
-        OpenAIErrorBody {
-            error_type,
-            message: self.into_message(),
-        }
+        self.into_error_body_for(status_code)
     }
 
     #[must_use]
     pub fn into_http_response(self) -> HttpResponse {
         let status_code = self.status_code();
 
-        self.into_error_body().into_http_response(status_code)
+        self.into_error_body_for(status_code)
+            .into_http_response(status_code)
+    }
+
+    fn into_error_body_for(self, status_code: StatusCode) -> OpenAIErrorBody {
+        OpenAIErrorBody {
+            error_type: OpenAIErrorType::from(status_code),
+            message: self.into_message(),
+        }
     }
 
     fn into_message(self) -> String {

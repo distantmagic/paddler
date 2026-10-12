@@ -26,8 +26,8 @@ impl Validates<Tool<ValidatedParametersSchema>> for Tool<RawParametersSchema> {
     }
 }
 
-impl From<&Tool<ValidatedParametersSchema>> for Tool<Value> {
-    fn from(tool: &Tool<ValidatedParametersSchema>) -> Self {
+impl From<Tool<ValidatedParametersSchema>> for Tool<Value> {
+    fn from(tool: Tool<ValidatedParametersSchema>) -> Self {
         match tool {
             Tool::Function(function_call) => Self::Function(FunctionCall::from(function_call)),
         }

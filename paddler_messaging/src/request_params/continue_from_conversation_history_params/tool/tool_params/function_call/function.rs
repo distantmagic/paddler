@@ -28,17 +28,17 @@ impl Validates<Function<ValidatedParametersSchema>> for Function<RawParametersSc
     }
 }
 
-impl From<&Function<ValidatedParametersSchema>> for Function<Value> {
+impl From<Function<ValidatedParametersSchema>> for Function<Value> {
     fn from(
         Function {
             name,
             description,
             parameters,
-        }: &Function<ValidatedParametersSchema>,
+        }: Function<ValidatedParametersSchema>,
     ) -> Self {
         Self {
-            name: name.clone(),
-            description: description.clone(),
+            name,
+            description,
             parameters: Parameters::from(parameters),
         }
     }

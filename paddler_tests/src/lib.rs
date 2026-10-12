@@ -29,6 +29,7 @@ pub mod openai_chat_completion_failure_status;
 pub mod prepared_generation;
 pub mod qwen3_desired_state;
 pub mod release_half_closed_openai_request;
+pub mod responses_message_text;
 pub mod sample_decision;
 pub mod send_cors_preflight;
 pub mod serving_pipeline_arbiter;

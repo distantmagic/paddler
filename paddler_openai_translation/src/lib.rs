@@ -56,6 +56,8 @@ pub mod responses_stream;
 pub mod responses_stream_event;
 pub mod responses_tagged_item;
 pub mod responses_text_format;
+pub mod responses_text_format_field;
+pub mod responses_text_format_type;
 pub mod responses_text_param;
 pub mod responses_tool;
 pub mod responses_usage;

@@ -123,7 +123,7 @@ use paddler_messaging::request_params::continue_from_conversation_history_params
             json!({"type": "string", "description": "city"}),
         );
 
-        Tool::from(&Tool::Function(FunctionCall {
+        Tool::from(Tool::Function(FunctionCall {
             function: Function {
                 name: "get_weather".to_owned(),
                 description: "fetch weather".to_owned(),
@@ -138,7 +138,7 @@ use paddler_messaging::request_params::continue_from_conversation_history_params
     }
 
     fn schemaless_tool() -> Tool<Value> {
-        Tool::from(&Tool::Function(FunctionCall {
+        Tool::from(Tool::<ValidatedParametersSchema>::Function(FunctionCall {
             function: Function {
                 name: "freeform".to_owned(),
                 description: "tool with no schema".to_owned(),
@@ -291,7 +291,7 @@ use paddler_messaging::request_params::continue_from_conversation_history_params
         let mut properties = Map::new();
         properties.insert("location".to_owned(), json!({"type": 42}));
 
-        Tool::from(&Tool::Function(FunctionCall {
+        Tool::from(Tool::Function(FunctionCall {
             function: Function {
                 name: "broken_tool".to_owned(),
                 description: "tool whose property schema is not valid JSON Schema".to_owned(),
@@ -318,7 +318,7 @@ use paddler_messaging::request_params::continue_from_conversation_history_params
     }
 
     fn tool_with_invalid_additional_properties_schema() -> Tool<Value> {
-        Tool::from(&Tool::Function(FunctionCall {
+        Tool::from(Tool::Function(FunctionCall {
             function: Function {
                 name: "broken_additional".to_owned(),
                 description: "tool whose additionalProperties schema is invalid".to_owned(),

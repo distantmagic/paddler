@@ -9,6 +9,7 @@ pub mod system_one_answer_layout;
 pub mod system_one_question;
 pub mod system_one_request;
 pub mod system_one_response;
+pub mod system_one_response_layout;
 pub mod system_one_usage;
 pub mod translated_system_one_question;
 pub mod translated_system_one_request;

@@ -7,7 +7,7 @@ use futures::stream::StreamExt as _;
 
 use paddler_messaging::decision_result::DecisionResult;
 use paddler_messaging::oversized_decision_details::OversizedDecisionDetails;
-use paddler_typesafe_translation::translated_system_one_request::TranslatedSystemOneRequest;
+use paddler_typesafe_translation::system_one_response_layout::SystemOneResponseLayout;
 
 use crate::compatibility::agent_result_stream_event::AgentResultStreamEvent;
 use crate::compatibility::typesafe_service::typesafe_error_body::TypeSafeErrorBody;
@@ -18,7 +18,7 @@ fn error_response(status_code: StatusCode, detail: String) -> HttpResponse {
 }
 
 pub async fn system_one_http_response<TStream>(
-    translated: &TranslatedSystemOneRequest,
+    response_layout: &SystemOneResponseLayout,
     decision_results: TStream,
 ) -> HttpResponse
 where
@@ -39,7 +39,7 @@ where
                 result: DecisionResult::Done(summary),
                 ..
             } => {
-                return match translated.respond(&answers, &summary) {
+                return match response_layout.respond(&answers, &summary) {
                     Ok(system_one_response) => HttpResponse::Ok().json(system_one_response),
                     Err(translation_error) => error_response(
                         UpstreamFailure::RelayFailed.status_code(),
@@ -120,12 +120,12 @@ mod tests {
     use paddler_messaging::jsonrpc::error::Error as JsonRpcError;
     use paddler_messaging::oversized_decision_details::OversizedDecisionDetails;
     use paddler_typesafe_translation::system_one_request::SystemOneRequest;
-    use paddler_typesafe_translation::translated_system_one_request::TranslatedSystemOneRequest;
+    use paddler_typesafe_translation::system_one_response_layout::SystemOneResponseLayout;
 
     use super::system_one_http_response;
     use crate::compatibility::agent_result_stream_event::AgentResultStreamEvent;
 
-    fn translated_noul_request() -> TranslatedSystemOneRequest {
+    fn noul_response_layout() -> SystemOneResponseLayout {
         from_value::<SystemOneRequest>(json!({
             "model": "kev-latest",
             "state": "The invoice was paid on time.",
@@ -134,6 +134,7 @@ mod tests {
         .unwrap()
         .translate()
         .unwrap()
+        .response_layout
     }
 
     fn decision_result(result: DecisionResult) -> AgentResultStreamEvent<DecisionResult> {
@@ -160,7 +161,7 @@ mod tests {
     async fn status_and_body(
         events: Vec<AgentResultStreamEvent<DecisionResult>>,
     ) -> (StatusCode, Value) {
-        let response = system_one_http_response(&translated_noul_request(), iter(events)).await;
+        let response = system_one_http_response(&noul_response_layout(), iter(events)).await;
         let status = response.status();
 
         (

@@ -82,6 +82,7 @@ fn translation_matches_the_kev_typesafe_reference() {
             })
             .collect();
         let response = translated
+            .response_layout
             .respond(
                 &decision_answers,
                 &DecisionSummary {

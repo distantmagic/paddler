@@ -3,6 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use dashmap::DashMap;
 use dashmap::mapref::entry::Entry;
+use tokio::sync::futures::Notified;
 use tokio::sync::watch;
 
 use paddler_messaging::agent_controller_pool_snapshot::AgentControllerPoolSnapshot;
@@ -82,15 +83,22 @@ impl AgentControllerPool {
         }
     }
 
-    pub async fn next_available_agent(&self, inference_mode: InferenceMode) -> DispatchedAgent {
+    pub fn agent_availability_changed(&self) -> Notified<'_> {
+        self.updates.agent_availability_changed()
+    }
+
+    pub async fn next_available_agent<'pool>(
+        &'pool self,
+        mut agent_availability_changed: Notified<'pool>,
+        inference_mode: InferenceMode,
+    ) -> DispatchedAgent {
         loop {
-            let agent_availability_changed = self.updates.agent_availability_changed();
+            agent_availability_changed.await;
+            agent_availability_changed = self.agent_availability_changed();
 
             if let Some(dispatched_agent) = self.take_least_busy_agent_controller(inference_mode) {
                 return dispatched_agent;
             }
-
-            agent_availability_changed.await;
         }
     }
 

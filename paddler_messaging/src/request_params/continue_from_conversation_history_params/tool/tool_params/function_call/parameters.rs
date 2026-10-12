@@ -32,8 +32,8 @@ impl Validates<Parameters<ValidatedParametersSchema>> for Parameters<RawParamete
     }
 }
 
-impl From<&Parameters<ValidatedParametersSchema>> for Parameters<Value> {
-    fn from(parameters: &Parameters<ValidatedParametersSchema>) -> Self {
+impl From<Parameters<ValidatedParametersSchema>> for Parameters<Value> {
+    fn from(parameters: Parameters<ValidatedParametersSchema>) -> Self {
         match parameters {
             Parameters::Empty => Self::Empty,
             Parameters::Schema(schema) => Self::Schema(Value::from(schema)),

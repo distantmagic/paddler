@@ -11,6 +11,7 @@ use paddler_messaging::request_params::decide_params::DecideParams;
 use crate::render_json_content::render_json_content;
 use crate::system_one_answer_layout::SystemOneAnswerLayout;
 use crate::system_one_question::SystemOneQuestion;
+use crate::system_one_response_layout::SystemOneResponseLayout;
 use crate::translated_system_one_question::TranslatedSystemOneQuestion;
 use crate::translated_system_one_request::TranslatedSystemOneRequest;
 use crate::typesafe_translation_error::TypeSafeTranslationError;
@@ -140,13 +141,15 @@ impl SystemOneRequest {
             .ok_or(TypeSafeTranslationError::QuestionsMissing)?;
 
         Ok(TranslatedSystemOneRequest {
-            answer_layouts,
             decide_params: DecideParams {
                 last_question,
                 leading_questions: questions,
                 state: render_json_content(&self.state, 0),
             },
-            model: self.model,
+            response_layout: SystemOneResponseLayout {
+                answer_layouts,
+                model: self.model,
+            },
         })
     }
 }

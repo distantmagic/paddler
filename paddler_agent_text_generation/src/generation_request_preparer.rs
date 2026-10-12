@@ -120,7 +120,8 @@ impl GenerationRequestPreparer {
             .into_chat_template_conversation(&chat_prompt_renderer.media_marker);
         let prompt_modality = self.image_input.prompt_modality_for(&image_urls)?;
 
-        let tools_with_schema_documents: Vec<Tool<Value>> = tools.iter().map(Tool::from).collect();
+        let tools_with_schema_documents: Vec<Tool<Value>> =
+            tools.into_iter().map(Tool::from).collect();
         let raw_prompt = chat_prompt_renderer.render(ChatPromptRenderRequest {
             add_generation_prompt,
             enable_thinking,
@@ -149,7 +150,7 @@ impl GenerationRequestPreparer {
         } else {
             ToolCallHandling::Streamed
         };
-        let bare_json_tool_calls = if tools.is_empty() {
+        let bare_json_tool_calls = if tools_with_schema_documents.is_empty() {
             BareJsonToolCalls::Ignore
         } else {
             BareJsonToolCalls::Detect

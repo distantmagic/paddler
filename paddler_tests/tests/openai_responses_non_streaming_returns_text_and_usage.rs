@@ -4,6 +4,7 @@ use serde_json::Value;
 use serde_json::json;
 
 use paddler_test_cluster_harness::agent_config::AgentConfig;
+use paddler_tests::responses_message_text::responses_message_text;
 use paddler_tests::start_cluster_with_qwen3::start_cluster_with_qwen3;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -48,14 +49,7 @@ async fn openai_responses_non_streaming_returns_text_and_usage() {
     assert!(output_tokens > 0);
     assert_eq!(total_tokens, input_tokens + output_tokens);
 
-    let message_text = response
-        .get("output")
-        .and_then(Value::as_array)
-        .expect("responses response missing output array")
-        .iter()
-        .find(|item| item.get("type").and_then(Value::as_str) == Some("message"))
-        .and_then(|message| message.pointer("/content/0/text"))
-        .and_then(Value::as_str)
+    let message_text = responses_message_text(&response)
         .unwrap_or_else(|| panic!("responses output has no message text: {response}"));
 
     assert!(

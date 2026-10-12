@@ -16,7 +16,7 @@ impl ResponsesTextParam {
         match self.format {
             Some(ResponsesTextFormat::JsonSchema { schema }) => {
                 Some(GrammarConstraint::JsonSchema {
-                    schema: schema.to_string(),
+                    schema: Box::<str>::from(schema).into_string(),
                 })
             }
             Some(ResponsesTextFormat::Text) | None => None,

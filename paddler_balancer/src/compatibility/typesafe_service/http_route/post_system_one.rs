@@ -5,6 +5,7 @@ use actix_web::web::post;
 
 use paddler_messaging::request_params::decide_params::DecideParams;
 use paddler_typesafe_translation::system_one_request::SystemOneRequest;
+use paddler_typesafe_translation::translated_system_one_request::TranslatedSystemOneRequest;
 
 use crate::agent_streaming_request::AgentStreamingRequest as _;
 use crate::compatibility::compatibility_app_data::CompatibilityAppData;
@@ -26,10 +27,13 @@ async fn respond(
     }
 
     match system_one_request.into_inner().translate() {
-        Ok(translated) => {
-            let decision_results = app_data.agent_result_stream(translated.decide_params.clone());
+        Ok(TranslatedSystemOneRequest {
+            decide_params,
+            response_layout,
+        }) => {
+            let decision_results = app_data.agent_result_stream(decide_params);
 
-            system_one_http_response(&translated, decision_results).await
+            system_one_http_response(&response_layout, decision_results).await
         }
         Err(translation_error) => TypeSafeErrorBody {
             detail: translation_error.to_string(),

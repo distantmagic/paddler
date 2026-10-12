@@ -28,8 +28,8 @@ impl Validates<FunctionCall<ValidatedParametersSchema>> for FunctionCall<RawPara
     }
 }
 
-impl From<&FunctionCall<ValidatedParametersSchema>> for FunctionCall<Value> {
-    fn from(FunctionCall { function }: &FunctionCall<ValidatedParametersSchema>) -> Self {
+impl From<FunctionCall<ValidatedParametersSchema>> for FunctionCall<Value> {
+    fn from(FunctionCall { function }: FunctionCall<ValidatedParametersSchema>) -> Self {
         Self {
             function: Function::from(function),
         }

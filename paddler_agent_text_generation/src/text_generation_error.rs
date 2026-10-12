@@ -425,7 +425,7 @@ mod tests {
         properties.insert("location".to_owned(), json!({"type": 123}));
 
         let schema_error =
-            ToolCallValidator::from_tools(&[Tool::from(&Tool::Function(FunctionCall {
+            ToolCallValidator::from_tools(&[Tool::from(Tool::Function(FunctionCall {
                 function: Function {
                     name: "get_weather".to_owned(),
                     description: "fetch weather".to_owned(),
