@@ -79,6 +79,7 @@ mod tests {
     use tokio_util::sync::CancellationToken;
 
     use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
+    use paddler_cache_dir::cache_dir::CacheDir;
     use paddler_messaging::agent_desired_model::AgentDesiredModel;
     use paddler_messaging::agent_desired_state::AgentDesiredState;
     use paddler_messaging::balancer_desired_state::BalancerDesiredState;
@@ -100,6 +101,7 @@ mod tests {
     fn desired_state_reconciler() -> DesiredStateReconciler {
         DesiredStateReconciler {
             agent_applicable_state_holder: Arc::new(AgentApplicableStateHolder::default()),
+            cache_dir: CacheDir::from_process_env(),
             slot_aggregated_status: Arc::new(SlotAggregatedStatus::new(1)),
         }
     }

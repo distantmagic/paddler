@@ -9,6 +9,7 @@ use paddler_agent::pipeline_arbiter::PipelineArbiter;
 use paddler_agent::pipeline_arbiter_params::PipelineArbiterParams;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_status::slot_guard::SlotGuard;
+use paddler_cache_dir::cache_dir::CacheDir;
 use paddler_messaging::agent_desired_state::AgentDesiredState;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 
@@ -26,6 +27,7 @@ impl ServingPipelineArbiter {
         let inference_runtime_context = agent_inference_runtime_context(slots);
         let desired_state_reconciliation = DesiredStateReconciler {
             agent_applicable_state_holder: agent_applicable_state_holder.clone(),
+            cache_dir: CacheDir::from_process_env(),
             slot_aggregated_status: inference_runtime_context.slot_aggregated_status.clone(),
         }
         .reconcile(

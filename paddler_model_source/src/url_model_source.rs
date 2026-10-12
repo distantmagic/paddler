@@ -24,12 +24,15 @@ use crate::model_source_error::ModelSourceError;
 use crate::resolves_model_source::ResolvesModelSource;
 use crate::url_download_progress::UrlDownloadProgress;
 
-pub struct UrlModelSource(pub DownloadUrl);
+pub struct UrlModelSource {
+    pub cache_dir: CacheDir,
+    pub download_url: DownloadUrl,
+}
 
 impl UrlModelSource {
     fn model_path(&self) -> ModelPath {
         ModelPath {
-            model_path: self.0.as_str().to_owned(),
+            model_path: self.download_url.as_str().to_owned(),
         }
     }
 
@@ -44,7 +47,7 @@ impl UrlModelSource {
         ));
 
         ModelSourceError::DownloadFailed {
-            url: self.0.as_str().to_owned(),
+            url: self.download_url.as_str().to_owned(),
             source: download_error,
         }
     }
@@ -60,14 +63,19 @@ impl UrlModelSource {
             DownloadError::cache_failure(path.to_path_buf(), io_error),
         )
     }
+}
 
-    async fn resolve_into_cache(
+#[async_trait]
+impl ResolvesModelSource for UrlModelSource {
+    async fn resolve(
         &self,
         cancellation_token: &CancellationToken,
-        cache_dir: &CacheDir,
         slot_aggregated_status: Arc<SlotAggregatedStatus>,
     ) -> Result<DesiredModelResolution, ModelSourceError> {
-        let Self(download_url) = self;
+        let Self {
+            cache_dir,
+            download_url,
+        } = self;
         let url = download_url.as_str();
         let cached = CachedDownloadedModel::new(cache_dir, url)
             .map_err(ModelSourceError::CacheDirectoryUnresolvable)?;
@@ -135,22 +143,6 @@ impl UrlModelSource {
     }
 }
 
-#[async_trait]
-impl ResolvesModelSource for UrlModelSource {
-    async fn resolve(
-        &self,
-        cancellation_token: &CancellationToken,
-        slot_aggregated_status: Arc<SlotAggregatedStatus>,
-    ) -> Result<DesiredModelResolution, ModelSourceError> {
-        self.resolve_into_cache(
-            cancellation_token,
-            &CacheDir::from_process_env(),
-            slot_aggregated_status,
-        )
-        .await
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::mem::discriminant;
@@ -178,10 +170,14 @@ mod tests {
 
     use crate::desired_model_resolution::DesiredModelResolution;
     use crate::model_source_error::ModelSourceError;
+    use crate::resolves_model_source::ResolvesModelSource as _;
     use crate::url_model_source::UrlModelSource;
 
-    fn url_model_source(url: &str) -> UrlModelSource {
-        UrlModelSource(DownloadUrl::parse(url).unwrap())
+    fn url_model_source(cache_dir: CacheDir, url: &str) -> UrlModelSource {
+        UrlModelSource {
+            cache_dir,
+            download_url: DownloadUrl::parse(url).unwrap(),
+        }
     }
 
     fn fresh_status() -> Arc<SlotAggregatedStatus> {
@@ -207,8 +203,8 @@ mod tests {
             .await
             .unwrap();
 
-        let resolution = url_model_source(url_string)
-            .resolve_into_cache(&CancellationToken::new(), &cache_dir, fresh_status())
+        let resolution = url_model_source(cache_dir.clone(), url_string)
+            .resolve(&CancellationToken::new(), fresh_status())
             .await
             .unwrap();
 
@@ -229,8 +225,8 @@ mod tests {
         let _blocker = cached.try_acquire_download_lock().unwrap();
 
         let status = fresh_status();
-        let result = url_model_source(url_string)
-            .resolve_into_cache(&CancellationToken::new(), &cache_dir, status.clone())
+        let result = url_model_source(cache_dir.clone(), url_string)
+            .resolve(&CancellationToken::new(), status.clone())
             .await;
 
         assert!(matches!(
@@ -253,8 +249,8 @@ mod tests {
         symlink(directory.path().join("missing-target"), &subdir_path).unwrap();
 
         let status = fresh_status();
-        let result = url_model_source(url_string)
-            .resolve_into_cache(&CancellationToken::new(), &cache_dir, status.clone())
+        let result = url_model_source(cache_dir.clone(), url_string)
+            .resolve(&CancellationToken::new(), status.clone())
             .await;
 
         assert!(matches!(
@@ -279,8 +275,8 @@ mod tests {
         create_dir(&cached.lock_file_path).await.unwrap();
 
         let status = fresh_status();
-        let result = url_model_source(url_string)
-            .resolve_into_cache(&CancellationToken::new(), &cache_dir, status.clone())
+        let result = url_model_source(cache_dir.clone(), url_string)
+            .resolve(&CancellationToken::new(), status.clone())
             .await;
 
         assert!(matches!(
@@ -308,8 +304,8 @@ mod tests {
             .cache_file_path;
 
         let status = fresh_status();
-        let result = url_model_source(url_string)
-            .resolve_into_cache(&CancellationToken::new(), &cache_dir, status.clone())
+        let result = url_model_source(cache_dir.clone(), url_string)
+            .resolve(&CancellationToken::new(), status.clone())
             .await;
 
         assert!(matches!(
@@ -336,12 +332,8 @@ mod tests {
     async fn cache_path_resolution_failure_propagates_error() {
         let url_string = "https://host.example/unresolvable.gguf";
 
-        let result = url_model_source(url_string)
-            .resolve_into_cache(
-                &CancellationToken::new(),
-                &unresolvable_cache_dir(),
-                fresh_status(),
-            )
+        let result = url_model_source(unresolvable_cache_dir(), url_string)
+            .resolve(&CancellationToken::new(), fresh_status())
             .await;
 
         assert_eq!(
@@ -366,8 +358,8 @@ mod tests {
         let cached = CachedDownloadedModel::new(&cache_dir, &url_string).unwrap();
         let expected_path = cached.cache_file_path.clone();
 
-        let resolution = url_model_source(&url_string)
-            .resolve_into_cache(&CancellationToken::new(), &cache_dir, fresh_status())
+        let resolution = url_model_source(cache_dir.clone(), &url_string)
+            .resolve(&CancellationToken::new(), fresh_status())
             .await
             .unwrap();
 
@@ -389,8 +381,8 @@ mod tests {
 
         cancellation_token.cancel();
 
-        let result = url_model_source(&url_string)
-            .resolve_into_cache(&cancellation_token, &cache_dir, status.clone())
+        let result = url_model_source(cache_dir.clone(), &url_string)
+            .resolve(&cancellation_token, status.clone())
             .await;
 
         assert!(

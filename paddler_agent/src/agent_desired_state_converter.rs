@@ -7,6 +7,7 @@ use tokio_util::sync::CancellationToken;
 use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
 use paddler_agent_text_generation::multimodal_projection::MultimodalProjection;
 use paddler_agent_text_generation::text_generation_settings::TextGenerationSettings;
+use paddler_cache_dir::cache_dir::CacheDir;
 use paddler_messaging::agent_desired_model::AgentDesiredModel;
 use paddler_messaging::agent_desired_state::AgentDesiredState;
 use paddler_messaging::agent_inference_settings::AgentInferenceSettings;
@@ -23,6 +24,7 @@ use crate::agent_applicable_state::AgentApplicableState;
 use crate::agent_desired_state_conversion::AgentDesiredStateConversion;
 
 pub struct AgentDesiredStateConverter {
+    pub cache_dir: CacheDir,
     pub cancellation_token: CancellationToken,
     pub slot_aggregated_status: Arc<SlotAggregatedStatus>,
 }
@@ -117,6 +119,7 @@ impl AgentDesiredStateConverter {
     ) -> Result<ControlFlow<(), Option<PathBuf>>, ModelSourceError> {
         match resolve_desired_model(
             &self.cancellation_token,
+            &self.cache_dir,
             desired_model,
             self.slot_aggregated_status.clone(),
         )
@@ -149,6 +152,7 @@ mod tests {
 
     use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
     use paddler_agent_text_generation::multimodal_projection::MultimodalProjection;
+    use paddler_cache_dir::cache_dir::CacheDir;
     use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
     use paddler_inference_parameters::pooling_type::PoolingType;
     use paddler_messaging::agent_desired_model::AgentDesiredModel;
@@ -220,6 +224,7 @@ mod tests {
             AgentDesiredModel::None,
         );
         let converter = AgentDesiredStateConverter {
+            cache_dir: CacheDir::from_process_env(),
             cancellation_token: CancellationToken::new(),
             slot_aggregated_status: status.clone(),
         };
@@ -258,6 +263,7 @@ mod tests {
                 .into_agent_desired_model(),
         );
         let converter = AgentDesiredStateConverter {
+            cache_dir: CacheDir::from_process_env(),
             cancellation_token: CancellationToken::new(),
             slot_aggregated_status: status.clone(),
         };
@@ -339,6 +345,7 @@ mod tests {
         desired: &AgentDesiredState,
     ) -> Option<AgentDesiredStateConversion> {
         AgentDesiredStateConverter {
+            cache_dir: CacheDir::from_process_env(),
             cancellation_token,
             slot_aggregated_status: fresh_status(),
         }

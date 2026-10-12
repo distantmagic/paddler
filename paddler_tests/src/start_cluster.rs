@@ -80,7 +80,7 @@ pub async fn start_cluster(
     let mut cluster = Cluster::connect(
         CancellationToken::new(),
         running_balancer,
-        Box::new(InProcessAgentSpawner::new(management_address)),
+        Box::new(InProcessAgentSpawner::new(management_address)?),
         &desired_state,
     )
     .await?;

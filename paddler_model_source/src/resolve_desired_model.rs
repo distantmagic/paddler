@@ -4,6 +4,7 @@ use hf_hub::Cache;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
+use paddler_cache_dir::cache_dir::CacheDir;
 use paddler_messaging::agent_desired_model::AgentDesiredModel;
 
 use crate::desired_model_resolution::DesiredModelResolution;
@@ -16,6 +17,7 @@ use crate::url_model_source::UrlModelSource;
 
 pub async fn resolve_desired_model(
     cancellation_token: &CancellationToken,
+    cache_dir: &CacheDir,
     desired: &AgentDesiredModel,
     slot_aggregated_status: Arc<SlotAggregatedStatus>,
 ) -> Result<DesiredModelResolution, ModelSourceError> {
@@ -36,9 +38,12 @@ pub async fn resolve_desired_model(
                     .await
             }
             ModelSource::Url(download_url) => {
-                UrlModelSource(download_url)
-                    .resolve(cancellation_token, slot_aggregated_status)
-                    .await
+                UrlModelSource {
+                    cache_dir: cache_dir.clone(),
+                    download_url,
+                }
+                .resolve(cancellation_token, slot_aggregated_status)
+                .await
             }
         },
     }

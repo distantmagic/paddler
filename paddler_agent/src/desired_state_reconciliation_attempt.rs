@@ -96,6 +96,7 @@ mod tests {
     use tokio_util::sync::CancellationToken;
 
     use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
+    use paddler_cache_dir::cache_dir::CacheDir;
     use paddler_messaging::agent_desired_state::AgentDesiredState;
 
     use super::DesiredStateReconciliationAttempt;
@@ -112,6 +113,7 @@ mod tests {
         let mut reconciliation_attempt = DesiredStateReconciliationAttempt::start(
             DesiredStateReconciler {
                 agent_applicable_state_holder: Arc::new(AgentApplicableStateHolder::default()),
+                cache_dir: CacheDir::from_process_env(),
                 slot_aggregated_status: Arc::new(SlotAggregatedStatus::new(1)),
             },
             AgentDesiredState::default(),

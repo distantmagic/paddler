@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use crate::cache_dir_error::CacheDirError;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CacheDir {
     pub explicit: Option<PathBuf>,
     pub home: Option<PathBuf>,

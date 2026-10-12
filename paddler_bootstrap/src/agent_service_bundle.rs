@@ -35,6 +35,7 @@ impl AgentServiceBundle {
     pub fn new(
         AgentBootstrapConfig {
             agent_name,
+            cache_dir,
             management_address,
             slots,
         }: AgentBootstrapConfig,
@@ -84,6 +85,7 @@ impl AgentServiceBundle {
             agent_desired_state_rx,
             desired_state_reconciler: DesiredStateReconciler {
                 agent_applicable_state_holder,
+                cache_dir,
                 slot_aggregated_status,
             },
         };
