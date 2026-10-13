@@ -3,7 +3,6 @@ use std::sync::Arc;
 use llama_cpp_bindings::SampledTokenClassifier;
 use llama_cpp_bindings::context::LlamaContext;
 use llama_cpp_bindings::error::EvalMultimodalChunksError;
-use llama_cpp_bindings::ingest_prompt_chunk;
 use llama_cpp_bindings::mtmd::FittedMtmdInputChunk;
 use llama_cpp_bindings::mtmd::FittedMtmdInputChunks;
 use llama_cpp_bindings::mtmd::MtmdContext;
@@ -42,7 +41,7 @@ impl MultimodalPromptIngestion {
             is_last_chunk,
         )?;
 
-        ingest_prompt_chunk(token_classifier, chunk.chunk())?;
+        token_classifier.ingest_fitted_chunk(&chunk);
 
         self.next_chunk_index += 1;
 
