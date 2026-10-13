@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use llama_cpp_bindings::mtmd::FittedMtmdInputChunks;
 use llama_cpp_bindings::mtmd::MtmdBitmap;
 use llama_cpp_bindings::mtmd::MtmdContext;
 use llama_cpp_bindings::mtmd::MtmdInputText;
@@ -37,9 +38,9 @@ impl MultimodalPromptSupport {
 
         require_prompt_fits_sequence_context(chunks.total_tokens(), self.sequence_context_size)?;
 
-        chunks
-            .fit_to_micro_batch(&self.multimodal_context, self.micro_batch_tokens)
-            .map_err(TextGenerationError::for_micro_batch_fit_error)?;
+        let chunks =
+            FittedMtmdInputChunks::fit(chunks, &self.multimodal_context, self.micro_batch_tokens)
+                .map_err(TextGenerationError::for_micro_batch_fit_error)?;
 
         Ok(MultimodalPromptIngestion {
             chunks,
