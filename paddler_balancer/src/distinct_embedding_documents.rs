@@ -13,6 +13,11 @@ struct DocumentsSharingContent {
     first_position: usize,
 }
 
+struct DistinctContent {
+    content: String,
+    documents_sharing_content: DocumentsSharingContent,
+}
+
 fn identifies_documents_unambiguously(input_batch: &[EmbeddingInputDocument]) -> bool {
     let mut document_ids = HashSet::with_capacity(input_batch.len());
 
@@ -62,23 +67,30 @@ impl From<GenerateEmbeddingBatchParams> for DistinctEmbeddingDocuments {
             }
         }
 
-        let mut distinct_contents: Vec<_> = documents_by_content.into_iter().collect();
+        let mut distinct_contents: Vec<DistinctContent> = documents_by_content
+            .into_iter()
+            .map(|(content, documents_sharing_content)| DistinctContent {
+                content,
+                documents_sharing_content,
+            })
+            .collect();
 
-        distinct_contents.sort_by_key(|(_content, documents_sharing_content)| {
-            documents_sharing_content.first_position
+        distinct_contents.sort_by_key(|distinct_content| {
+            distinct_content.documents_sharing_content.first_position
         });
 
         let mut duplicate_document_ids = HashMap::new();
         let mut distinct_documents = Vec::with_capacity(distinct_contents.len());
 
-        for (
+        for DistinctContent {
             content,
-            DocumentsSharingContent {
-                duplicate_document_ids: duplicates_of_first_document,
-                first_document_id,
-                ..
-            },
-        ) in distinct_contents
+            documents_sharing_content:
+                DocumentsSharingContent {
+                    duplicate_document_ids: duplicates_of_first_document,
+                    first_document_id,
+                    ..
+                },
+        } in distinct_contents
         {
             if !duplicates_of_first_document.is_empty() {
                 duplicate_document_ids

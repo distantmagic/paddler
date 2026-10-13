@@ -30,7 +30,7 @@ async fn openai_responses_non_streaming_returns_text_and_usage() {
 
     let usage = response
         .get("usage")
-        .unwrap_or_else(|| panic!("responses response missing usage: {response}"));
+        .expect("the Responses response must report its usage");
 
     let input_tokens = usage
         .get("input_tokens")
@@ -49,8 +49,8 @@ async fn openai_responses_non_streaming_returns_text_and_usage() {
     assert!(output_tokens > 0);
     assert_eq!(total_tokens, input_tokens + output_tokens);
 
-    let message_text = responses_message_text(&response)
-        .unwrap_or_else(|| panic!("responses output has no message text: {response}"));
+    let message_text =
+        responses_message_text(&response).expect("the Responses output must carry message text");
 
     assert!(
         !message_text.is_empty(),
