@@ -263,17 +263,16 @@ mod tests {
     #[test]
     fn does_not_dispatch_to_agents_serving_another_inference_mode() {
         let pool = Arc::new(AgentControllerPool::default());
-        let registration = pool.register_agent_controller(
+        let _registration = pool.register_agent_controller(
             agent_reporting("decision", serving(InferenceMode::Decision)).agent_controller,
         );
 
-        assert!(matches!(
-            registration,
-            AgentControllerRegistration::Registered(_)
-        ));
-        assert!(
-            pool.select_least_busy_with_capacity(InferenceMode::TextGeneration)
-                .is_none()
+        assert_eq!(
+            [InferenceMode::Decision, InferenceMode::TextGeneration].map(|inference_mode| {
+                pool.select_least_busy_with_capacity(inference_mode)
+                    .map(|candidate| candidate.agent_controller.id.clone())
+            }),
+            [Some("decision".to_owned()), None]
         );
     }
 
