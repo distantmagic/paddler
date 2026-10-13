@@ -5,6 +5,7 @@ use llama_cpp_bindings::BareJsonToolCalls;
 use tokio::sync::mpsc;
 
 use paddler_agent_status::slot_guard::SlotGuard;
+use paddler_agent_text_generation::creates_sampler_chain::CreatesSamplerChain as _;
 use paddler_agent_text_generation::grammar_sampling::GrammarSampling;
 use paddler_agent_text_generation::model_bos_token::ModelBosToken;
 use paddler_agent_text_generation::prepared_generation_request::PreparedGenerationRequest;

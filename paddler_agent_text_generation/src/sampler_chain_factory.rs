@@ -3,13 +3,15 @@ use llama_cpp_bindings::sampling::LlamaSampler;
 
 use paddler_inference_parameters::sampling_parameters::SamplingParameters;
 
+use crate::creates_sampler_chain::CreatesSamplerChain;
+
 pub struct SamplerChainFactory {
     pub sampling_parameters: SamplingParameters,
     pub n_vocab: i32,
 }
 
-impl SamplerChainFactory {
-    pub fn create(&self, seed: u32) -> Result<LlamaSampler, SamplingError> {
+impl CreatesSamplerChain for SamplerChainFactory {
+    fn create(&self, seed: u32) -> Result<LlamaSampler, SamplingError> {
         let sampling_parameters = &self.sampling_parameters;
         let samplers = [
             LlamaSampler::penalties(
@@ -39,6 +41,7 @@ mod tests {
     use paddler_inference_parameters::sampling_parameters::SamplingParameters;
 
     use super::SamplerChainFactory;
+    use crate::creates_sampler_chain::CreatesSamplerChain as _;
 
     #[test]
     fn chain_honors_configured_top_k() {

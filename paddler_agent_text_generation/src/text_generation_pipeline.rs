@@ -47,6 +47,7 @@ use crate::continuous_batch_scheduler_context::ContinuousBatchSchedulerContext;
 use crate::continuous_batch_scheduler_params::ContinuousBatchSchedulerParams;
 use crate::generation_request_preparer::GenerationRequestPreparer;
 use crate::image_input::ImageInput;
+use crate::json_tools_serializer::JsonToolsSerializer;
 use crate::model_bos_token::ModelBosToken;
 use crate::multimodal_projection::MultimodalProjection;
 use crate::multimodal_prompt_support::MultimodalPromptSupport;
@@ -169,6 +170,7 @@ impl TextGenerationPipeline {
                                             n_vocab: loaded_llama_model.model.n_vocab(),
                                         },
                                         token_generation_support,
+                                        tools_serializer: JsonToolsSerializer,
                                     },
                                     preparation_tasks: TaskTracker::new(),
                                     scheduler_message_tx,

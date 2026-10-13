@@ -6,7 +6,6 @@ use llama_cpp_bindings::mtmd::MtmdBitmap;
 use rand::Rng as _;
 use rand::rng;
 use serde_json::Value;
-use serde_json::to_string;
 
 use paddler_image_decoder::decoded_image::DecodedImage;
 use paddler_messaging::chat_template_conversation::ChatTemplateConversation;
@@ -24,7 +23,9 @@ use paddler_agent_runtime::prepares_scheduler_command::PreparesSchedulerCommand;
 
 use crate::chat_prompt_render_request::ChatPromptRenderRequest;
 use crate::converts_to_mtmd_bitmap::ConvertsToMtmdBitmap;
+use crate::creates_sampler_chain::CreatesSamplerChain;
 use crate::image_input::ImageInput;
+use crate::json_tools_serializer::JsonToolsSerializer;
 use crate::prepared_generation_request::PreparedGenerationRequest;
 use crate::prepared_prompt::PreparedPrompt;
 use crate::prompt_modality::PromptModality;
@@ -32,6 +33,7 @@ use crate::prompt_tokenizer::PromptTokenizer;
 use crate::require_grammar_compatible_with_thinking::require_grammar_compatible_with_thinking;
 use crate::resolve_grammar::resolve_grammar;
 use crate::sampler_chain_factory::SamplerChainFactory;
+use crate::serializes_tools::SerializesTools;
 use crate::text_generation_error::TextGenerationError;
 use crate::text_generation_request::TextGenerationRequest;
 use crate::token_classification::TokenClassification;
@@ -40,16 +42,25 @@ use crate::token_sampling::TokenSampling;
 use crate::tool_call_handling::ToolCallHandling;
 use crate::tool_call_pipeline::ToolCallPipeline;
 
-pub struct GenerationRequestPreparer {
+pub struct GenerationRequestPreparer<
+    TSamplerChainFactory = SamplerChainFactory,
+    TToolsSerializer = JsonToolsSerializer,
+> {
     pub image_input: ImageInput,
     pub image_resize_to_fit: NonZeroU32,
     pub loaded_llama_model: LoadedLlamaModel,
     pub prompt_tokenizer: PromptTokenizer,
-    pub sampler_chain_factory: SamplerChainFactory,
+    pub sampler_chain_factory: TSamplerChainFactory,
     pub token_generation_support: TokenGenerationSupport,
+    pub tools_serializer: TToolsSerializer,
 }
 
-impl GenerationRequestPreparer {
+impl<TSamplerChainFactory, TToolsSerializer>
+    GenerationRequestPreparer<TSamplerChainFactory, TToolsSerializer>
+where
+    TSamplerChainFactory: CreatesSamplerChain,
+    TToolsSerializer: SerializesTools,
+{
     pub fn prepare_raw_prompt(
         &self,
         AgentRequest {
@@ -218,7 +229,10 @@ impl GenerationRequestPreparer {
     ) -> Result<ToolCallPipeline, TextGenerationError> {
         let validator =
             ToolCallValidator::from_tools(tools).map_err(TextGenerationError::ToolSchemaInvalid)?;
-        let tools_json = to_string(tools).map_err(TextGenerationError::ToolsSerializationFailed)?;
+        let tools_json = self
+            .tools_serializer
+            .serialize_tools(tools)
+            .map_err(TextGenerationError::ToolsSerializationFailed)?;
         let chat_message_parser =
             ChatMessageParser::new(&self.loaded_llama_model.model, &tools_json)
                 .map_err(TextGenerationError::ToolCallParserCreationFailed)?;
@@ -227,7 +241,12 @@ impl GenerationRequestPreparer {
     }
 }
 
-impl PreparesSchedulerCommand for GenerationRequestPreparer {
+impl<TSamplerChainFactory, TToolsSerializer> PreparesSchedulerCommand
+    for GenerationRequestPreparer<TSamplerChainFactory, TToolsSerializer>
+where
+    TSamplerChainFactory: CreatesSamplerChain + Send + Sync + 'static,
+    TToolsSerializer: SerializesTools + Send + Sync + 'static,
+{
     type Command = PreparedGenerationRequest;
     type Request = TextGenerationRequest;
 
