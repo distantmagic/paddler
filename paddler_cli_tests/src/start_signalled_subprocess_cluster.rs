@@ -1,13 +1,9 @@
 use anyhow::Result;
-use tokio_util::sync::CancellationToken;
 
-use paddler_test_cluster_harness::cluster::Cluster;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
 use paddler_test_cluster_harness::ephemeral_loopback_addr::EPHEMERAL_LOOPBACK_ADDR;
 
-use crate::spawn_balancer_subprocess::spawn_balancer_subprocess;
-use crate::spawned_balancer_subprocess::SpawnedBalancerSubprocess;
-use crate::subprocess_agent_spawner::SubprocessAgentSpawner;
+use crate::connect_subprocess_balancer::connect_subprocess_balancer;
 use crate::subprocess_cluster::SubprocessCluster;
 
 pub async fn start_signalled_subprocess_cluster(
@@ -52,22 +48,10 @@ pub async fn start_signalled_subprocess_cluster(
         balancer_arguments.extend(["--management-cors-allowed-host".to_owned(), allowed_host]);
     }
 
-    let SpawnedBalancerSubprocess {
-        running_balancer,
-        signals: balancer_signals,
-    } = spawn_balancer_subprocess(binary_path, balancer_arguments).await?;
-    let management_addr = running_balancer.addresses.management;
-
-    let mut cluster = Cluster::connect(
-        CancellationToken::new(),
-        running_balancer,
-        Box::new(SubprocessAgentSpawner::new(
-            binary_path.to_owned(),
-            management_addr,
-        )),
-        &desired_state,
-    )
-    .await?;
+    let SubprocessCluster {
+        balancer_signals,
+        mut cluster,
+    } = connect_subprocess_balancer(binary_path, balancer_arguments, &desired_state).await?;
 
     cluster
         .register_agents(&agents, wait_for_slots_ready)

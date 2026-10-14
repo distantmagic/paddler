@@ -4,7 +4,6 @@ use std::sync::atomic::Ordering;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use log::warn;
 use nix::unistd::Pid;
 use tokio::process::Child;
 
@@ -60,14 +59,6 @@ impl ManagedProcess for SubprocessProcess {
             Err(source) => {
                 ProcessEnd::failed(SubprocessClusterError::ProcessExitUnobservable(source))
             }
-        }
-    }
-}
-
-impl Drop for SubprocessProcess {
-    fn drop(&mut self) {
-        if let Err(error) = self.terminate() {
-            warn!("SubprocessProcess drop: failed to terminate subprocess: {error:#}");
         }
     }
 }

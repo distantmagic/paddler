@@ -3415,7 +3415,6 @@ dependencies = [
  "anyhow",
  "async-trait",
  "futures-util",
- "log",
  "nix",
  "paddler_agent_decision",
  "paddler_balancer",
