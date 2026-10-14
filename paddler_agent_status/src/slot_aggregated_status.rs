@@ -3,8 +3,8 @@ use std::sync::atomic::AtomicU64;
 
 use dashmap::DashSet;
 use parking_lot::RwLock;
+use tokio::sync::Notify;
 use tokio::sync::watch;
-use tokio::sync::watch::error::RecvError;
 
 use paddler_messaging::agent_issue::AgentIssue;
 use paddler_messaging::agent_runtime_status::AgentRuntimeStatus;
@@ -27,7 +27,8 @@ pub struct SlotAggregatedStatus {
     model_path: RwLock<Option<String>>,
     pipeline_issues: DashSet<AgentIssue>,
     runtime: RwLock<AgentRuntimeStatus>,
-    slots_processing_tx: watch::Sender<u64>,
+    slots_processing: RwLock<u64>,
+    slots_released: Notify,
     state_application_status: RwLock<AgentStateApplicationStatus>,
     update_tx: watch::Sender<()>,
     uses_chat_template_override: AtomicValue<AtomicBool>,
@@ -38,7 +39,6 @@ impl SlotAggregatedStatus {
     #[must_use]
     pub fn new(desired_slots_total: u16) -> Self {
         let (update_tx, _initial_rx) = watch::channel(());
-        let (slots_processing_tx, _initial_slots_processing_rx) = watch::channel(0);
 
         Self {
             desired_slots_total,
@@ -48,7 +48,8 @@ impl SlotAggregatedStatus {
             pipeline_issues: DashSet::new(),
             runtime: RwLock::new(AgentRuntimeStatus::Idle),
             state_application_status: RwLock::new(AgentStateApplicationStatus::Fresh),
-            slots_processing_tx,
+            slots_processing: RwLock::new(0),
+            slots_released: Notify::new(),
             update_tx,
             uses_chat_template_override: AtomicValue::<AtomicBool>::new(false),
             version: AtomicValue::<AtomicU64>::new(0),
@@ -181,27 +182,30 @@ impl SlotAggregatedStatus {
     }
 
     pub fn slots_processing_count(&self) -> u64 {
-        *self.slots_processing_tx.borrow()
+        *self.slots_processing.read()
     }
 
-    pub async fn wait_until_no_slots_are_processing(&self) -> Result<(), RecvError> {
-        self.slots_processing_tx
-            .subscribe()
-            .wait_for(|slots_processing| *slots_processing == 0)
-            .await
-            .map(drop)
+    pub async fn wait_until_no_slots_are_processing(&self) {
+        loop {
+            let slots_released = self.slots_released.notified();
+
+            if self.slots_processing_count() == 0 {
+                return;
+            }
+
+            slots_released.await;
+        }
     }
 }
 
 impl DispensesSlots for SlotAggregatedStatus {
     fn release_slot(&self) {
-        self.slots_processing_tx
-            .send_modify(|slots_processing| *slots_processing -= 1);
+        *self.slots_processing.write() -= 1;
+        self.slots_released.notify_waiters();
     }
 
     fn take_slot(&self) {
-        self.slots_processing_tx
-            .send_modify(|slots_processing| *slots_processing += 1);
+        *self.slots_processing.write() += 1;
     }
 }
 
@@ -269,7 +273,7 @@ mod tests {
         status.release_slot();
 
         assert!(idle_wait.is_woken());
-        assert!(matches!(idle_wait.poll(), Poll::Ready(wait_result) if wait_result.is_ok()));
+        assert_eq!(idle_wait.poll(), Poll::Ready(()));
     }
 
     #[test]

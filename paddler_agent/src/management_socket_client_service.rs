@@ -1,4 +1,3 @@
-use anyhow::Context as _;
 use anyhow::Result;
 use async_trait::async_trait;
 use futures_util::StreamExt as _;
@@ -56,8 +55,7 @@ impl ManagementSocketClientService {
         self.balancer_message_context
             .slot_aggregated_status
             .wait_until_no_slots_are_processing()
-            .await
-            .context("Slot status stopped announcing updates while waiting for idle slots")?;
+            .await;
 
         info!("Connecting to management server at {}", self.socket_url);
 
