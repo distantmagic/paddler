@@ -1,5 +1,6 @@
 use std::num::NonZeroUsize;
 
+use futures_util::StreamExt as _;
 use tokio_util::sync::CancellationToken;
 
 use paddler_client::client_inference::ClientInference;
@@ -8,8 +9,7 @@ use paddler_client::inference_socket::reported_cluster_inference_mode::ReportedC
 use paddler_messaging::inference_mode::InferenceMode;
 use paddler_tests::cluster_without_agents_serving::cluster_without_agents_serving;
 use paddler_tests::desired_state_serving::desired_state_serving;
-use paddler_tests::inference_socket_round_trip::inference_socket_round_trip;
-use paddler_tests::next_reported_cluster_inference_mode::next_reported_cluster_inference_mode;
+use paddler_tests::minimal_raw_prompt_stream::minimal_raw_prompt_stream;
 use paddler_tests::start_cluster::start_cluster;
 
 const INFERENCE_SOCKET_POOL_SIZE: NonZeroUsize = NonZeroUsize::new(2).unwrap();
@@ -29,16 +29,23 @@ async fn inference_socket_pool_reports_each_cluster_inference_mode_once() {
     let mut cluster_inference_mode_rx = client_inference.subscribe_to_cluster_inference_mode();
 
     for _pooled_socket_index in 0..INFERENCE_SOCKET_POOL_SIZE.get() {
-        inference_socket_round_trip(&client_inference)
+        minimal_raw_prompt_stream(&client_inference)
             .await
-            .expect("every pooled inference socket must answer");
+            .expect("every pooled inference socket must accept the request")
+            .next()
+            .await
+            .expect("every pooled inference socket must answer")
+            .expect("the answer must be readable");
     }
 
-    let mut reported_modes = vec![
-        next_reported_cluster_inference_mode(&mut cluster_inference_mode_rx)
+    let mut reported_modes = vec![{
+        cluster_inference_mode_rx
+            .changed()
             .await
-            .expect("the pool must report the inference mode the cluster serves"),
-    ];
+            .expect("the pool must report the inference mode the cluster serves");
+
+        *cluster_inference_mode_rx.borrow_and_update()
+    }];
 
     assert!(
         !cluster_inference_mode_rx
@@ -56,11 +63,14 @@ async fn inference_socket_pool_reports_each_cluster_inference_mode_once() {
             .await
             .expect("the balancer must apply the desired state");
 
-        reported_modes.push(
-            next_reported_cluster_inference_mode(&mut cluster_inference_mode_rx)
+        reported_modes.push({
+            cluster_inference_mode_rx
+                .changed()
                 .await
-                .expect("the pool must report the inference mode change"),
-        );
+                .expect("the pool must report the inference mode change");
+
+            *cluster_inference_mode_rx.borrow_and_update()
+        });
     }
 
     assert_eq!(

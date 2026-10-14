@@ -15,6 +15,11 @@ impl BatchSize {
     pub const DEFAULT: Self = Self(NonZeroU32::new(2048).unwrap());
 
     #[must_use]
+    pub fn at_most(self, tokens: NonZeroU32) -> Self {
+        Self(self.0.min(tokens))
+    }
+
+    #[must_use]
     pub const fn tokens(self) -> NonZeroU32 {
         self.0
     }
@@ -55,8 +60,21 @@ impl From<BatchSize> for u32 {
 
 #[cfg(test)]
 mod tests {
+    use std::num::NonZeroU32;
+
     use super::BatchSize;
     use crate::invalid_inference_parameters::InvalidInferenceParameters;
+
+    #[test]
+    fn a_batch_never_exceeds_the_token_bound_it_is_capped_at() {
+        assert_eq!(
+            [
+                BatchSize::DEFAULT.at_most(NonZeroU32::new(512).unwrap()),
+                BatchSize::DEFAULT.at_most(NonZeroU32::new(4096).unwrap()),
+            ],
+            [BatchSize::try_from(512).unwrap(), BatchSize::DEFAULT]
+        );
+    }
 
     #[test]
     fn rejects_a_zero_batch() {

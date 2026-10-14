@@ -1,5 +1,7 @@
 #![cfg(feature = "tests_that_use_llms")]
 
+use std::num::NonZeroU32;
+
 use llama_cpp_bindings_types::ParsedToolCall;
 use llama_cpp_bindings_types::ToolCallArguments;
 use serde_json::json;
@@ -9,7 +11,6 @@ use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_tests::gbnf_literal::gbnf_literal;
 use paddler_tests::get_weather_tool::get_weather_tool;
-use paddler_tests::max_tokens_for_forced_text::max_tokens_for_forced_text;
 use paddler_tests::start_cluster_with_qwen3::start_cluster_with_qwen3;
 use paddler_tests::weather_question_conversation::weather_question_conversation;
 
@@ -26,8 +27,11 @@ async fn agent_emits_tool_call_parsed_event_before_trailing_content() {
             CancellationToken::new(),
             &weather_question_conversation(
                 gbnf_literal(TOOL_CALL_FOLLOWED_BY_CONTENT),
-                max_tokens_for_forced_text(TOOL_CALL_FOLLOWED_BY_CONTENT)
-                    .expect("the forced text must bound the generated tokens"),
+                NonZeroU32::try_from(
+                    u32::try_from(TOOL_CALL_FOLLOWED_BY_CONTENT.len())
+                        .expect("the forced text length must fit the token limit"),
+                )
+                .expect("the forced text must not be empty"),
                 vec![get_weather_tool()],
             ),
         )

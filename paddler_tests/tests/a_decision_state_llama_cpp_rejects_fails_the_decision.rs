@@ -22,15 +22,18 @@ fn a_decision_state_llama_cpp_rejects_fails_the_decision() {
         .expect("the decision context must be created");
     let n_batch = runtime.model_runtime_parameters.n_batch.tokens_usize();
     let mut batch = LlamaBatch::new(n_batch, 1).expect("the decision batch must be allocated");
-    let mut admitted_decision = AdmittedDecision::admit(
-        &DecisionCapacityLedger::new(llama_context.n_ctx() as usize, 2),
+    let state = vec![LlamaToken::new(runtime.loaded_llama_model.model.n_vocab())];
+    let admission = DecisionCapacityLedger::new(llama_context.n_ctx() as usize, 2)
+        .admit(&AdmittedDecision::capacity_demand(&state))
+        .expect("the decision must be admitted");
+    let mut admitted_decision = AdmittedDecision::new(
+        admission,
         runtime
             .inference_runtime_context
             .slot_aggregated_status
             .clone(),
-        vec![LlamaToken::new(runtime.loaded_llama_model.model.n_vocab())],
-    )
-    .expect("the decision must be admitted");
+        state,
+    );
 
     assert_eq!(
         admitted_decision

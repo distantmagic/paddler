@@ -11,9 +11,11 @@ use llama_cpp_bindings::mtmd::micro_batch_tokens;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent_runtime::scheduler_message::SchedulerMessage;
+use paddler_agent_text_generation::chat_template_renderer::ChatTemplateRenderer;
 use paddler_agent_text_generation::continuous_batch_scheduler::ContinuousBatchScheduler;
 use paddler_agent_text_generation::continuous_batch_scheduler_context::ContinuousBatchSchedulerContext;
 use paddler_agent_text_generation::continuous_batch_scheduler_params::ContinuousBatchSchedulerParams;
+use paddler_agent_text_generation::json_tools_serializer::JsonToolsSerializer;
 use paddler_agent_text_generation::multimodal_prompt_ingestion::MultimodalPromptIngestion;
 use paddler_agent_text_generation::multimodal_prompt_support::MultimodalPromptSupport;
 use paddler_agent_text_generation::prepared_generation_request::PreparedGenerationRequest;
@@ -21,8 +23,10 @@ use paddler_agent_text_generation::prepared_prompt::PreparedPrompt;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_test_cluster_harness::model_card::smolvlm2_256m::smolvlm2_256m;
 use paddler_test_cluster_harness::model_card::smolvlm2_256m_mmproj::smolvlm2_256m_mmproj;
+use paddler_tests::first_message_content_chat_template::first_message_content_chat_template;
 use paddler_tests::llama_runtime::LlamaRuntime;
-use paddler_tests::prepared_generation::PreparedGeneration;
+use paddler_tests::raw_prompt_generation::RawPromptGeneration;
+use paddler_tests::text_only_generation_parts::TextOnlyGenerationParts;
 
 #[test]
 fn a_multimodal_prompt_that_cannot_be_ingested_ends_the_generation() {
@@ -63,16 +67,36 @@ fn a_multimodal_prompt_that_cannot_be_ingested_ends_the_generation() {
 
             adjust_ingestion(&mut ingestion);
 
-            let PreparedGeneration {
+            let RawPromptGeneration {
+                agent_request,
                 generate_tokens_stop_tx: _generate_tokens_stop_tx,
                 mut generated_tokens_rx,
-                request,
-            } = PreparedGeneration::of_raw_prompt(
-                &runtime,
-                sequence_context_size,
+            } = RawPromptGeneration::new(
                 "Describe the picture",
-            )
-            .expect("the generation must be prepared");
+                runtime
+                    .inference_runtime_context
+                    .slot_aggregated_status
+                    .clone(),
+            );
+            let request = runtime
+                .text_only_generation_request_preparer(
+                    TextOnlyGenerationParts {
+                        chat_template_renderer: ChatTemplateRenderer::new(
+                            first_message_content_chat_template(),
+                        )
+                        .expect("the chat template must compile"),
+                        sequence_context_size,
+                        streaming_markers: runtime
+                            .loaded_llama_model
+                            .model
+                            .streaming_markers()
+                            .expect("the streaming markers must be detected"),
+                    },
+                    runtime.sampler_chain_factory(),
+                    JsonToolsSerializer,
+                )
+                .prepare_raw_prompt(agent_request)
+                .expect("the generation must be prepared");
             let (scheduler_message_tx, scheduler_message_rx) = channel();
 
             scheduler_message_tx

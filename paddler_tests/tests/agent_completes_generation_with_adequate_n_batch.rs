@@ -1,9 +1,7 @@
 #![cfg(feature = "tests_that_use_llms")]
 
-use std::future::Future;
 use std::num::NonZeroU32;
 
-use anyhow::Result;
 use tokio_util::sync::CancellationToken;
 
 use paddler_messaging::conversation_history::ConversationHistory;
@@ -14,55 +12,14 @@ use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_messaging::image_url::ImageUrl;
 use paddler_messaging::request_params::continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
-use paddler_test_cluster_harness::cluster::Cluster;
 use paddler_test_cluster_harness::load_fixture_data_uri::load_fixture_data_uri;
 use paddler_tests::start_cluster_with_smolvlm2::start_cluster_with_smolvlm2;
 
 const MAX_TOKENS: NonZeroU32 = NonZeroU32::new(20).unwrap();
 
-fn drive_normal_image_fixture(
-    cluster: &Cluster,
-    fixture_name: &str,
-    mime_type: &str,
-) -> Result<impl Future<Output = Result<()>> + Send + use<>> {
-    let image_data_uri = load_fixture_data_uri(fixture_name, mime_type)?;
-    let fixture_name = fixture_name.to_owned();
-
-    let generation = cluster.continue_from_conversation_history(
-        CancellationToken::new(),
-        &ContinueFromConversationHistoryParams {
-            add_generation_prompt: true,
-            conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                content: ConversationMessageContent::Parts(vec![
-                    ConversationMessageContentPart::ImageUrl {
-                        image_url: ImageUrl {
-                            url: image_data_uri,
-                        },
-                    },
-                    ConversationMessageContentPart::Text {
-                        text: "What do you see in this image?".to_owned(),
-                    },
-                ]),
-                role: "user".to_owned(),
-            }]),
-            enable_thinking: false,
-            grammar: None,
-            max_tokens: MAX_TOKENS,
-            parse_tool_calls: false,
-            tools: vec![],
-        },
-    );
-
-    Ok(async move {
-        let token_results = generation.await?.into_token_results();
-
-        assert!(
-            token_results.iter().any(GeneratedTokenResult::is_token),
-            "fixture {fixture_name} should produce at least one content/reasoning/tool-call token with adequate n_batch; got {token_results:?}",
-        );
-
-        Ok(())
-    })
+struct ImageFixture {
+    fixture_name: &'static str,
+    mime_type: &'static str,
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -71,14 +28,54 @@ async fn agent_completes_generation_with_adequate_n_batch() {
         .await
         .expect("the cluster must start");
 
-    drive_normal_image_fixture(&cluster, "sarnow.jpeg", "image/jpeg")
-        .expect("the image fixture request must complete")
-        .await
-        .expect("the message must be readable");
-    drive_normal_image_fixture(&cluster, "llamas.webp", "image/webp")
-        .expect("the image fixture request must complete")
-        .await
-        .expect("the message must be readable");
+    for ImageFixture {
+        fixture_name,
+        mime_type,
+    } in [
+        ImageFixture {
+            fixture_name: "sarnow.jpeg",
+            mime_type: "image/jpeg",
+        },
+        ImageFixture {
+            fixture_name: "llamas.webp",
+            mime_type: "image/webp",
+        },
+    ] {
+        let token_results = cluster
+            .continue_from_conversation_history(
+                CancellationToken::new(),
+                &ContinueFromConversationHistoryParams {
+                    add_generation_prompt: true,
+                    conversation_history: ConversationHistory::new(vec![ConversationMessage {
+                        content: ConversationMessageContent::Parts(vec![
+                            ConversationMessageContentPart::ImageUrl {
+                                image_url: ImageUrl {
+                                    url: load_fixture_data_uri(fixture_name, mime_type)
+                                        .expect("the image fixture must load"),
+                                },
+                            },
+                            ConversationMessageContentPart::Text {
+                                text: "What do you see in this image?".to_owned(),
+                            },
+                        ]),
+                        role: "user".to_owned(),
+                    }]),
+                    enable_thinking: false,
+                    grammar: None,
+                    max_tokens: MAX_TOKENS,
+                    parse_tool_calls: false,
+                    tools: vec![],
+                },
+            )
+            .await
+            .expect("the image fixture request must complete")
+            .into_token_results();
+
+        assert!(
+            token_results.iter().any(GeneratedTokenResult::is_token),
+            "fixture {fixture_name} should produce at least one content/reasoning/tool-call token with adequate n_batch; got {token_results:?}",
+        );
+    }
 
     cluster
         .shutdown()

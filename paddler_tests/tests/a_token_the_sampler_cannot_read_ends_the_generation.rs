@@ -10,6 +10,7 @@ use llama_cpp_bindings::token::data_array::LlamaTokenDataArray;
 
 use paddler_agent_runtime::sequence_id_guard::SequenceIdGuard;
 use paddler_agent_runtime::sequence_id_pool::SequenceIdPool;
+use paddler_agent_text_generation::chat_template_renderer::ChatTemplateRenderer;
 use paddler_agent_text_generation::continuous_batch_active_request::ContinuousBatchActiveRequest;
 use paddler_agent_text_generation::continuous_batch_generation_step::ContinuousBatchGenerationStep;
 use paddler_agent_text_generation::continuous_batch_request_phase::ContinuousBatchRequestPhase;
@@ -17,13 +18,16 @@ use paddler_agent_text_generation::continuous_batch_request_state::ContinuousBat
 use paddler_agent_text_generation::continuous_batch_scheduler::advance_generating_phase::AdvanceGeneratingPhase;
 use paddler_agent_text_generation::continuous_batch_scheduler_context::ContinuousBatchSchedulerContext;
 use paddler_agent_text_generation::continuous_batch_terminal_outcome::ContinuousBatchTerminalOutcome;
+use paddler_agent_text_generation::json_tools_serializer::JsonToolsSerializer;
 use paddler_agent_text_generation::prepared_generation_request::PreparedGenerationRequest;
 use paddler_agent_text_generation::text_generation_error::TextGenerationError;
 use paddler_agent_text_generation::token_classification::TokenClassification;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
+use paddler_tests::first_message_content_chat_template::first_message_content_chat_template;
 use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::llama_runtime::LlamaRuntime;
-use paddler_tests::prepared_generation::PreparedGeneration;
+use paddler_tests::raw_prompt_generation::RawPromptGeneration;
+use paddler_tests::text_only_generation_parts::TextOnlyGenerationParts;
 
 #[test]
 fn a_token_the_sampler_cannot_read_ends_the_generation() {
@@ -35,25 +39,48 @@ fn a_token_the_sampler_cannot_read_ends_the_generation() {
     let sequence_context_size = llama_context.n_ctx_seq();
     let classifier_model: &'static LlamaModel =
         Box::leak(Box::new(Arc::clone(&runtime.loaded_llama_model.model)));
-    let PreparedGeneration {
+    let RawPromptGeneration {
+        agent_request,
         generate_tokens_stop_tx: _generate_tokens_stop_tx,
         generated_tokens_rx: _generated_tokens_rx,
-        request:
-            PreparedGenerationRequest {
-                generate_tokens_stop_rx,
-                generated_tokens_tx,
-                max_tokens,
-                slot_guard,
-                token_classification:
-                    TokenClassification {
-                        bare_json_tool_calls,
-                        streaming_markers,
-                    },
-                token_sampling,
-                tool_call_handling,
-                ..
+    } = RawPromptGeneration::new(
+        "Paddler",
+        runtime
+            .inference_runtime_context
+            .slot_aggregated_status
+            .clone(),
+    );
+    let PreparedGenerationRequest {
+        generate_tokens_stop_rx,
+        generated_tokens_tx,
+        max_tokens,
+        slot_guard,
+        token_classification:
+            TokenClassification {
+                bare_json_tool_calls,
+                streaming_markers,
             },
-    } = PreparedGeneration::of_raw_prompt(&runtime, sequence_context_size, "Paddler")
+        token_sampling,
+        tool_call_handling,
+        ..
+    } = runtime
+        .text_only_generation_request_preparer(
+            TextOnlyGenerationParts {
+                chat_template_renderer: ChatTemplateRenderer::new(
+                    first_message_content_chat_template(),
+                )
+                .expect("the chat template must compile"),
+                sequence_context_size,
+                streaming_markers: runtime
+                    .loaded_llama_model
+                    .model
+                    .streaming_markers()
+                    .expect("the streaming markers must be detected"),
+            },
+            runtime.sampler_chain_factory(),
+            JsonToolsSerializer,
+        )
+        .prepare_raw_prompt(agent_request)
         .expect("the generation must be prepared");
     let token_classifier =
         SampledTokenClassifier::new(classifier_model, streaming_markers, bare_json_tool_calls);

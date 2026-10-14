@@ -17,7 +17,6 @@ use paddler_test_cluster_harness::cluster_desired_state::ClusterDesiredState;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
 use paddler_test_cluster_harness::collect_generated_tokens::collect_generated_tokens;
 use paddler_test_cluster_harness::model_card::qwen3_0_6b::qwen3_0_6b;
-use paddler_tests::next_reported_cluster_inference_mode::next_reported_cluster_inference_mode;
 use paddler_tests::start_cluster::start_cluster;
 
 const MAX_TOKENS: NonZeroU32 = NonZeroU32::new(16).unwrap();
@@ -71,9 +70,14 @@ async fn balancer_inference_socket_recovers_from_embeddings_mode() {
             )
     ));
 
-    let connect_notification = next_reported_cluster_inference_mode(&mut cluster_inference_mode_rx)
-        .await
-        .expect("the client must be told on connect that the cluster serves embeddings");
+    let connect_notification = {
+        cluster_inference_mode_rx
+            .changed()
+            .await
+            .expect("the client must be told on connect that the cluster serves embeddings");
+
+        *cluster_inference_mode_rx.borrow_and_update()
+    };
 
     assert_eq!(
         connect_notification,
@@ -86,13 +90,14 @@ async fn balancer_inference_socket_recovers_from_embeddings_mode() {
         .await
         .expect("the balancer must accept the text generation state");
 
-    let recovery_notification = next_reported_cluster_inference_mode(
-        &mut cluster_inference_mode_rx,
-    )
-    .await
-    .expect(
-        "the client must be told over the open connection that the cluster serves text generation",
-    );
+    let recovery_notification = {
+        cluster_inference_mode_rx
+            .changed()
+            .await
+            .expect("the client must be told over the open connection that the cluster serves text generation");
+
+        *cluster_inference_mode_rx.borrow_and_update()
+    };
 
     assert_eq!(
         recovery_notification,

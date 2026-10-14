@@ -4,6 +4,7 @@ use std::num::NonZeroU32;
 
 use tokio_util::sync::CancellationToken;
 
+use paddler_inference_parameters::batch_size::BatchSize;
 use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
@@ -11,7 +12,6 @@ use paddler_messaging::request_params::continue_from_raw_prompt_params::Continue
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_test_cluster_harness::cluster_desired_state::ClusterDesiredState;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
-use paddler_tests::batch_size_within_context::batch_size_within_context;
 use paddler_tests::qwen3_desired_state::qwen3_desired_state;
 use paddler_tests::start_cluster::start_cluster;
 
@@ -26,11 +26,10 @@ async fn agent_rejects_raw_prompt_exceeding_sequence_context() {
             model_runtime_parameters: ModelRuntimeParameters {
                 context_size: NonZeroU32::try_from(SEQUENCE_CONTEXT_SIZE)
                     .expect("the value must fit its target type"),
-                n_batch: batch_size_within_context(
+                n_batch: BatchSize::DEFAULT.at_most(
                     NonZeroU32::try_from(SEQUENCE_CONTEXT_SIZE)
                         .expect("the value must fit its target type"),
-                )
-                .expect("the batch size must fit the context"),
+                ),
                 ..desired_state.model_runtime_parameters
             },
             ..desired_state

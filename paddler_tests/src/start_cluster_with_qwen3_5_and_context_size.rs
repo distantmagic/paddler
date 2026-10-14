@@ -2,6 +2,7 @@ use std::num::NonZeroU32;
 
 use anyhow::Result;
 
+use paddler_inference_parameters::batch_size::BatchSize;
 use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
@@ -11,7 +12,6 @@ use paddler_test_cluster_harness::cluster_params::ClusterParams;
 use paddler_test_cluster_harness::model_card::qwen3_5_0_8b::qwen3_5_0_8b;
 use paddler_test_cluster_harness::model_card::qwen3_5_0_8b_mmproj::qwen3_5_0_8b_mmproj;
 
-use crate::batch_size_within_context::batch_size_within_context;
 use crate::start_cluster::start_cluster;
 
 pub async fn start_cluster_with_qwen3_5_and_context_size(
@@ -31,7 +31,7 @@ pub async fn start_cluster_with_qwen3_5_and_context_size(
         desired_state: ClusterDesiredState::Apply(Box::new(BalancerDesiredState {
             model_runtime_parameters: ModelRuntimeParameters {
                 context_size,
-                n_batch: batch_size_within_context(context_size)?,
+                n_batch: BatchSize::DEFAULT.at_most(context_size),
                 ..base_desired_state.model_runtime_parameters
             },
             ..base_desired_state

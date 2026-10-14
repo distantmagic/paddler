@@ -24,22 +24,25 @@ fn a_decision_whose_sequences_cannot_be_released_reports_the_release_failure() {
         .expect("the decision context must be created");
     let n_batch = runtime.model_runtime_parameters.n_batch.tokens_usize();
     let mut batch = LlamaBatch::new(n_batch, 1).expect("the decision batch must be allocated");
+    let state = vec![LlamaToken::new(0)];
+    let admission = DecisionCapacityLedger::new(
+        llama_context.n_ctx() as usize,
+        SEQUENCES_THE_LEDGER_HANDS_OUT,
+    )
+    .admit(&AdmittedDecision::capacity_demand(&state))
+    .expect("the decision must be admitted");
     let AdmittedDecision {
         active_decision_request,
         mut decision_result_rx,
         decision_stop_tx: _decision_stop_tx,
-    } = AdmittedDecision::admit(
-        &DecisionCapacityLedger::new(
-            llama_context.n_ctx() as usize,
-            SEQUENCES_THE_LEDGER_HANDS_OUT,
-        ),
+    } = AdmittedDecision::new(
+        admission,
         runtime
             .inference_runtime_context
             .slot_aggregated_status
             .clone(),
-        vec![LlamaToken::new(0)],
-    )
-    .expect("the decision must be admitted");
+        state,
+    );
 
     active_decision_request.finish_with(
         &mut DecisionDecoder {

@@ -1,11 +1,14 @@
 use std::time::Duration;
 
 use reqwest::StatusCode;
+use serde_json::Value;
 
+use paddler_balancer::compatibility::openai_service::openai_api_path::OpenAIApiPath;
 use paddler_messaging::inference_mode::InferenceMode;
+use paddler_openai_response_format_validator::openai_validator::OpenAIValidator;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
 use paddler_tests::cluster_without_agents_serving::cluster_without_agents_serving;
-use paddler_tests::openai_chat_completion_failure_status::openai_chat_completion_failure_status;
+use paddler_tests::minimal_openai_chat_completion::minimal_openai_chat_completion;
 use paddler_tests::start_cluster::start_cluster;
 
 const SHORT_BUFFERED_REQUEST_TIMEOUT: Duration = Duration::from_millis(50);
@@ -19,12 +22,28 @@ async fn openai_chat_completion_reports_a_buffered_request_timeout_as_a_gateway_
     .await
     .expect("a balancer without agents must start");
 
-    assert_eq!(
-        openai_chat_completion_failure_status(&cluster)
-            .await
-            .expect("the chat completion must fail with an OpenAI error body"),
-        StatusCode::GATEWAY_TIMEOUT
-    );
+    let response = minimal_openai_chat_completion(
+        cluster
+            .balancer
+            .compat_openai_base_url()
+            .expect("the balancer must serve the OpenAI compatibility service")
+            .join(OpenAIApiPath::CHAT_COMPLETIONS)
+            .expect("the chat completions path must extend the base URL"),
+    )
+    .await
+    .expect("the balancer must answer the chat completion");
+
+    assert_eq!(response.status(), StatusCode::GATEWAY_TIMEOUT);
+
+    OpenAIValidator::new()
+        .expect("the OpenAI specification must load")
+        .validate_error_response(
+            &response
+                .json::<Value>()
+                .await
+                .expect("the error body must be JSON"),
+        )
+        .expect("the error body must be an OpenAI error");
 
     cluster
         .shutdown()

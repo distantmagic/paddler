@@ -1,7 +1,9 @@
+use futures_util::StreamExt as _;
+
 use paddler_client::inference_socket::reported_cluster_inference_mode::ReportedClusterInferenceMode;
 use paddler_messaging::inference_mode::InferenceMode;
 use paddler_tests::cluster_without_agents_serving::cluster_without_agents_serving;
-use paddler_tests::inference_socket_round_trip::inference_socket_round_trip;
+use paddler_tests::minimal_raw_prompt_stream::minimal_raw_prompt_stream;
 use paddler_tests::start_cluster::start_cluster;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -10,9 +12,13 @@ async fn a_late_cluster_inference_mode_subscriber_sees_the_current_mode() {
         .await
         .expect("a balancer serving embeddings must start");
 
-    inference_socket_round_trip(&cluster.client_inference)
+    minimal_raw_prompt_stream(&cluster.client_inference)
         .await
-        .expect("the inference socket must answer before anyone subscribes");
+        .expect("the inference socket must accept the request before anyone subscribes")
+        .next()
+        .await
+        .expect("the inference socket must answer before anyone subscribes")
+        .expect("the answer must be readable");
 
     assert_eq!(
         *cluster

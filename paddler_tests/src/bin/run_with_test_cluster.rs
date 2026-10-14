@@ -33,15 +33,15 @@ fn command_against_cluster(
     command
         .args(arguments)
         .env("PADDLER_INFERENCE_URL", http_url(*inference))
-        .env("PADDLER_MANAGEMENT_URL", http_url(*management));
-
-    if let Some(compat_openai) = compat_openai {
-        command.env("PADDLER_COMPAT_OPENAI_URL", http_url(*compat_openai));
-    }
-
-    if let Some(compat_typesafe) = compat_typesafe {
-        command.env("PADDLER_COMPAT_TYPESAFE_URL", http_url(*compat_typesafe));
-    }
+        .env("PADDLER_MANAGEMENT_URL", http_url(*management))
+        .envs(
+            compat_openai
+                .map(|compat_openai| ("PADDLER_COMPAT_OPENAI_URL", http_url(compat_openai))),
+        )
+        .envs(
+            compat_typesafe
+                .map(|compat_typesafe| ("PADDLER_COMPAT_TYPESAFE_URL", http_url(compat_typesafe))),
+        );
 
     command
 }
