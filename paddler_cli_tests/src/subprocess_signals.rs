@@ -67,6 +67,7 @@ impl SubprocessSignals {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error as _;
     use std::io::BufRead as _;
     use std::io::BufReader;
     use std::process::Command;
@@ -96,14 +97,25 @@ mod tests {
             "only an unprivileged user is refused when signalling the init process"
         );
 
-        assert!(matches!(
-            signals_for(Pid::from_raw(1)).terminate(),
-            Err(SubprocessClusterError::SignalUndeliverable {
+        let terminate_error = signals_for(Pid::from_raw(1))
+            .terminate()
+            .expect_err("signalling the init process must be refused");
+
+        assert_eq!(
+            terminate_error.to_string(),
+            SubprocessClusterError::SignalUndeliverable {
+                pid: Pid::from_raw(1),
                 signal: Signal::SIGTERM,
                 source: Errno::EPERM,
-                ..
-            })
-        ));
+            }
+            .to_string()
+        );
+        assert_eq!(
+            terminate_error
+                .source()
+                .and_then(|source| source.downcast_ref::<Errno>()),
+            Some(&Errno::EPERM)
+        );
     }
 
     #[test]

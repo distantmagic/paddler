@@ -37,7 +37,7 @@ mod tests {
 
     #[tokio::test]
     async fn yields_no_addresses_when_stdout_closes_before_the_announcement() {
-        assert!(matches!(read_balancer_addresses(&b""[..]).await, Ok(None)));
+        assert_eq!(read_balancer_addresses(&b""[..]).await.ok(), Some(None));
     }
 
     #[tokio::test]

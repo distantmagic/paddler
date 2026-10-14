@@ -32,15 +32,20 @@ fn a_decision_state_llama_cpp_rejects_fails_the_decision() {
     )
     .expect("the decision must be admitted");
 
-    assert!(matches!(
-        admitted_decision.active_decision_request.advance(
-            &mut DecisionDecoder {
-                batch: &mut batch,
-                llama_context: &mut llama_context,
-                n_batch,
-            },
-            &pointer_head,
-        ),
-        Err(DecisionError::DecodeFailed(DecodeError::BatchInvalid))
-    ));
+    assert_eq!(
+        admitted_decision
+            .active_decision_request
+            .advance(
+                &mut DecisionDecoder {
+                    batch: &mut batch,
+                    llama_context: &mut llama_context,
+                    n_batch,
+                },
+                &pointer_head,
+            )
+            .err()
+            .as_ref()
+            .map(ToString::to_string),
+        Some(DecisionError::DecodeFailed(DecodeError::BatchInvalid).to_string())
+    );
 }

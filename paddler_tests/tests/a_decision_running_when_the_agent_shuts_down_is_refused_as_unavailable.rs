@@ -8,6 +8,7 @@ use llama_cpp_bindings::token::LlamaToken;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent_decision::decision_capacity_ledger::DecisionCapacityLedger;
+use paddler_agent_decision::decision_error::DecisionError;
 use paddler_agent_decision::decision_scheduler::DecisionScheduler;
 use paddler_agent_decision::decision_scheduler_context::DecisionSchedulerContext;
 use paddler_messaging::decision_result::DecisionResult;
@@ -60,8 +61,10 @@ fn a_decision_running_when_the_agent_shuts_down_is_refused_as_unavailable() {
     }
     .run();
 
-    assert!(matches!(
+    assert_eq!(
         decision_result_rx.try_recv(),
-        Ok(DecisionResult::SchedulerUnavailable(_))
-    ));
+        Ok(DecisionResult::SchedulerUnavailable(
+            DecisionError::SchedulerUnavailable.to_string()
+        ))
+    );
 }

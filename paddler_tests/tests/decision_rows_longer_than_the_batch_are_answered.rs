@@ -1,12 +1,14 @@
 #![cfg(feature = "tests_that_use_llms")]
 
+use std::mem::discriminant;
+
 use tokio_util::sync::CancellationToken;
 
 use paddler_inference_parameters::batch_size::BatchSize;
 use paddler_messaging::decision_question::DecisionQuestion;
-use paddler_messaging::decision_result::DecisionResult;
 use paddler_messaging::request_params::decide_params::raw_decide_params::RawDecideParams;
 use paddler_tests::decision_cluster_params::DecisionClusterParams;
+use paddler_tests::decision_done_discriminant::decision_done_discriminant;
 use paddler_tests::sample_decision::sample_decision;
 use paddler_tests::start_decision_cluster::start_decision_cluster;
 
@@ -57,7 +59,10 @@ async fn decision_rows_longer_than_the_batch_are_answered() {
     assert!(collected.answers.iter().all(|answer| {
         (answer.probabilities.iter().sum::<f32>() - 1.0).abs() < PROBABILITY_SUM_TOLERANCE
     }));
-    assert!(matches!(collected.terminal_result, DecisionResult::Done(_)));
+    assert_eq!(
+        discriminant(&collected.terminal_result),
+        decision_done_discriminant()
+    );
 
     cluster
         .shutdown()

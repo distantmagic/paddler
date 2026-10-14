@@ -45,8 +45,11 @@ pub async fn collect_decision_results(
 
 #[cfg(test)]
 mod tests {
+    use std::mem::discriminant;
+
     use futures_util::stream::iter;
 
+    use paddler_client::error::Error as ClientError;
     use paddler_messaging::embedding_result::EmbeddingResult;
     use paddler_messaging::inference_client::message::Message as InferenceMessage;
     use paddler_messaging::inference_client::response::Response as InferenceResponse;
@@ -61,34 +64,60 @@ mod tests {
             .await
             .expect_err("a stream without an outcome must not be collected");
 
-        assert!(matches!(
-            collection_error.downcast_ref::<ClusterHarnessError>(),
-            Some(ClusterHarnessError::DecisionStreamEndedWithoutTerminalResult)
-        ));
+        assert_eq!(
+            collection_error
+                .downcast_ref::<ClusterHarnessError>()
+                .map(discriminant),
+            Some(discriminant(
+                &ClusterHarnessError::DecisionStreamEndedWithoutTerminalResult
+            ))
+        );
     }
 
     #[tokio::test]
     async fn a_decision_stream_carrying_another_result_is_an_error() {
-        let collection_error = collect_decision_results(Box::pin(iter([Ok(
+        let embedding_done = || {
             InferenceMessage::Response(ResponseEnvelope {
                 generated_by: None,
                 request_id: "request-1".to_owned(),
                 response: InferenceResponse::Embedding(EmbeddingResult::Done),
-            }),
-        )])))
-        .await
-        .expect_err("a stream carrying an embedding result must not be collected");
+            })
+        };
+        let collection_error = collect_decision_results(Box::pin(iter([Ok(embedding_done())])))
+            .await
+            .expect_err("a stream carrying an embedding result must not be collected");
 
-        assert!(matches!(
-            collection_error.downcast_ref::<ClusterHarnessError>(),
-            Some(ClusterHarnessError::DecisionStreamMessageUnexpected { message })
-                if matches!(
-                    **message,
-                    InferenceMessage::Response(ResponseEnvelope {
-                        response: InferenceResponse::Embedding(EmbeddingResult::Done),
-                        ..
-                    })
-                )
-        ));
+        assert_eq!(
+            collection_error
+                .downcast_ref::<ClusterHarnessError>()
+                .map(ToString::to_string),
+            Some(
+                ClusterHarnessError::DecisionStreamMessageUnexpected {
+                    message: Box::new(embedding_done()),
+                }
+                .to_string()
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn a_decision_stream_yielding_an_error_is_an_error() {
+        let collection_error =
+            collect_decision_results(Box::pin(iter([Err(ClientError::ConnectionDropped {
+                request_id: "request-1".to_owned(),
+            })])))
+            .await
+            .expect_err("a stream yielding an error must not be collected");
+
+        assert_eq!(
+            collection_error.to_string(),
+            "decision stream yielded an error"
+        );
+        assert_eq!(
+            collection_error
+                .downcast_ref::<ClientError>()
+                .map(ToString::to_string),
+            Some("Request request-1 failed: connection dropped".to_owned())
+        );
     }
 }

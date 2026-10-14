@@ -36,6 +36,8 @@ impl LastAnnouncedAgentStatus {
 
 #[cfg(test)]
 mod tests {
+    use std::mem::discriminant;
+
     use paddler_messaging::agent_status::AgentStatus;
     use paddler_messaging::management_socket::balancer::message::Message as ManagementJsonRpcMessage;
     use paddler_messaging::management_socket::balancer::notification::Notification as ManagementJsonRpcNotification;
@@ -64,9 +66,11 @@ mod tests {
                 }),
             )) if slot_aggregated_status_snapshot == changed_snapshot
         ));
-        assert!(matches!(
-            last_announced_agent_status.announce_if_changed(changed_snapshot),
-            ManagementConnectionStep::Continue
-        ));
+        assert_eq!(
+            last_announced_agent_status
+                .announce_if_changed(changed_snapshot)
+                .outcome(),
+            Ok(discriminant(&ManagementConnectionStep::Continue))
+        );
     }
 }

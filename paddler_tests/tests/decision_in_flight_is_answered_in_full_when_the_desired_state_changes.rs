@@ -1,5 +1,6 @@
 #![cfg(feature = "tests_that_use_llms")]
 
+use std::mem::discriminant;
 use std::num::NonZeroU32;
 
 use futures_util::StreamExt as _;
@@ -7,9 +8,9 @@ use tokio_util::sync::CancellationToken;
 
 use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
-use paddler_messaging::decision_result::DecisionResult;
 use paddler_test_cluster_harness::collect_decision_results::collect_decision_results;
 use paddler_tests::decision_cluster_params::DecisionClusterParams;
+use paddler_tests::decision_done_discriminant::decision_done_discriminant;
 use paddler_tests::many_question_decision::many_question_decision;
 use paddler_tests::start_decision_cluster::start_decision_cluster;
 
@@ -66,7 +67,10 @@ async fn decision_in_flight_is_answered_in_full_when_the_desired_state_changes()
         collected.answers.len(),
         QUESTIONS_OUTLASTING_A_STATE_CHANGE - 1
     );
-    assert!(matches!(collected.terminal_result, DecisionResult::Done(_)));
+    assert_eq!(
+        discriminant(&collected.terminal_result),
+        decision_done_discriminant()
+    );
 
     cluster
         .shutdown()

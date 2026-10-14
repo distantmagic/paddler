@@ -30,3 +30,5 @@ pub mod started_pipeline;
 
 #[cfg(test)]
 mod balancer_message_context_fixture;
+#[cfg(test)]
+mod management_connection_step_outcome;

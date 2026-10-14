@@ -1,10 +1,12 @@
 #![cfg(feature = "tests_that_use_llms")]
 
+use llama_cpp_bindings::error::ClearKvCacheSeqError;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
 use llama_cpp_bindings::token::LlamaToken;
 
 use paddler_agent_decision::decision_capacity_ledger::DecisionCapacityLedger;
 use paddler_agent_decision::decision_decoder::DecisionDecoder;
+use paddler_agent_decision::decision_error::DecisionError;
 use paddler_messaging::decision_result::DecisionResult;
 use paddler_tests::admitted_decision::AdmittedDecision;
 use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
@@ -49,8 +51,15 @@ fn a_decision_whose_sequences_cannot_be_released_reports_the_release_failure() {
         DecisionResult::StopRequested,
     );
 
-    assert!(matches!(
+    assert_eq!(
         decision_result_rx.try_recv(),
-        Ok(DecisionResult::KvCacheRemovalFailed(_))
-    ));
+        Ok(DecisionResult::KvCacheRemovalFailed(
+            DecisionError::KvCacheRemovalFailed(ClearKvCacheSeqError::PartialSequenceNotRemoved {
+                seq_id: 1,
+                p0: -1,
+                p1: -1,
+            })
+            .to_string()
+        ))
+    );
 }

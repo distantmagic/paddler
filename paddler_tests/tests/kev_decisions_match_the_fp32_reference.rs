@@ -1,10 +1,12 @@
 #![cfg(feature = "tests_that_use_llms")]
 
+use std::mem::discriminant;
+
 use serde_json::from_str;
 use tokio_util::sync::CancellationToken;
 
-use paddler_messaging::decision_result::DecisionResult;
 use paddler_messaging::request_params::decide_params::raw_decide_params::RawDecideParams;
+use paddler_tests::decision_done_discriminant::decision_done_discriminant;
 use paddler_tests::kev_parity_record::KevParityRecord;
 use paddler_tests::start_cluster::start_cluster;
 use paddler_tests::test_cluster_preset::TestClusterPreset;
@@ -46,7 +48,10 @@ async fn kev_decisions_match_the_fp32_reference() {
             .await
             .expect("the decision must be answered");
 
-        assert!(matches!(collected.terminal_result, DecisionResult::Done(_)));
+        assert_eq!(
+            discriminant(&collected.terminal_result),
+            decision_done_discriminant()
+        );
         assert_eq!(
             collected
                 .answers

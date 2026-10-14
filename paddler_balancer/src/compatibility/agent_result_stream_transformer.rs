@@ -137,19 +137,25 @@ mod tests {
 
     #[tokio::test]
     async fn refuses_to_relay_a_cluster_notification() {
-        assert!(matches!(
+        let cluster_notification = || {
+            OutgoingMessage::Notification(Notification::ClusterInferenceMode(
+                InferenceMode::Decision,
+            ))
+        };
+
+        assert_eq!(
             AgentResultStreamTransformer::<DecisionResult>::default()
-                .transform(OutgoingMessage::Notification(
-                    Notification::ClusterInferenceMode(InferenceMode::Decision)
-                ))
-                .await,
-            Err(AgentRelayError::MessageNotRelayable { message })
-                if matches!(
-                    *message,
-                    OutgoingMessage::Notification(Notification::ClusterInferenceMode(
-                        InferenceMode::Decision
-                    ))
-                )
-        ));
+                .transform(cluster_notification())
+                .await
+                .err()
+                .as_ref()
+                .map(ToString::to_string),
+            Some(
+                AgentRelayError::MessageNotRelayable {
+                    message: Box::new(cluster_notification()),
+                }
+                .to_string()
+            )
+        );
     }
 }

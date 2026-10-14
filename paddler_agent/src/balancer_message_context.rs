@@ -215,7 +215,11 @@ impl BalancerMessageContext {
 
 #[cfg(test)]
 mod tests {
+    use std::mem::discriminant;
     use std::num::NonZeroU32;
+
+    use futures_util::StreamExt as _;
+    use futures_util::stream;
 
     use tokio::sync::mpsc;
     use tokio_tungstenite::tungstenite::Bytes;
@@ -260,14 +264,16 @@ mod tests {
 
         drop(agent_desired_state_rx);
 
-        assert!(matches!(
-            context.handle_deserialized_message(JsonRpcMessage::Notification(
-                JsonRpcNotification::SetState(Box::new(SetStateParams {
-                    desired_state: AgentDesiredState::from(BalancerDesiredState::default()),
-                })),
-            )),
-            ManagementConnectionStep::Deregister
-        ));
+        assert_eq!(
+            context
+                .handle_deserialized_message(JsonRpcMessage::Notification(
+                    JsonRpcNotification::SetState(Box::new(SetStateParams {
+                        desired_state: AgentDesiredState::from(BalancerDesiredState::default()),
+                    })),
+                ))
+                .outcome(),
+            Ok(discriminant(&ManagementConnectionStep::Deregister))
+        );
     }
 
     #[test]
@@ -298,12 +304,14 @@ mod tests {
         let BalancerMessageContextFixture { context, .. } =
             BalancerMessageContextFixture::default();
 
-        assert!(matches!(
-            context.handle_deserialized_message(JsonRpcMessage::Notification(
-                JsonRpcNotification::StopRespondingTo("already_finished".to_owned()),
-            )),
-            ManagementConnectionStep::Continue
-        ));
+        assert_eq!(
+            context
+                .handle_deserialized_message(JsonRpcMessage::Notification(
+                    JsonRpcNotification::StopRespondingTo("already_finished".to_owned()),
+                ))
+                .outcome(),
+            Ok(discriminant(&ManagementConnectionStep::Continue))
+        );
         assert!(
             context
                 .request_stoppers
@@ -324,12 +332,14 @@ mod tests {
         )
         .expect("a fresh request id must register");
 
-        assert!(matches!(
-            context.handle_deserialized_message(JsonRpcMessage::Notification(
-                JsonRpcNotification::StopRespondingTo("active_request".to_owned()),
-            )),
-            ManagementConnectionStep::Continue
-        ));
+        assert_eq!(
+            context
+                .handle_deserialized_message(JsonRpcMessage::Notification(
+                    JsonRpcNotification::StopRespondingTo("active_request".to_owned()),
+                ))
+                .outcome(),
+            Ok(discriminant(&ManagementConnectionStep::Continue))
+        );
         assert_eq!(stop_rx.try_recv(), Ok(()));
     }
 
@@ -338,14 +348,16 @@ mod tests {
         let BalancerMessageContextFixture { context, .. } =
             BalancerMessageContextFixture::default();
 
-        assert!(matches!(
-            context.handle_deserialized_message(JsonRpcMessage::Notification(
-                JsonRpcNotification::Version(VersionParams {
-                    version: "0.0.0-mismatch".to_owned(),
-                }),
-            )),
-            ManagementConnectionStep::Continue
-        ));
+        assert_eq!(
+            context
+                .handle_deserialized_message(JsonRpcMessage::Notification(
+                    JsonRpcNotification::Version(VersionParams {
+                        version: "0.0.0-mismatch".to_owned(),
+                    }),
+                ))
+                .outcome(),
+            Ok(discriminant(&ManagementConnectionStep::Continue))
+        );
     }
 
     #[test]
@@ -353,10 +365,12 @@ mod tests {
         let BalancerMessageContextFixture { context, .. } =
             BalancerMessageContextFixture::default();
 
-        assert!(matches!(
-            context.handle_message(Message::Text("not json".into())),
-            ManagementConnectionStep::End(ManagementConnectionEnd::BalancerMessageUndeserializable)
-        ));
+        assert_eq!(
+            context
+                .handle_message(Message::Text("not json".into()))
+                .outcome(),
+            Err(&ManagementConnectionEnd::BalancerMessageUndeserializable)
+        );
     }
 
     #[test]
@@ -364,10 +378,12 @@ mod tests {
         let BalancerMessageContextFixture { context, .. } =
             BalancerMessageContextFixture::default();
 
-        assert!(matches!(
-            context.handle_message(Message::Binary(Bytes::from_static(b"\x00\x01"))),
-            ManagementConnectionStep::End(ManagementConnectionEnd::BalancerSentUnsupportedFrame)
-        ));
+        assert_eq!(
+            context
+                .handle_message(Message::Binary(Bytes::from_static(b"\x00\x01")))
+                .outcome(),
+            Err(&ManagementConnectionEnd::BalancerSentUnsupportedFrame)
+        );
     }
 
     #[test]
@@ -383,7 +399,12 @@ mod tests {
             .try_recv()
             .expect("the request must be dispatched to the arbiter");
 
-        assert!(matches!(step, ManagementConnectionStep::StreamResponses(_)));
+        assert_eq!(
+            step.outcome(),
+            Ok(discriminant(&ManagementConnectionStep::StreamResponses(
+                stream::empty().boxed()
+            )))
+        );
         assert!(matches!(
             &dispatched_request,
             PipelineRequest::ContinueFromRawPrompt(request) if request.params.raw_prompt == "hello"
@@ -404,10 +425,12 @@ mod tests {
 
         drop(pipeline_request_rx);
 
-        assert!(matches!(
-            context.handle_deserialized_message(raw_prompt_request("req_generate")),
-            ManagementConnectionStep::Deregister
-        ));
+        assert_eq!(
+            context
+                .handle_deserialized_message(raw_prompt_request("req_generate"))
+                .outcome(),
+            Ok(discriminant(&ManagementConnectionStep::Deregister))
+        );
         assert_eq!(
             context.request_stoppers.send_to("req_generate", ()),
             RequestDelivery::RequestNotRegistered
@@ -427,10 +450,12 @@ mod tests {
         )
         .expect("a fresh request id must register");
 
-        assert!(matches!(
-            context.handle_deserialized_message(raw_prompt_request("req_generate")),
-            ManagementConnectionStep::End(ManagementConnectionEnd::BalancerReusedInFlightRequestId)
-        ));
+        assert_eq!(
+            context
+                .handle_deserialized_message(raw_prompt_request("req_generate"))
+                .outcome(),
+            Err(&ManagementConnectionEnd::BalancerReusedInFlightRequestId)
+        );
         assert_eq!(
             context.request_stoppers.send_to("req_generate", ()),
             RequestDelivery::Delivered

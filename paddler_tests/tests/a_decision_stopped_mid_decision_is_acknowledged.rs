@@ -1,11 +1,14 @@
 #![cfg(feature = "tests_that_use_llms")]
 
+use std::mem::discriminant;
+
 use tokio::sync::mpsc;
 
 use paddler_messaging::decision_result::DecisionResult;
 use paddler_tests::many_question_decision::many_question_decision;
 
 use crate::serving_decision_agent::ServingDecisionAgent;
+use paddler_messaging::decision_answer::DecisionAnswer;
 
 const QUESTIONS_OUTLASTING_A_STOP: usize = 96;
 
@@ -18,10 +21,15 @@ async fn a_decision_stopped_mid_decision_is_acknowledged() {
         decision_stop_rx,
     );
 
-    assert!(matches!(
-        decision_result_rx.recv().await,
-        Some(DecisionResult::QuestionAnswered(_))
-    ));
+    assert_eq!(
+        decision_result_rx.recv().await.as_ref().map(discriminant),
+        Some(discriminant(&DecisionResult::QuestionAnswered(
+            DecisionAnswer {
+                id: String::new(),
+                probabilities: Vec::new(),
+            }
+        )))
+    );
 
     decision_stop_tx
         .send(())

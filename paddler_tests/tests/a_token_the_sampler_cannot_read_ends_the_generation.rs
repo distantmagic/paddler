@@ -4,6 +4,7 @@ use std::slice;
 use std::sync::Arc;
 
 use llama_cpp_bindings::SampledTokenClassifier;
+use llama_cpp_bindings::error::LogitsError;
 use llama_cpp_bindings::model::LlamaModel;
 use llama_cpp_bindings::token::data_array::LlamaTokenDataArray;
 
@@ -17,6 +18,7 @@ use paddler_agent_text_generation::continuous_batch_scheduler::advance_generatin
 use paddler_agent_text_generation::continuous_batch_scheduler_context::ContinuousBatchSchedulerContext;
 use paddler_agent_text_generation::continuous_batch_terminal_outcome::ContinuousBatchTerminalOutcome;
 use paddler_agent_text_generation::prepared_generation_request::PreparedGenerationRequest;
+use paddler_agent_text_generation::text_generation_error::TextGenerationError;
 use paddler_agent_text_generation::token_classification::TokenClassification;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
@@ -91,10 +93,11 @@ fn a_token_the_sampler_cannot_read_ends_the_generation() {
     }
     .run(slice::from_mut(&mut active_request));
 
-    assert!(matches!(
-        active_request.state.phase,
-        ContinuousBatchRequestPhase::Completed(ContinuousBatchTerminalOutcome::EmitToClient(
-            GeneratedTokenResult::SamplerError(_)
+    assert_eq!(
+        active_request.state.into_terminal_outcome(),
+        ContinuousBatchTerminalOutcome::EmitToClient(GeneratedTokenResult::SamplerError(
+            TextGenerationError::TokenDataUnreadable(LogitsError::TokenNotInitialized(0))
+                .to_string()
         ))
-    ));
+    );
 }

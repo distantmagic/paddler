@@ -1,10 +1,12 @@
 #![cfg(feature = "tests_that_use_llms")]
 
+use std::mem::discriminant;
+
 use futures_util::StreamExt as _;
 use tokio_util::sync::CancellationToken;
 
-use paddler_messaging::decision_result::DecisionResult;
 use paddler_tests::decision_cluster_params::DecisionClusterParams;
+use paddler_tests::decision_done_discriminant::decision_done_discriminant;
 use paddler_tests::many_question_decision::many_question_decision;
 use paddler_tests::sample_decision::sample_decision;
 use paddler_tests::start_decision_cluster::start_decision_cluster;
@@ -48,7 +50,10 @@ async fn decision_client_disconnecting_mid_decision_releases_its_sequences() {
         .expect("a decision after the abandoned one must be accepted");
 
     assert_eq!(collected.answers.len(), sample_decision().questions.len());
-    assert!(matches!(collected.terminal_result, DecisionResult::Done(_)));
+    assert_eq!(
+        discriminant(&collected.terminal_result),
+        decision_done_discriminant()
+    );
 
     cluster
         .shutdown()

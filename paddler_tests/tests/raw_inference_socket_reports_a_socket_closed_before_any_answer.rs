@@ -1,3 +1,5 @@
+use std::mem::discriminant;
+
 use paddler_messaging::inference_mode::InferenceMode;
 use paddler_test_cluster_harness::cluster_harness_error::ClusterHarnessError;
 use paddler_test_cluster_harness::raw_inference_socket::RawInferenceSocket;
@@ -21,8 +23,15 @@ async fn raw_inference_socket_reports_a_socket_closed_before_any_answer() {
         .await
         .expect("the cluster must shut down cleanly");
 
-    assert!(matches!(
-        raw_inference_socket.next_answer().await,
-        Err(ClusterHarnessError::InferenceSocketClosedBeforeAnyAnswer)
-    ));
+    assert_eq!(
+        raw_inference_socket
+            .next_answer()
+            .await
+            .err()
+            .as_ref()
+            .map(discriminant),
+        Some(discriminant(
+            &ClusterHarnessError::InferenceSocketClosedBeforeAnyAnswer
+        ))
+    );
 }

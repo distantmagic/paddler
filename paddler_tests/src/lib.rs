@@ -4,6 +4,7 @@ pub mod batch_size_within_context;
 pub mod cluster_without_agents_serving;
 pub mod conversation_with_a_tool_requiring_an_undeclared_property;
 pub mod decision_cluster_params;
+pub mod decision_done_discriminant;
 pub mod desired_state_serving;
 pub mod desired_state_with_chat_template_override;
 pub mod desired_state_with_halved_image_resize;

@@ -1,3 +1,8 @@
+use std::mem::discriminant;
+
+use serde_json::Value;
+use serde_json::from_str;
+
 use paddler_cli_tests::spawn_balancer_subprocess::spawn_balancer_subprocess;
 use paddler_cli_tests::subprocess_cluster_error::SubprocessClusterError;
 
@@ -9,8 +14,16 @@ async fn spawned_balancer_reports_an_announcement_that_is_not_its_addresses() {
             .err()
             .expect("a balancer that prints its help must not be taken for an announcement");
 
-    assert!(matches!(
-        spawn_error.downcast_ref::<SubprocessClusterError>(),
-        Some(SubprocessClusterError::AnnouncementInvalid { .. })
-    ));
+    let help_text_error =
+        from_str::<Value>("help text").expect_err("help text must not be valid JSON");
+
+    assert_eq!(
+        spawn_error
+            .downcast_ref::<SubprocessClusterError>()
+            .map(discriminant),
+        Some(discriminant(&SubprocessClusterError::AnnouncementInvalid {
+            announcement: String::new(),
+            source: help_text_error,
+        }))
+    );
 }

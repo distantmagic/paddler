@@ -225,10 +225,12 @@ mod tests {
         decide_request(decision_result_tx)
             .reject_because_another_mode_is_served(Some("agent"), InferenceMode::Embeddings);
 
-        assert!(matches!(
+        assert_eq!(
             decision_result_rx.try_recv(),
-            Ok(DecisionResult::InferenceModeMismatch(_))
-        ));
+            Ok(DecisionResult::InferenceModeMismatch(
+                "agent: the agent serves Embeddings, so it cannot decide".to_owned()
+            ))
+        );
     }
 
     #[test]
@@ -247,10 +249,12 @@ mod tests {
         })
         .reject_because_another_mode_is_served(Some("agent"), InferenceMode::Decision);
 
-        assert!(matches!(
+        assert_eq!(
             generated_embedding_rx.try_recv(),
-            Ok(EmbeddingResult::InferenceModeMismatch(_))
-        ));
+            Ok(EmbeddingResult::InferenceModeMismatch(
+                "agent: the agent serves Decision, so it cannot generate embeddings".to_owned()
+            ))
+        );
     }
 
     #[test]
@@ -270,9 +274,11 @@ mod tests {
         })
         .reject_because_another_mode_is_served(Some("agent"), InferenceMode::Decision);
 
-        assert!(matches!(
+        assert_eq!(
             generated_tokens_rx.try_recv(),
-            Ok(GeneratedTokenResult::InferenceModeMismatch(_))
-        ));
+            Ok(GeneratedTokenResult::InferenceModeMismatch(
+                "agent: the agent serves Decision, so it cannot generate tokens".to_owned()
+            ))
+        );
     }
 }

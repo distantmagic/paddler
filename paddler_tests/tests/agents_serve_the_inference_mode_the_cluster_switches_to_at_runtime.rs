@@ -1,14 +1,15 @@
 #![cfg(feature = "tests_that_use_llms")]
 
+use std::mem::discriminant;
 use std::num::NonZeroU32;
 
 use tokio_util::sync::CancellationToken;
 
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
-use paddler_messaging::decision_result::DecisionResult;
 use paddler_messaging::inference_mode::InferenceMode;
 use paddler_messaging::request_params::continue_from_raw_prompt_params::ContinueFromRawPromptParams;
 use paddler_tests::decision_cluster_params::DecisionClusterParams;
+use paddler_tests::decision_done_discriminant::decision_done_discriminant;
 use paddler_tests::sample_decision::sample_decision;
 use paddler_tests::start_decision_cluster::start_decision_cluster;
 
@@ -25,7 +26,10 @@ async fn agents_serve_the_inference_mode_the_cluster_switches_to_at_runtime() {
         .await
         .expect("the decision cluster must answer a decision");
 
-    assert!(matches!(decided.terminal_result, DecisionResult::Done(_)));
+    assert_eq!(
+        discriminant(&decided.terminal_result),
+        decision_done_discriminant()
+    );
 
     let decision_desired_state = cluster
         .client_management

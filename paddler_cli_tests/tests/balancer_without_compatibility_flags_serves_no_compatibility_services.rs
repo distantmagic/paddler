@@ -1,3 +1,5 @@
+use std::mem::discriminant;
+
 use paddler_cli_tests::spawn_balancer_subprocess::spawn_balancer_subprocess;
 use paddler_test_cluster_harness::cluster_harness_error::ClusterHarnessError;
 use paddler_test_cluster_harness::ephemeral_loopback_addr::EPHEMERAL_LOOPBACK_ADDR;
@@ -26,12 +28,16 @@ async fn balancer_without_compatibility_flags_serves_no_compatibility_services()
         .await
         .expect("the balancer subprocess must shut down");
 
-    assert!(matches!(
-        compat_openai_addr,
-        Err(ClusterHarnessError::CompatOpenAIServiceNotServed)
-    ));
-    assert!(matches!(
-        compat_typesafe_addr,
-        Err(ClusterHarnessError::CompatTypeSafeServiceNotServed)
-    ));
+    assert_eq!(
+        compat_openai_addr.err().as_ref().map(discriminant),
+        Some(discriminant(
+            &ClusterHarnessError::CompatOpenAIServiceNotServed
+        ))
+    );
+    assert_eq!(
+        compat_typesafe_addr.err().as_ref().map(discriminant),
+        Some(discriminant(
+            &ClusterHarnessError::CompatTypeSafeServiceNotServed
+        ))
+    );
 }
