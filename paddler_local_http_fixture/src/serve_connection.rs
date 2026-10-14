@@ -34,17 +34,17 @@ async fn trickle_until_the_client_leaves(
     let (mut reader, mut writer) = stream.split();
     let mut bytes_sent_after_the_request = Vec::new();
     let mut trickle = interval(byte_interval);
-
-    writer
-        .write_all(ENDLESS_CHUNKED_RESPONSE_HEAD.as_bytes())
-        .await?;
+    let mut next_trickled_bytes = ENDLESS_CHUNKED_RESPONSE_HEAD.as_bytes();
 
     loop {
         select! {
             read_outcome = reader.read_to_end(&mut bytes_sent_after_the_request) => {
                 return read_outcome.map(drop);
             }
-            _ = trickle.tick() => writer.write_all(ONE_BYTE_CHUNK).await?,
+            _ = trickle.tick() => {
+                writer.write_all(next_trickled_bytes).await?;
+                next_trickled_bytes = ONE_BYTE_CHUNK;
+            }
         }
     }
 }
