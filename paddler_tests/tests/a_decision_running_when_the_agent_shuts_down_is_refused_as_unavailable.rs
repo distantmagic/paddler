@@ -13,14 +13,18 @@ use paddler_agent_decision::decision_scheduler::DecisionScheduler;
 use paddler_agent_decision::decision_scheduler_context::DecisionSchedulerContext;
 use paddler_messaging::decision_result::DecisionResult;
 use paddler_tests::admitted_decision::AdmittedDecision;
+use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
 use paddler_tests::kev_0_8b_pointer_head::kev_0_8b_pointer_head;
 use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::llama_runtime::LlamaRuntime;
 
 #[test]
 fn a_decision_running_when_the_agent_shuts_down_is_refused_as_unavailable() {
-    let runtime = LlamaRuntime::load(&kev_0_8b_target_path("model.gguf"))
-        .expect("the kev decision model must load");
+    let runtime = LlamaRuntime::load(
+        &kev_0_8b_target_path("model.gguf"),
+        agent_inference_runtime_context(1),
+    )
+    .expect("the kev decision model must load");
     let llama_context = runtime
         .create_decision_llama_context(2)
         .expect("the decision context must be created");

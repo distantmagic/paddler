@@ -23,6 +23,7 @@ use paddler_messaging::agent_desired_state::AgentDesiredState;
 use paddler_messaging::api_path::ApiPath;
 
 use crate::agent_bootstrap_config::AgentBootstrapConfig;
+use paddler_agent_runtime::system_parallelism::SystemParallelism;
 
 pub struct AgentServiceBundle {
     llamacpp_arbiter: LlamaCppArbiterService,
@@ -57,6 +58,7 @@ impl AgentServiceBundle {
             agent_applicable_state_holder: agent_applicable_state_holder.clone(),
             inference_runtime_context: InferenceRuntimeContext {
                 agent_name: agent_name.clone(),
+                available_parallelism: Arc::new(SystemParallelism),
                 llama_backend: Arc::new(SharedLlamaBackend::default()),
                 model_metadata_holder: model_metadata_holder.clone(),
                 slot_aggregated_status: slot_aggregated_status.clone(),

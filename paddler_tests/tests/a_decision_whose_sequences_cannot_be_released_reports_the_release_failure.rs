@@ -9,6 +9,7 @@ use paddler_agent_decision::decision_decoder::DecisionDecoder;
 use paddler_agent_decision::decision_error::DecisionError;
 use paddler_messaging::decision_result::DecisionResult;
 use paddler_tests::admitted_decision::AdmittedDecision;
+use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
 use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::llama_runtime::LlamaRuntime;
 
@@ -17,8 +18,11 @@ const SEQUENCES_THE_LEDGER_HANDS_OUT: u16 = 2;
 
 #[test]
 fn a_decision_whose_sequences_cannot_be_released_reports_the_release_failure() {
-    let runtime = LlamaRuntime::load(&kev_0_8b_target_path("model.gguf"))
-        .expect("the kev decision model must load");
+    let runtime = LlamaRuntime::load(
+        &kev_0_8b_target_path("model.gguf"),
+        agent_inference_runtime_context(1),
+    )
+    .expect("the kev decision model must load");
     let mut llama_context = runtime
         .create_decision_llama_context(SEQUENCES_THE_CONTEXT_HOLDS)
         .expect("the decision context must be created");

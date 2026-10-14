@@ -178,7 +178,11 @@ impl DecisionPipeline {
             let desired_slots_total = self.require_enough_slots()?;
             let pointer_head = self.load_pointer_head()?;
             let n_batch = self.model_runtime_parameters.n_batch.tokens_usize();
-            let thread_count = inference_thread_count()?;
+            let thread_count = inference_thread_count(
+                self.inference_runtime_context
+                    .available_parallelism
+                    .as_ref(),
+            )?;
             let loaded_llama_model = LoadedLlamaModel::load(
                 &self.inference_runtime_context,
                 &self.model_path,

@@ -5,6 +5,7 @@ use paddler_agent_text_generation::chat_template_renderer::ChatTemplateRenderer;
 use paddler_agent_text_generation::json_tools_serializer::JsonToolsSerializer;
 use paddler_agent_text_generation::text_generation_request::TextGenerationRequest;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
+use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
 use paddler_tests::first_message_content_chat_template::first_message_content_chat_template;
 use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::llama_runtime::LlamaRuntime;
@@ -14,8 +15,11 @@ use paddler_tests::text_only_generation_parts::TextOnlyGenerationParts;
 
 #[test]
 fn a_sampler_chain_that_cannot_be_created_refuses_the_generation() {
-    let runtime =
-        LlamaRuntime::load(&kev_0_8b_target_path("model.gguf")).expect("the kev model must load");
+    let runtime = LlamaRuntime::load(
+        &kev_0_8b_target_path("model.gguf"),
+        agent_inference_runtime_context(1),
+    )
+    .expect("the kev model must load");
     let preparer = runtime.text_only_generation_request_preparer(
         TextOnlyGenerationParts {
             chat_template_renderer:

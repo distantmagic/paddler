@@ -14,6 +14,7 @@ use paddler_messaging::conversation_message::ConversationMessage;
 use paddler_messaging::conversation_message_content::ConversationMessageContent;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_messaging::request_params::continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
+use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
 use paddler_tests::first_message_content_chat_template::first_message_content_chat_template;
 use paddler_tests::get_weather_tool::get_weather_tool;
 use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
@@ -23,8 +24,11 @@ use paddler_tests::tools_serializer_that_fails::ToolsSerializerThatFails;
 
 #[test]
 fn tools_that_cannot_be_serialized_refuse_the_generation() {
-    let runtime =
-        LlamaRuntime::load(&kev_0_8b_target_path("model.gguf")).expect("the kev model must load");
+    let runtime = LlamaRuntime::load(
+        &kev_0_8b_target_path("model.gguf"),
+        agent_inference_runtime_context(1),
+    )
+    .expect("the kev model must load");
     let preparer = runtime.text_only_generation_request_preparer(
         TextOnlyGenerationParts {
             chat_template_renderer:

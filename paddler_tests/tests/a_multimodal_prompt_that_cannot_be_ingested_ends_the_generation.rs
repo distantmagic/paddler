@@ -23,6 +23,7 @@ use paddler_agent_text_generation::prepared_prompt::PreparedPrompt;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_test_cluster_harness::model_card::smolvlm2_256m::smolvlm2_256m;
 use paddler_test_cluster_harness::model_card::smolvlm2_256m_mmproj::smolvlm2_256m_mmproj;
+use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
 use paddler_tests::first_message_content_chat_template::first_message_content_chat_template;
 use paddler_tests::llama_runtime::LlamaRuntime;
 use paddler_tests::raw_prompt_generation::RawPromptGeneration;
@@ -37,6 +38,7 @@ fn a_multimodal_prompt_that_cannot_be_ingested_ends_the_generation() {
                     .reference
                     .cached_path(&Cache::from_env())
                     .expect("the vision model must be in the Hugging Face cache"),
+                agent_inference_runtime_context(1),
             )
             .expect("the vision model must load");
             let llama_context = runtime

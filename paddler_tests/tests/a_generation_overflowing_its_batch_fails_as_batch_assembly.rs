@@ -14,6 +14,7 @@ use paddler_agent_text_generation::continuous_batch_scheduler_params::Continuous
 use paddler_agent_text_generation::json_tools_serializer::JsonToolsSerializer;
 use paddler_agent_text_generation::text_generation_error::TextGenerationError;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
+use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
 use paddler_tests::first_message_content_chat_template::first_message_content_chat_template;
 use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::llama_runtime::LlamaRuntime;
@@ -24,8 +25,11 @@ const TOKENS_THE_BATCH_HOLDS: usize = 1;
 
 #[test]
 fn a_generation_overflowing_its_batch_fails_as_batch_assembly() {
-    let runtime =
-        LlamaRuntime::load(&kev_0_8b_target_path("model.gguf")).expect("the kev model must load");
+    let runtime = LlamaRuntime::load(
+        &kev_0_8b_target_path("model.gguf"),
+        agent_inference_runtime_context(1),
+    )
+    .expect("the kev model must load");
     let llama_context = runtime
         .create_text_generation_llama_context(1)
         .expect("the context must be created");

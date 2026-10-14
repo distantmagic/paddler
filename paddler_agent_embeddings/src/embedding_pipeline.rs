@@ -69,7 +69,8 @@ impl EmbeddingPipeline {
         let n_batch = model_runtime_parameters.n_batch.tokens_usize();
 
         continue_startup_unless_shutting_down(agent_shutdown, || {
-            let thread_count = inference_thread_count()?;
+            let thread_count =
+                inference_thread_count(inference_runtime_context.available_parallelism.as_ref())?;
             let loaded_llama_model = LoadedLlamaModel::load(
                 &inference_runtime_context,
                 &model_path,

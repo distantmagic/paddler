@@ -1,10 +1,11 @@
 use std::path::Path;
 
-use anyhow::Result;
 use llama_cpp_bindings::context::LlamaContext;
 use llama_cpp_bindings::model::params::LlamaModelParams;
 
+use paddler_agent_decision::decision_error::DecisionError;
 use paddler_agent_decision::decision_llama_context_settings::DecisionLlamaContextSettings;
+use paddler_agent_runtime::agent_runtime_error::AgentRuntimeError;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::inference_thread_count::inference_thread_count;
 use paddler_agent_runtime::llama_context_settings::LlamaContextSettings;
@@ -22,49 +23,59 @@ use paddler_inference_parameters::sampling_parameters::SamplingParameters;
 use paddler_messaging::media_marker::MediaMarker;
 use paddler_messaging::multimodal_settings::MultimodalSettings;
 
-use crate::agent_inference_runtime_context::agent_inference_runtime_context;
 use crate::text_only_generation_parts::TextOnlyGenerationParts;
 
 pub struct LlamaRuntime {
     pub inference_runtime_context: InferenceRuntimeContext,
     pub loaded_llama_model: LoadedLlamaModel,
     pub model_runtime_parameters: ModelRuntimeParameters,
+    pub thread_count: i32,
 }
 
 impl LlamaRuntime {
-    pub fn load(model_path: &Path) -> Result<Self> {
-        let inference_runtime_context = agent_inference_runtime_context(1);
+    pub fn load(
+        model_path: &Path,
+        inference_runtime_context: InferenceRuntimeContext,
+    ) -> Result<Self, AgentRuntimeError> {
+        let thread_count =
+            inference_thread_count(inference_runtime_context.available_parallelism.as_ref())?;
         let model_runtime_parameters = ModelRuntimeParameters {
             n_gpu_layers: ALL_GPU_LAYERS,
             ..ModelRuntimeParameters::default()
         };
-        let model_params =
-            LlamaModelParams::default().with_n_gpu_layers(model_runtime_parameters.n_gpu_layers);
-        let loaded_llama_model =
-            LoadedLlamaModel::load(&inference_runtime_context, model_path, &model_params)?;
+        let loaded_llama_model = LoadedLlamaModel::load(
+            &inference_runtime_context,
+            model_path,
+            &LlamaModelParams::default().with_n_gpu_layers(model_runtime_parameters.n_gpu_layers),
+        )?;
 
         Ok(Self {
             inference_runtime_context,
             loaded_llama_model,
             model_runtime_parameters,
+            thread_count,
         })
     }
 
-    pub fn create_decision_llama_context(&self, n_seq_max: u32) -> Result<LlamaContext<'_>> {
-        Ok(DecisionLlamaContextSettings {
-            llama_context_settings: self.llama_context_settings(n_seq_max)?,
+    pub fn create_decision_llama_context(
+        &self,
+        n_seq_max: u32,
+    ) -> Result<LlamaContext<'_>, DecisionError> {
+        DecisionLlamaContextSettings {
+            llama_context_settings: self.llama_context_settings(n_seq_max),
         }
-        .create_llama_context(&self.loaded_llama_model, &self.inference_runtime_context)?)
+        .create_llama_context(&self.loaded_llama_model, &self.inference_runtime_context)
     }
 
-    pub fn create_text_generation_llama_context(&self, n_seq_max: u32) -> Result<LlamaContext<'_>> {
-        let llama_context_params = self
-            .llama_context_settings(n_seq_max)?
-            .into_llama_context_params();
-
-        Ok(self
-            .loaded_llama_model
-            .create_llama_context(&self.inference_runtime_context, llama_context_params)?)
+    pub fn create_text_generation_llama_context(
+        &self,
+        n_seq_max: u32,
+    ) -> Result<LlamaContext<'_>, AgentRuntimeError> {
+        self.loaded_llama_model.create_llama_context(
+            &self.inference_runtime_context,
+            self.llama_context_settings(n_seq_max)
+                .into_llama_context_params(),
+        )
     }
 
     #[must_use]
@@ -112,11 +123,11 @@ impl LlamaRuntime {
         }
     }
 
-    fn llama_context_settings(&self, n_seq_max: u32) -> Result<LlamaContextSettings<'_>> {
-        Ok(LlamaContextSettings {
+    const fn llama_context_settings(&self, n_seq_max: u32) -> LlamaContextSettings<'_> {
+        LlamaContextSettings {
             model_runtime_parameters: &self.model_runtime_parameters,
             n_seq_max,
-            thread_count: inference_thread_count()?,
-        })
+            thread_count: self.thread_count,
+        }
     }
 }
