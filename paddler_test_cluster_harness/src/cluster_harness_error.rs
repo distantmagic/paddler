@@ -37,8 +37,6 @@ pub enum ClusterHarnessError {
     TokenStreamMessageUnexpected { message: Box<InferenceMessage> },
     #[error("Agent {agent_id} left the balancer's pool while it was being observed")]
     AgentLeftThePool { agent_id: String },
-    #[error("The untrusted agent socket client could not serialize a notification")]
-    AgentSocketNotificationUnserializable(#[source] SerdeJsonError),
     #[error("The untrusted agent socket client ended without a close frame")]
     AgentSocketEndedWithoutClosing,
     #[error("The untrusted agent socket client could not receive a frame")]

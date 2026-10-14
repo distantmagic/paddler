@@ -2,7 +2,6 @@ use std::net::SocketAddr;
 
 use futures_util::SinkExt as _;
 use futures_util::StreamExt as _;
-use serde_json::to_string;
 use tokio::net::TcpStream;
 use tokio_tungstenite::MaybeTlsStream;
 use tokio_tungstenite::WebSocketStream;
@@ -12,8 +11,6 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::protocol::CloseFrame;
 
 use paddler_messaging::api_path::ApiPath;
-use paddler_messaging::management_socket::balancer::message::Message as ManagementJsonRpcMessage;
-use paddler_messaging::management_socket::balancer::notification::Notification as ManagementJsonRpcNotification;
 
 use crate::cluster_harness_error::ClusterHarnessError;
 
@@ -51,16 +48,5 @@ impl UntrustedAgentSocketClient {
             .send(message)
             .await
             .map_err(ClusterHarnessError::AgentSocketSendFailed)
-    }
-
-    pub async fn send_forged_notification(
-        &mut self,
-        notification: ManagementJsonRpcNotification,
-    ) -> Result<(), ClusterHarnessError> {
-        let serialized_notification =
-            to_string(&ManagementJsonRpcMessage::Notification(notification))
-                .map_err(ClusterHarnessError::AgentSocketNotificationUnserializable)?;
-
-        self.send(Message::text(serialized_notification)).await
     }
 }

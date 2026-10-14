@@ -1,14 +1,17 @@
 #![cfg(feature = "tests_that_use_llms")]
 
 use reqwest::StatusCode;
+use serde_json::Value;
 use tokio::spawn;
 
+use paddler_balancer::compatibility::openai_service::openai_api_path::OpenAIApiPath;
 use paddler_cli_tests::pausable_agent_cluster::PausableAgentCluster;
 use paddler_cli_tests::pausable_agent_cluster_params::PausableAgentClusterParams;
 use paddler_cli_tests::start_pausable_agent_cluster::start_pausable_agent_cluster;
+use paddler_openai_response_format_validator::openai_validator::OpenAIValidator;
 use paddler_test_cluster_harness::cluster_desired_state::ClusterDesiredState;
 use paddler_test_cluster_harness::model_card::qwen3_0_6b::qwen3_0_6b;
-use paddler_tests::openai_chat_completion_failure_status::openai_chat_completion_failure_status;
+use paddler_tests::minimal_openai_chat_completion::minimal_openai_chat_completion;
 
 const TEXT_GENERATION_SLOTS: u16 = 1;
 
@@ -31,7 +34,14 @@ async fn openai_chat_completion_reports_an_agent_killed_mid_generation_as_a_bad_
         .pause()
         .expect("the agent must stop before the generation reaches it");
 
-    let chat_completion = spawn(openai_chat_completion_failure_status(&cluster));
+    let chat_completion = spawn(minimal_openai_chat_completion(
+        cluster
+            .balancer
+            .compat_openai_base_url()
+            .expect("the balancer must serve the OpenAI compatibility service")
+            .join(OpenAIApiPath::CHAT_COMPLETIONS)
+            .expect("the chat completions path must extend the base URL"),
+    ));
 
     cluster
         .wait_for_slots_processing(&pausable_agent.id, 1)
@@ -42,13 +52,22 @@ async fn openai_chat_completion_reports_an_agent_killed_mid_generation_as_a_bad_
         .kill()
         .expect("the agent must be killed while it holds the generation");
 
-    assert_eq!(
-        chat_completion
-            .await
-            .expect("the chat completion task must not panic")
-            .expect("the chat completion must fail with an OpenAI error body"),
-        StatusCode::BAD_GATEWAY
-    );
+    let response = chat_completion
+        .await
+        .expect("the chat completion task must not panic")
+        .expect("the balancer must answer the chat completion");
+
+    assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+
+    OpenAIValidator::new()
+        .expect("the OpenAI specification must load")
+        .validate_error_response(
+            &response
+                .json::<Value>()
+                .await
+                .expect("the error body must be JSON"),
+        )
+        .expect("the error body must be an OpenAI error");
 
     cluster
         .shutdown()

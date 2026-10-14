@@ -28,6 +28,7 @@ pub mod load_fixture_data_uri;
 pub mod load_test_image_data_uri;
 pub mod longer_than_any_test_run;
 pub mod managed_process;
+pub mod management_notification_text;
 pub mod model_card;
 pub mod noul_system_one_request;
 pub mod openai_api_client;

@@ -1,3 +1,4 @@
+use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use tokio_util::sync::CancellationToken;
 
@@ -10,6 +11,7 @@ use paddler_test_cluster_harness::cluster_params::ClusterParams;
 use paddler_test_cluster_harness::untrusted_agent_socket_client::UntrustedAgentSocketClient;
 use paddler_tests::start_cluster::start_cluster;
 use paddler_test_cluster_harness::cluster_desired_state::ClusterDesiredState;
+use paddler_test_cluster_harness::management_notification_text::management_notification_text;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn balancer_rejects_a_status_update_from_a_socket_that_did_not_register() {
@@ -34,16 +36,19 @@ async fn balancer_rejects_a_status_update_from_a_socket_that_did_not_register() 
     .expect("the impostor must reach the agent socket");
 
     impostor_socket
-        .send_forged_notification(ManagementJsonRpcNotification::UpdateAgentStatus(
-            UpdateAgentStatusParams {
-                slot_aggregated_status_snapshot: SlotAggregatedStatusSnapshot {
-                    status: AgentStatus {
-                        desired_slots_total: 99,
-                        ..AgentStatus::default()
+        .send(Message::text(
+            management_notification_text(ManagementJsonRpcNotification::UpdateAgentStatus(
+                UpdateAgentStatusParams {
+                    slot_aggregated_status_snapshot: SlotAggregatedStatusSnapshot {
+                        status: AgentStatus {
+                            desired_slots_total: 99,
+                            ..AgentStatus::default()
+                        },
+                        version: u64::MAX,
                     },
-                    version: u64::MAX,
                 },
-            },
+            ))
+            .expect("the impostor status update must serialize"),
         ))
         .await
         .expect("the impostor status update must be sent");

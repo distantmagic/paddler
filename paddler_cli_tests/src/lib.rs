@@ -1,5 +1,6 @@
 pub mod agent_exited_before_ready_with_code;
 pub mod clap_usage_error_exit_code;
+pub mod missing_binary_path;
 pub mod paddler_command;
 pub mod pausable_agent;
 pub mod pausable_agent_cluster;

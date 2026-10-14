@@ -3423,6 +3423,7 @@ dependencies = [
  "paddler_client",
  "paddler_inference_parameters",
  "paddler_messaging",
+ "paddler_openai_response_format_validator",
  "paddler_test_cluster_harness",
  "paddler_tests",
  "reqwest 0.12.28",
@@ -3430,6 +3431,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "tokio-tungstenite",
  "tokio-util",
  "url",
 ]
