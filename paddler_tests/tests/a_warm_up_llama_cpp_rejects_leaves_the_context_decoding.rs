@@ -21,8 +21,7 @@ fn a_warm_up_llama_cpp_rejects_leaves_the_context_decoding() {
     let mut llama_context = runtime
         .create_text_generation_llama_context(SEQUENCES_THE_CONTEXT_HOLDS)
         .expect("the context must be created");
-    let mut batch = LlamaBatch::new(runtime.model_runtime_parameters.n_batch.tokens_usize(), 1)
-        .expect("the batch must be allocated");
+    let mut batch = LlamaBatch::new(runtime.model_runtime_parameters.n_batch.capacity(), 1);
 
     runtime.loaded_llama_model.warm_up_llama_context(
         &mut llama_context,

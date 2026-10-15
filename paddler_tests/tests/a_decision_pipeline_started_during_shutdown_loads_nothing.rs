@@ -6,6 +6,7 @@ use tokio_util::sync::CancellationToken;
 
 use paddler_agent_decision::decision_pipeline::DecisionPipeline;
 use paddler_agent_decision::decision_slots_minimum::DECISION_SLOTS_MINIMUM;
+use paddler_agent_decision::general_architecture_metadata::GeneralArchitectureMetadata;
 use paddler_agent_runtime::scheduler_spawn_outcome::SchedulerSpawnOutcome;
 use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
 use paddler_messaging::produces_snapshot::ProducesSnapshot as _;
@@ -19,6 +20,7 @@ async fn a_decision_pipeline_started_during_shutdown_loads_nothing() {
     agent_shutdown.cancel();
 
     let spawn_outcome = DecisionPipeline {
+        architecture: GeneralArchitectureMetadata,
         inference_runtime_context: inference_runtime_context.clone(),
         model_path: PathBuf::from("model-that-is-never-read.gguf"),
         model_runtime_parameters: ModelRuntimeParameters::default(),

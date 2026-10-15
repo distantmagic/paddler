@@ -4,17 +4,21 @@ use llama_cpp_bindings::model::ParseSpecialTokens;
 use paddler_agent_runtime::agent_request::AgentRequest;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
 use paddler_agent_runtime::prepares_scheduler_command::PreparesSchedulerCommand;
+use paddler_messaging::embedding_document_exceeding_sequence_context_details::EmbeddingDocumentExceedingSequenceContextDetails;
 use paddler_messaging::embedding_result::EmbeddingResult;
 use paddler_messaging::oversized_embedding_document_details::OversizedEmbeddingDocumentDetails;
 use paddler_messaging::request_params::generate_embedding_batch_params::GenerateEmbeddingBatchParams;
 
 use crate::embedding_error::EmbeddingError;
 use crate::embedding_input_tokenized::EmbeddingInputTokenized;
+use crate::oversized_embedding_document::OversizedEmbeddingDocument;
 use crate::prepared_embedding_batch_request::PreparedEmbeddingBatchRequest;
+use crate::sequence_context_limit::SequenceContextLimit;
 
 pub struct EmbeddingBatchPreparer {
     pub loaded_llama_model: LoadedLlamaModel,
     pub n_batch: usize,
+    pub sequence_context_limit: SequenceContextLimit,
 }
 
 impl EmbeddingBatchPreparer {
@@ -44,12 +48,27 @@ impl EmbeddingBatchPreparer {
                     source,
                 })?;
 
-            if tokens.len() > self.n_batch {
-                oversized_documents.push(OversizedEmbeddingDocumentDetails {
-                    document_tokens: tokens.len(),
-                    n_batch: self.n_batch,
-                    source_document_id: input.id,
-                });
+            let document_tokens = tokens.len();
+
+            if document_tokens > self.n_batch {
+                oversized_documents.push(OversizedEmbeddingDocument::ExceedsBatchSize(
+                    OversizedEmbeddingDocumentDetails {
+                        document_tokens,
+                        n_batch: self.n_batch,
+                        source_document_id: input.id,
+                    },
+                ));
+            } else if let SequenceContextLimit::Tokens(sequence_context_size) =
+                self.sequence_context_limit
+                && document_tokens > sequence_context_size
+            {
+                oversized_documents.push(OversizedEmbeddingDocument::ExceedsSequenceContext(
+                    EmbeddingDocumentExceedingSequenceContextDetails {
+                        document_tokens,
+                        sequence_context_size,
+                        source_document_id: input.id,
+                    },
+                ));
             } else {
                 inputs.push(EmbeddingInputTokenized {
                     id: input.id,

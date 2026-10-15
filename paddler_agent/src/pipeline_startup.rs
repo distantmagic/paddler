@@ -7,6 +7,7 @@ use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
 use paddler_agent_decision::decision_pipeline::DecisionPipeline;
+use paddler_agent_decision::general_architecture_metadata::GeneralArchitectureMetadata;
 use paddler_agent_embeddings::embedding_pipeline::EmbeddingPipeline;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::prepares_scheduler_command::PreparesSchedulerCommand;
@@ -52,6 +53,7 @@ async fn start_pipeline(
         } => started(
             ModelPath::from(model_path.as_path()),
             DecisionPipeline {
+                architecture: GeneralArchitectureMetadata,
                 inference_runtime_context: inference_runtime_context.clone(),
                 model_path,
                 model_runtime_parameters,

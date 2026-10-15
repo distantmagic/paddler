@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::iter::once;
 
 use paddler_messaging::embedding::Embedding;
+use paddler_messaging::embedding_document_exceeding_sequence_context_details::EmbeddingDocumentExceedingSequenceContextDetails;
 use paddler_messaging::embedding_result::EmbeddingResult;
 use paddler_messaging::inference_client::message::Message as OutgoingMessage;
 use paddler_messaging::inference_client::response::Response as OutgoingResponse;
@@ -63,6 +64,17 @@ impl EmbeddingDocumentDuplicates {
                     })
                 })
                 .collect(),
+            EmbeddingResult::DocumentExceedsSequenceContext(oversized_document) => self
+                .duplicates_of(&oversized_document.source_document_id)
+                .map(|duplicate_document_id| {
+                    EmbeddingResult::DocumentExceedsSequenceContext(
+                        EmbeddingDocumentExceedingSequenceContextDetails {
+                            source_document_id: duplicate_document_id.clone(),
+                            ..oversized_document.clone()
+                        },
+                    )
+                })
+                .collect(),
             EmbeddingResult::Embedding(embedding) => self
                 .duplicates_of(&embedding.source_document_id)
                 .map(|duplicate_document_id| {
@@ -95,6 +107,7 @@ mod tests {
 
     use paddler_inference_parameters::pooling_type::PoolingType;
     use paddler_messaging::embedding::Embedding;
+    use paddler_messaging::embedding_document_exceeding_sequence_context_details::EmbeddingDocumentExceedingSequenceContextDetails;
     use paddler_messaging::embedding_normalization_method::EmbeddingNormalizationMethod;
     use paddler_messaging::embedding_result::EmbeddingResult;
     use paddler_messaging::inference_client::message::Message as OutgoingMessage;
@@ -140,6 +153,16 @@ mod tests {
         })
     }
 
+    fn document_exceeding_sequence_context(source_document_id: &str) -> EmbeddingResult {
+        EmbeddingResult::DocumentExceedsSequenceContext(
+            EmbeddingDocumentExceedingSequenceContextDetails {
+                document_tokens: 300,
+                sequence_context_size: 256,
+                source_document_id: source_document_id.to_owned(),
+            },
+        )
+    }
+
     fn serialized(messages: &[OutgoingMessage]) -> Vec<String> {
         messages
             .iter()
@@ -172,6 +195,20 @@ mod tests {
                 embedding_response(oversized_document("first")),
                 embedding_response(oversized_document("second")),
                 embedding_response(oversized_document("third")),
+            ])
+        );
+    }
+
+    #[test]
+    fn fans_a_document_exceeding_its_sequence_context_out_to_every_document_sharing_its_content() {
+        assert_eq!(
+            serialized(&duplicates_of_first_document().fan_out(embedding_response(
+                document_exceeding_sequence_context("first")
+            ))),
+            serialized(&[
+                embedding_response(document_exceeding_sequence_context("first")),
+                embedding_response(document_exceeding_sequence_context("second")),
+                embedding_response(document_exceeding_sequence_context("third")),
             ])
         );
     }

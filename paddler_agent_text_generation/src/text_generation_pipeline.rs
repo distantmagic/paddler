@@ -20,7 +20,6 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
-use paddler_agent_runtime::agent_runtime_error::AgentRuntimeError;
 use paddler_agent_runtime::continue_startup_unless_shutting_down::continue_startup_unless_shutting_down;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::inference_thread_count::inference_thread_count;
@@ -59,10 +58,13 @@ use crate::token_generation_support::TokenGenerationSupport;
 
 fn special_token_text(
     model: &LlamaModel,
-    token: LlamaToken,
+    special_token: Option<LlamaToken>,
     decoder: &mut Decoder,
 ) -> Result<String, TokenToStringError> {
-    model.token_to_piece(&SampledToken::Content(token), decoder, true, None)
+    special_token.map_or_else(
+        || Ok(String::new()),
+        |token| model.token_to_piece(&SampledToken::Content(token), decoder, true, None),
+    )
 }
 
 pub struct TextGenerationPipeline {
@@ -139,10 +141,9 @@ impl TextGenerationPipeline {
                         &token_generation_support.chat_prompt_renderer,
                     )?;
                     let mut batch = LlamaBatch::new(
-                        self.model_runtime_parameters.n_batch.tokens_usize(),
+                        self.model_runtime_parameters.n_batch.capacity(),
                         i32::from(desired_slots_total),
-                    )
-                    .map_err(AgentRuntimeError::BatchAllocationFailed)?;
+                    );
 
                     continue_startup_unless_shutting_down(agent_shutdown, || {
                         loaded_llama_model.warm_up_llama_context(

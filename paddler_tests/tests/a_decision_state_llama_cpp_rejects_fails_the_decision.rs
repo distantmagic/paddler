@@ -6,12 +6,15 @@ use llama_cpp_bindings::token::LlamaToken;
 
 use paddler_agent_decision::decision_capacity_ledger::DecisionCapacityLedger;
 use paddler_agent_decision::decision_decoder::DecisionDecoder;
+use paddler_agent_decision::decision_delimiter_tokens::DecisionDelimiterTokens;
 use paddler_agent_decision::decision_error::DecisionError;
+use paddler_agent_decision::decision_token_layout::DecisionTokenLayout;
 use paddler_tests::admitted_decision::AdmittedDecision;
 use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
 use paddler_tests::kev_0_8b_pointer_head::kev_0_8b_pointer_head;
 use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::llama_runtime::LlamaRuntime;
+use paddler_tests::two_option_question::two_option_question;
 
 #[test]
 fn a_decision_state_llama_cpp_rejects_fails_the_decision() {
@@ -21,14 +24,24 @@ fn a_decision_state_llama_cpp_rejects_fails_the_decision() {
     )
     .expect("the kev decision model must load");
     let pointer_head = kev_0_8b_pointer_head().expect("the kev pointer head must load");
+    let delimiter_tokens = DecisionDelimiterTokens::resolve(
+        runtime.loaded_llama_model.model.as_ref(),
+        &pointer_head.delimiters,
+    )
+    .expect("the kev delimiters must resolve");
     let mut llama_context = runtime
         .create_decision_llama_context(2)
         .expect("the decision context must be created");
     let n_batch = runtime.model_runtime_parameters.n_batch.tokens_usize();
-    let mut batch = LlamaBatch::new(n_batch, 1).expect("the decision batch must be allocated");
-    let state = vec![LlamaToken::new(runtime.loaded_llama_model.model.n_vocab())];
+    let mut batch = LlamaBatch::new(runtime.model_runtime_parameters.n_batch.capacity(), 1);
+    let layout = DecisionTokenLayout::new(
+        &delimiter_tokens,
+        vec![LlamaToken::new(runtime.loaded_llama_model.model.n_vocab())],
+        Vec::new(),
+        two_option_question("question"),
+    );
     let admission = DecisionCapacityLedger::new(llama_context.n_ctx() as usize, 2)
-        .admit(&AdmittedDecision::capacity_demand(&state))
+        .admit(&layout.capacity_demand())
         .expect("the decision must be admitted");
     let mut admitted_decision = AdmittedDecision::new(
         admission,
@@ -36,7 +49,7 @@ fn a_decision_state_llama_cpp_rejects_fails_the_decision() {
             .inference_runtime_context
             .slot_aggregated_status
             .clone(),
-        state,
+        layout,
     );
 
     assert_eq!(

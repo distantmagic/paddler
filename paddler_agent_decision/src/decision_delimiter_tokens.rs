@@ -82,6 +82,7 @@ impl DecisionDelimiterTokens {
 #[cfg(test)]
 mod tests {
     use llama_cpp_bindings::error::StringToTokenError;
+    use llama_cpp_bindings::error::TokenAttrError;
     use llama_cpp_bindings::llama_token_attrs::LlamaTokenAttrs;
     use llama_cpp_bindings::llama_token_attrs_from_int_error::LlamaTokenAttrsFromIntError;
     use llama_cpp_bindings::token::LlamaToken;
@@ -104,19 +105,16 @@ mod tests {
             Ok(vec![LlamaToken::new(0)])
         }
 
-        fn token_attributes(
-            &self,
-            _token: LlamaToken,
-        ) -> Result<LlamaTokenAttrs, LlamaTokenAttrsFromIntError> {
-            Err(LlamaTokenAttrsFromIntError::UnknownValue(
-                UNKNOWN_ATTRIBUTE_BITS,
+        fn token_attributes(&self, _token: LlamaToken) -> Result<LlamaTokenAttrs, TokenAttrError> {
+            Err(TokenAttrError::UnknownAttributes(
+                LlamaTokenAttrsFromIntError::UnknownValue(UNKNOWN_ATTRIBUTE_BITS),
             ))
         }
     }
 
     #[test]
     fn a_delimiter_whose_token_attributes_are_unreadable_is_refused() {
-        assert!(matches!(
+        assert_eq!(
             DecisionDelimiterTokens::resolve(
                 &VocabularyWithUnreadableAttributes,
                 &PointerHeadDelimiters {
@@ -126,11 +124,19 @@ mod tests {
                     question: "<question>".to_owned(),
                     state: "<state>".to_owned(),
                 },
-            ),
-            Err(DecisionError::DelimiterAttributesUnreadable {
-                delimiter,
-                source: LlamaTokenAttrsFromIntError::UnknownValue(UNKNOWN_ATTRIBUTE_BITS),
-            }) if delimiter == "<decide>"
-        ));
+            )
+            .err()
+            .as_ref()
+            .map(ToString::to_string),
+            Some(
+                DecisionError::DelimiterAttributesUnreadable {
+                    delimiter: "<decide>".to_owned(),
+                    source: TokenAttrError::UnknownAttributes(
+                        LlamaTokenAttrsFromIntError::UnknownValue(UNKNOWN_ATTRIBUTE_BITS),
+                    ),
+                }
+                .to_string()
+            )
+        );
     }
 }

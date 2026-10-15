@@ -20,9 +20,11 @@ use crate::decision_error::DecisionError;
 use crate::decision_question_row::DecisionQuestionRow;
 use crate::decision_request_phase::DecisionRequestPhase;
 use crate::decision_token_layout::DecisionTokenLayout;
+use crate::llama_context_question_lane_release::LlamaContextQuestionLaneRelease;
 use crate::prepared_decision_request::PreparedDecisionRequest;
 use crate::promised_decision_cells::PromisedDecisionCells;
 use crate::question_lane::QuestionLane;
+use crate::releases_question_lane::ReleasesQuestionLane;
 use crate::reports_decision_outcome::ReportsDecisionOutcome;
 
 pub struct ActiveDecisionRequest {
@@ -34,6 +36,7 @@ pub struct ActiveDecisionRequest {
     pub phase: DecisionRequestPhase,
     pub promised_cells: PromisedDecisionCells,
     pub question_lane: QuestionLane,
+    pub question_lane_release: Box<dyn ReleasesQuestionLane>,
     pub remaining_questions: VecDeque<DecisionQuestionRow>,
     pub slot_guard: SlotGuard,
     pub started_at: Instant,
@@ -74,6 +77,7 @@ impl ActiveDecisionRequest {
             phase: DecisionRequestPhase::IngestingState { next_offset: 0 },
             promised_cells,
             question_lane,
+            question_lane_release: Box::new(LlamaContextQuestionLaneRelease),
             remaining_questions,
             slot_guard,
             started_at,
@@ -195,7 +199,8 @@ impl ActiveDecisionRequest {
         }
 
         self.send_answer(pointer_head)?;
-        decoder.remove_sequence(lane_sequence_id)?;
+        self.question_lane_release
+            .release_question_lane(decoder, lane_sequence_id)?;
 
         Ok(self.finish_question())
     }

@@ -5,6 +5,7 @@ use llama_cpp_bindings::model::params::LlamaModelParams;
 
 use paddler_agent_decision::decision_error::DecisionError;
 use paddler_agent_decision::decision_llama_context_settings::DecisionLlamaContextSettings;
+use paddler_agent_embeddings::embedding_llama_context_settings::EmbeddingLlamaContextSettings;
 use paddler_agent_runtime::agent_runtime_error::AgentRuntimeError;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::inference_thread_count::inference_thread_count;
@@ -19,6 +20,7 @@ use paddler_agent_text_generation::sampler_chain_factory::SamplerChainFactory;
 use paddler_agent_text_generation::token_generation_support::TokenGenerationSupport;
 use paddler_inference_parameters::all_gpu_layers::ALL_GPU_LAYERS;
 use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
+use paddler_inference_parameters::pooling_type::PoolingType;
 use paddler_inference_parameters::sampling_parameters::SamplingParameters;
 use paddler_messaging::media_marker::MediaMarker;
 use paddler_messaging::multimodal_settings::MultimodalSettings;
@@ -63,6 +65,18 @@ impl LlamaRuntime {
     ) -> Result<LlamaContext<'_>, DecisionError> {
         DecisionLlamaContextSettings {
             llama_context_settings: self.llama_context_settings(n_seq_max),
+        }
+        .create_llama_context(&self.loaded_llama_model, &self.inference_runtime_context)
+    }
+
+    pub fn create_embedding_llama_context(
+        &self,
+        n_seq_max: u32,
+        pooling_type: PoolingType,
+    ) -> Result<LlamaContext<'_>, AgentRuntimeError> {
+        EmbeddingLlamaContextSettings {
+            llama_context_settings: self.llama_context_settings(n_seq_max),
+            pooling_type,
         }
         .create_llama_context(&self.loaded_llama_model, &self.inference_runtime_context)
     }

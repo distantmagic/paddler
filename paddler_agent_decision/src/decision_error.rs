@@ -5,7 +5,7 @@ use llama_cpp_bindings::error::DecodeError;
 use llama_cpp_bindings::error::EmbeddingsError;
 use llama_cpp_bindings::error::MetaValError;
 use llama_cpp_bindings::error::StringToTokenError;
-use llama_cpp_bindings::llama_token_attrs_from_int_error::LlamaTokenAttrsFromIntError;
+use llama_cpp_bindings::error::TokenAttrError;
 use log::error;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::SendError;
@@ -39,7 +39,7 @@ pub enum DecisionError {
     DelimiterAttributesUnreadable {
         delimiter: String,
         #[source]
-        source: LlamaTokenAttrsFromIntError,
+        source: TokenAttrError,
     },
 
     #[error("unable to tokenize the pointer head delimiter {delimiter}: {source}")]

@@ -9,19 +9,25 @@ use paddler_messaging::embedding_normalization_method::EmbeddingNormalizationMet
 use paddler_messaging::embedding_result::EmbeddingResult;
 
 use crate::embedding_error::EmbeddingError;
+use crate::embedding_normalization::EmbeddingNormalization;
 use crate::embedding_scheduler_context::EmbeddingSchedulerContext;
-use crate::normalization::normalize_embedding::normalize_embedding;
+use crate::normalizes_embedding::NormalizesEmbedding;
 use crate::plan_embedding_batches::plan_embedding_batches;
 use crate::prepared_embedding_batch_request::PreparedEmbeddingBatchRequest;
 use crate::sequenced_embedding_input::SequencedEmbeddingInput;
 
-pub struct EmbeddingBatchProcessor<'scheduler, 'model> {
+pub struct EmbeddingBatchProcessor<
+    'scheduler,
+    'model,
+    TNormalization: NormalizesEmbedding = EmbeddingNormalization,
+> {
     pub batch: &'scheduler mut LlamaBatch<'static>,
     pub llama_context: &'scheduler mut LlamaContext<'model>,
+    pub normalization: TNormalization,
     pub scheduler_context: &'scheduler EmbeddingSchedulerContext,
 }
 
-impl EmbeddingBatchProcessor<'_, '_> {
+impl<TNormalization: NormalizesEmbedding> EmbeddingBatchProcessor<'_, '_, TNormalization> {
     pub fn process_embedding_batch(
         &mut self,
         PreparedEmbeddingBatchRequest {
@@ -37,17 +43,12 @@ impl EmbeddingBatchProcessor<'_, '_> {
 
         for oversized_document in oversized_documents {
             warn!(
-                "{:?}: skipped embedding document {:?}: {} tokens exceeds n_batch {}",
+                "{:?}: skipped an oversized embedding document: {oversized_document:?}",
                 self.scheduler_context.agent_name,
-                oversized_document.source_document_id,
-                oversized_document.document_tokens,
-                oversized_document.n_batch,
             );
 
             generated_embedding_tx
-                .send(EmbeddingResult::DocumentExceedsBatchSize(
-                    oversized_document,
-                ))
+                .send(oversized_document.into_embedding_result())
                 .map_err(EmbeddingError::ClientDisconnected)?;
         }
 
@@ -117,7 +118,9 @@ impl EmbeddingBatchProcessor<'_, '_> {
 
             generated_embedding_tx
                 .send(EmbeddingResult::Embedding(Embedding {
-                    embedding: normalize_embedding(embedding.to_vec(), normalization_method)?,
+                    embedding: self
+                        .normalization
+                        .normalize(embedding.to_vec(), normalization_method)?,
                     normalization_method: normalization_method.clone(),
                     pooling_type: self.scheduler_context.pooling_type.clone(),
                     source_document_id: input.id.clone(),

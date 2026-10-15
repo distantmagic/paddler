@@ -26,7 +26,7 @@ async fn agent_rejects_raw_prompt_exceeding_sequence_context() {
             model_runtime_parameters: ModelRuntimeParameters {
                 context_size: NonZeroU32::try_from(SEQUENCE_CONTEXT_SIZE)
                     .expect("the value must fit its target type"),
-                n_batch: BatchSize::DEFAULT.at_most(
+                n_batch: BatchSize::default().at_most(
                     NonZeroU32::try_from(SEQUENCE_CONTEXT_SIZE)
                         .expect("the value must fit its target type"),
                 ),

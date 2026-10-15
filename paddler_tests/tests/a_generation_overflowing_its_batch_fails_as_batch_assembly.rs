@@ -1,9 +1,11 @@
 #![cfg(feature = "tests_that_use_llms")]
 
+use std::num::NonZeroU16;
 use std::sync::mpsc::channel;
 
 use llama_cpp_bindings::batch_add_error::BatchAddError;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
+use llama_cpp_bindings_types::BatchCapacity;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent_runtime::scheduler_message::SchedulerMessage;
@@ -21,7 +23,7 @@ use paddler_tests::llama_runtime::LlamaRuntime;
 use paddler_tests::raw_prompt_generation::RawPromptGeneration;
 use paddler_tests::text_only_generation_parts::TextOnlyGenerationParts;
 
-const TOKENS_THE_BATCH_HOLDS: usize = 1;
+const TOKENS_THE_BATCH_HOLDS: NonZeroU16 = NonZeroU16::MIN;
 
 #[test]
 fn a_generation_overflowing_its_batch_fails_as_batch_assembly() {
@@ -75,7 +77,7 @@ fn a_generation_overflowing_its_batch_fails_as_batch_assembly() {
 
     ContinuousBatchScheduler::new(ContinuousBatchSchedulerParams {
         agent_shutdown: CancellationToken::new(),
-        batch: LlamaBatch::new(TOKENS_THE_BATCH_HOLDS, 1).expect("the batch must be allocated"),
+        batch: LlamaBatch::new(BatchCapacity::from(TOKENS_THE_BATCH_HOLDS), 1),
         llama_context,
         scheduler_context: ContinuousBatchSchedulerContext {
             agent_name: None,
@@ -92,7 +94,7 @@ fn a_generation_overflowing_its_batch_fails_as_batch_assembly() {
         generated_tokens_rx.try_recv(),
         Ok(GeneratedTokenResult::BatchAssemblyFailed(
             TextGenerationError::BatchAssemblyFailed(BatchAddError::InsufficientSpace(
-                TOKENS_THE_BATCH_HOLDS
+                usize::from(TOKENS_THE_BATCH_HOLDS.get())
             ))
             .to_string()
         ))

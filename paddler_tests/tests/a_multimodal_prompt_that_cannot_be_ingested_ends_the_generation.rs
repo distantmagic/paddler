@@ -113,8 +113,7 @@ fn a_multimodal_prompt_that_cannot_be_ingested_ends_the_generation() {
 
             ContinuousBatchScheduler::new(ContinuousBatchSchedulerParams {
                 agent_shutdown: CancellationToken::new(),
-                batch: LlamaBatch::new(n_batch.tokens_usize(), 1)
-                    .expect("the batch must be allocated"),
+                batch: LlamaBatch::new(n_batch.capacity(), 1),
                 llama_context,
                 scheduler_context: ContinuousBatchSchedulerContext {
                     agent_name: None,

@@ -4,17 +4,17 @@ use paddler_agent_runtime::scheduler_command::SchedulerCommand;
 use paddler_agent_status::slot_guard::SlotGuard;
 use paddler_messaging::embedding_normalization_method::EmbeddingNormalizationMethod;
 use paddler_messaging::embedding_result::EmbeddingResult;
-use paddler_messaging::oversized_embedding_document_details::OversizedEmbeddingDocumentDetails;
 
 use crate::embedding_error::EmbeddingError;
 use crate::embedding_input_tokenized::EmbeddingInputTokenized;
+use crate::oversized_embedding_document::OversizedEmbeddingDocument;
 
 pub struct PreparedEmbeddingBatchRequest {
     pub generate_embedding_stop_rx: mpsc::UnboundedReceiver<()>,
     pub generated_embedding_tx: mpsc::UnboundedSender<EmbeddingResult>,
     pub inputs: Vec<EmbeddingInputTokenized>,
     pub normalization_method: EmbeddingNormalizationMethod,
-    pub oversized_documents: Vec<OversizedEmbeddingDocumentDetails>,
+    pub oversized_documents: Vec<OversizedEmbeddingDocument>,
     pub slot_guard: SlotGuard,
 }
 

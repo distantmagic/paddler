@@ -29,11 +29,13 @@ mod tests {
     use llama_cpp_bindings::llama_batch::LlamaBatch;
     use llama_cpp_bindings::token::LlamaToken;
 
+    use paddler_inference_parameters::batch_size::BatchSize;
+
     use super::BatchPass;
 
     #[test]
     fn new_clears_tokens_left_by_the_previous_pass() {
-        let mut batch = LlamaBatch::new(16, 1).unwrap();
+        let mut batch = LlamaBatch::new(BatchSize::try_from(16).unwrap().capacity(), 1);
 
         batch
             .add(&SampledToken::Content(LlamaToken::new(1)), 0, &[0], true)

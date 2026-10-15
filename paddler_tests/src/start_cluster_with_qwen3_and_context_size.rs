@@ -25,7 +25,7 @@ pub async fn start_cluster_with_qwen3_and_context_size(
         desired_state: ClusterDesiredState::Apply(Box::new(BalancerDesiredState {
             model_runtime_parameters: ModelRuntimeParameters {
                 context_size,
-                n_batch: BatchSize::DEFAULT.at_most(context_size),
+                n_batch: BatchSize::default().at_most(context_size),
                 ..desired_state.model_runtime_parameters
             },
             ..desired_state

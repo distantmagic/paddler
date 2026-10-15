@@ -23,7 +23,7 @@ impl Default for DecisionClusterParams {
             agents: AgentConfig::uniform(1, DECISION_SLOTS_MINIMUM),
             context_size: ModelRuntimeParameters::default().context_size,
             model_card: qwen3_5_0_8b(),
-            n_batch: BatchSize::DEFAULT,
+            n_batch: BatchSize::default(),
             pointer_head_fixture: QWEN3_5_0_8B_SYNTHETIC_POINTER_HEAD_FIXTURE,
             wait_for_slots_ready: true,
         }

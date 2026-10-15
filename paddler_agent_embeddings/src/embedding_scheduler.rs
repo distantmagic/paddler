@@ -9,6 +9,7 @@ use tokio_util::sync::CancellationToken;
 use paddler_agent_runtime::scheduler_message::SchedulerMessage;
 
 use crate::embedding_batch_processor::EmbeddingBatchProcessor;
+use crate::embedding_normalization::EmbeddingNormalization;
 use crate::embedding_scheduler_context::EmbeddingSchedulerContext;
 use crate::prepared_embedding_batch_request::PreparedEmbeddingBatchRequest;
 
@@ -35,6 +36,7 @@ impl EmbeddingScheduler<'_> {
                     if let Err(rejection) = (EmbeddingBatchProcessor {
                         batch: &mut self.batch,
                         llama_context: &mut self.llama_context,
+                        normalization: EmbeddingNormalization,
                         scheduler_context: &self.scheduler_context,
                     })
                     .process_embedding_batch(request)

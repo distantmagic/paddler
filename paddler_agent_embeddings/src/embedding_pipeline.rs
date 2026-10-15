@@ -8,7 +8,6 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
-use paddler_agent_runtime::agent_runtime_error::AgentRuntimeError;
 use paddler_agent_runtime::continue_startup_unless_shutting_down::continue_startup_unless_shutting_down;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::inference_thread_count::inference_thread_count;
@@ -22,12 +21,12 @@ use paddler_agent_runtime::start_scheduler_thread::start_scheduler_thread;
 use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
 use paddler_inference_parameters::pooling_type::PoolingType;
 
-use crate::agent_pooling_type::AgentPoolingType;
-use crate::converts_to_llama_pooling_type::ConvertsToLlamaPoolingType as _;
 use crate::embedding_batch_preparer::EmbeddingBatchPreparer;
 use crate::embedding_error::EmbeddingError;
+use crate::embedding_llama_context_settings::EmbeddingLlamaContextSettings;
 use crate::embedding_scheduler::EmbeddingScheduler;
 use crate::embedding_scheduler_context::EmbeddingSchedulerContext;
+use crate::sequence_context_limit::SequenceContextLimit;
 
 pub struct EmbeddingPipeline {
     pub inference_runtime_context: InferenceRuntimeContext,
@@ -79,22 +78,19 @@ impl EmbeddingPipeline {
             )?;
 
             continue_startup_unless_shutting_down(agent_shutdown, || {
-                let mut llama_context = loaded_llama_model.create_llama_context(
-                    &inference_runtime_context,
-                    LlamaContextSettings {
+                let mut llama_context = EmbeddingLlamaContextSettings {
+                    llama_context_settings: LlamaContextSettings {
                         model_runtime_parameters: &model_runtime_parameters,
                         n_seq_max: u32::from(desired_slots_total),
                         thread_count,
-                    }
-                    .into_llama_context_params()
-                    .with_embeddings(true)
-                    .with_n_ubatch(model_runtime_parameters.n_batch.tokens().get())
-                    .with_pooling_type(
-                        AgentPoolingType(pooling_type.clone()).to_llama_pooling_type(),
-                    ),
-                )?;
-                let mut batch = LlamaBatch::new(n_batch, i32::from(desired_slots_total))
-                    .map_err(AgentRuntimeError::BatchAllocationFailed)?;
+                    },
+                    pooling_type: pooling_type.clone(),
+                }
+                .create_llama_context(&loaded_llama_model, &inference_runtime_context)?;
+                let mut batch = LlamaBatch::new(
+                    model_runtime_parameters.n_batch.capacity(),
+                    i32::from(desired_slots_total),
+                );
 
                 continue_startup_unless_shutting_down(agent_shutdown, || {
                     loaded_llama_model.warm_up_llama_context(
@@ -114,6 +110,9 @@ impl EmbeddingPipeline {
                                 preparation: EmbeddingBatchPreparer {
                                     loaded_llama_model: loaded_llama_model.clone(),
                                     n_batch,
+                                    sequence_context_limit: SequenceContextLimit::of(
+                                        &llama_context,
+                                    ),
                                 },
                                 preparation_tasks: TaskTracker::new(),
                                 scheduler_message_tx,

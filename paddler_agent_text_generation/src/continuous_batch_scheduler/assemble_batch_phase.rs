@@ -138,6 +138,8 @@ impl AssembleBatchPhase {
 mod tests {
     use llama_cpp_bindings::llama_batch::LlamaBatch;
 
+    use paddler_inference_parameters::batch_size::BatchSize;
+
     use super::AssembleBatchPhase;
     use super::compute_ingesting_chunk_size;
     use crate::continuous_batch_active_request::ContinuousBatchActiveRequest;
@@ -146,7 +148,7 @@ mod tests {
     #[test]
     fn run_over_empty_requests_leaves_batch_untouched() {
         let assemble_phase = AssembleBatchPhase { n_batch: 16 };
-        let mut batch = LlamaBatch::new(16, 1).unwrap();
+        let mut batch = LlamaBatch::new(BatchSize::try_from(16).unwrap().capacity(), 1);
         let mut pass = BatchPass::new(&mut batch);
         let mut requests: [ContinuousBatchActiveRequest; 0] = [];
 

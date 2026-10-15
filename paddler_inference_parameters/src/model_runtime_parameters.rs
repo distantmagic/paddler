@@ -28,7 +28,7 @@ impl Default for ModelRuntimeParameters {
         Self {
             context_size: DEFAULT_CONTEXT_SIZE,
             k_cache_dtype: KvCacheDtype::Q80,
-            n_batch: BatchSize::DEFAULT,
+            n_batch: BatchSize::default(),
             n_gpu_layers: 0,
             v_cache_dtype: KvCacheDtype::Q80,
         }

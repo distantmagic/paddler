@@ -7,6 +7,7 @@ use llama_cpp_bindings::llama_backend::LlamaBackend;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
 use llama_cpp_bindings::model::LlamaModel;
 use llama_cpp_bindings::model::params::LlamaModelParams;
+use llama_cpp_bindings::token::LlamaToken;
 use log::warn;
 
 use paddler_agent_status::agent_issue_fix::AgentIssueFix;
@@ -102,7 +103,10 @@ impl LoadedLlamaModel {
         warmup_batch: &mut LlamaBatch<'static>,
         desired_slots_total: u16,
     ) {
-        let warmup_tokens = [self.model.token_bos(), self.model.token_eos()];
+        let warmup_tokens: Vec<LlamaToken> = [self.model.token_bos(), self.model.token_eos()]
+            .into_iter()
+            .flatten()
+            .collect();
 
         for sequence_index in 0..i32::from(desired_slots_total) {
             if let Err(batch_add_error) =

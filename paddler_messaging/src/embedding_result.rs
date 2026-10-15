@@ -2,6 +2,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::embedding::Embedding;
+use crate::embedding_document_exceeding_sequence_context_details::EmbeddingDocumentExceedingSequenceContextDetails;
 use crate::oversized_embedding_document_details::OversizedEmbeddingDocumentDetails;
 use crate::streamable_result::StreamableResult;
 
@@ -12,6 +13,7 @@ pub enum EmbeddingResult {
     BatchAssemblyFailed(String),
     DecodeFailed(String),
     DocumentExceedsBatchSize(OversizedEmbeddingDocumentDetails),
+    DocumentExceedsSequenceContext(EmbeddingDocumentExceedingSequenceContextDetails),
     Done,
     Embedding(Embedding),
     EmbeddingTooLongForRmsNormalization(String),
