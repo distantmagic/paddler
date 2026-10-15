@@ -46,4 +46,10 @@ async fn a_new_desired_state_cancels_the_download_of_the_one_it_replaces() {
         .shutdown()
         .await
         .expect("the cluster must shut down cleanly");
+
+    fixture
+        .stop()
+        .await
+        .expect("the fixture task must not panic")
+        .expect("the fixture must serve every request");
 }

@@ -19,5 +19,8 @@ http = { workspace = true }
 httparse = { workspace = true }
 tokio = { workspace = true }
 
+[dev-dependencies]
+nix = { workspace = true }
+
 [lints]
 workspace = true

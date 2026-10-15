@@ -216,5 +216,10 @@ mod tests {
 
         shutdown.cancel();
         reconciliation.await.unwrap().unwrap();
+        failing_model_server
+            .stop()
+            .await
+            .expect("the fixture task must not panic")
+            .expect("the fixture must serve every request");
     }
 }

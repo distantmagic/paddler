@@ -369,6 +369,12 @@ mod tests {
             DesiredModelResolution::Resolved(resolved_path) if resolved_path == expected_path
         ));
         assert_eq!(read(&expected_path).await.unwrap(), body);
+
+        fixture
+            .stop()
+            .await
+            .expect("the fixture task must not panic")
+            .expect("the fixture must serve every request");
     }
 
     #[tokio::test]

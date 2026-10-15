@@ -3511,6 +3511,7 @@ version = "5.0.0"
 dependencies = [
  "http 1.4.0",
  "httparse",
+ "nix",
  "tokio",
 ]
 

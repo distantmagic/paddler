@@ -31,4 +31,10 @@ async fn balancer_reports_model_does_not_exist_at_url() {
         .shutdown()
         .await
         .expect("the cluster must shut down cleanly");
+
+    fixture
+        .stop()
+        .await
+        .expect("the fixture task must not panic")
+        .expect("the fixture must serve every request");
 }

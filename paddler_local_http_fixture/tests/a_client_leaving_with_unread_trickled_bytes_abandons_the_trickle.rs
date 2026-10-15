@@ -1,3 +1,4 @@
+use std::io::ErrorKind;
 use std::time::Duration;
 
 use tokio::io::AsyncWriteExt as _;
@@ -33,4 +34,15 @@ async fn a_client_leaving_with_unread_trickled_bytes_abandons_the_trickle() {
         .wait_for_abandoned_trickles(1)
         .await
         .expect("the fixture must record the client leaving the trickle");
+
+    assert_eq!(
+        fixture.abandoned_trickle_departures(),
+        vec![ErrorKind::ConnectionReset]
+    );
+
+    fixture
+        .stop()
+        .await
+        .expect("the fixture task must not panic")
+        .expect("the fixture must serve every request");
 }

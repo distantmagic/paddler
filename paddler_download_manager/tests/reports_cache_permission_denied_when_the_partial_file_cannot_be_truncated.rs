@@ -45,4 +45,10 @@ async fn reports_cache_permission_denied_when_the_partial_file_cannot_be_truncat
         recorded_download.result,
         Err(DownloadError::CachePermissionDenied { path, .. }) if path == partial_path
     ));
+
+    fixture
+        .stop()
+        .await
+        .expect("the fixture task must not panic")
+        .expect("the fixture must serve every request");
 }

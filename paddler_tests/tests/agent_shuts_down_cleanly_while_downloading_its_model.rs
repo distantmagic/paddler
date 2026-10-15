@@ -25,4 +25,10 @@ async fn agent_shuts_down_cleanly_while_downloading_its_model() {
         .shutdown()
         .await
         .expect("the cluster must shut down cleanly while its agent downloads a model");
+
+    fixture
+        .stop()
+        .await
+        .expect("the fixture task must not panic")
+        .expect("the fixture must serve every request");
 }
