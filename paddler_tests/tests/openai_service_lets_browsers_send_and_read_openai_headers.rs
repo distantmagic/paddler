@@ -21,17 +21,14 @@ async fn openai_service_lets_browsers_send_and_read_openai_headers() {
     })
     .await
     .expect("a balancer without agents must start");
-    let openai_base_url = cluster
-        .balancer
-        .compat_openai_base_url()
-        .expect("the cluster serves OpenAI");
 
     let preflight = Client::new()
         .request(
             Method::OPTIONS,
-            openai_base_url
-                .join(OpenAIApiPath::CHAT_COMPLETIONS)
-                .expect("the path must join"),
+            cluster
+                .balancer
+                .compat_openai_url(OpenAIApiPath::CHAT_COMPLETIONS)
+                .expect("the cluster serves OpenAI"),
         )
         .header("Origin", ALLOWED_ORIGIN)
         .header("Access-Control-Request-Method", "POST")
@@ -47,9 +44,10 @@ async fn openai_service_lets_browsers_send_and_read_openai_headers() {
 
     let health = Client::new()
         .get(
-            openai_base_url
-                .join(ApiPath::HEALTH)
-                .expect("the path must join"),
+            cluster
+                .balancer
+                .compat_openai_url(ApiPath::HEALTH)
+                .expect("the cluster serves OpenAI"),
         )
         .header("Origin", ALLOWED_ORIGIN)
         .header(OpenAIHeader::REQUEST_ID, "browser-request")

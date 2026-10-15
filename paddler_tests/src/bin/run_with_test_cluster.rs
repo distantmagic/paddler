@@ -33,15 +33,15 @@ fn command_against_cluster(
     command
         .args(arguments)
         .env("PADDLER_INFERENCE_URL", http_url(*inference))
-        .env("PADDLER_MANAGEMENT_URL", http_url(*management))
-        .envs(
-            compat_openai
-                .map(|compat_openai| ("PADDLER_COMPAT_OPENAI_URL", http_url(compat_openai))),
-        )
-        .envs(
-            compat_typesafe
-                .map(|compat_typesafe| ("PADDLER_COMPAT_TYPESAFE_URL", http_url(compat_typesafe))),
-        );
+        .env("PADDLER_MANAGEMENT_URL", http_url(*management));
+
+    if let Some(compat_openai) = compat_openai {
+        command.env("PADDLER_COMPAT_OPENAI_URL", http_url(*compat_openai));
+    }
+
+    if let Some(compat_typesafe) = compat_typesafe {
+        command.env("PADDLER_COMPAT_TYPESAFE_URL", http_url(*compat_typesafe));
+    }
 
     command
 }
@@ -87,4 +87,45 @@ async fn main() -> Result<ExitCode> {
         .and_then(|cluster| run_against_cluster(cluster, program, arguments))
         .await
         .map(exit_code)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+    use std::ffi::OsStr;
+    use std::net::Ipv4Addr;
+    use std::net::SocketAddr;
+
+    use paddler_balancer::balancer_addresses::BalancerAddresses;
+
+    use super::command_against_cluster;
+
+    #[test]
+    fn exports_no_url_for_a_compatibility_service_the_cluster_does_not_serve() {
+        let command = command_against_cluster(
+            "printenv",
+            &[],
+            &BalancerAddresses {
+                compat_openai: None,
+                compat_typesafe: None,
+                inference: SocketAddr::from((Ipv4Addr::LOCALHOST, 8061)),
+                management: SocketAddr::from((Ipv4Addr::LOCALHOST, 8060)),
+                web_admin_panel: None,
+            },
+        );
+
+        assert_eq!(
+            command.as_std().get_envs().collect::<BTreeMap<_, _>>(),
+            BTreeMap::from([
+                (
+                    OsStr::new("PADDLER_INFERENCE_URL"),
+                    Some(OsStr::new("http://127.0.0.1:8061"))
+                ),
+                (
+                    OsStr::new("PADDLER_MANAGEMENT_URL"),
+                    Some(OsStr::new("http://127.0.0.1:8060"))
+                ),
+            ])
+        );
+    }
 }

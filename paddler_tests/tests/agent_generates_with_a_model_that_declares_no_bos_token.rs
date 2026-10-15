@@ -3,7 +3,6 @@
 use std::num::NonZeroU32;
 
 use hf_hub::Cache;
-use llama_cpp_bindings::gguf_context::GgufContext;
 use tempfile::TempDir;
 use tokio_util::sync::CancellationToken;
 
@@ -16,26 +15,27 @@ use paddler_model_source::model_source::ModelSource;
 use paddler_test_cluster_harness::model_card::qwen3_0_6b::qwen3_0_6b;
 use paddler_tests::qwen3_desired_state::qwen3_desired_state;
 use paddler_tests::start_single_agent_cluster_with_desired_state::start_single_agent_cluster_with_desired_state;
+use paddler_tests::write_patched_gguf::write_patched_gguf;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn agent_generates_with_a_model_that_declares_no_bos_token() {
     let model_directory = TempDir::new().expect("a temporary model directory must be creatable");
     let model_without_bos_path = model_directory.path().join("qwen3-without-bos.gguf");
-    let mut gguf_context = GgufContext::from_file(
-        qwen3_0_6b()
+
+    write_patched_gguf(
+        &qwen3_0_6b()
             .reference
             .cached_path(&Cache::from_env())
             .expect("Qwen3 must be in the Hugging Face cache"),
+        &model_without_bos_path,
+        |gguf_context| {
+            gguf_context.set_val_str(c"tokenizer.ggml.pre", c"chatglm-bpe");
+            gguf_context
+                .remove_key("tokenizer.ggml.bos_token_id")
+                .expect("Qwen3 must declare a BOS token to remove");
+        },
     )
-    .expect("the Qwen3 GGUF must be readable");
-
-    gguf_context.set_val_str(c"tokenizer.ggml.pre", c"chatglm-bpe");
-    gguf_context
-        .remove_key("tokenizer.ggml.bos_token_id")
-        .expect("Qwen3 must declare a BOS token to remove");
-    gguf_context
-        .write_to_file(&model_without_bos_path)
-        .expect("the model without a BOS token must be writable");
+    .expect("the model without a BOS token must be writable");
 
     let cluster = start_single_agent_cluster_with_desired_state(BalancerDesiredState {
         model: ModelSource::LocalToAgent(model_without_bos_path.display().to_string())

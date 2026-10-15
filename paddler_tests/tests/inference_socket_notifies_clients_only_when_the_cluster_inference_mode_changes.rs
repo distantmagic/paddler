@@ -10,6 +10,7 @@ use paddler_messaging::inference_mode::InferenceMode;
 use paddler_tests::cluster_without_agents_serving::cluster_without_agents_serving;
 use paddler_tests::desired_state_serving::desired_state_serving;
 use paddler_tests::minimal_raw_prompt_stream::minimal_raw_prompt_stream;
+use paddler_tests::next_reported_cluster_inference_mode::next_reported_cluster_inference_mode;
 use paddler_tests::start_cluster::start_cluster;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -29,14 +30,9 @@ async fn inference_socket_notifies_clients_only_when_the_cluster_inference_mode_
         .expect("the inference socket must answer while serving embeddings")
         .expect("the answer must be readable");
 
-    let connect_notification = {
-        cluster_inference_mode_rx
-            .changed()
-            .await
-            .expect("the client must be told on connect which inference mode the cluster serves");
-
-        *cluster_inference_mode_rx.borrow_and_update()
-    };
+    let connect_notification = next_reported_cluster_inference_mode(&mut cluster_inference_mode_rx)
+        .await
+        .expect("the client must be told on connect which inference mode the cluster serves");
 
     cluster
         .client_management
@@ -63,14 +59,9 @@ async fn inference_socket_notifies_clients_only_when_the_cluster_inference_mode_
             .await
             .expect("the balancer must apply the desired state");
 
-        {
-            cluster_inference_mode_rx
-                .changed()
-                .await
-                .expect("the client must receive the inference mode change");
-
-            *cluster_inference_mode_rx.borrow_and_update()
-        }
+        next_reported_cluster_inference_mode(&mut cluster_inference_mode_rx)
+            .await
+            .expect("the client must receive the inference mode change")
     };
 
     let text_generation_notification = notification_after(InferenceMode::TextGeneration).await;

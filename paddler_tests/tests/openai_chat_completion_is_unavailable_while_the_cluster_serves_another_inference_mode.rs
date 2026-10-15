@@ -1,4 +1,3 @@
-use reqwest::Client;
 use reqwest::StatusCode;
 use serde_json::Value;
 use serde_json::json;
@@ -7,6 +6,7 @@ use paddler_balancer::compatibility::openai_service::openai_api_path::OpenAIApiP
 use paddler_messaging::inference_mode::InferenceMode;
 use paddler_openai_response_format_validator::openai_validator::OpenAIValidator;
 use paddler_tests::cluster_without_agents_serving::cluster_without_agents_serving;
+use paddler_tests::minimal_openai_chat_completion::minimal_openai_chat_completion;
 use paddler_tests::start_cluster::start_cluster;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -15,22 +15,14 @@ async fn openai_chat_completion_is_unavailable_while_the_cluster_serves_another_
         .await
         .expect("a balancer serving embeddings must start");
 
-    let response = Client::new()
-        .post(
-            cluster
-                .balancer
-                .compat_openai_base_url()
-                .expect("the cluster serves OpenAI compatibility")
-                .join(OpenAIApiPath::CHAT_COMPLETIONS)
-                .expect("the path must join"),
-        )
-        .json(&json!({
-            "model": "test-model",
-            "messages": [{"role": "user", "content": "hi"}]
-        }))
-        .send()
-        .await
-        .expect("the chat completion request must be answered");
+    let response = minimal_openai_chat_completion(
+        cluster
+            .balancer
+            .compat_openai_url(OpenAIApiPath::CHAT_COMPLETIONS)
+            .expect("the cluster serves OpenAI compatibility"),
+    )
+    .await
+    .expect("the chat completion request must be answered");
 
     assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
 

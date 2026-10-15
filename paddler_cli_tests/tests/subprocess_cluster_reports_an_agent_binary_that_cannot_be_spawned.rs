@@ -4,6 +4,7 @@ use std::io::ErrorKind;
 use tokio_util::sync::CancellationToken;
 
 use paddler_cli_tests::missing_binary_path::MISSING_BINARY_PATH;
+use paddler_cli_tests::signalled_subprocess::SignalledSubprocess;
 use paddler_cli_tests::spawn_balancer_subprocess::spawn_balancer_subprocess;
 use paddler_cli_tests::subprocess_agent_spawner::SubprocessAgentSpawner;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
@@ -22,6 +23,7 @@ async fn subprocess_cluster_reports_an_agent_binary_that_cannot_be_spawned() {
             "--management-addr",
             &ephemeral_loopback_addr,
         ],
+        SignalledSubprocess::new,
     )
     .await
     .expect("the balancer must start and announce its addresses")

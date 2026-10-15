@@ -31,10 +31,8 @@ async fn typesafe_system_one_rejects_malformed_requests_as_unprocessable() {
         .post(
             cluster
                 .balancer
-                .compat_typesafe_base_url()
-                .expect("the cluster serves TypeSafe")
-                .join(TypeSafeApiPath::SYSTEM_ONE)
-                .expect("the path must join"),
+                .compat_typesafe_url(TypeSafeApiPath::SYSTEM_ONE)
+                .expect("the cluster serves TypeSafe"),
         )
         .header("content-type", "application/json")
         .body("not json")

@@ -20,17 +20,14 @@ async fn typesafe_service_lets_browsers_send_and_read_typesafe_headers() {
     })
     .await
     .expect("a decision balancer without agents must start");
-    let typesafe_base_url = cluster
-        .balancer
-        .compat_typesafe_base_url()
-        .expect("the cluster serves TypeSafe");
 
     let preflight = Client::new()
         .request(
             Method::OPTIONS,
-            typesafe_base_url
-                .join(TypeSafeApiPath::SYSTEM_ONE)
-                .expect("the path must join"),
+            cluster
+                .balancer
+                .compat_typesafe_url(TypeSafeApiPath::SYSTEM_ONE)
+                .expect("the cluster serves TypeSafe"),
         )
         .header("Origin", ALLOWED_ORIGIN)
         .header("Access-Control-Request-Method", "POST")
@@ -54,9 +51,10 @@ async fn typesafe_service_lets_browsers_send_and_read_typesafe_headers() {
 
     let models = Client::new()
         .get(
-            typesafe_base_url
-                .join(TypeSafeApiPath::MODELS)
-                .expect("the path must join"),
+            cluster
+                .balancer
+                .compat_typesafe_url(TypeSafeApiPath::MODELS)
+                .expect("the cluster serves TypeSafe"),
         )
         .header("Origin", ALLOWED_ORIGIN)
         .send()

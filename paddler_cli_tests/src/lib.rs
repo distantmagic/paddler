@@ -9,6 +9,7 @@ pub mod pausable_agent_cluster_params;
 pub mod pausable_agent_params;
 pub mod read_balancer_addresses;
 pub mod restart_balancer;
+pub mod signal_as_already_reaped;
 pub mod signalled_subprocess;
 pub mod spawn_agent_subprocess;
 pub mod spawn_agent_subprocess_params;

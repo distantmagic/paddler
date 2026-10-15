@@ -2,22 +2,17 @@
 
 use hf_hub::Cache;
 use llama_cpp_bindings::error::TokenToStringError;
-use llama_cpp_bindings::gguf_context::GgufContext;
 use tempfile::TempDir;
-use tokio_util::sync::CancellationToken;
 
 use paddler_agent_text_generation::llama_cpp_media_marker::LlamaCppMediaMarker;
 use paddler_agent_text_generation::multimodal_projection::MultimodalProjection;
 use paddler_agent_text_generation::text_generation_error::TextGenerationError;
-use paddler_agent_text_generation::text_generation_pipeline::TextGenerationPipeline;
-use paddler_agent_text_generation::text_generation_settings::TextGenerationSettings;
-use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
-use paddler_inference_parameters::sampling_parameters::SamplingParameters;
 use paddler_messaging::chat_template_source::ChatTemplateSource;
-use paddler_messaging::multimodal_settings::MultimodalSettings;
 use paddler_test_cluster_harness::model_card::qwen3_0_6b::qwen3_0_6b;
 use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
-use paddler_tests::qwen3_0_6b_unused_padding_token::QWEN3_0_6B_UNUSED_PADDING_TOKEN;
+use paddler_tests::point_qwen3_special_token_at_unused_padding::point_qwen3_special_token_at_unused_padding;
+use paddler_tests::text_generation_pipeline_parts::TextGenerationPipelineParts;
+use paddler_tests::write_patched_gguf::write_patched_gguf;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_text_generation_pipeline_refuses_a_bos_token_it_cannot_render() {
@@ -25,40 +20,27 @@ async fn a_text_generation_pipeline_refuses_a_bos_token_it_cannot_render() {
     let model_path = model_directory
         .path()
         .join("qwen3-with-an-unrenderable-bos-token.gguf");
-    let mut gguf_context = GgufContext::from_file(
-        qwen3_0_6b()
+
+    write_patched_gguf(
+        &qwen3_0_6b()
             .reference
             .cached_path(&Cache::from_env())
             .expect("Qwen3 must be in the Hugging Face cache"),
+        &model_path,
+        point_qwen3_special_token_at_unused_padding(c"tokenizer.ggml.bos_token_id"),
     )
-    .expect("the Qwen3 GGUF must be readable");
-
-    gguf_context.set_val_u32(
-        c"tokenizer.ggml.bos_token_id",
-        QWEN3_0_6B_UNUSED_PADDING_TOKEN,
-    );
-    gguf_context
-        .write_to_file(&model_path)
-        .expect("the model with an unrenderable BOS token must be writable");
+    .expect("the model with an unrenderable BOS token must be writable");
 
     assert_eq!(
-        TextGenerationPipeline {
+        TextGenerationPipelineParts {
+            chat_template_source: ChatTemplateSource::EmbeddedInModel,
             inference_runtime_context: agent_inference_runtime_context(1),
             media_marker: LlamaCppMediaMarker,
             model_path,
-            model_runtime_parameters: ModelRuntimeParameters::default(),
-            text_generation_settings: TextGenerationSettings {
-                chat_template_source: ChatTemplateSource::EmbeddedInModel,
-                image_resize_to_fit: MultimodalSettings::default().image_resize_to_fit,
-                multimodal_projection: MultimodalProjection::NotConfigured,
-                sampling_parameters: SamplingParameters::default(),
-            },
+            multimodal_projection: MultimodalProjection::NotConfigured,
         }
-        .spawn(&CancellationToken::new())
-        .await
-        .err()
-        .as_ref()
-        .map(ToString::to_string),
+        .spawn_refusal()
+        .await,
         Some(
             TextGenerationError::SpecialTokenUnrenderable(TokenToStringError::UnknownTokenType)
                 .to_string()

@@ -37,10 +37,8 @@ async fn openai_chat_completion_reports_an_agent_killed_mid_generation_as_a_bad_
     let chat_completion = spawn(minimal_openai_chat_completion(
         cluster
             .balancer
-            .compat_openai_base_url()
-            .expect("the balancer must serve the OpenAI compatibility service")
-            .join(OpenAIApiPath::CHAT_COMPLETIONS)
-            .expect("the chat completions path must extend the base URL"),
+            .compat_openai_url(OpenAIApiPath::CHAT_COMPLETIONS)
+            .expect("the balancer must serve the OpenAI compatibility service"),
     ));
 
     cluster

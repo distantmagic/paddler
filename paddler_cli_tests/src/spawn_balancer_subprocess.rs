@@ -3,6 +3,7 @@ use std::process::Stdio;
 
 use anyhow::Context as _;
 use anyhow::Result;
+use tokio::process::Child;
 
 use paddler_test_cluster_harness::running_balancer::RunningBalancer;
 
@@ -12,13 +13,15 @@ use crate::signalled_subprocess::SignalledSubprocess;
 use crate::spawned_balancer_subprocess::SpawnedBalancerSubprocess;
 use crate::subprocess_cluster_error::SubprocessClusterError;
 
-pub async fn spawn_balancer_subprocess<TArguments, TArgument>(
+pub async fn spawn_balancer_subprocess<TArguments, TArgument, TSignalSubprocess>(
     binary_path: &str,
     arguments: TArguments,
+    signal_subprocess: TSignalSubprocess,
 ) -> Result<SpawnedBalancerSubprocess>
 where
     TArguments: IntoIterator<Item = TArgument>,
     TArgument: AsRef<OsStr>,
+    TSignalSubprocess: FnOnce(Child) -> Result<SignalledSubprocess, SubprocessClusterError>,
 {
     let mut balancer_subprocess = paddler_command(binary_path)
         .arg("balancer")
@@ -32,27 +35,20 @@ where
         .take()
         .ok_or(SubprocessClusterError::StdoutNotPiped)?;
     let Some(addresses) = read_balancer_addresses(balancer_stdout).await? else {
-        return Err(balancer_subprocess
+        let exit_status = balancer_subprocess
             .wait()
             .await
-            .map_or_else(
-                SubprocessClusterError::ProcessExitUnobservable,
-                |exit_status| SubprocessClusterError::BalancerExitedBeforeAnnouncing {
-                    exit_status,
-                },
-            )
-            .into());
-    };
+            .map_err(SubprocessClusterError::ProcessExitUnobservable)?;
 
-    SignalledSubprocess::new(balancer_subprocess)
-        .map(
-            |SignalledSubprocess {
-                 process: balancer_process,
-                 signals,
-             }| SpawnedBalancerSubprocess {
-                running_balancer: RunningBalancer::new(addresses, Box::new(balancer_process)),
-                signals,
-            },
-        )
-        .map_err(Into::into)
+        return Err(SubprocessClusterError::BalancerExitedBeforeAnnouncing { exit_status }.into());
+    };
+    let SignalledSubprocess {
+        process: balancer_process,
+        signals,
+    } = signal_subprocess(balancer_subprocess)?;
+
+    Ok(SpawnedBalancerSubprocess {
+        running_balancer: RunningBalancer::new(addresses, Box::new(balancer_process)),
+        signals,
+    })
 }

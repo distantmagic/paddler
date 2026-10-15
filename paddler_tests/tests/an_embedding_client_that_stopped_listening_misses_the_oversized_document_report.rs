@@ -36,6 +36,11 @@ fn an_embedding_client_that_stopped_listening_misses_the_oversized_document_repo
     let mut batch = LlamaBatch::new(runtime.model_runtime_parameters.n_batch.capacity(), 1);
     let (generated_embedding_tx, generated_embedding_rx) = mpsc::unbounded_channel();
     let (_generate_embedding_stop_tx, generate_embedding_stop_rx) = mpsc::unbounded_channel();
+    let oversized_document_details = OversizedEmbeddingDocumentDetails {
+        document_tokens: 4096,
+        n_batch: 2048,
+        source_document_id: "oversized".to_owned(),
+    };
 
     drop(generated_embedding_rx);
 
@@ -57,11 +62,7 @@ fn an_embedding_client_that_stopped_listening_misses_the_oversized_document_repo
             inputs: Vec::new(),
             normalization_method: EmbeddingNormalizationMethod::None,
             oversized_documents: vec![OversizedEmbeddingDocument::ExceedsBatchSize(
-                OversizedEmbeddingDocumentDetails {
-                    document_tokens: 4096,
-                    n_batch: 2048,
-                    source_document_id: "oversized".to_owned(),
-                }
+                oversized_document_details.clone()
             )],
             slot_guard: SlotGuard::new(
                 runtime
@@ -73,6 +74,11 @@ fn an_embedding_client_that_stopped_listening_misses_the_oversized_document_repo
         .err()
         .as_ref()
         .map(ToString::to_string),
-        Some(EmbeddingError::ClientDisconnected(SendError(EmbeddingResult::Done)).to_string())
+        Some(
+            EmbeddingError::ClientDisconnected(SendError(
+                EmbeddingResult::DocumentExceedsBatchSize(oversized_document_details)
+            ))
+            .to_string()
+        )
     );
 }

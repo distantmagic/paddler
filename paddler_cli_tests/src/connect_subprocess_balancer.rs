@@ -6,6 +6,7 @@ use tokio_util::sync::CancellationToken;
 use paddler_test_cluster_harness::cluster::Cluster;
 use paddler_test_cluster_harness::cluster_desired_state::ClusterDesiredState;
 
+use crate::signalled_subprocess::SignalledSubprocess;
 use crate::spawn_balancer_subprocess::spawn_balancer_subprocess;
 use crate::spawned_balancer_subprocess::SpawnedBalancerSubprocess;
 use crate::subprocess_agent_spawner::SubprocessAgentSpawner;
@@ -23,7 +24,8 @@ where
     let SpawnedBalancerSubprocess {
         running_balancer,
         signals: balancer_signals,
-    } = spawn_balancer_subprocess(binary_path, balancer_arguments).await?;
+    } = spawn_balancer_subprocess(binary_path, balancer_arguments, SignalledSubprocess::new)
+        .await?;
     let management_addr = running_balancer.addresses.management;
     let cluster = Cluster::connect(
         CancellationToken::new(),

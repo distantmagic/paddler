@@ -25,10 +25,8 @@ async fn openai_chat_completion_reports_a_buffered_request_timeout_as_a_gateway_
     let response = minimal_openai_chat_completion(
         cluster
             .balancer
-            .compat_openai_base_url()
-            .expect("the balancer must serve the OpenAI compatibility service")
-            .join(OpenAIApiPath::CHAT_COMPLETIONS)
-            .expect("the chat completions path must extend the base URL"),
+            .compat_openai_url(OpenAIApiPath::CHAT_COMPLETIONS)
+            .expect("the balancer must serve the OpenAI compatibility service"),
     )
     .await
     .expect("the balancer must answer the chat completion");

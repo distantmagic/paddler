@@ -6,6 +6,7 @@ use reqwest::StatusCode;
 use reqwest::get;
 use tokio_util::sync::CancellationToken;
 
+use paddler_cli_tests::signalled_subprocess::SignalledSubprocess;
 use paddler_cli_tests::spawn_balancer_subprocess::spawn_balancer_subprocess;
 use paddler_client::client_health::ClientHealth;
 use paddler_client::reports_health::ReportsHealth as _;
@@ -40,6 +41,7 @@ async fn balancer_serves_every_service_within_the_default_macos_open_file_limit(
             "--web-admin-panel-addr",
             &ephemeral_loopback_addr,
         ],
+        SignalledSubprocess::new,
     )
     .await
     .expect("the balancer must start and announce its addresses")

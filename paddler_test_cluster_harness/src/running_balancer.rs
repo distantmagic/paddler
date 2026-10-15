@@ -34,6 +34,14 @@ impl RunningBalancer {
         self.compat_openai_addr().and_then(base_url_for)
     }
 
+    pub fn compat_openai_url(&self, path: &str) -> Result<Url, ClusterHarnessError> {
+        let mut compat_openai_url = self.compat_openai_base_url()?;
+
+        compat_openai_url.set_path(path);
+
+        Ok(compat_openai_url)
+    }
+
     pub fn compat_typesafe_addr(&self) -> Result<SocketAddr, ClusterHarnessError> {
         self.addresses
             .compat_typesafe
@@ -42,6 +50,14 @@ impl RunningBalancer {
 
     pub fn compat_typesafe_base_url(&self) -> Result<Url, ClusterHarnessError> {
         self.compat_typesafe_addr().and_then(base_url_for)
+    }
+
+    pub fn compat_typesafe_url(&self, path: &str) -> Result<Url, ClusterHarnessError> {
+        let mut compat_typesafe_url = self.compat_typesafe_base_url()?;
+
+        compat_typesafe_url.set_path(path);
+
+        Ok(compat_typesafe_url)
     }
 
     pub fn inference_base_url(&self) -> Result<Url, ClusterHarnessError> {

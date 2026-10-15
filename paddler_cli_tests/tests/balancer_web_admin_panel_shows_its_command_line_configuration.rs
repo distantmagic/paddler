@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use reqwest::get;
 use tokio::net::UdpSocket;
 
+use paddler_cli_tests::signalled_subprocess::SignalledSubprocess;
 use paddler_cli_tests::spawn_balancer_subprocess::spawn_balancer_subprocess;
 use paddler_test_cluster_harness::dashboard_attributes::dashboard_attributes;
 use paddler_test_cluster_harness::ephemeral_loopback_addr::EPHEMERAL_LOOPBACK_ADDR;
@@ -41,6 +42,7 @@ async fn balancer_web_admin_panel_shows_its_command_line_configuration() {
             "--web-admin-panel-addr",
             &ephemeral_loopback_addr,
         ],
+        SignalledSubprocess::new,
     )
     .await
     .expect("the balancer must start and announce its addresses")

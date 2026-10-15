@@ -19,10 +19,8 @@ async fn openai_responses_is_unavailable_while_the_cluster_serves_another_infere
         .post(
             cluster
                 .balancer
-                .compat_openai_base_url()
-                .expect("the cluster serves OpenAI compatibility")
-                .join(OpenAIApiPath::RESPONSES)
-                .expect("the path must join"),
+                .compat_openai_url(OpenAIApiPath::RESPONSES)
+                .expect("the cluster serves OpenAI compatibility"),
         )
         .json(&json!({"model": "test-model", "input": "hi"}))
         .send()

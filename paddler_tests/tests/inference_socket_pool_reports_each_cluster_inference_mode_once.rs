@@ -10,6 +10,7 @@ use paddler_messaging::inference_mode::InferenceMode;
 use paddler_tests::cluster_without_agents_serving::cluster_without_agents_serving;
 use paddler_tests::desired_state_serving::desired_state_serving;
 use paddler_tests::minimal_raw_prompt_stream::minimal_raw_prompt_stream;
+use paddler_tests::next_reported_cluster_inference_mode::next_reported_cluster_inference_mode;
 use paddler_tests::start_cluster::start_cluster;
 
 const INFERENCE_SOCKET_POOL_SIZE: NonZeroUsize = NonZeroUsize::new(2).unwrap();
@@ -38,14 +39,11 @@ async fn inference_socket_pool_reports_each_cluster_inference_mode_once() {
             .expect("the answer must be readable");
     }
 
-    let mut reported_modes = vec![{
-        cluster_inference_mode_rx
-            .changed()
+    let mut reported_modes = vec![
+        next_reported_cluster_inference_mode(&mut cluster_inference_mode_rx)
             .await
-            .expect("the pool must report the inference mode the cluster serves");
-
-        *cluster_inference_mode_rx.borrow_and_update()
-    }];
+            .expect("the pool must report the inference mode the cluster serves"),
+    ];
 
     assert!(
         !cluster_inference_mode_rx
@@ -63,14 +61,11 @@ async fn inference_socket_pool_reports_each_cluster_inference_mode_once() {
             .await
             .expect("the balancer must apply the desired state");
 
-        reported_modes.push({
-            cluster_inference_mode_rx
-                .changed()
+        reported_modes.push(
+            next_reported_cluster_inference_mode(&mut cluster_inference_mode_rx)
                 .await
-                .expect("the pool must report the inference mode change");
-
-            *cluster_inference_mode_rx.borrow_and_update()
-        });
+                .expect("the pool must report the inference mode change"),
+        );
     }
 
     assert_eq!(
