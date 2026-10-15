@@ -1,3 +1,5 @@
+use std::num::NonZeroU8;
+
 use serde_json::Map;
 use serde_json::Value;
 
@@ -32,9 +34,19 @@ fn most_likely_option(probabilities: &[f64]) -> usize {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SystemOneAnswerLayout {
-    Choice { id: String, keys: Vec<String> },
-    Noul { id: String },
-    Score { id: String, legend: Vec<String> },
+    Choice {
+        id: String,
+        keys: Vec<String>,
+        option_count: NonZeroU8,
+    },
+    Noul {
+        id: String,
+    },
+    Score {
+        id: String,
+        legend: Vec<String>,
+        level_count: NonZeroU8,
+    },
 }
 
 impl SystemOneAnswerLayout {
@@ -45,19 +57,15 @@ impl SystemOneAnswerLayout {
         }
     }
 
-    #[expect(
-        clippy::cast_precision_loss,
-        reason = "score levels stay within the 255 levels a TypeSafe question may carry"
-    )]
     pub fn answer(
         &self,
         probabilities: &[f32],
     ) -> Result<SystemOneAnswer, TypeSafeTranslationError> {
         let probabilities: Vec<f64> = probabilities.iter().copied().map(f64::from).collect();
         let expected = match self {
-            Self::Choice { keys, .. } => keys.len(),
+            Self::Choice { option_count, .. } => usize::from(option_count.get()),
             Self::Noul { .. } => NOUL_OPTIONS,
-            Self::Score { legend, .. } => legend.len(),
+            Self::Score { level_count, .. } => usize::from(level_count.get()),
         };
 
         if probabilities.len() != expected {
@@ -69,25 +77,35 @@ impl SystemOneAnswerLayout {
         }
 
         Ok(match self {
-            Self::Choice { keys, .. } => {
+            Self::Choice {
+                keys, option_count, ..
+            } => {
                 let most_likely = most_likely_option(&probabilities);
 
                 SystemOneAnswer::Choice {
                     choice: keys[most_likely].clone(),
-                    confidence: round_probability(choice_confidence(&probabilities, most_likely)),
+                    confidence: round_probability(choice_confidence(
+                        &probabilities,
+                        most_likely,
+                        *option_count,
+                    )),
                     probabilities: rounded_probabilities(keys.iter(), &probabilities),
                 }
             }
             Self::Noul { .. } => SystemOneAnswer::Noul {
                 noul: round_probability(probabilities[1]),
             },
-            Self::Score { legend, .. } => {
-                let level_keys: Vec<String> =
-                    (0..legend.len()).map(|level| level.to_string()).collect();
-                let score: f64 = probabilities
-                    .iter()
-                    .enumerate()
-                    .map(|(level, probability)| level as f64 * probability)
+            Self::Score {
+                legend,
+                level_count,
+                ..
+            } => {
+                let level_keys: Vec<String> = (0..level_count.get())
+                    .map(|level| level.to_string())
+                    .collect();
+                let score: f64 = (0..=u8::MAX)
+                    .zip(&probabilities)
+                    .map(|(level, probability)| f64::from(level) * probability)
                     .sum();
 
                 SystemOneAnswer::Score {
@@ -98,7 +116,7 @@ impl SystemOneAnswerLayout {
                         .zip(legend.iter().cloned().map(Value::from))
                         .collect(),
                     probabilities: rounded_probabilities(level_keys.iter(), &probabilities),
-                    confidence: round_probability(score_confidence(&probabilities)),
+                    confidence: round_probability(score_confidence(&probabilities, *level_count)),
                 }
             }
         })

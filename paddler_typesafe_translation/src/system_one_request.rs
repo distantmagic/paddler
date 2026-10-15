@@ -1,4 +1,4 @@
-use std::ops::RangeInclusive;
+use std::num::NonZeroU8;
 
 use serde::Deserialize;
 use serde_json::Map;
@@ -16,8 +16,6 @@ use crate::translated_system_one_question::TranslatedSystemOneQuestion;
 use crate::translated_system_one_request::TranslatedSystemOneRequest;
 use crate::typesafe_translation_error::TypeSafeTranslationError;
 
-const CRITERIA_RANGE: RangeInclusive<usize> = 1..=255;
-
 fn default_model() -> String {
     "kev-latest".to_owned()
 }
@@ -30,6 +28,10 @@ fn option_text(name: &str, description: Option<&Value>) -> String {
     }
 }
 
+fn criteria_count(criteria_len: usize) -> Option<NonZeroU8> {
+    NonZeroU8::new(u8::try_from(criteria_len).ok()?)
+}
+
 fn translate_question(
     question_id: String,
     question: SystemOneQuestion,
@@ -39,12 +41,12 @@ fn translate_question(
             criteria,
             instructions,
         } => {
-            if !CRITERIA_RANGE.contains(&criteria.len()) {
+            let Some(option_count) = criteria_count(criteria.len()) else {
                 return Err(TypeSafeTranslationError::ChoiceCriteriaOutOfRange {
                     criteria_count: criteria.len(),
                     question_id,
                 });
-            }
+            };
 
             Ok(TranslatedSystemOneQuestion {
                 decision_question: DecisionQuestion {
@@ -58,6 +60,7 @@ fn translate_question(
                 answer_layout: SystemOneAnswerLayout::Choice {
                     id: question_id,
                     keys: criteria.keys().cloned().collect(),
+                    option_count,
                 },
             })
         }
@@ -79,12 +82,12 @@ fn translate_question(
             criteria,
             instructions,
         } => {
-            if !CRITERIA_RANGE.contains(&criteria.len()) {
+            let Some(level_count) = criteria_count(criteria.len()) else {
                 return Err(TypeSafeTranslationError::ScoreCriteriaOutOfRange {
                     criteria_count: criteria.len(),
                     question_id,
                 });
-            }
+            };
 
             let legend: Vec<String> = criteria
                 .iter()
@@ -100,6 +103,7 @@ fn translate_question(
                 answer_layout: SystemOneAnswerLayout::Score {
                     id: question_id,
                     legend,
+                    level_count,
                 },
             })
         }
