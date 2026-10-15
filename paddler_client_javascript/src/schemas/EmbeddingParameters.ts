@@ -4,7 +4,6 @@ export const poolingTypes = [
   "Cls",
   "Last",
   "Mean",
-  "None",
   "Rank",
   "Unspecified",
 ] as const;

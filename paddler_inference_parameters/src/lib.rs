@@ -5,6 +5,7 @@ pub mod invalid_inference_parameters;
 pub mod kv_cache_dtype;
 pub mod model_runtime_parameters;
 pub mod pooling_type;
+pub mod raw_embedding_parameters;
 pub mod raw_model_runtime_parameters;
 pub mod raw_sampling_parameters;
 pub mod sampling_parameters;
