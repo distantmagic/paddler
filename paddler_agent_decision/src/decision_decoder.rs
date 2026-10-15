@@ -8,14 +8,6 @@ use paddler_agent_runtime::sequence_id::SequenceId;
 use crate::decision_error::DecisionError;
 use crate::decision_question_row::DecisionQuestionRow;
 
-#[expect(
-    clippy::cast_possible_wrap,
-    reason = "positions stay below the context size the preparer checks, and llama.cpp keeps contexts within i32 positions"
-)]
-const fn token_position(position: usize) -> i32 {
-    position as i32
-}
-
 pub struct DecisionDecoder<'scheduler, 'model> {
     pub batch: &'scheduler mut LlamaBatch<'static>,
     pub llama_context: &'scheduler mut LlamaContext<'model>,
@@ -47,16 +39,11 @@ impl DecisionDecoder<'_, '_> {
     ) -> Result<usize, DecisionError> {
         self.batch.clear();
 
-        for (position, token) in state
-            .iter()
-            .enumerate()
-            .skip(next_offset)
-            .take(self.n_batch)
-        {
+        for (position, token) in (0_i32..).zip(state).skip(next_offset).take(self.n_batch) {
             self.batch
                 .add(
                     &SampledToken::Content(*token),
-                    token_position(position),
+                    position,
                     &[sequence_id.llama_sequence_id()],
                     false,
                 )
@@ -82,19 +69,23 @@ impl DecisionDecoder<'_, '_> {
 
         let mut output_batch_indices = Vec::new();
 
-        for (batch_index, (row_offset, token)) in (0_i32..).zip(
-            row.tokens
-                .iter()
-                .enumerate()
-                .skip(next_offset)
-                .take(self.n_batch),
-        ) {
+        let row_chunk = row
+            .tokens
+            .iter()
+            .enumerate()
+            .skip(next_offset)
+            .take(self.n_batch);
+        let row_chunk_positions = (0_i32..).skip(state_length + next_offset);
+
+        for ((batch_index, position), (row_offset, token)) in
+            (0_i32..).zip(row_chunk_positions).zip(row_chunk)
+        {
             let is_output = row.is_output(row_offset);
 
             self.batch
                 .add(
                     &SampledToken::Content(*token),
-                    token_position(state_length + row_offset),
+                    position,
                     &[sequence_id.llama_sequence_id()],
                     is_output,
                 )
