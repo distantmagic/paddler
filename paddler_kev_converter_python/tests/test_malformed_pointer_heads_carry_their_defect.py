@@ -50,6 +50,15 @@ def test_missing_temperature_is_left_out(tmp_path: Path) -> None:
     assert "pointer_head.delimiter.state" in reader.fields
 
 
+def test_oversized_head_dim_exceeds_sixteen_bits(tmp_path: Path) -> None:
+    shapes = {
+        tensor.name: tuple(int(dimension) for dimension in tensor.shape)
+        for tensor in _written_head(tmp_path, "oversized-head-dim").tensors
+    }
+
+    assert shapes["pointer_head.key.bias"] == (2**16,)
+
+
 def test_plain_text_delimiters_name_no_control_tokens(tmp_path: Path) -> None:
     reader = _written_head(tmp_path, "plain-text-delimiters")
 

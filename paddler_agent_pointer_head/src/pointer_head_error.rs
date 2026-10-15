@@ -1,3 +1,4 @@
+use std::num::TryFromIntError;
 use std::path::PathBuf;
 
 use llama_cpp_bindings::gguf_context_error::GgufContextError;
@@ -9,6 +10,13 @@ pub enum PointerHeadError {
         path: PathBuf,
         #[source]
         source: GgufContextError,
+    },
+
+    #[error("the pointer head dimension {head_dim} does not fit sixteen bits")]
+    HeadDimensionOutOfRange {
+        head_dim: i64,
+        #[source]
+        source: TryFromIntError,
     },
 
     #[error("unable to read the pointer head key {key}")]

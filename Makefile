@@ -60,6 +60,9 @@ fixtures/pointer_head_without_delimiters.gguf: $(KEV_CONVERTER_SOURCES) paddler_
 fixtures/pointer_head_without_temperature.gguf: $(KEV_CONVERTER_SOURCES) paddler_kev_converter_python/.venv
 	poetry -C paddler_kev_converter_python run paddler-kev-converter malformed-pointer-head --defect missing-temperature --hidden-size 64 --output $(CURDIR)/$@
 
+fixtures/pointer_head_with_oversized_head_dim.gguf: $(KEV_CONVERTER_SOURCES) paddler_kev_converter_python/.venv
+	poetry -C paddler_kev_converter_python run paddler-kev-converter malformed-pointer-head --defect oversized-head-dim --hidden-size 1 --output $(CURDIR)/$@
+
 fixtures/qwen3_5_0_8b_pointer_head_with_plain_text_delimiters.gguf: $(KEV_CONVERTER_SOURCES) paddler_kev_converter_python/.venv
 	poetry -C paddler_kev_converter_python run paddler-kev-converter malformed-pointer-head --defect plain-text-delimiters --hidden-size 1024 --output $(CURDIR)/$@
 

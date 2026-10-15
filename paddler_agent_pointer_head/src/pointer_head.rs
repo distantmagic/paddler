@@ -105,11 +105,12 @@ impl PointerHead {
 
         let [key_bias, key_weight, query_bias, query_weight] = tensor_values;
 
-        #[expect(
-            clippy::cast_precision_loss,
-            reason = "pointer head dims stay far below 2^24, the largest integer every f32 holds exactly"
-        )]
-        let logit_scale = (head_dim as f32).sqrt().recip();
+        let logit_scale =
+            f32::from(u16::try_from(head_dim).map_err(|source| {
+                PointerHeadError::HeadDimensionOutOfRange { head_dim, source }
+            })?)
+            .sqrt()
+            .recip();
 
         Ok(Self {
             delimiters,

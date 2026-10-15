@@ -1,3 +1,4 @@
+mod a_pointer_head_whose_head_dimension_exceeds_sixteen_bits_is_refused;
 mod a_pointer_head_with_f16_tensors_is_refused;
 mod a_pointer_head_with_mismatched_projections_is_refused;
 mod a_pointer_head_with_zero_temperature_is_refused;
