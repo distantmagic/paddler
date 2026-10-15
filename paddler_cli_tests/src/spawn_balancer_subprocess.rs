@@ -8,9 +8,9 @@ use paddler_test_cluster_harness::running_balancer::RunningBalancer;
 
 use crate::paddler_command::paddler_command;
 use crate::read_balancer_addresses::read_balancer_addresses;
+use crate::signalled_subprocess::SignalledSubprocess;
 use crate::spawned_balancer_subprocess::SpawnedBalancerSubprocess;
 use crate::subprocess_cluster_error::SubprocessClusterError;
-use crate::subprocess_process::SubprocessProcess;
 
 pub async fn spawn_balancer_subprocess<TArguments, TArgument>(
     binary_path: &str,
@@ -39,10 +39,10 @@ where
 
         return Err(SubprocessClusterError::BalancerExitedBeforeAnnouncing { exit_status }.into());
     };
-    let balancer_process = SubprocessProcess::new(balancer_subprocess);
-    let signals = balancer_process
-        .signals()
-        .ok_or(SubprocessClusterError::ProcessAlreadyReaped)?;
+    let SignalledSubprocess {
+        process: balancer_process,
+        signals,
+    } = SignalledSubprocess::new(balancer_subprocess)?;
 
     Ok(SpawnedBalancerSubprocess {
         running_balancer: RunningBalancer::new(addresses, Box::new(balancer_process)),

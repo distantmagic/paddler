@@ -5,10 +5,9 @@ use paddler_test_cluster_harness::cluster::Cluster;
 use paddler_test_cluster_harness::running_agent::RunningAgent;
 
 use crate::pausable_agent_params::PausableAgentParams;
+use crate::signalled_subprocess::SignalledSubprocess;
 use crate::spawn_agent_subprocess::spawn_agent_subprocess;
 use crate::spawn_agent_subprocess_params::SpawnAgentSubprocessParams;
-use crate::subprocess_cluster_error::SubprocessClusterError;
-use crate::subprocess_process::SubprocessProcess;
 use crate::subprocess_signals::SubprocessSignals;
 
 pub struct PausableAgent {
@@ -26,16 +25,15 @@ impl PausableAgent {
             management_addr,
         }: PausableAgentParams,
     ) -> Result<Self> {
-        let agent_process =
-            SubprocessProcess::new(spawn_agent_subprocess(SpawnAgentSubprocessParams {
-                binary_path,
-                management_addr,
-                name: config.name.clone(),
-                slots: config.slot_count,
-            })?);
-        let signals = agent_process
-            .signals()
-            .ok_or(SubprocessClusterError::ProcessAlreadyReaped)?;
+        let SignalledSubprocess {
+            process: agent_process,
+            signals,
+        } = SignalledSubprocess::new(spawn_agent_subprocess(SpawnAgentSubprocessParams {
+            binary_path,
+            management_addr,
+            name: config.name.clone(),
+            slots: config.slot_count,
+        })?)?;
         let mut running_agent = RunningAgent::new(config, Box::new(agent_process));
         let ready_agent = running_agent
             .wait_until_ready(
