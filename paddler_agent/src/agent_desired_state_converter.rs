@@ -289,6 +289,47 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn local_missing_pointer_head_registers_pointer_head_cannot_be_loaded_and_errs() {
+        let status = fresh_status();
+        let MissingLocalModel {
+            _dir_guard,
+            path: missing_path,
+        } = nonexistent_path_in_temp_dir("pointer-head");
+        let converter = AgentDesiredStateConverter {
+            cache_dir: CacheDir::from_process_env(),
+            cancellation_token: CancellationToken::new(),
+            slot_aggregated_status: status.clone(),
+        };
+
+        let outcome = converter
+            .convert(&AgentDesiredState {
+                inference_settings: AgentInferenceSettings::Decision(DecisionSettings {
+                    pointer_head: ModelSource::LocalToAgent(missing_path.display().to_string())
+                        .into_agent_desired_model(),
+                }),
+                model: AgentDesiredModel::None,
+                model_runtime_parameters: ModelRuntimeParameters::default(),
+            })
+            .await;
+
+        assert_eq!(
+            outcome.err().as_ref().map(ToString::to_string),
+            Some(
+                ModelSourceError::LocalFileMissing {
+                    path: missing_path.clone(),
+                }
+                .to_string()
+            )
+        );
+        assert!(
+            status.has_issue(&AgentIssue::PointerHeadCannotBeLoaded(ModelPath {
+                model_path: missing_path.display().to_string(),
+            })),
+            "PointerHeadCannotBeLoaded must be registered for a missing local pointer head"
+        );
+    }
+
+    #[tokio::test]
     async fn cancelling_while_the_multimodal_projection_resolves_cancels_the_conversion() {
         assert_eq!(
             conversion(

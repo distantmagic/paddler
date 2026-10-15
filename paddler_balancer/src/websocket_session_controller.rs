@@ -44,17 +44,40 @@ where
 
 #[cfg(test)]
 mod tests {
+    use serde::Serialize;
+    use serde::Serializer;
+    use serde::ser::Error as _;
     use serde_json::to_string;
     use tokio::sync::mpsc::error::SendError;
+    use tokio::sync::mpsc::error::TryRecvError;
     use tokio::sync::mpsc::unbounded_channel;
 
     use paddler_messaging::inference_client::message::Message as OutgoingMessage;
     use paddler_messaging::inference_client::notification::Notification;
     use paddler_messaging::inference_mode::InferenceMode;
+    use paddler_messaging::rpc_message::RpcMessage;
 
     use super::WebSocketSessionController;
     use crate::controls_session::ControlsSession as _;
     use crate::websocket_outbound_frame::WebSocketOutboundFrame;
+
+    struct MessageThatCannotSerialize;
+
+    impl Serialize for MessageThatCannotSerialize {
+        fn serialize<TSerializer>(
+            &self,
+            _serializer: TSerializer,
+        ) -> Result<TSerializer::Ok, TSerializer::Error>
+        where
+            TSerializer: Serializer,
+        {
+            Err(TSerializer::Error::custom(
+                "the message cannot be serialized",
+            ))
+        }
+    }
+
+    impl RpcMessage for MessageThatCannotSerialize {}
 
     fn cluster_inference_mode_notification() -> OutgoingMessage {
         OutgoingMessage::Notification(Notification::ClusterInferenceMode(
@@ -82,5 +105,21 @@ mod tests {
                 to_string(&cluster_inference_mode_notification()).unwrap()
             )
         );
+    }
+
+    #[tokio::test]
+    async fn a_response_that_cannot_be_serialized_never_reaches_the_writer() {
+        let (outbound_tx, mut outbound_rx) = unbounded_channel();
+
+        assert_eq!(
+            WebSocketSessionController::<MessageThatCannotSerialize>::new(outbound_tx)
+                .send_response(MessageThatCannotSerialize)
+                .await
+                .err()
+                .as_ref()
+                .map(ToString::to_string),
+            Some("the message cannot be serialized".to_owned())
+        );
+        assert_eq!(outbound_rx.try_recv(), Err(TryRecvError::Disconnected));
     }
 }
