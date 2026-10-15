@@ -105,6 +105,10 @@ impl StallableTcpRelay {
             .map(drop)
     }
 
+    pub async fn wait_until_relaying_ends(self) -> Result<io::Result<()>, JoinError> {
+        self.relaying_task.await
+    }
+
     pub async fn stop(self) -> Result<io::Result<()>, JoinError> {
         self.stop.cancel();
         self.relaying_task.await
