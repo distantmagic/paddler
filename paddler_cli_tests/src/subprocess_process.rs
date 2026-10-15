@@ -43,7 +43,7 @@ impl ManagedProcess for SubprocessProcess {
             return Ok(());
         };
 
-        Ok(signals.terminate()?)
+        signals.terminate().map_err(Into::into)
     }
 
     async fn exited(&mut self) -> ProcessEnd {

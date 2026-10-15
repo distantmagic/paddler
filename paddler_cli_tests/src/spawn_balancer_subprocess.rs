@@ -32,20 +32,27 @@ where
         .take()
         .ok_or(SubprocessClusterError::StdoutNotPiped)?;
     let Some(addresses) = read_balancer_addresses(balancer_stdout).await? else {
-        let exit_status = balancer_subprocess
+        return Err(balancer_subprocess
             .wait()
             .await
-            .map_err(SubprocessClusterError::ProcessExitUnobservable)?;
-
-        return Err(SubprocessClusterError::BalancerExitedBeforeAnnouncing { exit_status }.into());
+            .map_or_else(
+                SubprocessClusterError::ProcessExitUnobservable,
+                |exit_status| SubprocessClusterError::BalancerExitedBeforeAnnouncing {
+                    exit_status,
+                },
+            )
+            .into());
     };
-    let SignalledSubprocess {
-        process: balancer_process,
-        signals,
-    } = SignalledSubprocess::new(balancer_subprocess)?;
 
-    Ok(SpawnedBalancerSubprocess {
-        running_balancer: RunningBalancer::new(addresses, Box::new(balancer_process)),
-        signals,
-    })
+    SignalledSubprocess::new(balancer_subprocess)
+        .map(
+            |SignalledSubprocess {
+                 process: balancer_process,
+                 signals,
+             }| SpawnedBalancerSubprocess {
+                running_balancer: RunningBalancer::new(addresses, Box::new(balancer_process)),
+                signals,
+            },
+        )
+        .map_err(Into::into)
 }

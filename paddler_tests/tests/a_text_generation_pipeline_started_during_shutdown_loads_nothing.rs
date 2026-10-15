@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent_runtime::scheduler_spawn_outcome::SchedulerSpawnOutcome;
+use paddler_agent_text_generation::llama_cpp_media_marker::LlamaCppMediaMarker;
 use paddler_agent_text_generation::multimodal_projection::MultimodalProjection;
 use paddler_agent_text_generation::text_generation_pipeline::TextGenerationPipeline;
 use paddler_agent_text_generation::text_generation_settings::TextGenerationSettings;
@@ -24,6 +25,7 @@ async fn a_text_generation_pipeline_started_during_shutdown_loads_nothing() {
 
     let spawn_outcome = TextGenerationPipeline {
         inference_runtime_context: inference_runtime_context.clone(),
+        media_marker: LlamaCppMediaMarker,
         model_path: PathBuf::from("model-that-is-never-read.gguf"),
         model_runtime_parameters: ModelRuntimeParameters::default(),
         text_generation_settings: TextGenerationSettings {

@@ -13,6 +13,7 @@ use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::prepares_scheduler_command::PreparesSchedulerCommand;
 use paddler_agent_runtime::scheduler_handle::SchedulerHandle;
 use paddler_agent_runtime::scheduler_spawn_outcome::SchedulerSpawnOutcome;
+use paddler_agent_text_generation::llama_cpp_media_marker::LlamaCppMediaMarker;
 use paddler_agent_text_generation::text_generation_pipeline::TextGenerationPipeline;
 use paddler_messaging::agent_issue_params::model_path::ModelPath;
 
@@ -87,6 +88,7 @@ async fn start_pipeline(
             ModelPath::from(model_path.as_path()),
             TextGenerationPipeline {
                 inference_runtime_context: inference_runtime_context.clone(),
+                media_marker: LlamaCppMediaMarker,
                 model_path,
                 model_runtime_parameters,
                 text_generation_settings,

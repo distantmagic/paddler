@@ -6,6 +6,7 @@ use llama_cpp_bindings::gguf_context::GgufContext;
 use tempfile::TempDir;
 use tokio_util::sync::CancellationToken;
 
+use paddler_agent_text_generation::llama_cpp_media_marker::LlamaCppMediaMarker;
 use paddler_agent_text_generation::multimodal_projection::MultimodalProjection;
 use paddler_agent_text_generation::text_generation_error::TextGenerationError;
 use paddler_agent_text_generation::text_generation_pipeline::TextGenerationPipeline;
@@ -41,6 +42,7 @@ async fn a_text_generation_pipeline_refuses_a_model_whose_embedded_template_hide
     assert_eq!(
         TextGenerationPipeline {
             inference_runtime_context: agent_inference_runtime_context(1),
+            media_marker: LlamaCppMediaMarker,
             model_path,
             model_runtime_parameters: ModelRuntimeParameters::default(),
             text_generation_settings: TextGenerationSettings {

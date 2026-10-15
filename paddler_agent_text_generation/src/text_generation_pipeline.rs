@@ -13,7 +13,6 @@ use llama_cpp_bindings::model::params::LlamaModelParams;
 use llama_cpp_bindings::mtmd::MtmdContext;
 use llama_cpp_bindings::mtmd::MtmdContextParams;
 use llama_cpp_bindings::mtmd::micro_batch_tokens;
-use llama_cpp_bindings::mtmd::mtmd_default_marker;
 use llama_cpp_bindings::token::LlamaToken;
 use log::info;
 use tokio::sync::mpsc::UnboundedSender;
@@ -47,10 +46,12 @@ use crate::continuous_batch_scheduler_params::ContinuousBatchSchedulerParams;
 use crate::generation_request_preparer::GenerationRequestPreparer;
 use crate::image_input::ImageInput;
 use crate::json_tools_serializer::JsonToolsSerializer;
+use crate::llama_cpp_media_marker::LlamaCppMediaMarker;
 use crate::model_bos_token::ModelBosToken;
 use crate::multimodal_projection::MultimodalProjection;
 use crate::multimodal_prompt_support::MultimodalPromptSupport;
 use crate::prompt_tokenizer::PromptTokenizer;
+use crate::provides_media_marker::ProvidesMediaMarker;
 use crate::sampler_chain_factory::SamplerChainFactory;
 use crate::text_generation_error::TextGenerationError;
 use crate::text_generation_settings::TextGenerationSettings;
@@ -67,14 +68,15 @@ fn special_token_text(
     )
 }
 
-pub struct TextGenerationPipeline {
+pub struct TextGenerationPipeline<TMediaMarker: ProvidesMediaMarker = LlamaCppMediaMarker> {
     pub inference_runtime_context: InferenceRuntimeContext,
+    pub media_marker: TMediaMarker,
     pub model_path: PathBuf,
     pub model_runtime_parameters: ModelRuntimeParameters,
     pub text_generation_settings: TextGenerationSettings,
 }
 
-impl TextGenerationPipeline {
+impl<TMediaMarker: ProvidesMediaMarker> TextGenerationPipeline<TMediaMarker> {
     pub async fn spawn(
         self,
         cancellation_token: &CancellationToken,
@@ -218,7 +220,8 @@ impl TextGenerationPipeline {
             chat_prompt_renderer: ChatPromptRenderer {
                 chat_template_renderer,
                 media_marker: MediaMarker::new(
-                    mtmd_default_marker()
+                    self.media_marker
+                        .media_marker()
                         .map_err(TextGenerationError::MediaMarkerUnavailable)?
                         .to_owned(),
                 ),

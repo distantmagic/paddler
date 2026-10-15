@@ -3,6 +3,7 @@
 use hf_hub::Cache;
 use tokio_util::sync::CancellationToken;
 
+use paddler_agent_text_generation::llama_cpp_media_marker::LlamaCppMediaMarker;
 use paddler_agent_text_generation::multimodal_projection::MultimodalProjection;
 use paddler_agent_text_generation::text_generation_pipeline::TextGenerationPipeline;
 use paddler_agent_text_generation::text_generation_settings::TextGenerationSettings;
@@ -20,6 +21,7 @@ async fn a_multimodal_pipeline_refuses_a_template_that_raises_while_probing_its_
     assert_eq!(
         TextGenerationPipeline {
             inference_runtime_context: agent_inference_runtime_context(1),
+            media_marker: LlamaCppMediaMarker,
             model_path: smolvlm2_256m()
                 .reference
                 .cached_path(&Cache::from_env())

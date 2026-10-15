@@ -7,6 +7,7 @@ use llama_cpp_bindings_sys::LLAMA_TOKEN_TYPE_UNUSED;
 use tempfile::TempDir;
 use tokio_util::sync::CancellationToken;
 
+use paddler_agent_text_generation::llama_cpp_media_marker::LlamaCppMediaMarker;
 use paddler_agent_text_generation::multimodal_projection::MultimodalProjection;
 use paddler_agent_text_generation::text_generation_error::TextGenerationError;
 use paddler_agent_text_generation::text_generation_pipeline::TextGenerationPipeline;
@@ -51,6 +52,7 @@ async fn a_text_generation_pipeline_refuses_a_newline_token_it_cannot_render() {
     assert_eq!(
         TextGenerationPipeline {
             inference_runtime_context: agent_inference_runtime_context(1),
+            media_marker: LlamaCppMediaMarker,
             model_path,
             model_runtime_parameters: ModelRuntimeParameters::default(),
             text_generation_settings: TextGenerationSettings {

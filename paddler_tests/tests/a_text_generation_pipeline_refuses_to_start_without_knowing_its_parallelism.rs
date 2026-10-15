@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent_runtime::agent_runtime_error::AgentRuntimeError;
+use paddler_agent_text_generation::llama_cpp_media_marker::LlamaCppMediaMarker;
 use paddler_agent_text_generation::multimodal_projection::MultimodalProjection;
 use paddler_agent_text_generation::text_generation_error::TextGenerationError;
 use paddler_agent_text_generation::text_generation_pipeline::TextGenerationPipeline;
@@ -19,6 +20,7 @@ async fn a_text_generation_pipeline_refuses_to_start_without_knowing_its_paralle
     assert_eq!(
         TextGenerationPipeline {
             inference_runtime_context: inference_runtime_context_with_unknown_parallelism(1),
+            media_marker: LlamaCppMediaMarker,
             model_path: PathBuf::from("model-that-is-never-read.gguf"),
             model_runtime_parameters: ModelRuntimeParameters::default(),
             text_generation_settings: TextGenerationSettings {

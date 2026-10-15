@@ -22,6 +22,7 @@ pub mod kev_0_8b_target_path;
 pub mod kev_parity_record;
 pub mod llama_runtime;
 pub mod many_question_decision;
+pub mod media_marker_that_is_not_utf8;
 pub mod minimal_openai_chat_completion;
 pub mod minimal_raw_prompt_stream;
 pub mod ministral_3_cluster_params;
