@@ -10,6 +10,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum SubprocessClusterError {
+    #[error("Unable to spawn the paddler agent subprocess")]
+    AgentSpawnFailed(#[source] io::Error),
     #[error("The balancer subprocess exited with {exit_status} before announcing its addresses")]
     BalancerExitedBeforeAnnouncing { exit_status: ExitStatus },
     #[error("The subprocess {pid} reported {status:?} instead of stopping")]

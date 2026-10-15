@@ -6,8 +6,8 @@ use paddler_test_cluster_harness::running_agent::RunningAgent;
 
 use crate::pausable_agent_params::PausableAgentParams;
 use crate::signalled_subprocess::SignalledSubprocess;
-use crate::spawn_agent_subprocess::spawn_agent_subprocess;
 use crate::spawn_agent_subprocess_params::SpawnAgentSubprocessParams;
+use crate::spawn_signalled_agent_subprocess::spawn_signalled_agent_subprocess;
 use crate::subprocess_signals::SubprocessSignals;
 
 pub struct PausableAgent {
@@ -28,12 +28,12 @@ impl PausableAgent {
         let SignalledSubprocess {
             process: agent_process,
             signals,
-        } = SignalledSubprocess::new(spawn_agent_subprocess(SpawnAgentSubprocessParams {
+        } = spawn_signalled_agent_subprocess(SpawnAgentSubprocessParams {
             binary_path,
             management_addr,
             name: config.name.clone(),
             slots: config.slot_count,
-        })?)?;
+        })?;
         let mut running_agent = RunningAgent::new(config, Box::new(agent_process));
         let ready_agent = running_agent
             .wait_until_ready(
