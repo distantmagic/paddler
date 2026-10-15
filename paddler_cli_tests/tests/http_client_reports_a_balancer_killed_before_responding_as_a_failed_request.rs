@@ -5,7 +5,6 @@ use tokio_util::sync::CancellationToken;
 use paddler_balancer::compatibility::openai_service::openai_api_path::OpenAIApiPath;
 use paddler_cli_tests::start_signalled_subprocess_cluster::start_signalled_subprocess_cluster;
 use paddler_cli_tests::subprocess_cluster::SubprocessCluster;
-use paddler_client::error::Error;
 use paddler_client::http_client::HttpClient;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
 
@@ -51,10 +50,22 @@ async fn http_client_reports_a_balancer_killed_before_responding_as_a_failed_req
         .kill()
         .expect("the balancer must be killed before it responds");
 
-    assert!(matches!(
-        chat_completion.await.expect("the chat completion task must not panic"),
-        Err(Error::Http(source)) if source.is_request()
-    ));
+    let chat_completions_url = cluster
+        .balancer
+        .compat_openai_url(OpenAIApiPath::CHAT_COMPLETIONS)
+        .expect("the balancer must serve the OpenAI compatibility service");
+
+    assert_eq!(
+        chat_completion
+            .await
+            .expect("the chat completion task must not panic")
+            .err()
+            .as_ref()
+            .map(ToString::to_string),
+        Some(format!(
+            "HTTP request failed: error sending request for url ({chat_completions_url})"
+        ))
+    );
 
     cluster
         .shutdown()

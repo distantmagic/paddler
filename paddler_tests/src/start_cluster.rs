@@ -4,6 +4,7 @@ use anyhow::Context as _;
 use anyhow::Result;
 use log::LevelFilter;
 use log::set_max_level;
+use tempfile::TempDir;
 use tokio_util::sync::CancellationToken;
 
 use paddler_balancer::compatibility::compatibility_service_configuration::CompatibilityServiceConfiguration;
@@ -80,7 +81,10 @@ pub async fn start_cluster(
     let mut cluster = Cluster::connect(
         CancellationToken::new(),
         running_balancer,
-        Box::new(InProcessAgentSpawner::new(management_address)?),
+        Box::new(InProcessAgentSpawner {
+            downloaded_models: TempDir::new()?,
+            management_address,
+        }),
         &desired_state,
     )
     .await?;

@@ -109,27 +109,31 @@ mod tests {
 
     #[tokio::test]
     async fn refuses_a_message_that_is_not_an_embedding_result() {
-        let collection_error = collect_embedding_results(Box::pin(iter([Ok(
+        let generated_content_token = || {
             InferenceMessage::Response(ResponseEnvelope {
                 generated_by: None,
                 request_id: "generation-request".to_owned(),
                 response: InferenceResponse::GeneratedToken(GeneratedTokenResult::ContentToken(
                     "piece".to_owned(),
                 )),
-            }),
-        )])))
-        .await
-        .err()
-        .expect("a stream of another kind of message must be refused");
+            })
+        };
+        let collection_error =
+            collect_embedding_results(Box::pin(iter([Ok(generated_content_token())])))
+                .await
+                .err()
+                .expect("a stream of another kind of message must be refused");
 
-        assert!(matches!(
-            collection_error.downcast_ref::<ClusterHarnessError>(),
-            Some(ClusterHarnessError::EmbeddingStreamMessageUnexpected { message })
-                if matches!(
-                    message.as_ref(),
-                    InferenceMessage::Response(ResponseEnvelope { request_id, .. })
-                        if request_id == "generation-request"
-                )
-        ));
+        assert_eq!(
+            collection_error
+                .downcast_ref::<ClusterHarnessError>()
+                .map(ToString::to_string),
+            Some(
+                ClusterHarnessError::EmbeddingStreamMessageUnexpected {
+                    message: Box::new(generated_content_token()),
+                }
+                .to_string()
+            )
+        );
     }
 }

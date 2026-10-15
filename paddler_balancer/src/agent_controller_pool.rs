@@ -249,14 +249,34 @@ mod tests {
             ),
         ];
 
-        assert!(registrations.iter().all(|registration| matches!(
-            registration,
-            AgentControllerRegistration::Registered(_)
-        )));
+        assert_eq!(
+            registrations
+                .iter()
+                .map(AgentControllerRegistration::registered_agent_id)
+                .collect::<Vec<_>>(),
+            vec![Some("idle"), Some("embeddings")]
+        );
         assert_eq!(
             pool.select_least_busy_with_capacity(InferenceMode::Embeddings)
                 .map(|candidate| candidate.agent_controller.id.clone()),
             Some("embeddings".to_owned())
+        );
+    }
+
+    #[test]
+    fn refuses_a_second_agent_with_the_same_id() {
+        let pool = Arc::new(AgentControllerPool::default());
+        let registrations = [
+            pool.register_agent_controller(agent_with_inbox("twin").agent_controller),
+            pool.register_agent_controller(agent_with_inbox("twin").agent_controller),
+        ];
+
+        assert_eq!(
+            registrations
+                .iter()
+                .map(AgentControllerRegistration::registered_agent_id)
+                .collect::<Vec<_>>(),
+            vec![Some("twin"), None]
         );
     }
 

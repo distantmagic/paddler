@@ -10,6 +10,7 @@ pub mod desired_state_with_halved_image_resize;
 pub mod desired_state_with_multimodal_projection;
 pub mod first_message_content_chat_template;
 pub mod gbnf_literal;
+pub mod generation_done_discriminant;
 pub mod get_weather_tool;
 pub mod image_description_conversation;
 pub mod image_fixture;

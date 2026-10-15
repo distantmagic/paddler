@@ -1,3 +1,5 @@
+use std::os::unix::process::ExitStatusExt as _;
+use std::process::ExitStatus;
 use std::process::Stdio;
 
 use paddler_cli_tests::clap_usage_error_exit_code::CLAP_USAGE_ERROR_EXIT_CODE;
@@ -24,9 +26,15 @@ async fn subprocess_shutdown_reports_a_failed_exit() {
         .await
         .expect_err("a failed exit must be reported at shutdown");
 
-    assert!(matches!(
-        shutdown_error.downcast_ref::<SubprocessClusterError>(),
-        Some(SubprocessClusterError::ProcessExitedWithFailure { exit_status })
-            if exit_status.code() == Some(CLAP_USAGE_ERROR_EXIT_CODE)
-    ));
+    assert_eq!(
+        shutdown_error
+            .downcast_ref::<SubprocessClusterError>()
+            .map(ToString::to_string),
+        Some(
+            SubprocessClusterError::ProcessExitedWithFailure {
+                exit_status: ExitStatus::from_raw(CLAP_USAGE_ERROR_EXIT_CODE << 8),
+            }
+            .to_string()
+        )
+    );
 }

@@ -79,9 +79,19 @@ mod tests {
         .await
         .expect("the read task must not panic");
 
-        assert!(matches!(
-            response_rx.recv().await,
-            Some(Err(Error::ConnectionDropped { request_id })) if request_id == "request-1"
-        ));
+        assert_eq!(
+            response_rx
+                .recv()
+                .await
+                .and_then(Result::err)
+                .as_ref()
+                .map(ToString::to_string),
+            Some(
+                Error::ConnectionDropped {
+                    request_id: "request-1".to_owned(),
+                }
+                .to_string()
+            )
+        );
     }
 }

@@ -30,21 +30,46 @@ fn answers_that_do_not_fit_the_questions_are_refused() {
     .expect("the request must translate")
     .response_layout;
 
-    assert!(matches!(
-        response_layout.respond(&[answer("first", vec![0.5, 0.5])], &SUMMARY),
-        Err(TypeSafeTranslationError::AnswerMissing { question_id }) if question_id == "second"
-    ));
-    assert!(matches!(
-        response_layout.respond(&[answer("second", vec![0.5, 0.5])], &SUMMARY),
-        Err(TypeSafeTranslationError::AnswerOutOfOrder { expected_question_id, .. })
-            if expected_question_id == "first"
-    ));
-    assert!(matches!(
-        response_layout.respond(&[answer("first", vec![1.0])], &SUMMARY),
-        Err(TypeSafeTranslationError::AnswerProbabilitiesMismatch {
-            expected,
-            received,
-            ..
-        }) if expected == 2 && received == 1
-    ));
+    assert_eq!(
+        response_layout
+            .respond(&[answer("first", vec![0.5, 0.5])], &SUMMARY)
+            .err()
+            .as_ref()
+            .map(ToString::to_string),
+        Some(
+            TypeSafeTranslationError::AnswerMissing {
+                question_id: "second".to_owned(),
+            }
+            .to_string()
+        )
+    );
+    assert_eq!(
+        response_layout
+            .respond(&[answer("second", vec![0.5, 0.5])], &SUMMARY)
+            .err()
+            .as_ref()
+            .map(ToString::to_string),
+        Some(
+            TypeSafeTranslationError::AnswerOutOfOrder {
+                expected_question_id: "first".to_owned(),
+                received_question_id: "second".to_owned(),
+            }
+            .to_string()
+        )
+    );
+    assert_eq!(
+        response_layout
+            .respond(&[answer("first", vec![1.0])], &SUMMARY)
+            .err()
+            .as_ref()
+            .map(ToString::to_string),
+        Some(
+            TypeSafeTranslationError::AnswerProbabilitiesMismatch {
+                expected: 2,
+                question_id: "first".to_owned(),
+                received: 1,
+            }
+            .to_string()
+        )
+    );
 }

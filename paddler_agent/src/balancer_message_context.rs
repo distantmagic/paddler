@@ -225,6 +225,7 @@ mod tests {
     use tokio_tungstenite::tungstenite::Bytes;
     use tokio_tungstenite::tungstenite::protocol::Message;
 
+    use paddler_agent_runtime::agent_request::AgentRequest;
     use paddler_messaging::agent_desired_model::AgentDesiredModel;
     use paddler_messaging::agent_desired_state::AgentDesiredState;
     use paddler_messaging::balancer_desired_state::BalancerDesiredState;
@@ -243,14 +244,18 @@ mod tests {
     use crate::management_connection_step::ManagementConnectionStep;
     use crate::pipeline_request::PipelineRequest;
 
+    fn raw_prompt_params() -> ContinueFromRawPromptParams {
+        ContinueFromRawPromptParams {
+            grammar: None,
+            max_tokens: NonZeroU32::MIN,
+            raw_prompt: "hello".to_owned(),
+        }
+    }
+
     fn raw_prompt_request(request_id: &str) -> JsonRpcMessage {
         JsonRpcMessage::Request(RequestEnvelope {
             id: request_id.to_owned(),
-            request: JsonRpcRequest::ContinueFromRawPrompt(ContinueFromRawPromptParams {
-                grammar: None,
-                max_tokens: NonZeroU32::MIN,
-                raw_prompt: "hello".to_owned(),
-            }),
+            request: JsonRpcRequest::ContinueFromRawPrompt(raw_prompt_params()),
         })
     }
 
@@ -407,7 +412,8 @@ mod tests {
         );
         assert!(matches!(
             &dispatched_request,
-            PipelineRequest::ContinueFromRawPrompt(request) if request.params.raw_prompt == "hello"
+            PipelineRequest::ContinueFromRawPrompt(AgentRequest { params, .. })
+                if *params == raw_prompt_params()
         ));
         assert_eq!(
             context.request_stoppers.send_to("req_generate", ()),

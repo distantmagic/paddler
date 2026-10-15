@@ -137,12 +137,22 @@ mod tests {
         kill(grandchild, Signal::SIGKILL).unwrap();
         shell.wait().unwrap();
 
-        assert!(matches!(
-            pause_result,
-            Err(SubprocessClusterError::ProcessUnobservable {
-                pid,
+        let pause_error =
+            pause_result.expect_err("pausing a process this harness did not spawn must fail");
+
+        assert_eq!(
+            pause_error.to_string(),
+            SubprocessClusterError::ProcessUnobservable {
+                pid: grandchild,
                 source: Errno::ECHILD,
-            }) if pid == grandchild
-        ));
+            }
+            .to_string()
+        );
+        assert_eq!(
+            pause_error
+                .source()
+                .and_then(|source| source.downcast_ref::<Errno>()),
+            Some(&Errno::ECHILD)
+        );
     }
 }

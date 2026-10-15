@@ -9,6 +9,7 @@ use paddler_tests::sample_decision::sample_decision;
 use paddler_tests::start_decision_cluster::start_decision_cluster;
 
 const PROBABILITY_SUM_TOLERANCE: f32 = 1e-5;
+const SAMPLE_DECISION_INPUT_TOKENS: usize = 85;
 
 pub struct EveryDecisionQuestionAnsweredInOrder {
     pub decision_cluster_params: DecisionClusterParams,
@@ -41,9 +42,11 @@ impl EveryDecisionQuestionAnsweredInOrder {
         assert!(collected.answers.iter().all(|answer| {
             (answer.probabilities.iter().sum::<f32>() - 1.0).abs() < PROBABILITY_SUM_TOLERANCE
         }));
+
         assert!(matches!(
             collected.terminal_result,
-            DecisionResult::Done(DecisionSummary { input_tokens, .. }) if input_tokens > 0
+            DecisionResult::Done(DecisionSummary { input_tokens, .. })
+                if input_tokens == SAMPLE_DECISION_INPUT_TOKENS
         ));
 
         cluster

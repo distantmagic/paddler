@@ -2,8 +2,12 @@
 
 use std::num::NonZeroU32;
 
+use llama_cpp_bindings::GbnfValidationError;
+use llama_cpp_bindings::error::GrammarError;
 use tokio_util::sync::CancellationToken;
 
+use paddler_agent_runtime::rejection_description::rejection_description;
+use paddler_agent_text_generation::text_generation_error::TextGenerationError;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_messaging::grammar_constraint::GrammarConstraint;
 use paddler_messaging::request_params::continue_from_raw_prompt_params::ContinueFromRawPromptParams;
@@ -42,10 +46,17 @@ async fn agent_reports_grammar_syntax_error_for_malformed_gbnf() {
         .into_token_results();
 
     for token_results in [raw_prompt_results, conversation_results] {
-        assert!(matches!(
-            token_results.as_slice(),
-            [GeneratedTokenResult::GrammarSyntaxError(description)] if !description.is_empty()
-        ));
+        assert_eq!(
+            token_results,
+            vec![GeneratedTokenResult::GrammarSyntaxError(
+                rejection_description(
+                    Some("test-agent-0"),
+                    &TextGenerationError::GrammarInvalid(GrammarError::GrammarRejected(
+                        GbnfValidationError::SyntaxError
+                    ))
+                )
+            )]
+        );
     }
 
     cluster

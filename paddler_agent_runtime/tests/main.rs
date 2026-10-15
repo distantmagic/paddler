@@ -12,6 +12,7 @@ mod loading_a_model_while_another_backend_runs_reports_that_it_cannot_be_loaded;
 mod number_command;
 mod number_request_preparer;
 mod prepared_requests_reach_the_scheduler_before_its_shutdown;
+mod reports_ready_model_metadata;
 mod requests_the_preparation_rejects_never_reach_the_scheduler;
 mod scheduler_ran_after_handover;
 mod shutting_down_stops_the_scheduler_and_waits_for_its_thread;

@@ -3,13 +3,12 @@ use std::collections::BTreeMap;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent_runtime::run_scheduler_unless_startup_abandoned::run_scheduler_unless_startup_abandoned;
-use paddler_agent_runtime::scheduler_handle::SchedulerHandle;
 use paddler_agent_runtime::scheduler_ready::SchedulerReady;
-use paddler_agent_runtime::scheduler_spawn_outcome::SchedulerSpawnOutcome;
 use paddler_agent_runtime::start_scheduler_thread::start_scheduler_thread;
 use paddler_messaging::model_metadata::ModelMetadata;
 
 use crate::number_request_preparer::NumberRequestPreparer;
+use crate::reports_ready_model_metadata::ReportsReadyModelMetadata as _;
 
 #[tokio::test]
 async fn a_scheduler_that_signals_readiness_starts() {
@@ -39,9 +38,8 @@ async fn a_scheduler_that_signals_readiness_starts() {
     .await
     .expect("a scheduler that signalled readiness must start");
 
-    assert!(matches!(
-        spawn_outcome,
-        SchedulerSpawnOutcome::Ready(SchedulerHandle { model_metadata, .. })
-            if model_metadata == signalled_model_metadata
-    ));
+    assert_eq!(
+        spawn_outcome.ready_model_metadata(),
+        Some(&signalled_model_metadata)
+    );
 }

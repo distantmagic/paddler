@@ -14,17 +14,8 @@ use paddler_test_cluster_harness::unexpiring_shutdown_options::unexpiring_shutdo
 use crate::in_process_agent::InProcessAgent;
 
 pub struct InProcessAgentSpawner {
-    downloaded_models: TempDir,
-    management_address: String,
-}
-
-impl InProcessAgentSpawner {
-    pub fn new(management_address: String) -> Result<Self> {
-        Ok(Self {
-            downloaded_models: TempDir::new()?,
-            management_address,
-        })
-    }
+    pub downloaded_models: TempDir,
+    pub management_address: String,
 }
 
 impl AgentSpawner for InProcessAgentSpawner {

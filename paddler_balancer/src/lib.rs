@@ -5,6 +5,8 @@ pub mod agent_controller_pool;
 mod agent_controller_pool_total_slots;
 pub mod agent_controller_pool_updates;
 pub mod agent_controller_registration;
+#[cfg(test)]
+mod agent_controller_registration_agent_id;
 pub mod agent_controller_slot_guard;
 pub mod agent_controller_update_result;
 pub mod agent_desired_state_notification;

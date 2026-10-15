@@ -378,10 +378,20 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(matches!(
-            File::new(path.clone()).read_balancer_desired_state().await,
-            Err(StateDatabaseError::SchemaVersionUnsupported { found, path: unsupported_path })
-                if found == r#""1""# && unsupported_path == path
-        ));
+        assert_eq!(
+            File::new(path.clone())
+                .read_balancer_desired_state()
+                .await
+                .err()
+                .as_ref()
+                .map(ToString::to_string),
+            Some(
+                StateDatabaseError::SchemaVersionUnsupported {
+                    found: r#""1""#.to_owned(),
+                    path,
+                }
+                .to_string()
+            )
+        );
     }
 }

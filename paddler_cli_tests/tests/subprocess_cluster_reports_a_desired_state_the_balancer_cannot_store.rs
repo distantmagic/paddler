@@ -4,10 +4,12 @@ use std::os::unix::fs::PermissionsExt as _;
 
 use reqwest::StatusCode;
 use tempfile::TempDir;
+use url::Url;
 
 use paddler_cli_tests::start_subprocess_cluster::start_subprocess_cluster;
 use paddler_client::error::Error as ClientError;
 use paddler_messaging::agent_desired_model::AgentDesiredModel;
+use paddler_messaging::api_path::ApiPath;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_test_cluster_harness::cluster_desired_state::ClusterDesiredState;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
@@ -46,7 +48,15 @@ async fn subprocess_cluster_reports_a_desired_state_the_balancer_cannot_store() 
 
     assert!(matches!(
         start_error.downcast_ref::<ClientError>(),
-        Some(ClientError::UnexpectedResponseStatus { status, .. })
+        Some(ClientError::UnexpectedResponseStatus { message, status, url })
             if *status == StatusCode::INTERNAL_SERVER_ERROR
+                && *message
+                    == format!(
+                        "Unable to create the state database file '{}'",
+                        state_directory.path().join("state.json.next").display()
+                    )
+                && Url::parse(url).is_ok_and(|desired_state_url| {
+                    desired_state_url.path() == ApiPath::BALANCER_DESIRED_STATE
+                })
     ));
 }

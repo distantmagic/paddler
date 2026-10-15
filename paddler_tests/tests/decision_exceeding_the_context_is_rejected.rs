@@ -14,6 +14,7 @@ use paddler_tests::start_decision_cluster::start_decision_cluster;
 
 const SMALL_CONTEXT_SIZE: u32 = 256;
 const STATE_REPETITIONS_EXCEEDING_THE_CONTEXT: usize = 20;
+const TOKENS_REQUIRED_BY_THE_REPEATED_STATE_DECISION: usize = 602;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn decision_exceeding_the_context_is_rejected() {
@@ -39,13 +40,13 @@ async fn decision_exceeding_the_context_is_rejected() {
         .expect("the oversized decision must be answered with a rejection");
 
     assert!(collected.answers.is_empty());
-    assert!(matches!(
+    assert_eq!(
         collected.terminal_result,
         DecisionResult::RequestExceedsContext(OversizedDecisionDetails {
-            context_size,
-            required_tokens,
-        }) if context_size >= SMALL_CONTEXT_SIZE && required_tokens > context_size as usize
-    ));
+            context_size: SMALL_CONTEXT_SIZE,
+            required_tokens: TOKENS_REQUIRED_BY_THE_REPEATED_STATE_DECISION,
+        })
+    );
 
     cluster
         .shutdown()

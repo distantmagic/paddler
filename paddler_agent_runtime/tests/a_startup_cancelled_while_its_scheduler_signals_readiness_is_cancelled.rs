@@ -11,12 +11,12 @@ use tokio_util::sync::CancellationToken;
 
 use paddler_agent_runtime::await_scheduler_startup::await_scheduler_startup;
 use paddler_agent_runtime::scheduler_ready::SchedulerReady;
-use paddler_agent_runtime::scheduler_spawn_outcome::SchedulerSpawnOutcome;
 use paddler_agent_runtime::send_startup_signal::send_startup_signal;
 use paddler_agent_runtime::startup_signal_delivery::StartupSignalDelivery;
 use paddler_messaging::model_metadata::ModelMetadata;
 
 use crate::number_request_preparer::NumberRequestPreparer;
+use crate::reports_ready_model_metadata::ReportsReadyModelMetadata as _;
 
 #[tokio::test]
 async fn a_startup_cancelled_while_its_scheduler_signals_readiness_is_cancelled() {
@@ -68,11 +68,10 @@ async fn a_startup_cancelled_while_its_scheduler_signals_readiness_is_cancelled(
     cancellation_token.cancel();
 
     assert_eq!(
-        discriminant(
-            &startup
-                .await
-                .expect("a cancelled startup must join its scheduler thread")
-        ),
-        discriminant(&SchedulerSpawnOutcome::Cancelled)
+        startup
+            .await
+            .expect("a cancelled startup must join its scheduler thread")
+            .ready_model_metadata(),
+        None
     );
 }

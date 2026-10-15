@@ -206,13 +206,14 @@ mod tests {
                 .to_string(),
             );
 
-            assert!(matches!(
-                response_rx.try_recv(),
-                Ok(Ok(InferenceMessage::Response(ResponseEnvelope {
-                    response,
-                    ..
-                }))) if response == terminal_response
-            ));
+            assert_eq!(
+                response_rx.try_recv().ok().and_then(Result::ok),
+                Some(InferenceMessage::Response(ResponseEnvelope {
+                    generated_by: None,
+                    request_id: "request-1".to_owned(),
+                    response: terminal_response,
+                }))
+            );
             assert!(
                 response_rx
                     .try_recv()

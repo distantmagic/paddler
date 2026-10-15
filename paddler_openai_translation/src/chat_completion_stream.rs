@@ -288,18 +288,20 @@ mod tests {
 
     #[test]
     fn passes_generation_failures_through() {
-        assert!(matches!(
-            chat_completion_stream(false).advance(
-                "test-request",
-                GenerationEvent::Failed(GenerationFailure {
-                    cause: GenerationFailureCause::AgentFailed,
-                    message: "sampler blew up".to_owned(),
-                }),
-            ),
-            Err(GenerationFailure {
+        assert_eq!(
+            chat_completion_stream(false)
+                .advance(
+                    "test-request",
+                    GenerationEvent::Failed(GenerationFailure {
+                        cause: GenerationFailureCause::AgentFailed,
+                        message: "sampler blew up".to_owned(),
+                    }),
+                )
+                .err(),
+            Some(GenerationFailure {
                 cause: GenerationFailureCause::AgentFailed,
-                message,
-            }) if message == "sampler blew up"
-        ));
+                message: "sampler blew up".to_owned(),
+            })
+        );
     }
 }

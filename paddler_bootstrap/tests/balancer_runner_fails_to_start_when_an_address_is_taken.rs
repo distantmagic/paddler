@@ -1,3 +1,6 @@
+use std::error::Error;
+use std::io::Error as IoError;
+use std::io::ErrorKind;
 use std::net::TcpListener;
 
 use tokio_util::sync::CancellationToken;
@@ -89,10 +92,26 @@ async fn balancer_runner_fails_to_start_when_its_compat_typesafe_address_is_take
             addr: ResolvedSocketAddr::from(taken_addr),
         });
 
-    assert!(matches!(
-        start_error_of(params).await,
-        Some(BootstrapError::CompatTypeSafeBindFailed { addr, .. }) if addr == taken_addr
-    ));
+    let start_error = start_error_of(params).await;
+
+    assert_eq!(
+        start_error.as_ref().map(ToString::to_string),
+        Some(
+            BootstrapError::CompatTypeSafeBindFailed {
+                addr: taken_addr,
+                source: IoError::from(ErrorKind::AddrInUse),
+            }
+            .to_string()
+        )
+    );
+    assert_eq!(
+        start_error
+            .as_ref()
+            .and_then(Error::source)
+            .and_then(|source| source.downcast_ref::<IoError>())
+            .map(IoError::kind),
+        Some(ErrorKind::AddrInUse)
+    );
 }
 
 #[cfg(feature = "web_admin_panel")]

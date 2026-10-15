@@ -152,9 +152,11 @@ mod tests {
 
     use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
     use paddler_agent_text_generation::multimodal_projection::MultimodalProjection;
+    use paddler_agent_text_generation::text_generation_settings::TextGenerationSettings;
     use paddler_cache_dir::cache_dir::CacheDir;
     use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
     use paddler_inference_parameters::pooling_type::PoolingType;
+    use paddler_inference_parameters::sampling_parameters::SamplingParameters;
     use paddler_messaging::agent_desired_model::AgentDesiredModel;
     use paddler_messaging::agent_desired_state::AgentDesiredState;
     use paddler_messaging::agent_inference_settings::AgentInferenceSettings;
@@ -440,22 +442,27 @@ mod tests {
         let model_file = NamedTempFile::new().unwrap();
         let projection_file = NamedTempFile::new().unwrap();
 
-        let conversion = converted(&desired_state(
-            local_model(&model_file),
-            local_model(&projection_file),
-        ))
-        .await;
-
-        assert!(matches!(
-            conversion,
-            Some(AgentDesiredStateConversion::Converted(AgentApplicableState::TextGeneration {
-                model_path,
-                text_generation_settings,
-                ..
-            })) if model_path == model_file.path()
-                && text_generation_settings.multimodal_projection
-                    == MultimodalProjection::File(projection_file.path().to_path_buf())
-        ));
+        assert_eq!(
+            converted(&desired_state(
+                local_model(&model_file),
+                local_model(&projection_file),
+            ))
+            .await,
+            Some(AgentDesiredStateConversion::Converted(
+                AgentApplicableState::TextGeneration {
+                    model_path: model_file.path().to_path_buf(),
+                    model_runtime_parameters: ModelRuntimeParameters::default(),
+                    text_generation_settings: TextGenerationSettings {
+                        chat_template_source: ChatTemplateSource::default(),
+                        image_resize_to_fit: MultimodalSettings::default().image_resize_to_fit,
+                        multimodal_projection: MultimodalProjection::File(
+                            projection_file.path().to_path_buf()
+                        ),
+                        sampling_parameters: SamplingParameters::default(),
+                    },
+                }
+            ))
+        );
     }
 
     #[tokio::test]

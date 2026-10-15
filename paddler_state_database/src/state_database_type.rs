@@ -19,7 +19,7 @@ fn relative_path_error(path: &str) -> StateDatabaseError {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum StateDatabaseType {
     File(PathBuf),
     Memory(Box<StoredBalancerDesiredState>),
@@ -78,13 +78,10 @@ mod tests {
 
     #[test]
     fn parses_a_memory_url_into_an_empty_database() {
-        let result = StateDatabaseType::from_str("memory://").unwrap();
-
-        assert!(matches!(
-            result,
-            StateDatabaseType::Memory(stored_balancer_desired_state)
-                if *stored_balancer_desired_state == StoredBalancerDesiredState::NothingStored
-        ));
+        assert_eq!(
+            StateDatabaseType::from_str("memory://").unwrap(),
+            StateDatabaseType::Memory(Box::new(StoredBalancerDesiredState::NothingStored))
+        );
     }
 
     #[test]
@@ -123,10 +120,9 @@ mod tests {
 
     #[test]
     fn parses_a_file_url_with_an_absolute_path() {
-        let result = StateDatabaseType::from_str("file:///absolute/path").unwrap();
-
-        assert!(
-            matches!(&result, StateDatabaseType::File(path) if path == &PathBuf::from("/absolute/path"))
+        assert_eq!(
+            StateDatabaseType::from_str("file:///absolute/path").unwrap(),
+            StateDatabaseType::File(PathBuf::from("/absolute/path"))
         );
     }
 

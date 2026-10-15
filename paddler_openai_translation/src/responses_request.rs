@@ -317,10 +317,12 @@ mod tests {
             "text": { "format": { "type": "json_schema", "name": "out", "schema": { "type": "object" } } }
         }));
 
-        assert!(matches!(
-            &translated.conversation_history_params.grammar,
-            Some(GrammarConstraint::JsonSchema { schema }) if schema == r#"{"type":"object"}"#
-        ));
+        assert_eq!(
+            translated.conversation_history_params.grammar,
+            Some(GrammarConstraint::JsonSchema {
+                schema: r#"{"type":"object"}"#.to_owned(),
+            })
+        );
     }
 
     #[test]
@@ -435,11 +437,20 @@ mod tests {
         }))
         .unwrap();
 
-        assert!(matches!(
-            params.translate(UNIX_EPOCH, &SamplingParameters::default()),
-            Err(OpenAITranslationError::ToolRejected(
-                RequestParamsValidationError::RequiredFieldNotInProperties { field }
-            )) if field == "absent"
-        ));
+        assert_eq!(
+            params
+                .translate(UNIX_EPOCH, &SamplingParameters::default())
+                .err()
+                .as_ref()
+                .map(ToString::to_string),
+            Some(
+                OpenAITranslationError::ToolRejected(
+                    RequestParamsValidationError::RequiredFieldNotInProperties {
+                        field: "absent".to_owned(),
+                    }
+                )
+                .to_string()
+            )
+        );
     }
 }

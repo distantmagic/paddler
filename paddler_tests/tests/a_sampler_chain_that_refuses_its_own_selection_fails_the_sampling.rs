@@ -4,7 +4,9 @@ use llama_cpp_bindings::error::SamplerAcceptError;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
 use llama_cpp_bindings::model::AddBos;
 use llama_cpp_bindings::model::ParseSpecialTokens;
+use llama_cpp_bindings::sampled_token::SampledToken;
 use llama_cpp_bindings::sampling::LlamaSampler;
+use llama_cpp_bindings::token::LlamaToken;
 use llama_cpp_bindings::token::data_array::LlamaTokenDataArray;
 
 use paddler_agent_text_generation::grammar_sampling::GrammarSampling;
@@ -13,6 +15,8 @@ use paddler_agent_text_generation::token_sampling::TokenSampling;
 use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
 use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::llama_runtime::LlamaRuntime;
+
+const GREEDY_SELECTION_AFTER_THE_PROMPT: LlamaToken = LlamaToken::new(264);
 
 #[test]
 fn a_sampler_chain_that_refuses_its_own_selection_fails_the_sampling() {
@@ -42,6 +46,14 @@ fn a_sampler_chain_that_refuses_its_own_selection_fails_the_sampling() {
         .decode(&mut batch)
         .expect("the prompt must decode");
 
+    assert!(
+        !runtime
+            .loaded_llama_model
+            .model
+            .is_eog_token(&SampledToken::Content(GREEDY_SELECTION_AFTER_THE_PROMPT)),
+        "llama.cpp aborts instead of reporting a grammar that refuses an end-of-generation token"
+    );
+
     let grammar_refusing_every_prose_token = LlamaSampler::grammar(
         &runtime.loaded_llama_model.model,
         r#"root ::= "{{{{{{""#,
@@ -69,8 +81,10 @@ fn a_sampler_chain_that_refuses_its_own_selection_fails_the_sampling() {
         Some(
             TextGenerationError::SamplerChainRejectedToken(
                 SamplerAcceptError::GrammarStateCorrupted {
-                    message: "Unexpected empty grammar stack after accepting piece:  a (264)"
-                        .to_owned(),
+                    message: format!(
+                        "Unexpected empty grammar stack after accepting piece:  a ({})",
+                        GREEDY_SELECTION_AFTER_THE_PROMPT.0
+                    ),
                 }
             )
             .to_string()

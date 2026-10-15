@@ -118,6 +118,10 @@ impl ModelSource {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error as _;
+
+    use url::ParseError;
+
     use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
     use paddler_download_manager::download_error::DownloadError;
     use paddler_download_manager::download_url::DownloadUrl;
@@ -168,11 +172,18 @@ mod tests {
         ] {
             let slot_aggregated_status = SlotAggregatedStatus::new(1);
 
-            assert!(matches!(
-                ModelSource::parse(uri, &slot_aggregated_status),
-                Err(ModelSourceError::HuggingFaceModelUriMalformed { uri: rejected_uri })
-                    if rejected_uri == uri
-            ));
+            assert_eq!(
+                ModelSource::parse(uri, &slot_aggregated_status)
+                    .err()
+                    .as_ref()
+                    .map(ToString::to_string),
+                Some(
+                    ModelSourceError::HuggingFaceModelUriMalformed {
+                        uri: uri.to_owned(),
+                    }
+                    .to_string()
+                )
+            );
             assert!(
                 slot_aggregated_status
                     .has_issue(&AgentIssue::HuggingFaceModelUriIsMalformed(model_path(uri)))
@@ -227,11 +238,23 @@ mod tests {
     #[test]
     fn rejects_an_unparseable_uri() {
         let slot_aggregated_status = SlotAggregatedStatus::new(1);
+        let parse_error = ModelSource::parse("not a uri", &slot_aggregated_status)
+            .expect_err("a uri that is not a url must be rejected");
 
-        assert!(matches!(
-            ModelSource::parse("not a uri", &slot_aggregated_status),
-            Err(ModelSourceError::ModelUriUnparseable { uri, .. }) if uri == "not a uri"
-        ));
+        assert_eq!(
+            parse_error.to_string(),
+            ModelSourceError::ModelUriUnparseable {
+                source: ParseError::RelativeUrlWithoutBase,
+                uri: "not a uri".to_owned(),
+            }
+            .to_string()
+        );
+        assert_eq!(
+            parse_error
+                .source()
+                .and_then(|source| source.downcast_ref::<ParseError>()),
+            Some(&ParseError::RelativeUrlWithoutBase)
+        );
         assert!(
             slot_aggregated_status
                 .has_issue(&AgentIssue::ModelUriIsUnparseable(model_path("not a uri")))
@@ -242,14 +265,28 @@ mod tests {
     fn rejects_a_uri_that_cannot_be_downloaded() {
         let slot_aggregated_status = SlotAggregatedStatus::new(1);
         let uri = "ftp://example.com/model.gguf";
+        let unsupported_scheme = || DownloadError::UnsupportedUrlScheme {
+            scheme: "ftp".to_owned(),
+            url: uri.to_owned(),
+        };
+        let parse_error = ModelSource::parse(uri, &slot_aggregated_status)
+            .expect_err("a uri with a scheme that cannot be downloaded must be rejected");
 
-        assert!(matches!(
-            ModelSource::parse(uri, &slot_aggregated_status),
-            Err(ModelSourceError::ModelUriNotDownloadable {
-                source: DownloadError::UnsupportedUrlScheme { scheme, .. },
-                ..
-            }) if scheme == "ftp"
-        ));
+        assert_eq!(
+            parse_error.to_string(),
+            ModelSourceError::ModelUriNotDownloadable {
+                source: unsupported_scheme(),
+                uri: uri.to_owned(),
+            }
+            .to_string()
+        );
+        assert_eq!(
+            parse_error
+                .source()
+                .and_then(|source| source.downcast_ref::<DownloadError>())
+                .map(ToString::to_string),
+            Some(unsupported_scheme().to_string())
+        );
         assert!(
             slot_aggregated_status.has_issue(&AgentIssue::DownloadUrlIsMalformed(model_path(uri)))
         );

@@ -11,6 +11,7 @@ use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_messaging::inference_client::message::Message as InferenceMessage;
 use paddler_messaging::inference_client::response::Response as InferenceResponse;
 use paddler_messaging::inference_mode::InferenceMode;
+use paddler_messaging::jsonrpc::response_envelope::ResponseEnvelope;
 use paddler_messaging::request_params::continue_from_raw_prompt_params::ContinueFromRawPromptParams;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_test_cluster_harness::cluster_desired_state::ClusterDesiredState;
@@ -61,14 +62,18 @@ async fn balancer_inference_socket_recovers_from_embeddings_mode() {
         .expect("the inference socket must answer while serving embeddings")
         .expect("the answer must be readable");
 
+    let expected_response =
+        InferenceResponse::GeneratedToken(GeneratedTokenResult::InferenceModeMismatch(
+            "The cluster serves Embeddings, not TextGeneration".to_owned(),
+        ));
+
     assert!(matches!(
         refused_message,
-        InferenceMessage::Response(envelope)
-            if matches!(
-                &envelope.response,
-                InferenceResponse::GeneratedToken(GeneratedTokenResult::InferenceModeMismatch(description))
-                    if description == "The cluster serves Embeddings, not TextGeneration"
-            )
+        InferenceMessage::Response(ResponseEnvelope {
+            generated_by: None,
+            response,
+            ..
+        }) if response == expected_response
     ));
 
     let connect_notification = next_reported_cluster_inference_mode(&mut cluster_inference_mode_rx)

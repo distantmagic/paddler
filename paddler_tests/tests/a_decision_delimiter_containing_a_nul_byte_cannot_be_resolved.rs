@@ -1,5 +1,7 @@
 #![cfg(feature = "tests_that_use_llms")]
 
+use std::ffi::CString;
+
 use llama_cpp_bindings::error::StringToTokenError;
 
 use paddler_agent_decision::decision_delimiter_tokens::DecisionDelimiterTokens;
@@ -19,18 +21,26 @@ fn a_decision_delimiter_containing_a_nul_byte_cannot_be_resolved() {
     .expect("the kev decision model must load");
     let pointer_head = kev_0_8b_pointer_head().expect("the kev pointer head must load");
     let delimiter_with_nul_byte = format!("{}\0", pointer_head.delimiters.decide);
+    let nul_error = CString::new(delimiter_with_nul_byte.clone())
+        .expect_err("the delimiter must contain a nul byte");
 
-    assert!(matches!(
+    assert_eq!(
         DecisionDelimiterTokens::resolve(
             runtime.loaded_llama_model.model.as_ref(),
             &PointerHeadDelimiters {
                 decide: delimiter_with_nul_byte.clone(),
                 ..pointer_head.delimiters
             },
-        ),
-        Err(DecisionError::DelimiterTokenizationFailed {
-            delimiter,
-            source: StringToTokenError::NulError(_),
-        }) if delimiter == delimiter_with_nul_byte
-    ));
+        )
+        .err()
+        .as_ref()
+        .map(ToString::to_string),
+        Some(
+            DecisionError::DelimiterTokenizationFailed {
+                delimiter: delimiter_with_nul_byte,
+                source: StringToTokenError::NulError(nul_error),
+            }
+            .to_string()
+        )
+    );
 }

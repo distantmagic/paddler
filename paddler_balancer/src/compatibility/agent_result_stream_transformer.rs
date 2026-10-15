@@ -80,7 +80,7 @@ mod tests {
 
     #[tokio::test]
     async fn relays_results_with_their_request_id() {
-        assert!(matches!(
+        assert_eq!(
             AgentResultStreamTransformer::<DecisionResult>::default()
                 .transform(OutgoingMessage::Response(ResponseEnvelope {
                     generated_by: None,
@@ -90,49 +90,57 @@ mod tests {
                     )),
                 }))
                 .await
-                .as_deref(),
-            Ok([AgentResultStreamEvent::Result {
-                request_id,
-                result: DecisionResult::SchedulerUnavailable(detail),
-            }]) if request_id == "decision-request" && detail == "unavailable"
-        ));
+                .ok(),
+            Some(vec![AgentResultStreamEvent::Result {
+                request_id: "decision-request".to_owned(),
+                result: DecisionResult::SchedulerUnavailable("unavailable".to_owned()),
+            }])
+        );
     }
 
     #[tokio::test]
     async fn relays_wire_errors() {
-        assert!(matches!(
+        let timed_out = || JsonRpcError {
+            code: 504,
+            description: "timed out".to_owned(),
+        };
+
+        assert_eq!(
             AgentResultStreamTransformer::<DecisionResult>::default()
                 .transform(OutgoingMessage::Error(ErrorEnvelope {
-                    error: JsonRpcError {
-                        code: 504,
-                        description: "timed out".to_owned(),
-                    },
+                    error: timed_out(),
                     request_id: "decision-request".to_owned(),
                 }))
                 .await
-                .as_deref(),
-            Ok([AgentResultStreamEvent::WireError(JsonRpcError { code: 504, description })])
-                if description == "timed out"
-        ));
+                .ok(),
+            Some(vec![AgentResultStreamEvent::WireError(timed_out())])
+        );
     }
 
     #[tokio::test]
     async fn refuses_to_relay_a_response_of_another_inference_mode() {
-        assert!(matches!(
+        let embedding_response = || {
+            OutgoingMessage::Response(ResponseEnvelope {
+                generated_by: None,
+                request_id: "embedding-request".to_owned(),
+                response: OutgoingResponse::Embedding(EmbeddingResult::Done),
+            })
+        };
+
+        assert_eq!(
             AgentResultStreamTransformer::<DecisionResult>::default()
-                .transform(OutgoingMessage::Response(ResponseEnvelope {
-                    generated_by: None,
-                    request_id: "embedding-request".to_owned(),
-                    response: OutgoingResponse::Embedding(EmbeddingResult::Done),
-                }))
-                .await,
-            Err(AgentRelayError::MessageNotRelayable { message })
-                if matches!(
-                    *message,
-                    OutgoingMessage::Response(ResponseEnvelope { ref request_id, .. })
-                        if request_id == "embedding-request"
-                )
-        ));
+                .transform(embedding_response())
+                .await
+                .err()
+                .as_ref()
+                .map(ToString::to_string),
+            Some(
+                AgentRelayError::MessageNotRelayable {
+                    message: Box::new(embedding_response()),
+                }
+                .to_string()
+            )
+        );
     }
 
     #[tokio::test]

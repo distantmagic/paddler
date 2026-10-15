@@ -19,22 +19,34 @@ fn questions_with_too_many_or_no_criteria_are_refused() {
         .map(|option| (format!("option-{option}"), Value::Null))
         .collect();
 
-    assert!(matches!(
+    assert_eq!(
         request_with_question(json!({"type": "choice", "criteria": too_many_choices}))
             .expect("the request must parse")
-            .translate(),
-        Err(TypeSafeTranslationError::ChoiceCriteriaOutOfRange {
-            criteria_count,
-            ..
-        }) if criteria_count == TOO_MANY_CRITERIA
-    ));
-    assert!(matches!(
+            .translate()
+            .err()
+            .as_ref()
+            .map(ToString::to_string),
+        Some(
+            TypeSafeTranslationError::ChoiceCriteriaOutOfRange {
+                criteria_count: TOO_MANY_CRITERIA,
+                question_id: "question".to_owned(),
+            }
+            .to_string()
+        )
+    );
+    assert_eq!(
         request_with_question(json!({"type": "score", "criteria": []}))
             .expect("the request must parse")
-            .translate(),
-        Err(TypeSafeTranslationError::ScoreCriteriaOutOfRange {
-            criteria_count,
-            ..
-        }) if criteria_count == 0
-    ));
+            .translate()
+            .err()
+            .as_ref()
+            .map(ToString::to_string),
+        Some(
+            TypeSafeTranslationError::ScoreCriteriaOutOfRange {
+                criteria_count: 0,
+                question_id: "question".to_owned(),
+            }
+            .to_string()
+        )
+    );
 }
