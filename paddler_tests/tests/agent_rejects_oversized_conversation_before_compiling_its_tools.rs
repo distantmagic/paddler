@@ -17,6 +17,7 @@ use paddler_messaging::request_params::continue_from_conversation_history_params
 use paddler_messaging::request_params::continue_from_conversation_history_params::tool::tool_params::function_call::parameters::Parameters;
 use paddler_messaging::request_params::continue_from_conversation_history_params::tool::tool_params::function_call::parameters_schema::validated_parameters_schema::ValidatedParametersSchema;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
+use paddler_tests::oversized_text::oversized_text;
 use paddler_tests::start_cluster_with_qwen3_and_context_size::start_cluster_with_qwen3_and_context_size;
 
 const SEQUENCE_CONTEXT_SIZE: u32 = 256;
@@ -39,9 +40,7 @@ async fn agent_rejects_oversized_conversation_before_compiling_its_tools() {
             &ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
                 conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Text(
-                        "The quick brown fox jumps over the lazy dog. ".repeat(40),
-                    ),
+                    content: ConversationMessageContent::Text(oversized_text()),
                     role: "user".to_owned(),
                 }]),
                 enable_thinking: false,

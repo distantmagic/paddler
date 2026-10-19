@@ -29,7 +29,6 @@ impl ServingPipelineArbiter {
 
         Self {
             desired_state_reconciler: DesiredStateReconciler {
-                agent_applicable_state_holder: Arc::new(AgentApplicableStateHolder::default()),
                 cache_dir: CacheDir::from_process_env(),
                 slot_aggregated_status: inference_runtime_context.slot_aggregated_status.clone(),
             },
@@ -42,16 +41,22 @@ impl ServingPipelineArbiter {
         }
     }
 
-    pub async fn serve(
-        &mut self,
-        desired_state: BalancerDesiredState,
-    ) -> DesiredStateReconciliation {
+    pub async fn serve(&mut self, desired_state: BalancerDesiredState) {
         let desired_state_reconciliation = self.apply(desired_state).await;
-        let finished_serving_startup = self.pipeline_arbiter.next_finished_startup().await;
 
-        self.pipeline_arbiter.conclude(finished_serving_startup);
+        assert!(matches!(
+            desired_state_reconciliation,
+            DesiredStateReconciliation::Reconciled(_)
+        ));
 
-        desired_state_reconciliation
+        self.conclude_next_progress().await;
+        self.conclude_next_progress().await;
+    }
+
+    pub async fn conclude_next_progress(&mut self) {
+        let serving_startup_progress = self.pipeline_arbiter.next_finished_startup().await;
+
+        self.pipeline_arbiter.conclude(serving_startup_progress);
     }
 
     pub async fn apply(
@@ -66,11 +71,11 @@ impl ServingPipelineArbiter {
             )
             .await;
 
-        self.pipeline_arbiter.apply(
-            self.desired_state_reconciler
-                .agent_applicable_state_holder
-                .get_agent_applicable_state(),
-        );
+        if let DesiredStateReconciliation::Reconciled(agent_applicable_state) =
+            &desired_state_reconciliation
+        {
+            self.pipeline_arbiter.apply(*agent_applicable_state.clone());
+        }
 
         desired_state_reconciliation
     }

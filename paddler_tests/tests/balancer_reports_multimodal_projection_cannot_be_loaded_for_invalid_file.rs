@@ -3,6 +3,7 @@
 use paddler_messaging::agent_issue::AgentIssue;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_model_source::model_source::ModelSource;
+use paddler_test_cluster_harness::agent_desired_model_at::agent_desired_model_at;
 use paddler_test_cluster_harness::fixture_path::fixture_path;
 use paddler_test_cluster_harness::model_card::ModelCard;
 use paddler_test_cluster_harness::model_card::qwen3_0_6b::qwen3_0_6b;
@@ -19,7 +20,8 @@ async fn balancer_reports_multimodal_projection_cannot_be_loaded_for_invalid_fil
                 model: ModelSource::HuggingFace(reference).into_agent_desired_model(),
                 ..BalancerDesiredState::default()
             },
-            ModelSource::LocalToAgent(projection_path.clone()).into_agent_desired_model(),
+            agent_desired_model_at(&fixture_path("invalid_mmproj.gguf"))
+                .expect("the invalid projection fixture path must be absolute"),
         ))
         .await
         .expect("a single-agent cluster must start");

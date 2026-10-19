@@ -1,3 +1,5 @@
+use std::num::NonZeroU16;
+
 use paddler_agent_runtime::sequence_id_guard::SequenceIdGuard;
 use paddler_agent_runtime::sequence_id_pool::SequenceIdPool;
 
@@ -17,9 +19,9 @@ impl DecisionCapacityLedger {
     }
 
     #[must_use]
-    pub fn admit(&self, needs_question_lane: bool) -> Option<DecisionAdmission> {
+    pub fn admit(&self, reserved_slots: NonZeroU16) -> Option<DecisionAdmission> {
         let state_sequence = SequenceIdGuard::acquire(&self.sequence_id_pool)?;
-        let question_lane = if needs_question_lane {
+        let question_lane = if reserved_slots > NonZeroU16::MIN {
             QuestionLane::Reserved(SequenceIdGuard::acquire(&self.sequence_id_pool)?)
         } else {
             QuestionLane::Released
@@ -34,34 +36,38 @@ impl DecisionCapacityLedger {
 
 #[cfg(test)]
 mod tests {
+    use std::num::NonZeroU16;
+
+    use paddler_messaging::decision_slots_minimum::DECISION_SLOTS_MINIMUM;
+
     use super::DecisionCapacityLedger;
 
     #[test]
     fn a_single_question_decision_takes_only_its_state_sequence() {
         let ledger = DecisionCapacityLedger::new(2);
         let _first_admission = ledger
-            .admit(false)
+            .admit(NonZeroU16::MIN)
             .expect("one free sequence fits a single question");
 
-        assert!(ledger.admit(false).is_some());
+        assert!(ledger.admit(NonZeroU16::MIN).is_some());
     }
 
     #[test]
     fn a_multi_question_decision_waits_for_a_free_question_lane() {
         let ledger = DecisionCapacityLedger::new(1);
 
-        assert!(ledger.admit(true).is_none());
+        assert!(ledger.admit(DECISION_SLOTS_MINIMUM).is_none());
     }
 
     #[test]
     fn a_decision_runs_once_the_sequences_of_a_finished_one_are_returned() {
         let ledger = DecisionCapacityLedger::new(2);
-        let first_admission = ledger.admit(true);
+        let first_admission = ledger.admit(DECISION_SLOTS_MINIMUM);
 
-        assert!(ledger.admit(false).is_none());
+        assert!(ledger.admit(NonZeroU16::MIN).is_none());
 
         drop(first_admission);
 
-        assert!(ledger.admit(false).is_some());
+        assert!(ledger.admit(NonZeroU16::MIN).is_some());
     }
 }

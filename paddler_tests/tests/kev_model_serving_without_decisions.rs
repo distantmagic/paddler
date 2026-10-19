@@ -5,13 +5,11 @@ use std::num::NonZeroU32;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent::applicable_decisions::ApplicableDecisions;
-use paddler_agent::capability_plan::CapabilityPlan;
 use paddler_agent::capability_starter::CapabilityStarter;
 use paddler_agent::inference_capabilities::InferenceCapabilities;
 use paddler_agent::loaded_model_serving_plan::LoadedModelServingPlan;
 use paddler_agent::model_serving_settings::ModelServingSettings;
 use paddler_agent::prepared_decisions::PreparedDecisions;
-use paddler_agent::prepared_decisions_plan::PreparedDecisionsPlan;
 use paddler_agent::served_model::ServedModel;
 use paddler_agent_text_generation::multimodal_projection::MultimodalProjection;
 use paddler_agent_text_generation::text_generation_settings::TextGenerationSettings;
@@ -51,16 +49,15 @@ impl KevModelServingWithoutDecisions {
             cancellation_token: agent_shutdown,
             inference_runtime_context: &llama_runtime.inference_runtime_context,
         }
-        .serve(LoadedModelServingPlan {
-            capability_plans: InferenceCapabilities {
-                decisions: PreparedDecisionsPlan::Start(PreparedDecisions::Disabled),
-                embeddings: CapabilityPlan::Start,
-                text_generation: CapabilityPlan::Start,
-            },
-            loaded_llama_model: llama_runtime.loaded_llama_model.clone(),
-            model_serving_settings: model_serving_settings.clone(),
-        })
+        .serve(
+            LoadedModelServingPlan::starting_every_capability(
+                llama_runtime.loaded_llama_model.clone(),
+                model_serving_settings.clone(),
+            ),
+            PreparedDecisions::Disabled,
+        )
         .await
+        .map_err(|serving_interruption| serving_interruption.interruption)
         .expect("text generation and embeddings must start");
 
         Self {

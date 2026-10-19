@@ -10,6 +10,7 @@ use paddler_messaging::conversation_message_content::ConversationMessageContent;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_messaging::request_params::continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
+use paddler_tests::oversized_text::oversized_text;
 use paddler_tests::start_cluster_with_qwen3_and_context_size::start_cluster_with_qwen3_and_context_size;
 
 const SEQUENCE_CONTEXT_SIZE: u32 = 256;
@@ -29,9 +30,7 @@ async fn agent_rejects_conversation_exceeding_sequence_context() {
             &ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
                 conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Text(
-                        "The quick brown fox jumps over the lazy dog. ".repeat(40),
-                    ),
+                    content: ConversationMessageContent::Text(oversized_text()),
                     role: "user".to_owned(),
                 }]),
                 enable_thinking: false,

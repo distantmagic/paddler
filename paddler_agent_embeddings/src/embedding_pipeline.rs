@@ -1,8 +1,8 @@
 use std::sync::Arc;
-use std::sync::mpsc::channel;
 
 use llama_cpp_bindings::llama_batch::LlamaBatch;
 use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::unbounded_channel;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
@@ -86,7 +86,7 @@ impl EmbeddingPipeline {
                     desired_slots_total,
                 );
 
-                let (scheduler_message_tx, scheduler_message_rx) = channel();
+                let (scheduler_message_tx, scheduler_message_rx) = unbounded_channel();
 
                 run_scheduler_unless_startup_abandoned(
                     scheduler_startup_tx,

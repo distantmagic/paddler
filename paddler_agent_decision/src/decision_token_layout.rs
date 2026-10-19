@@ -80,11 +80,6 @@ impl DecisionTokenLayout {
     }
 
     #[must_use]
-    pub fn needs_question_lane(&self) -> bool {
-        !self.remaining_questions.is_empty()
-    }
-
-    #[must_use]
     pub fn required_cells(&self) -> usize {
         self.state.len()
             + self
@@ -176,7 +171,7 @@ mod tests {
     }
 
     #[test]
-    fn a_single_question_is_the_first_question_and_needs_no_question_lane() {
+    fn a_single_question_is_the_first_question() {
         let layout = DecisionTokenLayout::new(
             &delimiter_tokens(),
             tokens(&[10]),
@@ -185,7 +180,7 @@ mod tests {
         );
 
         assert_eq!(layout.first_question.id, "last");
-        assert!(!layout.needs_question_lane());
+        assert!(layout.remaining_questions.is_empty());
     }
 
     #[test]

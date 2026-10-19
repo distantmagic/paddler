@@ -1,6 +1,7 @@
 use clap::ValueEnum;
 
 use paddler_messaging::decision_slots_minimum::DECISION_SLOTS_MINIMUM;
+use paddler_model_source::model_source_error::ModelSourceError;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_test_cluster_harness::cluster_desired_state::ClusterDesiredState;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
@@ -19,12 +20,11 @@ pub enum TestClusterPreset {
 }
 
 impl TestClusterPreset {
-    #[must_use]
-    pub fn cluster_params(self) -> ClusterParams {
-        match self {
+    pub fn cluster_params(self) -> Result<ClusterParams, ModelSourceError> {
+        Ok(match self {
             Self::Kev0_8b => ClusterParams {
                 agents: AgentConfig::uniform(1, DECISION_SLOTS_MINIMUM.get()),
-                desired_state: ClusterDesiredState::Apply(Box::new(kev_0_8b_desired_state())),
+                desired_state: ClusterDesiredState::Apply(Box::new(kev_0_8b_desired_state()?)),
                 ..ClusterParams::default()
             },
             Self::Qwen3_0_6b => ClusterParams {
@@ -32,6 +32,6 @@ impl TestClusterPreset {
                 desired_state: ClusterDesiredState::Apply(Box::new(qwen3_desired_state())),
                 ..ClusterParams::default()
             },
-        }
+        })
     }
 }

@@ -2,6 +2,8 @@ use std::net::SocketAddr;
 
 use futures_util::SinkExt as _;
 use futures_util::StreamExt as _;
+use futures_util::future::ready;
+use serde_json::from_str;
 use tokio::net::TcpStream;
 use tokio_tungstenite::MaybeTlsStream;
 use tokio_tungstenite::WebSocketStream;
@@ -11,6 +13,9 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::protocol::CloseFrame;
 
 use paddler_messaging::api_path::ApiPath;
+use paddler_messaging::jsonrpc::request_envelope::RequestEnvelope;
+use paddler_messaging::management_socket::agent::message::Message as AgentJsonRpcMessage;
+use paddler_messaging::management_socket::agent::request::Request as AgentJsonRpcRequest;
 
 use crate::cluster_harness_error::ClusterHarnessError;
 
@@ -41,6 +46,30 @@ impl UntrustedAgentSocketClient {
         }
 
         Err(ClusterHarnessError::AgentSocketEndedWithoutClosing)
+    }
+
+    pub async fn next_request(
+        &mut self,
+    ) -> Result<RequestEnvelope<AgentJsonRpcRequest>, ClusterHarnessError> {
+        self.websocket
+            .by_ref()
+            .filter_map(|frame| {
+                ready(
+                    frame
+                        .ok()
+                        .and_then(|frame| frame.into_text().ok())
+                        .and_then(|text| from_str::<AgentJsonRpcMessage>(&text).ok())
+                        .and_then(|balancer_message| match balancer_message {
+                            AgentJsonRpcMessage::Notification(_) => None,
+                            AgentJsonRpcMessage::Request(request_envelope) => {
+                                Some(request_envelope)
+                            }
+                        }),
+                )
+            })
+            .next()
+            .await
+            .ok_or(ClusterHarnessError::AgentSocketEndedWithoutRequest)
     }
 
     pub async fn send(&mut self, message: Message) -> Result<(), ClusterHarnessError> {

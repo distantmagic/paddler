@@ -45,14 +45,14 @@ mod tests {
         let (outbound_tx, _outbound_rx) = mpsc::unbounded_channel();
         let map_with_a_non_string_key = BTreeMap::from([(vec![1_u8], 1_u8)]);
 
-        assert_eq!(
+        assert!(matches!(
             enqueue_management_message(
                 &outbound_tx,
                 &map_with_a_non_string_key,
-                ManagementConnectionStep::Continue
-            )
-            .outcome(),
-            Err(&ManagementConnectionEnd::OutgoingMessageUnserializable)
-        );
+                ManagementConnectionStep::Continue,
+            ),
+            ManagementConnectionStep::End(management_connection_end)
+                if management_connection_end == ManagementConnectionEnd::OutgoingMessageUnserializable
+        ));
     }
 }

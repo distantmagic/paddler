@@ -21,6 +21,7 @@ async fn openai_chat_completion_streaming_usage_breakdown_with_thinking() {
             }],
             "stream": true,
             "stream_options": {"include_usage": true},
+            "reasoning_effort": "medium",
             "max_completion_tokens": 200
         }))
         .await
@@ -44,9 +45,14 @@ async fn openai_chat_completion_streaming_usage_breakdown_with_thinking() {
         .pointer("/usage/total_tokens")
         .and_then(Value::as_u64)
         .expect("usage chunk missing total_tokens");
+    let reasoning_tokens = usage_chunk
+        .pointer("/usage/completion_tokens_details/reasoning_tokens")
+        .and_then(Value::as_u64)
+        .expect("usage chunk missing the reasoning token breakdown");
 
     assert!(prompt_tokens > 0);
-    assert!(completion_tokens > 0);
+    assert!(reasoning_tokens > 0);
+    assert!(reasoning_tokens < completion_tokens);
     assert_eq!(total_tokens, prompt_tokens + completion_tokens);
 
     cluster

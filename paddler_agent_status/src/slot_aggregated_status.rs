@@ -163,6 +163,13 @@ impl SlotAggregatedStatus {
         self.announce_change();
     }
 
+    pub fn withdraw_serving(&self) {
+        *self.model_path.write() = None;
+        *self.runtime.write() = AgentRuntimeStatus::Idle;
+        self.serving_issues.write().clear();
+        self.announce_change();
+    }
+
     pub fn set_download_status(&self, download_status: ModelDownloadStatus) {
         *self.download_status.write() = download_status;
         self.announce_change();

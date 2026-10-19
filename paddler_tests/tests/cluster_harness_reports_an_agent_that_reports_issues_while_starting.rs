@@ -1,10 +1,11 @@
 use std::collections::BTreeSet;
+use std::path::Path;
 
 use paddler_messaging::agent_issue::AgentIssue;
 use paddler_messaging::agent_issue_params::model_path::ModelPath;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
-use paddler_model_source::model_source::ModelSource;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
+use paddler_test_cluster_harness::agent_desired_model_at::agent_desired_model_at;
 use paddler_test_cluster_harness::cluster_desired_state::ClusterDesiredState;
 use paddler_test_cluster_harness::cluster_harness_error::ClusterHarnessError;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
@@ -21,8 +22,8 @@ async fn cluster_harness_reports_an_agent_that_reports_issues_while_starting() {
             slot_count: 1,
         }],
         desired_state: ClusterDesiredState::Apply(Box::new(BalancerDesiredState {
-            model: ModelSource::LocalToAgent(MISSING_MODEL_PATH.to_owned())
-                .into_agent_desired_model(),
+            model: agent_desired_model_at(Path::new(MISSING_MODEL_PATH))
+                .expect("the missing model path must be absolute"),
             ..BalancerDesiredState::default()
         })),
         wait_for_slots_ready: true,

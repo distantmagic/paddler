@@ -49,6 +49,7 @@ mod tests {
     use super::EmbeddingResult;
     use crate::embedding::Embedding;
     use crate::embedding_normalization_method::EmbeddingNormalizationMethod;
+    use crate::embedding_vector::EmbeddingVector;
     use crate::oversized_embedding_document_details::OversizedEmbeddingDocumentDetails;
     use crate::streamable_result::StreamableResult;
 
@@ -87,7 +88,7 @@ mod tests {
     #[test]
     fn embedding_is_not_done() {
         let result = EmbeddingResult::Embedding(Embedding {
-            embedding: vec![1.0],
+            embedding: EmbeddingVector::from(vec![1.0]),
             normalization_method: EmbeddingNormalizationMethod::None,
             pooling_type: PoolingType::Mean,
             source_document_id: "doc".to_owned(),

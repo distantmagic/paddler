@@ -58,21 +58,18 @@ mod tests {
             version: 1,
         };
 
+        assert!(matches!(
+            last_announced_agent_status.announce_if_changed(changed_snapshot.clone()),
+            ManagementConnectionStep::Write(announced_message)
+                if announced_message == ManagementJsonRpcMessage::Notification(
+                    ManagementJsonRpcNotification::UpdateAgentStatus(UpdateAgentStatusParams {
+                        slot_aggregated_status_snapshot: changed_snapshot.clone(),
+                    })
+                )
+        ));
         assert_eq!(
-            last_announced_agent_status
-                .announce_if_changed(changed_snapshot.clone())
-                .written_message(),
-            Ok(&ManagementJsonRpcMessage::Notification(
-                ManagementJsonRpcNotification::UpdateAgentStatus(UpdateAgentStatusParams {
-                    slot_aggregated_status_snapshot: changed_snapshot.clone(),
-                })
-            ))
-        );
-        assert_eq!(
-            last_announced_agent_status
-                .announce_if_changed(changed_snapshot)
-                .written_message(),
-            Err(discriminant(&ManagementConnectionStep::Continue))
+            discriminant(&last_announced_agent_status.announce_if_changed(changed_snapshot)),
+            discriminant(&ManagementConnectionStep::Continue)
         );
     }
 }

@@ -1,6 +1,7 @@
 #![cfg(feature = "tests_that_use_llms")]
 
 use std::mem::discriminant;
+use std::path::Path;
 
 use tokio::spawn;
 use tokio_util::sync::CancellationToken;
@@ -10,7 +11,7 @@ use paddler_messaging::agent_issue_params::model_path::ModelPath;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_messaging::decision_settings::DecisionSettings;
 use paddler_messaging::inference_mode::InferenceMode;
-use paddler_model_source::model_source::ModelSource;
+use paddler_test_cluster_harness::agent_desired_model_at::agent_desired_model_at;
 use paddler_tests::decision_cluster_params::DecisionClusterParams;
 use paddler_tests::decision_done_discriminant::decision_done_discriminant;
 use paddler_tests::sample_decision::sample_decision;
@@ -51,8 +52,8 @@ async fn a_request_waits_while_agents_still_serve_the_previous_inference_mode() 
             CancellationToken::new(),
             &BalancerDesiredState {
                 decision: DecisionSettings {
-                    pointer_head: ModelSource::LocalToAgent(MISSING_POINTER_HEAD_PATH.to_owned())
-                        .into_agent_desired_model(),
+                    pointer_head: agent_desired_model_at(Path::new(MISSING_POINTER_HEAD_PATH))
+                        .expect("the missing pointer head path must be absolute"),
                 },
                 ..decisions_desired_state.clone()
             },

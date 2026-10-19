@@ -1,8 +1,7 @@
-use std::sync::Arc;
-use std::sync::mpsc::SendError;
-use std::sync::mpsc::Sender;
-
 use log::info;
+use std::sync::Arc;
+use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::error::SendError;
 use tokio_util::task::TaskTracker;
 
 use crate::prepares_scheduler_command::PreparesSchedulerCommand;
@@ -13,7 +12,7 @@ pub struct SchedulerRequestPreparer<TPreparation: PreparesSchedulerCommand> {
     pub agent_name: Option<String>,
     pub preparation: TPreparation,
     pub preparation_tasks: TaskTracker,
-    pub scheduler_message_tx: Sender<SchedulerMessage<TPreparation::Command>>,
+    pub scheduler_message_tx: UnboundedSender<SchedulerMessage<TPreparation::Command>>,
 }
 
 impl<TPreparation: PreparesSchedulerCommand> SchedulerRequestPreparer<TPreparation> {

@@ -1,11 +1,11 @@
 #![cfg(feature = "tests_that_use_llms")]
 
 use std::num::NonZeroU16;
-use std::sync::mpsc::channel;
 
 use llama_cpp_bindings::batch_add_error::BatchAddError;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
 use llama_cpp_bindings_types::BatchCapacity;
+use tokio::sync::mpsc::unbounded_channel;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent_runtime::scheduler_message::SchedulerMessage;
@@ -66,7 +66,7 @@ fn a_generation_overflowing_its_batch_fails_as_batch_assembly() {
         )
         .prepare_raw_prompt(agent_request)
         .expect("the generation must be prepared");
-    let (scheduler_message_tx, scheduler_message_rx) = channel();
+    let (scheduler_message_tx, scheduler_message_rx) = unbounded_channel();
 
     scheduler_message_tx
         .send(SchedulerMessage::Command(request))

@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::sync::mpsc::channel;
 
 use encoding_rs::Decoder;
 use encoding_rs::UTF_8;
@@ -8,13 +7,12 @@ use llama_cpp_bindings::context::LlamaContext;
 use llama_cpp_bindings::error::TokenToStringError;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
 use llama_cpp_bindings::model::LlamaModel;
-use llama_cpp_bindings::mtmd::MtmdContext;
-use llama_cpp_bindings::mtmd::MtmdContextParams;
 use llama_cpp_bindings::mtmd::micro_batch_tokens;
 use llama_cpp_bindings::token::LlamaToken;
 use log::info;
 use log::warn;
 use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::unbounded_channel;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
@@ -53,6 +51,7 @@ use crate::multimodal_projection::MultimodalProjection;
 use crate::multimodal_prompt_support::MultimodalPromptSupport;
 use crate::prompt_tokenizer::PromptTokenizer;
 use crate::provides_media_marker::ProvidesMediaMarker;
+use crate::resident_multimodal_context::ResidentMultimodalContext;
 use crate::sampler_chain_factory::SamplerChainFactory;
 use crate::text_generation_error::TextGenerationError;
 use crate::text_generation_settings::TextGenerationSettings;
@@ -141,7 +140,7 @@ impl<TMediaMarker: ProvidesMediaMarker> TextGenerationPipeline<TMediaMarker> {
                         desired_slots_total,
                     );
 
-                    let (scheduler_message_tx, scheduler_message_rx) = channel();
+                    let (scheduler_message_tx, scheduler_message_rx) = unbounded_channel();
 
                     run_scheduler_unless_startup_abandoned(
                         scheduler_startup_tx,
@@ -308,13 +307,18 @@ impl<TMediaMarker: ProvidesMediaMarker> TextGenerationPipeline<TMediaMarker> {
         let multimodal_projection_issue_path =
             ModelPath::from(multimodal_projection_path.as_path());
         let slot_aggregated_status = &self.inference_runtime_context.slot_aggregated_status;
+        let vram_occupancy = self
+            .inference_runtime_context
+            .vram_residencies
+            .multimodal_projection
+            .try_occupy()?;
 
-        match MtmdContext::init_from_file(
-            &multimodal_projection_path.to_string_lossy(),
+        match ResidentMultimodalContext::load(
+            multimodal_projection_path,
             &self.loaded_llama_model.model,
-            &MtmdContextParams::default(),
+            vram_occupancy,
         ) {
-            Ok(multimodal_context) => {
+            Ok(resident_multimodal_context) => {
                 slot_aggregated_status.register_fix(&AgentIssueFix::MultimodalProjectionIsLoaded(
                     multimodal_projection_issue_path,
                 ));
@@ -331,7 +335,7 @@ impl<TMediaMarker: ProvidesMediaMarker> TextGenerationPipeline<TMediaMarker> {
                         llama_context,
                         self.model_runtime_parameters.n_batch.tokens(),
                     ),
-                    multimodal_context: Arc::new(multimodal_context),
+                    multimodal_context: Arc::new(resident_multimodal_context),
                     n_batch: self.model_runtime_parameters.n_batch.tokens_i32(),
                     sequence_context_size: prompt_tokenizer.sequence_context_size,
                 }))

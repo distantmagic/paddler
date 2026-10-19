@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use llama_cpp_bindings::context::LlamaContext;
 use llama_cpp_bindings::context::params::LlamaContextParams;
-use llama_cpp_bindings::llama_backend::LlamaBackend;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
 use llama_cpp_bindings::model::LlamaModel;
 use llama_cpp_bindings::token::LlamaToken;
@@ -22,8 +21,11 @@ use crate::inference_runtime_context::InferenceRuntimeContext;
 use crate::inference_thread_count::inference_thread_count;
 use crate::llama_context_settings::LlamaContextSettings;
 use crate::llama_model_settings::LlamaModelSettings;
+use crate::resident_llama_context::ResidentLlamaContext;
+use crate::resident_llama_model::ResidentLlamaModel;
 use crate::spawn_blocking_resuming_panic::spawn_blocking_resuming_panic;
 use crate::startup_outcome::StartupOutcome;
+use crate::vram_occupancy::VramOccupancy;
 
 fn read_model_metadata(model: &LlamaModel) -> Result<ModelMetadata, AgentRuntimeError> {
     let mut model_metadata = ModelMetadata::default();
@@ -45,9 +47,8 @@ fn read_model_metadata(model: &LlamaModel) -> Result<ModelMetadata, AgentRuntime
 #[derive(Clone)]
 pub struct LoadedLlamaModel {
     pub inference_thread_count: i32,
-    pub llama_backend: Arc<LlamaBackend>,
     pub llama_model_settings: LlamaModelSettings,
-    pub model: Arc<LlamaModel>,
+    pub model: Arc<ResidentLlamaModel>,
     pub model_metadata: Arc<ModelMetadata>,
 }
 
@@ -58,11 +59,16 @@ impl LoadedLlamaModel {
     ) -> Result<Self, AgentRuntimeError> {
         let inference_thread_count =
             inference_thread_count(inference_runtime_context.available_parallelism.as_ref())?;
+        let vram_occupancy = inference_runtime_context
+            .vram_residencies
+            .model_weights
+            .try_occupy()?;
         let model_issue_path = llama_model_settings.reported_model_path();
         let loaded = Self::load_from_file(
             inference_runtime_context,
             inference_thread_count,
             llama_model_settings,
+            vram_occupancy,
         );
 
         match &loaded {
@@ -126,11 +132,29 @@ impl LoadedLlamaModel {
         inference_runtime_context: &InferenceRuntimeContext,
         inference_capability: InferenceCapability,
         llama_context_params: LlamaContextParams,
-    ) -> Result<LlamaContext<'_>, AgentRuntimeError> {
+    ) -> Result<ResidentLlamaContext<'_>, AgentRuntimeError> {
+        let vram_occupancy = inference_runtime_context
+            .vram_residencies
+            .llama_context(inference_capability)
+            .try_occupy()?;
         let n_seq_max = llama_context_params.n_seq_max();
 
-        LlamaContext::from_model(&self.model, &self.llama_backend, llama_context_params).map_err(
-            |source| {
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "the context is created here, paired with the VRAM occupancy of its capability"
+        )]
+        let created_llama_context = LlamaContext::from_model(
+            &self.model.llama_model,
+            &self.model.llama_backend,
+            llama_context_params,
+        );
+
+        created_llama_context
+            .map(|llama_context| ResidentLlamaContext {
+                llama_context,
+                vram_occupancy,
+            })
+            .map_err(|source| {
                 let context_creation_failure = AgentRuntimeError::ContextCreationFailed(source);
                 let error = describe_error_with_causes(&context_creation_failure);
 
@@ -147,8 +171,7 @@ impl LoadedLlamaModel {
                 }
 
                 context_creation_failure
-            },
-        )
+            })
     }
 
     pub fn warm_up_llama_context(
@@ -183,17 +206,24 @@ impl LoadedLlamaModel {
         inference_runtime_context: &InferenceRuntimeContext,
         inference_thread_count: i32,
         llama_model_settings: LlamaModelSettings,
+        vram_occupancy: VramOccupancy,
     ) -> Result<Self, AgentRuntimeError> {
         let llama_backend = inference_runtime_context
             .llama_backend
             .get_or_init()
             .map_err(AgentRuntimeError::BackendInitializationFailed)?;
-        let model = LlamaModel::load_from_file(
+
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "the model is loaded here, paired with the VRAM occupancy of the model weights"
+        )]
+        let loaded_model = LlamaModel::load_from_file(
             &llama_backend,
             &llama_model_settings.model_path,
             &llama_model_settings.to_llama_model_params(),
-        )
-        .map_err(|source| AgentRuntimeError::ModelLoadFailed {
+        );
+
+        let model = loaded_model.map_err(|source| AgentRuntimeError::ModelLoadFailed {
             model_path: llama_model_settings.model_path.clone(),
             source,
         })?;
@@ -201,9 +231,12 @@ impl LoadedLlamaModel {
 
         Ok(Self {
             inference_thread_count,
-            llama_backend,
             llama_model_settings,
-            model: Arc::new(model),
+            model: Arc::new(ResidentLlamaModel {
+                llama_model: model,
+                llama_backend,
+                vram_occupancy,
+            }),
             model_metadata: Arc::new(model_metadata),
         })
     }

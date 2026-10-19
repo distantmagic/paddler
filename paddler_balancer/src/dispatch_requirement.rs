@@ -42,16 +42,36 @@ mod tests {
     use std::num::NonZeroU16;
 
     use paddler_messaging::agent_runtime_status::AgentRuntimeStatus;
+    use paddler_messaging::decision_question::DecisionQuestion;
     use paddler_messaging::inference_capability::InferenceCapability;
     use paddler_messaging::inference_mode::InferenceMode;
+    use paddler_messaging::request_params::decide_params::DecideParams;
 
     use super::DispatchRequirement;
+    use crate::agent_streaming_request::AgentStreamingRequest as _;
     use crate::slot_demand::SlotDemand;
 
     const SERVING_FOUR_SLOTS: AgentRuntimeStatus = AgentRuntimeStatus::Serving {
         inference_mode: InferenceMode::TextGenerationAndEmbeddings,
         slots_total: 4,
     };
+
+    fn decision_question(id: &str) -> DecisionQuestion {
+        DecisionQuestion {
+            id: id.to_owned(),
+            instructions: "Pick one".to_owned(),
+            options: vec!["yes".to_owned(), "no".to_owned()],
+        }
+    }
+
+    fn decision_with_a_leading_question() -> DispatchRequirement {
+        DecideParams {
+            last_question: decision_question("last"),
+            leading_questions: vec![decision_question("leading")],
+            state: "state".to_owned(),
+        }
+        .dispatch_requirement()
+    }
 
     fn requirement(inference_capability: InferenceCapability) -> DispatchRequirement {
         DispatchRequirement {
@@ -81,6 +101,27 @@ mod tests {
         assert_eq!(
             requirement(InferenceCapability::Decisions).reservable_slots(&SERVING_FOUR_SLOTS, 0),
             None
+        );
+    }
+
+    #[test]
+    fn a_waiting_requirement_holds_its_minimum_slots_on_an_agent_that_serves_it() {
+        assert_eq!(
+            decision_with_a_leading_question().slots_held_while_waiting(
+                &AgentRuntimeStatus::Serving {
+                    inference_mode: InferenceMode::TextGenerationEmbeddingsAndDecisions,
+                    slots_total: 4,
+                }
+            ),
+            2
+        );
+    }
+
+    #[test]
+    fn a_waiting_requirement_holds_no_slots_on_an_agent_that_cannot_serve_it() {
+        assert_eq!(
+            decision_with_a_leading_question().slots_held_while_waiting(&SERVING_FOUR_SLOTS),
+            0
         );
     }
 }

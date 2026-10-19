@@ -72,6 +72,7 @@ mod tests {
     use tokio_util::sync::CancellationToken;
     use trzcina::Service;
 
+    use paddler_agent_runtime::agent_vram_residencies::AgentVramResidencies;
     use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
     use paddler_agent_runtime::model_metadata_holder::ModelMetadataHolder;
     use paddler_agent_runtime::shared_llama_backend::SharedLlamaBackend;
@@ -92,6 +93,7 @@ mod tests {
                 llama_backend: Arc::new(SharedLlamaBackend::default()),
                 model_metadata_holder: Arc::new(ModelMetadataHolder::default()),
                 slot_aggregated_status: Arc::new(SlotAggregatedStatus::new(1)),
+                vram_residencies: AgentVramResidencies::default(),
             },
             pipeline_request_rx,
             served_applicable_state_holder: Arc::new(AgentApplicableStateHolder::default()),

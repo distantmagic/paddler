@@ -5,11 +5,10 @@ use std::sync::atomic::Ordering;
 
 use parking_lot::Mutex;
 
-use paddler_messaging::agent_runtime_status::AgentRuntimeStatus;
-
 use crate::agent_controller_pool_updates::AgentControllerPoolUpdates;
 use crate::dispatch_position::DispatchPosition;
 use crate::dispatch_requirement::DispatchRequirement;
+use crate::requirements_waiting_ahead::RequirementsWaitingAhead;
 
 pub struct DispatchWaitingLine {
     next_ticket: AtomicU64,
@@ -42,18 +41,18 @@ impl DispatchWaitingLine {
     }
 
     #[must_use]
-    pub fn slots_held_ahead_of(
+    pub fn requirements_ahead_of(
         &self,
         dispatch_position: DispatchPosition,
-        agent_runtime_status: &AgentRuntimeStatus,
-    ) -> u64 {
-        self.waiting_requirements
-            .lock()
-            .iter()
-            .filter(|(ticket, _dispatch_requirement)| dispatch_position.waits_behind(**ticket))
-            .map(|(_ticket, dispatch_requirement)| {
-                dispatch_requirement.slots_held_while_waiting(agent_runtime_status)
-            })
-            .sum()
+    ) -> RequirementsWaitingAhead {
+        RequirementsWaitingAhead {
+            dispatch_requirements: self
+                .waiting_requirements
+                .lock()
+                .iter()
+                .filter(|(ticket, _dispatch_requirement)| dispatch_position.waits_behind(**ticket))
+                .map(|(_ticket, dispatch_requirement)| *dispatch_requirement)
+                .collect(),
+        }
     }
 }

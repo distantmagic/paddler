@@ -1,9 +1,8 @@
-use llama_cpp_bindings::context::LlamaContext;
-
 use paddler_agent_runtime::agent_runtime_error::AgentRuntimeError;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::llama_context_settings::LlamaContextSettings;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
+use paddler_agent_runtime::resident_llama_context::ResidentLlamaContext;
 use paddler_inference_parameters::pooling_type::PoolingType;
 use paddler_messaging::inference_capability::InferenceCapability;
 
@@ -20,7 +19,7 @@ impl EmbeddingLlamaContextSettings<'_> {
         self,
         loaded_llama_model: &'model LoadedLlamaModel,
         inference_runtime_context: &InferenceRuntimeContext,
-    ) -> Result<LlamaContext<'model>, AgentRuntimeError> {
+    ) -> Result<ResidentLlamaContext<'model>, AgentRuntimeError> {
         let Self {
             llama_context_settings,
             pooling_type,

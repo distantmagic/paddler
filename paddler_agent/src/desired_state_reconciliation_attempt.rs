@@ -61,13 +61,17 @@ impl DesiredStateReconciliationAttempt {
         }
     }
 
-    pub fn abandon(&self) {
+    pub async fn abandon(&mut self) {
         if let Self::Reconciling {
-            cancellation_token, ..
+            cancellation_token,
+            reconciliation,
         } = self
         {
             cancellation_token.cancel();
+            reconciliation.as_mut().await;
         }
+
+        *self = Self::Idle;
     }
 
     pub async fn finish(&mut self) -> DesiredStateReconciliation {
@@ -100,7 +104,6 @@ mod tests {
     use paddler_messaging::agent_desired_state::AgentDesiredState;
 
     use super::DesiredStateReconciliationAttempt;
-    use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
     use crate::desired_state_reconciler::DesiredStateReconciler;
     use crate::desired_state_reconciliation::DesiredStateReconciliation;
     use crate::retry_delay::RetryDelay;
@@ -112,7 +115,6 @@ mod tests {
         let lowest_free_descriptor = File::open("/dev/null").unwrap().as_raw_fd();
         let mut reconciliation_attempt = DesiredStateReconciliationAttempt::start(
             DesiredStateReconciler {
-                agent_applicable_state_holder: Arc::new(AgentApplicableStateHolder::default()),
                 cache_dir: CacheDir::from_process_env(),
                 slot_aggregated_status: Arc::new(SlotAggregatedStatus::new(1)),
             },

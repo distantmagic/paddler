@@ -20,9 +20,10 @@ const SLOTS: u16 = 2;
 #[tokio::test(flavor = "multi_thread")]
 async fn agent_reports_slot_cannot_start_for_a_batch_smaller_than_its_slots() {
     for desired_state in [
-        qwen3_5_0_8b().into_decision_desired_state(pointer_head_fixture(
-            QWEN3_5_0_8B_SYNTHETIC_POINTER_HEAD_FIXTURE,
-        )),
+        qwen3_5_0_8b().into_decision_desired_state(
+            pointer_head_fixture(QWEN3_5_0_8B_SYNTHETIC_POINTER_HEAD_FIXTURE)
+                .expect("the pointer head fixture path must be absolute"),
+        ),
         nomic_embed_text_v1_5()
             .into_desired_state_with_embedding_parameters(EmbeddingParameters::default()),
     ] {

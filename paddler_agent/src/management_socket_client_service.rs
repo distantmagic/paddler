@@ -208,29 +208,3 @@ impl Service for ManagementSocketClientService {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use tokio_util::sync::CancellationToken;
-
-    use paddler_messaging::api_path::ApiPath;
-
-    use super::ManagementSocketClientService;
-    use crate::balancer_message_context_fixture::BalancerMessageContextFixture;
-
-    #[tokio::test]
-    async fn keep_connection_alive_errors_when_the_balancer_refuses_the_connection() {
-        let service = ManagementSocketClientService {
-            balancer_message_context: BalancerMessageContextFixture::default().context,
-            name: None,
-            socket_url: format!("ws://127.0.0.1:1{}", ApiPath::agent_socket("test-agent")),
-        };
-
-        assert!(
-            service
-                .keep_connection_alive(CancellationToken::new())
-                .await
-                .is_err()
-        );
-    }
-}

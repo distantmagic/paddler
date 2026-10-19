@@ -41,6 +41,7 @@ use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::buffered_request_manager::BufferedRequestManager;
 use crate::continuation_decision::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
+use crate::dispatchable_request::DispatchableRequest;
 use crate::inference_service::app_data::AppData;
 use crate::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::invalid_request_parameters_description::invalid_request_parameters_description;
@@ -90,7 +91,7 @@ async fn handle_inference_request<TParams>(
             context.buffered_request_manager.clone(),
             request_close,
             context.inference_service_configuration.clone(),
-            params,
+            DispatchableRequest::from(params),
             request_id,
             websocket_session_controller,
             context.shutdown.clone(),

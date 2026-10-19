@@ -35,10 +35,16 @@ pub enum ClusterHarnessError {
         "The token generation stream carried a message that is not a generated token: {message:?}"
     )]
     TokenStreamMessageUnexpected { message: Box<InferenceMessage> },
+    #[error("The agent hung up on the untrusted balancer socket before it responded")]
+    AgentHungUpBeforeResponding,
+    #[error("The agent hung up on the untrusted balancer socket before it served its model")]
+    AgentHungUpBeforeServing,
     #[error("Agent {agent_id} left the balancer's pool while it was being observed")]
     AgentLeftThePool { agent_id: String },
     #[error("The untrusted agent socket client ended without a close frame")]
     AgentSocketEndedWithoutClosing,
+    #[error("The untrusted agent socket client ended before the balancer sent it a request")]
+    AgentSocketEndedWithoutRequest,
     #[error("The untrusted agent socket client could not receive a frame")]
     AgentSocketReceiveFailed(#[source] WebSocketError),
     #[error("The untrusted agent socket client could not send a frame")]
@@ -53,6 +59,12 @@ pub enum ClusterHarnessError {
         agent_name: String,
         issues: BTreeSet<AgentIssue>,
     },
+    #[error("The untrusted balancer socket could not accept an agent connection")]
+    BalancerSocketAcceptFailed(#[source] IoError),
+    #[error("The untrusted balancer socket could not complete the agent's WebSocket handshake")]
+    BalancerSocketHandshakeFailed(#[source] WebSocketError),
+    #[error("The untrusted balancer socket could not send a frame")]
+    BalancerSocketSendFailed(#[source] WebSocketError),
     #[error("Unable to build a base URL for {addr}")]
     BaseUrlInvalid {
         addr: SocketAddr,

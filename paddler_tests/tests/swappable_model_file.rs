@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use tempfile::TempDir;
 
 use paddler_messaging::agent_desired_model::AgentDesiredModel;
-use paddler_model_source::model_source::ModelSource;
+use paddler_test_cluster_harness::agent_desired_model_at::agent_desired_model_at;
 
 pub struct SwappableModelFile {
     model_directory: TempDir,
@@ -28,8 +28,8 @@ impl SwappableModelFile {
     }
 
     pub fn agent_desired_model(&self) -> AgentDesiredModel {
-        ModelSource::LocalToAgent(self.model_path().display().to_string())
-            .into_agent_desired_model()
+        agent_desired_model_at(&self.model_path())
+            .expect("the swappable model file must be at an absolute path")
     }
 
     pub fn model_path(&self) -> PathBuf {

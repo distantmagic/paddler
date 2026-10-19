@@ -1,8 +1,11 @@
 #![cfg(feature = "tests_that_use_llms")]
 
+use std::path::Path;
+
 use paddler_messaging::agent_issue::AgentIssue;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_model_source::model_source::ModelSource;
+use paddler_test_cluster_harness::agent_desired_model_at::agent_desired_model_at;
 use paddler_test_cluster_harness::model_card::ModelCard;
 use paddler_test_cluster_harness::model_card::qwen3_0_6b::qwen3_0_6b;
 use paddler_tests::desired_state_with_multimodal_projection::desired_state_with_multimodal_projection;
@@ -18,7 +21,8 @@ async fn balancer_reports_multimodal_projection_cannot_be_loaded_for_missing_fil
                 model: ModelSource::HuggingFace(reference).into_agent_desired_model(),
                 ..BalancerDesiredState::default()
             },
-            ModelSource::LocalToAgent(projection_path.clone()).into_agent_desired_model(),
+            agent_desired_model_at(Path::new(&projection_path))
+                .expect("the missing projection path must be absolute"),
         ))
         .await
         .expect("a single-agent cluster must start");

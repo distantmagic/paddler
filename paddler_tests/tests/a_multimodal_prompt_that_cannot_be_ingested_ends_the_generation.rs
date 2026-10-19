@@ -1,13 +1,11 @@
 #![cfg(feature = "tests_that_use_llms")]
 
 use std::sync::Arc;
-use std::sync::mpsc::channel;
 
 use hf_hub::Cache;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
-use llama_cpp_bindings::mtmd::MtmdContext;
-use llama_cpp_bindings::mtmd::MtmdContextParams;
 use llama_cpp_bindings::mtmd::micro_batch_tokens;
+use tokio::sync::mpsc::unbounded_channel;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent_runtime::scheduler_message::SchedulerMessage;
@@ -20,6 +18,7 @@ use paddler_agent_text_generation::multimodal_prompt_ingestion::MultimodalPrompt
 use paddler_agent_text_generation::multimodal_prompt_support::MultimodalPromptSupport;
 use paddler_agent_text_generation::prepared_generation_request::PreparedGenerationRequest;
 use paddler_agent_text_generation::prepared_prompt::PreparedPrompt;
+use paddler_agent_text_generation::resident_multimodal_context::ResidentMultimodalContext;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_test_cluster_harness::model_card::smolvlm2_256m::smolvlm2_256m;
 use paddler_test_cluster_harness::model_card::smolvlm2_256m_mmproj::smolvlm2_256m_mmproj;
@@ -50,14 +49,18 @@ fn a_multimodal_prompt_that_cannot_be_ingested_ends_the_generation() {
                 add_special_tokens: true,
                 micro_batch_tokens: micro_batch_tokens(&llama_context, n_batch.tokens()),
                 multimodal_context: Arc::new(
-                    MtmdContext::init_from_file(
+                    ResidentMultimodalContext::load(
                         &smolvlm2_256m_mmproj()
                             .reference
                             .cached_path(&Cache::from_env())
-                            .expect("the multimodal projection must be in the Hugging Face cache")
-                            .to_string_lossy(),
+                            .expect("the multimodal projection must be in the Hugging Face cache"),
                         &runtime.loaded_llama_model.model,
-                        &MtmdContextParams::default(),
+                        runtime
+                            .inference_runtime_context
+                            .vram_residencies
+                            .multimodal_projection
+                            .try_occupy()
+                            .expect("no other multimodal projection may be resident"),
                     )
                     .expect("the multimodal projection must load"),
                 ),
@@ -99,7 +102,7 @@ fn a_multimodal_prompt_that_cannot_be_ingested_ends_the_generation() {
                 )
                 .prepare_raw_prompt(agent_request)
                 .expect("the generation must be prepared");
-            let (scheduler_message_tx, scheduler_message_rx) = channel();
+            let (scheduler_message_tx, scheduler_message_rx) = unbounded_channel();
 
             scheduler_message_tx
                 .send(SchedulerMessage::Command(PreparedGenerationRequest {

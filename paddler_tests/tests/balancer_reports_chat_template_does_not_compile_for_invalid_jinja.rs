@@ -2,12 +2,12 @@
 
 use paddler_messaging::agent_issue::AgentIssue;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
-use paddler_messaging::chat_template::ChatTemplate;
 use paddler_model_source::model_source::ModelSource;
 use paddler_test_cluster_harness::model_card::ModelCard;
 use paddler_test_cluster_harness::model_card::qwen3_0_6b::qwen3_0_6b;
 use paddler_tests::desired_state_with_chat_template_override::desired_state_with_chat_template_override;
 use paddler_tests::start_single_agent_cluster_with_desired_state::start_single_agent_cluster_with_desired_state;
+use paddler_tests::uncompilable_chat_template::uncompilable_chat_template;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn balancer_reports_chat_template_does_not_compile_for_invalid_jinja() {
@@ -18,9 +18,7 @@ async fn balancer_reports_chat_template_does_not_compile_for_invalid_jinja() {
                 model: ModelSource::HuggingFace(reference).into_agent_desired_model(),
                 ..BalancerDesiredState::default()
             },
-            ChatTemplate {
-                content: "{{invalid jinja template".to_owned(),
-            },
+            uncompilable_chat_template(),
         ))
         .await
         .expect("a single-agent cluster must start");

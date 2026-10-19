@@ -1,3 +1,4 @@
+pub mod agent_local_model_path;
 pub mod desired_model_resolution;
 pub mod download_error_agent_issue;
 pub mod huggingface_download_progress;

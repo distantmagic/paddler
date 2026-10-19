@@ -7,8 +7,10 @@ use tokio_util::sync::CancellationToken;
 use paddler_messaging::conversation_history::ConversationHistory;
 use paddler_messaging::conversation_message::ConversationMessage;
 use paddler_messaging::conversation_message_content::ConversationMessageContent;
+use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_messaging::request_params::continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
+use paddler_test_cluster_harness::token_result_with_producer::TokenResultWithProducer;
 use paddler_tests::get_weather_tool::get_weather_tool;
 use paddler_tests::start_cluster_with_qwen3::start_cluster_with_qwen3;
 
@@ -37,10 +39,13 @@ async fn agent_conversation_with_function_tool_succeeds() {
         .await
         .expect("the inference request must be accepted");
 
-    assert!(
-        !collected.token_results.is_empty(),
-        "should receive a response when a function tool is provided"
-    );
+    assert!(matches!(
+        collected.token_results.last(),
+        Some(TokenResultWithProducer {
+            token_result: GeneratedTokenResult::Done(_),
+            ..
+        })
+    ));
 
     cluster
         .shutdown()

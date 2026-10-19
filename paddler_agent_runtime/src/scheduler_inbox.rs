@@ -1,17 +1,17 @@
-use std::sync::mpsc::Receiver;
-use std::sync::mpsc::RecvError;
-use std::sync::mpsc::TryRecvError;
+use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::mpsc::error::TryRecvError;
 
+use crate::scheduler_command::SchedulerCommand;
 use crate::scheduler_message::SchedulerMessage;
 
-pub struct SchedulerInbox<TCommand> {
-    pub scheduler_message_rx: Receiver<SchedulerMessage<TCommand>>,
+pub struct SchedulerInbox<TCommand: SchedulerCommand> {
+    pub scheduler_message_rx: UnboundedReceiver<SchedulerMessage<TCommand>>,
     pub shutdown_requested: bool,
 }
 
-impl<TCommand> SchedulerInbox<TCommand> {
+impl<TCommand: SchedulerCommand> SchedulerInbox<TCommand> {
     #[must_use]
-    pub const fn new(scheduler_message_rx: Receiver<SchedulerMessage<TCommand>>) -> Self {
+    pub const fn new(scheduler_message_rx: UnboundedReceiver<SchedulerMessage<TCommand>>) -> Self {
         Self {
             scheduler_message_rx,
             shutdown_requested: false,
@@ -31,12 +31,25 @@ impl<TCommand> SchedulerInbox<TCommand> {
     }
 
     pub fn wait_for_next_command(&mut self) -> Option<TCommand> {
-        match self.scheduler_message_rx.recv() {
-            Ok(SchedulerMessage::Command(command)) => Some(command),
-            Ok(SchedulerMessage::Shutdown) | Err(RecvError) => {
+        match self.scheduler_message_rx.blocking_recv() {
+            Some(SchedulerMessage::Command(command)) => Some(command),
+            Some(SchedulerMessage::Shutdown) | None => {
                 self.shutdown_requested = true;
 
                 None
+            }
+        }
+    }
+
+    pub fn reject_waiting_commands(&mut self, agent_name: Option<&str>) {
+        self.scheduler_message_rx.close();
+
+        while let Ok(scheduler_message) = self.scheduler_message_rx.try_recv() {
+            match scheduler_message {
+                SchedulerMessage::Command(command) => {
+                    command.reject_because_the_scheduler_stopped(agent_name);
+                }
+                SchedulerMessage::Shutdown => {}
             }
         }
     }

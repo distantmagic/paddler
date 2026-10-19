@@ -29,28 +29,22 @@ pub mod pipeline_arbiter;
 pub mod pipeline_arbiter_params;
 pub mod pipeline_request;
 pub mod pipeline_response_stream;
+pub mod preparation_outcome;
 pub mod prepared_decisions;
-pub mod prepared_decisions_plan;
+pub mod prepared_serving;
 pub mod reconciliation_service;
+pub mod replacement_outcome;
+pub mod retained_serving;
 pub mod retry_delay;
 pub mod served_capabilities;
 pub mod served_decisions;
 pub mod served_embeddings;
 pub mod served_model;
 pub mod served_text_generation;
+pub mod serving_interruption;
+pub mod serving_preparation;
+pub mod serving_replacement;
 pub mod serving_startup;
-pub mod serving_startup_attempt;
-pub mod serving_startup_failure;
-pub mod serving_startup_plan;
-pub mod started_serving;
-
-#[cfg(test)]
-mod balancer_message_context_fixture;
-#[cfg(test)]
-mod decision_request_fixture;
-#[cfg(test)]
-mod management_connection_step_outcome;
-#[cfg(test)]
-mod management_connection_step_written_message;
-#[cfg(test)]
-mod state_overriding_the_chat_template;
+pub mod serving_startup_progress;
+pub mod startup_phase;
+pub mod superseding_state;

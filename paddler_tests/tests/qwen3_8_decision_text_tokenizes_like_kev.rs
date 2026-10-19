@@ -4,11 +4,11 @@ use hf_hub::Cache;
 
 use paddler_test_cluster_harness::model_card::qwen3_8_27b::qwen3_8_27b;
 
-use crate::kev_text_tokenization_reference::KevTextTokenizationReference;
+use crate::kev_tokenizer_reference_comparison::KevTokenizerReferenceComparison;
 
 #[test]
 fn qwen3_8_decision_text_tokenizes_like_kev() {
-    KevTextTokenizationReference {
+    KevTokenizerReferenceComparison {
         model_path: qwen3_8_27b()
             .reference
             .cached_path(&Cache::from_env())

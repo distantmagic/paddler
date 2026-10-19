@@ -1,5 +1,4 @@
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
-use paddler_agent_runtime::shuts_down_unless_shared::ShutsDownUnlessShared;
 
 use crate::capability_plan::CapabilityPlan;
 use crate::inference_capabilities::InferenceCapabilities;
@@ -8,10 +7,9 @@ use crate::served_decisions::ServedDecisions;
 use crate::served_embeddings::ServedEmbeddings;
 use crate::served_text_generation::ServedTextGeneration;
 
-#[derive(Clone)]
-pub struct LoadedModelServingPlan<TDecisionsPlan = CapabilityPlan<ServedDecisions>> {
+pub struct LoadedModelServingPlan {
     pub capability_plans: InferenceCapabilities<
-        TDecisionsPlan,
+        CapabilityPlan<ServedDecisions>,
         CapabilityPlan<ServedEmbeddings>,
         CapabilityPlan<ServedTextGeneration>,
     >,
@@ -34,21 +32,5 @@ impl LoadedModelServingPlan {
             loaded_llama_model,
             model_serving_settings,
         }
-    }
-}
-
-impl<TDecisionsPlan> LoadedModelServingPlan<TDecisionsPlan>
-where
-    TDecisionsPlan: ShutsDownUnlessShared + Send,
-{
-    pub async fn release(self) {
-        let Self {
-            capability_plans,
-            loaded_llama_model,
-            ..
-        } = self;
-
-        capability_plans.shut_down_unless_shared().await;
-        loaded_llama_model.release().await;
     }
 }

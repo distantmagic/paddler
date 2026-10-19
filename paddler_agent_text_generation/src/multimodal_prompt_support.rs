@@ -2,17 +2,17 @@ use std::sync::Arc;
 
 use llama_cpp_bindings::mtmd::FittedMtmdInputChunks;
 use llama_cpp_bindings::mtmd::MtmdBitmap;
-use llama_cpp_bindings::mtmd::MtmdContext;
 use llama_cpp_bindings::mtmd::MtmdInputText;
 
 use crate::multimodal_prompt_ingestion::MultimodalPromptIngestion;
 use crate::require_prompt_fits_sequence_context::require_prompt_fits_sequence_context;
+use crate::resident_multimodal_context::ResidentMultimodalContext;
 use crate::text_generation_error::TextGenerationError;
 
 pub struct MultimodalPromptSupport {
     pub add_special_tokens: bool,
     pub micro_batch_tokens: u32,
-    pub multimodal_context: Arc<MtmdContext>,
+    pub multimodal_context: Arc<ResidentMultimodalContext>,
     pub n_batch: i32,
     pub sequence_context_size: u32,
 }

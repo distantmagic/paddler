@@ -1,5 +1,3 @@
-import json
-from os import environ
 from pathlib import Path
 from shutil import copyfile
 
@@ -8,8 +6,7 @@ import torch
 from kev.checkpoint import Checkpoint, LoadOptions, read_meta, write_meta
 
 from paddler_kev_converter.command_line import main
-
-KEV_CHECKPOINT = environ["PADDLER_KEV_CHECKPOINT"]
+from tests.kev_checkpoint import KEV_CHECKPOINT
 
 
 @pytest.fixture(scope="session")
@@ -77,11 +74,3 @@ def kev_checkpoint_copy(kev_checkpoint: Checkpoint, tmp_path: Path) -> Path:
         copyfile(checkpoint_file, tmp_path / checkpoint_file.name)
 
     return tmp_path
-
-
-def rewrite_adapter_config(checkpoint_directory: Path, **changes: object) -> None:
-    adapter_config_path = checkpoint_directory / "adapter_config.json"
-    adapter_config = json.loads(adapter_config_path.read_text(encoding="utf-8"))
-    adapter_config_path.write_text(
-        json.dumps({**adapter_config, **changes}), encoding="utf-8"
-    )

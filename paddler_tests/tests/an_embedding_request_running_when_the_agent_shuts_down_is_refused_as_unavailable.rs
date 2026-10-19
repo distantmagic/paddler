@@ -2,6 +2,7 @@
 
 use tokio_util::sync::CancellationToken;
 
+use paddler_agent_runtime::shuts_down::ShutsDown as _;
 use paddler_messaging::embedding_result::EmbeddingResult;
 
 use crate::embedding_documents_fixture::EmbeddingDocumentsFixture;

@@ -81,6 +81,7 @@ minijinja-contrib = { version = "2.12", features = ["datetime", "pycompat", "wor
 nanoid = "0.4"
 nix = { version = "0.30", features = ["fs", "net", "process", "resource", "signal", "socket", "user"] }
 parking_lot = "0.12"
+percent-encoding = "2.3"
 quick-xml = "0.39"
 rand = "0.9"
 reqwest = { version = "0.12", features = ["json", "stream"] }
@@ -91,6 +92,7 @@ serde_json = { version = "1.0", features = ["preserve_order", "raw_value"] }
 sha2 = "0.10"
 shellexpand = "3.1"
 socket2 = "0.6"
+syn = { version = "2.0", features = ["full", "visit"] }
 tempfile = "3.20"
 tokio = { version = "1.48", features = ["full"] }
 tokio-stream = { version = "0.1", features = ["sync"] }

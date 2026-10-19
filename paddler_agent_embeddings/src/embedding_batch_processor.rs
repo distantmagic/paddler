@@ -6,6 +6,7 @@ use llama_cpp_bindings::llama_batch::LlamaBatch;
 use paddler_messaging::embedding::Embedding;
 use paddler_messaging::embedding_normalization_method::EmbeddingNormalizationMethod;
 use paddler_messaging::embedding_result::EmbeddingResult;
+use paddler_messaging::embedding_vector::EmbeddingVector;
 
 use crate::active_embedding_request::ActiveEmbeddingRequest;
 use crate::batched_embedding_input::BatchedEmbeddingInput;
@@ -154,9 +155,10 @@ impl<TNormalization: NormalizesEmbedding> EmbeddingBatchProcessor<'_, '_, TNorma
             .map_err(EmbeddingError::EmbeddingsUnavailable)?;
 
         Ok(Embedding {
-            embedding: self
-                .normalization
-                .normalize(embedding.to_vec(), normalization_method)?,
+            embedding: EmbeddingVector::from(
+                self.normalization
+                    .normalize(embedding.to_vec(), normalization_method)?,
+            ),
             normalization_method: normalization_method.clone(),
             pooling_type: self.scheduler_context.pooling_type.clone(),
             source_document_id: input.id.clone(),

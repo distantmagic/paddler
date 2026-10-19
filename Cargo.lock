@@ -3375,6 +3375,7 @@ dependencies = [
  "paddler_agent_status",
  "paddler_balancer",
  "paddler_cache_dir",
+ "paddler_client",
  "paddler_inference_parameters",
  "paddler_messaging",
  "paddler_state_database",
@@ -3386,6 +3387,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "trzcina",
+ "url",
 ]
 
 [[package]]
@@ -3545,6 +3547,7 @@ dependencies = [
  "paddler_download_manager",
  "paddler_local_http_fixture",
  "paddler_messaging",
+ "percent-encoding",
  "reqwest 0.12.28",
  "tempfile",
  "thiserror",
@@ -3596,6 +3599,7 @@ name = "paddler_request_registry"
 version = "5.0.0"
 dependencies = [
  "dashmap",
+ "nanoid",
  "tokio",
 ]
 
@@ -3679,9 +3683,11 @@ dependencies = [
  "paddler_openai_response_format_validator",
  "paddler_state_database",
  "paddler_test_cluster_harness",
+ "paddler_typesafe_translation",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
+ "syn",
  "tempfile",
  "tokio",
  "tokio-tungstenite",

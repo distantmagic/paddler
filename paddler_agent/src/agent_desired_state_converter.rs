@@ -157,6 +157,7 @@ impl AgentDesiredStateConverter {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
     use std::path::PathBuf;
     use std::sync::Arc;
 
@@ -182,6 +183,7 @@ mod tests {
     use paddler_messaging::chat_template_source::ChatTemplateSource;
     use paddler_messaging::decision_settings::DecisionSettings;
     use paddler_messaging::multimodal_settings::MultimodalSettings;
+    use paddler_model_source::agent_local_model_path::AgentLocalModelPath;
     use paddler_model_source::huggingface_model_reference::HuggingFaceModelReference;
     use paddler_model_source::model_source::ModelSource;
     use paddler_model_source::model_source_error::ModelSourceError;
@@ -262,8 +264,8 @@ mod tests {
         })
     }
 
-    fn local_model(model_file: &NamedTempFile) -> AgentDesiredModel {
-        ModelSource::LocalToAgent(model_file.path().display().to_string())
+    fn local_model_at(path: &Path) -> AgentDesiredModel {
+        ModelSource::LocalToAgent(AgentLocalModelPath::from_absolute_path(path).unwrap())
             .into_agent_desired_model()
     }
 
@@ -309,11 +311,7 @@ mod tests {
             _dir_guard,
             path: missing_path,
         } = nonexistent_path_in_temp_dir("model");
-        let desired = desired_state(
-            ModelSource::LocalToAgent(missing_path.display().to_string())
-                .into_agent_desired_model(),
-            AgentDesiredModel::None,
-        );
+        let desired = desired_state(local_model_at(&missing_path), AgentDesiredModel::None);
         let converter = AgentDesiredStateConverter {
             cache_dir: CacheDir::from_process_env(),
             cancellation_token: CancellationToken::new(),
@@ -348,11 +346,7 @@ mod tests {
             _dir_guard,
             path: missing_path,
         } = nonexistent_path_in_temp_dir("projection");
-        let desired = desired_state(
-            AgentDesiredModel::None,
-            ModelSource::LocalToAgent(missing_path.display().to_string())
-                .into_agent_desired_model(),
-        );
+        let desired = desired_state(AgentDesiredModel::None, local_model_at(&missing_path));
         let converter = AgentDesiredStateConverter {
             cache_dir: CacheDir::from_process_env(),
             cancellation_token: CancellationToken::new(),
@@ -395,9 +389,8 @@ mod tests {
 
         let outcome = converter
             .convert(&desired_state_serving_decisions(
-                local_model(&model_file),
-                ModelSource::LocalToAgent(missing_path.display().to_string())
-                    .into_agent_desired_model(),
+                local_model_at(model_file.path()),
+                local_model_at(&missing_path),
             ))
             .await;
 
@@ -438,7 +431,7 @@ mod tests {
             conversion(
                 cancelled_token(),
                 &desired_state_serving_decisions(
-                    local_model(&model_file),
+                    local_model_at(model_file.path()),
                     uncached_hugging_face_model(),
                 ),
             )
@@ -454,8 +447,8 @@ mod tests {
 
         assert_eq!(
             converted(&desired_state(
-                local_model(&model_file),
-                local_model(&projection_file),
+                local_model_at(model_file.path()),
+                local_model_at(projection_file.path()),
             ))
             .await,
             AgentDesiredStateConversion::Converted(served_settings(
@@ -494,8 +487,8 @@ mod tests {
 
         assert_eq!(
             converted(&desired_state_serving_decisions(
-                local_model(&model_file),
-                local_model(&pointer_head_file),
+                local_model_at(model_file.path()),
+                local_model_at(pointer_head_file.path()),
             ))
             .await,
             AgentDesiredStateConversion::Converted(served_settings(
@@ -514,7 +507,7 @@ mod tests {
 
         assert_eq!(
             converted(&desired_state_serving_decisions(
-                local_model(&model_file),
+                local_model_at(model_file.path()),
                 AgentDesiredModel::None,
             ))
             .await,

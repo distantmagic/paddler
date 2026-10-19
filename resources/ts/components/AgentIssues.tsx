@@ -226,6 +226,52 @@ export function AgentIssues({ issues }: { issues: Array<AgentIssue> }) {
           );
         }
 
+        if ("AgentModelUriIsNotAnAbsoluteLocalPath" in issue) {
+          return (
+            <li className={agentIssues__issue} key={index}>
+              <strong>
+                Agent URI does not name an absolute local path:{" "}
+                {issue.AgentModelUriIsNotAnAbsoluteLocalPath.model_path}
+              </strong>
+              <strong>What will Paddler do?</strong>{" "}
+              <p>
+                Paddler will not load the model until the URI names an absolute
+                path on the agent.
+              </p>
+              <strong>What can you do?</strong>{" "}
+              <p>
+                <Link href="/model">
+                  Edit the model URI on the model configuration page
+                </Link>{" "}
+                to the form agent:///absolute/path/to/model.gguf.
+              </p>
+            </li>
+          );
+        }
+
+        if ("AgentModelUriIsNotCanonical" in issue) {
+          return (
+            <li className={agentIssues__issue} key={index}>
+              <strong>
+                Agent URI is not written in its canonical form:{" "}
+                {issue.AgentModelUriIsNotCanonical.model_path.model_path}
+              </strong>
+              <strong>What will Paddler do?</strong>{" "}
+              <p>
+                Paddler will not load the model until the URI is written in its
+                one canonical form, so that it names exactly one file.
+              </p>
+              <strong>What can you do?</strong>{" "}
+              <p>
+                <Link href="/model">
+                  Edit the model URI on the model configuration page
+                </Link>{" "}
+                to {issue.AgentModelUriIsNotCanonical.canonical_uri}
+              </p>
+            </li>
+          );
+        }
+
         if ("HuggingFaceModelUriIsMalformed" in issue) {
           return (
             <li className={agentIssues__issue} key={index}>

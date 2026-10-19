@@ -21,7 +21,7 @@ pub async fn start_decision_cluster(
     }: DecisionClusterParams,
 ) -> Result<Cluster> {
     let desired_state =
-        model_card.into_decision_desired_state(pointer_head_fixture(pointer_head_fixture_name));
+        model_card.into_decision_desired_state(pointer_head_fixture(pointer_head_fixture_name)?);
 
     start_cluster(ClusterParams {
         agents,

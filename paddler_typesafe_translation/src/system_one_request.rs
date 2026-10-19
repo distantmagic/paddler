@@ -6,7 +6,8 @@ use serde_json::Value;
 use serde_json::from_value;
 
 use paddler_messaging::decision_question::DecisionQuestion;
-use paddler_messaging::request_params::decide_params::DecideParams;
+use paddler_messaging::request_params::decide_params::raw_decide_params::RawDecideParams;
+use paddler_messaging::validates::Validates as _;
 
 use crate::render_json_content::render_json_content;
 use crate::system_one_answer_layout::SystemOneAnswerLayout;
@@ -140,16 +141,15 @@ impl SystemOneRequest {
             answer_layouts.push(answer_layout);
         }
 
-        let last_question = questions
-            .pop()
-            .ok_or(TypeSafeTranslationError::QuestionsMissing)?;
+        let decide_params = RawDecideParams {
+            questions,
+            state: render_json_content(&self.state, 0),
+        }
+        .validate()
+        .map_err(|source| TypeSafeTranslationError::DecisionInvalid { source })?;
 
         Ok(TranslatedSystemOneRequest {
-            decide_params: DecideParams {
-                last_question,
-                leading_questions: questions,
-                state: render_json_content(&self.state, 0),
-            },
+            decide_params,
             response_layout: SystemOneResponseLayout {
                 answer_layouts,
                 model: self.model,

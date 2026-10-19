@@ -1,7 +1,5 @@
 use std::path::Path;
 
-use llama_cpp_bindings::context::LlamaContext;
-
 use paddler_agent_decision::decision_error::DecisionError;
 use paddler_agent_decision::decision_llama_context_settings::DecisionLlamaContextSettings;
 use paddler_agent_embeddings::embedding_llama_context_settings::EmbeddingLlamaContextSettings;
@@ -10,6 +8,7 @@ use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::llama_context_settings::LlamaContextSettings;
 use paddler_agent_runtime::llama_model_settings::LlamaModelSettings;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
+use paddler_agent_runtime::resident_llama_context::ResidentLlamaContext;
 use paddler_agent_text_generation::chat_prompt_renderer::ChatPromptRenderer;
 use paddler_agent_text_generation::conversation_prompt_support::ConversationPromptSupport;
 use paddler_agent_text_generation::conversation_support::ConversationSupport;
@@ -61,7 +60,7 @@ impl LlamaRuntime {
     pub fn create_decision_llama_context(
         &self,
         n_seq_max: u32,
-    ) -> Result<LlamaContext<'_>, DecisionError> {
+    ) -> Result<ResidentLlamaContext<'_>, DecisionError> {
         DecisionLlamaContextSettings {
             llama_context_settings: self.llama_context_settings(n_seq_max),
         }
@@ -72,7 +71,7 @@ impl LlamaRuntime {
         &self,
         n_seq_max: u32,
         pooling_type: PoolingType,
-    ) -> Result<LlamaContext<'_>, AgentRuntimeError> {
+    ) -> Result<ResidentLlamaContext<'_>, AgentRuntimeError> {
         EmbeddingLlamaContextSettings {
             llama_context_settings: self.llama_context_settings(n_seq_max),
             pooling_type,
@@ -83,7 +82,7 @@ impl LlamaRuntime {
     pub fn create_text_generation_llama_context(
         &self,
         n_seq_max: u32,
-    ) -> Result<LlamaContext<'_>, AgentRuntimeError> {
+    ) -> Result<ResidentLlamaContext<'_>, AgentRuntimeError> {
         self.loaded_llama_model.create_llama_context(
             &self.inference_runtime_context,
             InferenceCapability::TextGeneration,

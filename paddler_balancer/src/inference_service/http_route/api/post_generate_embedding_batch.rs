@@ -25,13 +25,13 @@ use paddler_messaging::jsonrpc::response_envelope::ResponseEnvelope;
 use paddler_messaging::request_params::generate_embedding_batch_params::GenerateEmbeddingBatchParams;
 
 use crate::agent_relay_error::AgentRelayError;
-use crate::agent_streaming_request::AgentStreamingRequest as _;
 use crate::cancellation_token_stream_guard::CancellationTokenStreamGuard;
 use crate::chunk_forwarding_session_controller::ChunkForwardingSessionController;
 use crate::chunk_forwarding_session_controller::identity_transformer::IdentityTransformer;
 use crate::chunk_forwarding_session_controller::transform_result::TransformResult;
 use crate::chunk_forwarding_session_controller::transforms_outgoing_message::TransformsOutgoingMessage;
 use crate::controls_session::ControlsSession as _;
+use crate::dispatchable_request::DispatchableRequest;
 use crate::distinct_embedding_documents::DistinctEmbeddingDocuments;
 use crate::embedding_chunk_dispatch::EmbeddingChunkDispatch;
 use crate::embedding_document_duplicates::EmbeddingDocumentDuplicates;
@@ -69,15 +69,17 @@ async fn respond(
     let chunk_dispatches: Vec<EmbeddingChunkDispatch> = batches
         .into_iter()
         .map(|batch| {
+            let dispatchable_batch = DispatchableRequest::from(batch);
+
             match app_data
                 .buffered_request_manager
-                .take_available_agent(batch.dispatch_requirement())
+                .take_available_agent(dispatchable_batch.dispatch_requirement)
             {
                 Some(dispatched_agent) => EmbeddingChunkDispatch::Claimed {
-                    batch,
+                    batch: dispatchable_batch.params,
                     dispatched_agent,
                 },
-                None => EmbeddingChunkDispatch::Buffered { batch },
+                None => EmbeddingChunkDispatch::Buffered(dispatchable_batch),
             }
         })
         .collect();
@@ -103,15 +105,17 @@ async fn respond(
                 session_controller,
                 app_data.shutdown.clone(),
             )),
-            EmbeddingChunkDispatch::Buffered { batch } => chunk_tasks.spawn(request_from_agent(
-                app_data.buffered_request_manager.clone(),
-                connection_close.clone(),
-                app_data.inference_service_configuration.clone(),
-                batch,
-                request_id.clone(),
-                session_controller,
-                app_data.shutdown.clone(),
-            )),
+            EmbeddingChunkDispatch::Buffered(dispatchable_batch) => {
+                chunk_tasks.spawn(request_from_agent(
+                    app_data.buffered_request_manager.clone(),
+                    connection_close.clone(),
+                    app_data.inference_service_configuration.clone(),
+                    dispatchable_batch,
+                    request_id.clone(),
+                    session_controller,
+                    app_data.shutdown.clone(),
+                ))
+            }
         };
     }
 

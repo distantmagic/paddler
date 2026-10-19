@@ -52,7 +52,9 @@ impl AgentIssueFix {
                 }
                 _ => false,
             },
-            AgentIssue::HuggingFaceModelUriIsMalformed(_)
+            AgentIssue::AgentModelUriIsNotAnAbsoluteLocalPath(_)
+            | AgentIssue::AgentModelUriIsNotCanonical(_)
+            | AgentIssue::HuggingFaceModelUriIsMalformed(_)
             | AgentIssue::ModelArchitectureUnsupportedForDecisions(_)
             | AgentIssue::ModelUriIsUnparseable(_)
             | AgentIssue::PointerHeadCannotBeLoaded(_)
@@ -92,6 +94,7 @@ impl AgentIssueFix {
 #[cfg(test)]
 mod tests {
     use paddler_messaging::agent_issue::AgentIssue;
+    use paddler_messaging::agent_issue_params::agent_model_uri_not_canonical_params::AgentModelUriNotCanonicalParams;
     use paddler_messaging::agent_issue_params::chat_template_does_not_compile_params::ChatTemplateDoesNotCompileParams;
     use paddler_messaging::agent_issue_params::hugging_face_download_lock::HuggingFaceDownloadLock;
     use paddler_messaging::agent_issue_params::model_architecture_unsupported_for_decisions_params::ModelArchitectureUnsupportedForDecisionsParams;
@@ -114,6 +117,11 @@ mod tests {
     fn configuration_issues_are_cleared_only_with_their_scope() {
         let issue_path = model_path("model_a");
         let configuration_issues = [
+            AgentIssue::AgentModelUriIsNotAnAbsoluteLocalPath(issue_path.clone()),
+            AgentIssue::AgentModelUriIsNotCanonical(AgentModelUriNotCanonicalParams {
+                canonical_uri: "agent:///model_a".to_owned(),
+                model_path: issue_path.clone(),
+            }),
             AgentIssue::HuggingFaceModelUriIsMalformed(issue_path.clone()),
             AgentIssue::ModelArchitectureUnsupportedForDecisions(
                 ModelArchitectureUnsupportedForDecisionsParams {

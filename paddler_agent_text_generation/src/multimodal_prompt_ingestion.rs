@@ -5,17 +5,17 @@ use llama_cpp_bindings::context::LlamaContext;
 use llama_cpp_bindings::error::EvalMultimodalChunksError;
 use llama_cpp_bindings::mtmd::FittedMtmdInputChunk;
 use llama_cpp_bindings::mtmd::FittedMtmdInputChunks;
-use llama_cpp_bindings::mtmd::MtmdContext;
 use llama_cpp_bindings::mtmd::MtmdInputChunks;
 
 use paddler_agent_runtime::sequence_id::SequenceId;
 
 use crate::multimodal_ingestion_progress::MultimodalIngestionProgress;
+use crate::resident_multimodal_context::ResidentMultimodalContext;
 
 #[derive(Debug)]
 pub struct MultimodalPromptIngestion {
     pub chunks: FittedMtmdInputChunks<MtmdInputChunks>,
-    pub multimodal_context: Arc<MtmdContext>,
+    pub multimodal_context: Arc<ResidentMultimodalContext>,
     pub n_batch: i32,
     pub next_chunk_index: usize,
 }

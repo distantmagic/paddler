@@ -23,21 +23,21 @@ const SLOTS_TOO_FEW_FOR_DECISIONS: u16 = 1;
 async fn enabling_decisions_with_too_few_slots_keeps_serving_the_loaded_model() {
     let mut serving_pipeline_arbiter = ServingPipelineArbiter::new(SLOTS_TOO_FEW_FOR_DECISIONS);
 
-    assert_eq!(
+    serving_pipeline_arbiter
+        .serve(BalancerDesiredState {
+            inference_mode: InferenceMode::TextGenerationAndEmbeddings,
+            ..kev_0_8b_desired_state().expect("the kev desired state must name absolute paths")
+        })
+        .await;
+    assert!(matches!(
         serving_pipeline_arbiter
-            .serve(BalancerDesiredState {
-                inference_mode: InferenceMode::TextGenerationAndEmbeddings,
-                ..kev_0_8b_desired_state()
-            })
+            .apply(
+                kev_0_8b_desired_state().expect("the kev desired state must name absolute paths")
+            )
             .await,
-        DesiredStateReconciliation::Reconciled
-    );
-    assert_eq!(
-        serving_pipeline_arbiter
-            .serve(kev_0_8b_desired_state())
-            .await,
-        DesiredStateReconciliation::Reconciled
-    );
+        DesiredStateReconciliation::Reconciled(_)
+    ));
+    serving_pipeline_arbiter.conclude_next_progress().await;
     assert_eq!(
         serving_pipeline_arbiter
             .inference_runtime_context

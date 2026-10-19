@@ -7,7 +7,7 @@ use tempfile::TempDir;
 
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_messaging::embedded_chat_template_key::EMBEDDED_CHAT_TEMPLATE_KEY;
-use paddler_model_source::model_source::ModelSource;
+use paddler_test_cluster_harness::agent_desired_model_at::agent_desired_model_at;
 use paddler_test_cluster_harness::model_card::qwen3_0_6b::qwen3_0_6b;
 use paddler_tests::qwen3_desired_state::qwen3_desired_state;
 use paddler_tests::write_patched_gguf::write_patched_gguf;
@@ -41,8 +41,8 @@ impl Qwen3WithoutAChatTemplate {
 
     pub fn desired_state(&self) -> BalancerDesiredState {
         BalancerDesiredState {
-            model: ModelSource::LocalToAgent(self.model_path().display().to_string())
-                .into_agent_desired_model(),
+            model: agent_desired_model_at(&self.model_path())
+                .expect("the model without a chat template must be at an absolute path"),
             ..qwen3_desired_state()
         }
     }

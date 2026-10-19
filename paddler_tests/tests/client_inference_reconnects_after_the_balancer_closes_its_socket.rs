@@ -1,6 +1,5 @@
 use std::num::NonZeroU32;
 use std::num::NonZeroUsize;
-use std::time::Duration;
 
 use futures_util::StreamExt as _;
 use tokio_util::sync::CancellationToken;
@@ -12,6 +11,7 @@ use paddler_client::error::Error;
 use paddler_messaging::inference_client::message::Message;
 use paddler_messaging::request_params::continue_from_raw_prompt_params::ContinueFromRawPromptParams;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
+use paddler_tests::short_buffered_request_timeout::SHORT_BUFFERED_REQUEST_TIMEOUT;
 use paddler_tests::start_cluster::start_cluster;
 
 const MAX_TOKENS: NonZeroU32 = NonZeroU32::new(1).unwrap();
@@ -28,7 +28,7 @@ const fn raw_prompt_params(raw_prompt: String) -> ContinueFromRawPromptParams {
 async fn client_inference_reconnects_after_the_balancer_closes_its_socket() {
     let cluster = start_cluster(ClusterParams {
         agents: Vec::new(),
-        buffered_request_timeout: Duration::from_millis(50),
+        buffered_request_timeout: SHORT_BUFFERED_REQUEST_TIMEOUT,
         max_buffered_requests: 1,
         wait_for_slots_ready: false,
         ..ClusterParams::default()

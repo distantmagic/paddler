@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::agent_issue_params::agent_model_uri_not_canonical_params::AgentModelUriNotCanonicalParams;
 use crate::agent_issue_params::chat_template_does_not_compile_params::ChatTemplateDoesNotCompileParams;
 use crate::agent_issue_params::hugging_face_download_lock::HuggingFaceDownloadLock;
 use crate::agent_issue_params::model_architecture_unsupported_for_decisions_params::ModelArchitectureUnsupportedForDecisionsParams;
@@ -12,6 +13,8 @@ use crate::agent_issue_params::slots_insufficient_for_decisions_params::SlotsIns
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(deny_unknown_fields)]
 pub enum AgentIssue {
+    AgentModelUriIsNotAnAbsoluteLocalPath(ModelPath),
+    AgentModelUriIsNotCanonical(AgentModelUriNotCanonicalParams),
     CacheCannotAcquireLock(ModelPath),
     CacheDirectoryIsNotWritable(ModelPath),
     CacheStorageIsFull(ModelPath),

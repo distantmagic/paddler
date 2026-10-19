@@ -1,10 +1,10 @@
 use std::mem::take;
 
-use llama_cpp_bindings::context::LlamaContext;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
 use log::info;
 use tokio_util::sync::CancellationToken;
 
+use paddler_agent_runtime::resident_llama_context::ResidentLlamaContext;
 use paddler_agent_runtime::scheduler_inbox::SchedulerInbox;
 
 use crate::active_embedding_request::ActiveEmbeddingRequest;
@@ -18,7 +18,7 @@ pub struct EmbeddingScheduler<'model> {
     pub active_requests: Vec<ActiveEmbeddingRequest>,
     pub agent_shutdown: CancellationToken,
     pub batch: LlamaBatch<'static>,
-    pub llama_context: LlamaContext<'model>,
+    pub llama_context: ResidentLlamaContext<'model>,
     pub scheduler_context: EmbeddingSchedulerContext,
     pub scheduler_inbox: SchedulerInbox<PreparedEmbeddingBatchRequest>,
 }
@@ -80,6 +80,8 @@ impl EmbeddingScheduler<'_> {
             EmbeddingError::SchedulerUnavailable
                 .report(agent_name, &active_request.generated_embedding_tx);
         }
+
+        self.scheduler_inbox.reject_waiting_commands(agent_name);
     }
 
     fn wait_for_next_scheduler_message(&mut self) {

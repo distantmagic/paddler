@@ -13,7 +13,7 @@ use paddler_tests::start_cluster_with_qwen3::start_cluster_with_qwen3;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn continuous_batch_stops_generation_when_stop_sender_dropped() {
-    let cluster = start_cluster_with_qwen3(vec![AgentConfig::single(2)])
+    let cluster = start_cluster_with_qwen3(vec![AgentConfig::single(1)])
         .await
         .expect("the cluster must start");
 

@@ -21,9 +21,10 @@ async fn typesafe_system_one_reports_an_agent_killed_mid_decision_as_a_bad_gatew
     } = start_pausable_agent_cluster(PausableAgentClusterParams {
         binary_path: env!("CARGO_BIN_EXE_paddler_cluster_node").to_owned(),
         desired_state: ClusterDesiredState::Apply(Box::new(
-            qwen3_5_0_8b().into_decision_desired_state(pointer_head_fixture(
-                QWEN3_5_0_8B_SYNTHETIC_POINTER_HEAD_FIXTURE,
-            )),
+            qwen3_5_0_8b().into_decision_desired_state(
+                pointer_head_fixture(QWEN3_5_0_8B_SYNTHETIC_POINTER_HEAD_FIXTURE)
+                    .expect("the pointer head fixture path must be absolute"),
+            ),
         )),
         expected_slots_total: DECISION_SLOTS_MINIMUM.get(),
         slot_count: DECISION_SLOTS_MINIMUM.get(),

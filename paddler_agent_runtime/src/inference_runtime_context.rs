@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
 
+use crate::agent_vram_residencies::AgentVramResidencies;
 use crate::model_metadata_holder::ModelMetadataHolder;
 use crate::reports_available_parallelism::ReportsAvailableParallelism;
 use crate::shared_llama_backend::SharedLlamaBackend;
@@ -13,4 +14,5 @@ pub struct InferenceRuntimeContext {
     pub llama_backend: Arc<SharedLlamaBackend>,
     pub model_metadata_holder: Arc<ModelMetadataHolder>,
     pub slot_aggregated_status: Arc<SlotAggregatedStatus>,
+    pub vram_residencies: AgentVramResidencies,
 }

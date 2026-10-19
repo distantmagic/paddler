@@ -12,6 +12,7 @@ use paddler_messaging::request_params::continue_from_raw_prompt_params::Continue
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_test_cluster_harness::cluster_desired_state::ClusterDesiredState;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
+use paddler_tests::oversized_text::oversized_text;
 use paddler_tests::qwen3_desired_state::qwen3_desired_state;
 use paddler_tests::start_cluster::start_cluster;
 
@@ -46,7 +47,7 @@ async fn agent_rejects_raw_prompt_exceeding_sequence_context() {
             &ContinueFromRawPromptParams {
                 grammar: None,
                 max_tokens: NonZeroU32::new(20).unwrap(),
-                raw_prompt: "The quick brown fox jumps over the lazy dog. ".repeat(40),
+                raw_prompt: oversized_text(),
             },
         )
         .await

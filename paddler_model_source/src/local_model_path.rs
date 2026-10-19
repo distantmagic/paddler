@@ -12,14 +12,7 @@ use crate::model_source_error::ModelSourceError;
 use crate::resolves_model_source::ResolvesModelSource;
 
 pub struct LocalModelPath {
-    pub path: String,
-}
-
-impl LocalModelPath {
-    #[must_use]
-    pub const fn new(path: String) -> Self {
-        Self { path }
-    }
+    pub path: PathBuf,
 }
 
 #[async_trait]
@@ -29,13 +22,11 @@ impl ResolvesModelSource for LocalModelPath {
         _cancellation_token: &CancellationToken,
         _slot_aggregated_status: Arc<SlotAggregatedStatus>,
     ) -> Result<DesiredModelResolution, ModelSourceError> {
-        let local_path = PathBuf::from(&self.path);
-
-        match try_exists(&local_path).await {
-            Ok(true) => Ok(DesiredModelResolution::Resolved(local_path)),
-            Ok(false) => Ok(DesiredModelResolution::LocalFileMissing(local_path)),
+        match try_exists(&self.path).await {
+            Ok(true) => Ok(DesiredModelResolution::Resolved(self.path.clone())),
+            Ok(false) => Ok(DesiredModelResolution::LocalFileMissing(self.path.clone())),
             Err(source) => Err(ModelSourceError::LocalFileUncheckable {
-                path: local_path,
+                path: self.path.clone(),
                 source,
             }),
         }

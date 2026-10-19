@@ -6,6 +6,15 @@ import { InferenceCapabilitySchema } from "./InferenceCapability";
 
 export const AgentIssueSchema = z.union([
   z.object({
+    AgentModelUriIsNotAnAbsoluteLocalPath: AgentIssueModelPathSchema,
+  }),
+  z.object({
+    AgentModelUriIsNotCanonical: z.object({
+      canonical_uri: z.string(),
+      model_path: AgentIssueModelPathSchema,
+    }),
+  }),
+  z.object({
     CacheCannotAcquireLock: AgentIssueModelPathSchema,
   }),
   z.object({

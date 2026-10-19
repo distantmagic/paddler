@@ -3,7 +3,6 @@
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use paddler_agent::desired_state_reconciliation::DesiredStateReconciliation;
 use paddler_agent::pipeline_request::PipelineRequest;
 use paddler_agent_runtime::agent_request::AgentRequest;
 use paddler_messaging::decision_result::DecisionResult;
@@ -24,16 +23,14 @@ impl ServingDecisionAgent {
         let mut serving_pipeline_arbiter =
             ServingPipelineArbiter::new(DECISION_SLOTS_MINIMUM.get());
 
-        assert_eq!(
-            serving_pipeline_arbiter
-                .serve(
-                    qwen3_5_0_8b().into_decision_desired_state(pointer_head_fixture(
-                        QWEN3_5_0_8B_SYNTHETIC_POINTER_HEAD_FIXTURE,
-                    ))
-                )
-                .await,
-            DesiredStateReconciliation::Reconciled
-        );
+        serving_pipeline_arbiter
+            .serve(
+                qwen3_5_0_8b().into_decision_desired_state(
+                    pointer_head_fixture(QWEN3_5_0_8B_SYNTHETIC_POINTER_HEAD_FIXTURE)
+                        .expect("the pointer head fixture path must be absolute"),
+                ),
+            )
+            .await;
 
         Self {
             serving_pipeline_arbiter,

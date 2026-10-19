@@ -1,9 +1,9 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
-use std::sync::mpsc::channel;
 
 use llama_cpp_bindings::llama_batch::LlamaBatch;
 use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::unbounded_channel;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
@@ -117,7 +117,7 @@ impl<TArchitecture: ReadsModelArchitecture> DecisionPipeline<TArchitecture> {
         }
 
         match DecisionDelimiterTokens::resolve(
-            self.loaded_llama_model.model.as_ref(),
+            &self.loaded_llama_model.model.llama_model,
             &pointer_head.delimiters,
         ) {
             Err(DecisionError::PointerHeadIncompatibleWithModel { incompatibility }) => {
@@ -160,7 +160,7 @@ impl<TArchitecture: ReadsModelArchitecture> DecisionPipeline<TArchitecture> {
                 );
 
                 let cells_per_slot = llama_context.n_ctx() / u32::from(desired_slots_total);
-                let (scheduler_message_tx, scheduler_message_rx) = channel();
+                let (scheduler_message_tx, scheduler_message_rx) = unbounded_channel();
 
                 run_scheduler_unless_startup_abandoned(
                     scheduler_startup_tx,

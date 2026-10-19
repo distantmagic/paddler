@@ -1,0 +1,77 @@
+#![cfg(feature = "tests_that_use_llms")]
+
+use std::num::NonZeroU32;
+
+use tokio_util::sync::CancellationToken;
+
+use paddler_messaging::conversation_history::ConversationHistory;
+use paddler_messaging::conversation_message::ConversationMessage;
+use paddler_messaging::conversation_message_content::ConversationMessageContent;
+use paddler_messaging::generated_token_result::GeneratedTokenResult;
+use paddler_messaging::request_params::continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
+use paddler_test_cluster_harness::agent_config::AgentConfig;
+use paddler_test_cluster_harness::token_result_with_producer::TokenResultWithProducer;
+use paddler_tests::start_cluster_with_qwen3_5::start_cluster_with_qwen3_5;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn qwen35_thinking_multi_turn_conversation_ends_within_max_tokens() {
+    let cluster = start_cluster_with_qwen3_5(vec![AgentConfig::single(1)], false)
+        .await
+        .expect("the cluster must start");
+
+    let conversation_history = ConversationHistory::new(vec![
+        ConversationMessage {
+            content: ConversationMessageContent::Text(
+                "You are a helpful assistant. Give engaging, short, precise answers. Be friendly, supportive, use emojis.".to_owned(),
+            ),
+            role: "system".to_owned(),
+        },
+        ConversationMessage {
+            content: ConversationMessageContent::Text(
+                "Hello! How can I help you today?".to_owned(),
+            ),
+            role: "assistant".to_owned(),
+        },
+        ConversationMessage {
+            content: ConversationMessageContent::Text("hi".to_owned()),
+            role: "user".to_owned(),
+        },
+    ]);
+
+    let collected = cluster
+        .continue_from_conversation_history(
+            CancellationToken::new(),
+            &ContinueFromConversationHistoryParams {
+                add_generation_prompt: true,
+                conversation_history,
+                enable_thinking: true,
+                grammar: None,
+                max_tokens: NonZeroU32::new(1000).unwrap(),
+                parse_tool_calls: false,
+                tools: vec![],
+            },
+        )
+        .await
+        .expect("the inference request must be accepted");
+
+    let token_count = collected
+        .token_results
+        .iter()
+        .filter(|result| result.token_result.is_token())
+        .count();
+
+    assert!(token_count > 0);
+    assert!(token_count <= 1000);
+    assert!(matches!(
+        collected.token_results.last(),
+        Some(TokenResultWithProducer {
+            token_result: GeneratedTokenResult::Done(_),
+            ..
+        })
+    ));
+
+    cluster
+        .shutdown()
+        .await
+        .expect("the cluster must shut down cleanly");
+}

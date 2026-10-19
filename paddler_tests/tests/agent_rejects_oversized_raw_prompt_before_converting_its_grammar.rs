@@ -8,6 +8,7 @@ use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_messaging::grammar_constraint::GrammarConstraint;
 use paddler_messaging::request_params::continue_from_raw_prompt_params::ContinueFromRawPromptParams;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
+use paddler_tests::oversized_text::oversized_text;
 use paddler_tests::start_cluster_with_qwen3_and_context_size::start_cluster_with_qwen3_and_context_size;
 
 const SEQUENCE_CONTEXT_SIZE: u32 = 256;
@@ -29,7 +30,7 @@ async fn agent_rejects_oversized_raw_prompt_before_converting_its_grammar() {
                     schema: "not a json schema".to_owned(),
                 }),
                 max_tokens: NonZeroU32::new(20).unwrap(),
-                raw_prompt: "The quick brown fox jumps over the lazy dog. ".repeat(40),
+                raw_prompt: oversized_text(),
             },
         )
         .await

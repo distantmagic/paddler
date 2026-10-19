@@ -1,11 +1,11 @@
 use std::collections::VecDeque;
 
-use llama_cpp_bindings::context::LlamaContext;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
 use log::info;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent_runtime::receives_stop_request::ReceivesStopRequest as _;
+use paddler_agent_runtime::resident_llama_context::ResidentLlamaContext;
 use paddler_agent_runtime::scheduler_inbox::SchedulerInbox;
 use paddler_messaging::decision_result::DecisionResult;
 
@@ -23,7 +23,7 @@ pub struct DecisionScheduler<'model> {
     pub agent_shutdown: CancellationToken,
     pub batch: LlamaBatch<'static>,
     pub capacity_ledger: DecisionCapacityLedger,
-    pub llama_context: LlamaContext<'model>,
+    pub llama_context: ResidentLlamaContext<'model>,
     pub pending_requests: VecDeque<PreparedDecisionRequest>,
     pub scheduler_context: DecisionSchedulerContext,
     pub scheduler_inbox: SchedulerInbox<PreparedDecisionRequest>,
@@ -77,10 +77,7 @@ impl DecisionScheduler<'_> {
                 continue;
             }
 
-            let Some(admission) = self
-                .capacity_ledger
-                .admit(request.layout.needs_question_lane())
-            else {
+            let Some(admission) = self.capacity_ledger.admit(request.slot_guard.slots()) else {
                 self.pending_requests.push_front(request);
 
                 break;
@@ -129,6 +126,8 @@ impl DecisionScheduler<'_> {
         for request in self.pending_requests.drain(..) {
             DecisionError::SchedulerUnavailable.report(agent_name, &request.decision_result_tx);
         }
+
+        self.scheduler_inbox.reject_waiting_commands(agent_name);
     }
 
     fn wait_for_next_scheduler_message(&mut self) {

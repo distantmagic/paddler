@@ -3,10 +3,10 @@ mod a_scheduler_that_fails_before_readiness_reports_its_error;
 mod a_scheduler_that_signals_readiness_starts;
 mod a_scheduler_whose_startup_was_abandoned_never_runs;
 mod a_scheduler_whose_startup_was_delivered_runs;
-mod a_shared_scheduler_handle_keeps_its_scheduler_running;
 mod a_startup_cancelled_while_its_scheduler_signals_readiness_is_cancelled;
-mod an_unshared_scheduler_handle_shuts_its_scheduler_down;
 mod commands_for_a_stopped_scheduler_are_rejected;
+#[cfg(test)]
+mod drained_scheduler_messages;
 mod even_number_preparation;
 mod inference_runtime_context_fixture;
 mod joining_in_the_background_resumes_the_panic_of_the_scheduler_thread;
@@ -17,7 +17,4 @@ mod number_request_preparer;
 mod prepared_requests_reach_the_scheduler_before_its_shutdown;
 mod reports_ready_request_preparer;
 mod requests_the_preparation_rejects_never_reach_the_scheduler;
-#[cfg(test)]
-mod scheduler_awaiting_its_first_message;
 mod scheduler_ran_after_handover;
-mod shutting_down_stops_the_scheduler_and_waits_for_its_thread;

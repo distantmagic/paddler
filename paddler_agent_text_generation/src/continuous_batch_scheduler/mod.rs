@@ -18,7 +18,6 @@ use std::slice;
 
 use llama_cpp_bindings::SampledTokenClassifier;
 use llama_cpp_bindings::batch_add_error::BatchAddError;
-use llama_cpp_bindings::context::LlamaContext;
 use llama_cpp_bindings::error::DecodeError;
 use llama_cpp_bindings::ingest_outcome::IngestOutcome;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
@@ -29,6 +28,7 @@ use log::info;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent_runtime::receives_stop_request::ReceivesStopRequest as _;
+use paddler_agent_runtime::resident_llama_context::ResidentLlamaContext;
 use paddler_agent_runtime::scheduler_inbox::SchedulerInbox;
 use paddler_agent_runtime::sequence_id::SequenceId;
 use paddler_agent_runtime::sequence_id_guard::SequenceIdGuard;
@@ -60,7 +60,7 @@ pub struct ContinuousBatchScheduler<'model> {
     batch: LlamaBatch<'static>,
     candidates: LlamaTokenDataArray,
     ingest_outcomes: Vec<IngestOutcome>,
-    llama_context: LlamaContext<'model>,
+    llama_context: ResidentLlamaContext<'model>,
     scheduler_context: ContinuousBatchSchedulerContext<'model>,
     scheduler_inbox: SchedulerInbox<PreparedGenerationRequest>,
     sequence_id_pool: SequenceIdPool,
@@ -119,6 +119,9 @@ impl<'model> ContinuousBatchScheduler<'model> {
         while !self.active_requests.is_empty() {
             self.cleanup_completed_request(0);
         }
+
+        self.scheduler_inbox
+            .reject_waiting_commands(self.scheduler_context.agent_name.as_deref());
 
         self.llama_context.synchronize();
         self.llama_context.detach_threadpool();

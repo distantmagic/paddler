@@ -3,7 +3,7 @@ from math import isclose
 from pathlib import Path
 
 from paddler_kev_converter.command_line import main
-from tests.conftest import KEV_CHECKPOINT
+from tests.kev_checkpoint import KEV_CHECKPOINT
 
 
 def test_the_parity_reference_pairs_rendered_records_with_kev_probabilities(

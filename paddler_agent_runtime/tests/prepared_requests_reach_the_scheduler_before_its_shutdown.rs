@@ -1,5 +1,6 @@
 use paddler_agent_runtime::scheduler_message::SchedulerMessage;
 
+use crate::drained_scheduler_messages::drained_scheduler_messages;
 use crate::number_command::NumberCommand;
 use crate::number_request_preparer::NumberRequestPreparer;
 
@@ -16,8 +17,8 @@ async fn prepared_requests_reach_the_scheduler_before_its_shutdown() {
         .stop_scheduler_after_pending_preparations()
         .await;
 
-    let received: Vec<Option<u32>> = scheduler_message_rx
-        .try_iter()
+    let received: Vec<Option<u32>> = drained_scheduler_messages(scheduler_message_rx)
+        .into_iter()
         .map(|scheduler_message| match scheduler_message {
             SchedulerMessage::Command(NumberCommand { value, .. }) => Some(value),
             SchedulerMessage::Shutdown => None,

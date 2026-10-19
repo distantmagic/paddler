@@ -92,80 +92,85 @@ function failedDecision(
   });
 }
 
-export const InferenceServiceDecideResponseSchema = z
-  .union([
-    z.object({
-      Error: z.object({
-        error: z.object({ code: z.number(), description: z.string() }),
-        request_id: z.string(),
-      }),
+const DecisionStreamMessageSchema = z.union([
+  z.object({
+    Error: z.object({
+      error: z.object({ code: z.number(), description: z.string() }),
+      request_id: z.string(),
     }),
-    z.object({
-      Response: z.object({
-        generated_by: z.string().nullable(),
-        request_id: z.string(),
-        response: z.object({ Decision: DecisionResultSchema }),
-      }),
+  }),
+  z.object({
+    Response: z.object({
+      generated_by: z.string().nullable(),
+      request_id: z.string(),
+      response: z.object({ Decision: DecisionResultSchema }),
     }),
-  ])
-  .transform(function (message): DecisionMessage {
-    if ("Error" in message) {
-      return failedDecision(
-        message.Error.request_id,
-        null,
-        message.Error.error.code,
-        message.Error.error.description,
-      );
-    }
+  }),
+]);
 
-    const { generated_by, request_id, response } = message.Response;
-    const decisionResult = response.Decision;
+function decisionMessage(
+  message: z.infer<typeof DecisionStreamMessageSchema>,
+): DecisionMessage {
+  if ("Error" in message) {
+    return failedDecision(
+      message.Error.request_id,
+      null,
+      message.Error.error.code,
+      message.Error.error.description,
+    );
+  }
 
-    if ("Done" in decisionResult) {
-      return Object.freeze({
-        answer: null,
-        done: true,
-        error: null,
-        generated_by,
-        request_id,
-        summary: decisionResult.Done,
-      });
-    }
+  const { generated_by, request_id, response } = message.Response;
+  const decisionResult = response.Decision;
 
-    if ("QuestionAnswered" in decisionResult) {
-      return Object.freeze({
-        answer: decisionResult.QuestionAnswered,
-        done: false,
-        error: null,
-        generated_by,
-        request_id,
-        summary: null,
-      });
-    }
+  if ("Done" in decisionResult) {
+    return Object.freeze({
+      answer: null,
+      done: true,
+      error: null,
+      generated_by,
+      request_id,
+      summary: decisionResult.Done,
+    });
+  }
 
-    if ("RequestExceedsContext" in decisionResult) {
-      const { context_size, required_tokens } =
-        decisionResult.RequestExceedsContext;
+  if ("QuestionAnswered" in decisionResult) {
+    return Object.freeze({
+      answer: decisionResult.QuestionAnswered,
+      done: false,
+      error: null,
+      generated_by,
+      request_id,
+      summary: null,
+    });
+  }
 
-      return failedDecision(
-        request_id,
-        generated_by,
-        400,
-        `the decision needs ${required_tokens} tokens in the cache, more than the ${context_size} the context holds`,
-      );
-    }
-
-    const [[failure, description]] = Object.entries(decisionResult) as [
-      [DecisionFailure, string],
-    ];
+  if ("RequestExceedsContext" in decisionResult) {
+    const { context_size, required_tokens } =
+      decisionResult.RequestExceedsContext;
 
     return failedDecision(
       request_id,
       generated_by,
-      decisionFailureCodes[failure],
-      description,
+      400,
+      `the decision needs ${required_tokens} tokens in the cache, more than the ${context_size} the context holds`,
     );
-  });
+  }
+
+  const [[failure, description]] = Object.entries(decisionResult) as [
+    [DecisionFailure, string],
+  ];
+
+  return failedDecision(
+    request_id,
+    generated_by,
+    decisionFailureCodes[failure],
+    description,
+  );
+}
+
+export const InferenceServiceDecideResponseSchema =
+  DecisionStreamMessageSchema.transform(decisionMessage);
 
 export type InferenceServiceDecideResponse = z.infer<
   typeof InferenceServiceDecideResponseSchema

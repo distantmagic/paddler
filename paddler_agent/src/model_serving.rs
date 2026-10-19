@@ -1,9 +1,14 @@
-use tokio_util::task::TaskTracker;
+use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
+use paddler_agent_runtime::shuts_down::ShutsDown;
 
+use crate::loaded_model_serving_plan::LoadedModelServingPlan;
+use crate::model_serving_settings::ModelServingSettings;
 use crate::pipeline_request::PipelineRequest;
+use crate::retained_serving::RetainedServing;
 use crate::served_model::ServedModel;
 
 pub enum ModelServing {
+    Holding(LoadedLlamaModel),
     Idle,
     Serving(Box<ServedModel>),
 }
@@ -11,47 +16,39 @@ pub enum ModelServing {
 impl ModelServing {
     pub fn forward(&self, agent_name: Option<&str>, request: PipelineRequest) {
         match self {
-            Self::Idle => request.reject_because_no_model_is_loaded(agent_name),
+            Self::Holding(_) | Self::Idle => request.reject_because_no_model_is_loaded(agent_name),
             Self::Serving(served_model) => served_model.forward(agent_name, request),
         }
     }
 
-    pub async fn shut_down(self) {
+    pub async fn retain_for(self, desired_settings: ModelServingSettings) -> RetainedServing {
         match self {
-            Self::Idle => {}
-            Self::Serving(served_model) => served_model.shut_down().await,
-        }
-    }
+            Self::Holding(loaded_llama_model)
+                if loaded_llama_model.llama_model_settings
+                    == desired_settings.llama_model_settings() =>
+            {
+                RetainedServing::LoadedModel(LoadedModelServingPlan::starting_every_capability(
+                    loaded_llama_model,
+                    desired_settings,
+                ))
+            }
+            Self::Holding(loaded_llama_model) => {
+                loaded_llama_model.release().await;
 
-    pub fn shut_down_in_background(self, task_tracker: &TaskTracker) {
-        task_tracker.spawn(self.shut_down());
+                RetainedServing::ModelToLoad(desired_settings)
+            }
+            Self::Idle => RetainedServing::ModelToLoad(desired_settings),
+            Self::Serving(served_model) => served_model.retain_for(desired_settings).await,
+        }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use tokio::sync::mpsc;
-
-    use paddler_messaging::decision_result::DecisionResult;
-
-    use super::ModelServing;
-    use crate::decision_request_fixture::decision_request_fixture;
-    use crate::pipeline_request::PipelineRequest;
-
-    #[test]
-    fn an_agent_serving_no_model_refuses_requests_because_no_model_is_loaded() {
-        let (decision_result_tx, mut decision_result_rx) = mpsc::unbounded_channel();
-
-        ModelServing::Idle.forward(
-            Some("agent"),
-            PipelineRequest::Decide(decision_request_fixture(decision_result_tx)),
-        );
-
-        assert_eq!(
-            decision_result_rx.try_recv(),
-            Ok(DecisionResult::ModelNotLoaded(
-                "agent: no model is loaded".to_owned()
-            ))
-        );
+impl ShutsDown for ModelServing {
+    async fn shut_down(self) {
+        match self {
+            Self::Holding(loaded_llama_model) => loaded_llama_model.release().await,
+            Self::Idle => {}
+            Self::Serving(served_model) => served_model.shut_down().await,
+        }
     }
 }

@@ -6,33 +6,24 @@ use llama_cpp_bindings::token::LlamaToken;
 
 use paddler_agent_decision::decision_capacity_ledger::DecisionCapacityLedger;
 use paddler_agent_decision::decision_decoder::DecisionDecoder;
-use paddler_agent_decision::decision_delimiter_tokens::DecisionDelimiterTokens;
 use paddler_agent_decision::decision_error::DecisionError;
 use paddler_agent_decision::decision_token_layout::DecisionTokenLayout;
 use paddler_messaging::decision_result::DecisionResult;
 use paddler_tests::admitted_decision::AdmittedDecision;
-use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
-use paddler_tests::kev_0_8b_pointer_head::kev_0_8b_pointer_head;
-use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
-use paddler_tests::llama_runtime::LlamaRuntime;
 use paddler_tests::two_option_question::two_option_question;
+
+use crate::kev_decision_model::KevDecisionModel;
 
 const SEQUENCES_THE_CONTEXT_HOLDS: u32 = 1;
 const SEQUENCES_THE_LEDGER_HANDS_OUT: u16 = 2;
 
 #[test]
 fn a_decision_whose_sequences_cannot_be_released_reports_the_release_failure() {
-    let runtime = LlamaRuntime::load(
-        &kev_0_8b_target_path("model.gguf"),
-        agent_inference_runtime_context(1),
-    )
-    .expect("the kev decision model must load");
-    let pointer_head = kev_0_8b_pointer_head().expect("the kev pointer head must load");
-    let delimiter_tokens = DecisionDelimiterTokens::resolve(
-        runtime.loaded_llama_model.model.as_ref(),
-        &pointer_head.delimiters,
-    )
-    .expect("the kev delimiters must resolve");
+    let KevDecisionModel {
+        delimiter_tokens,
+        runtime,
+        ..
+    } = KevDecisionModel::load(1);
     let mut llama_context = runtime
         .create_decision_llama_context(SEQUENCES_THE_CONTEXT_HOLDS)
         .expect("the decision context must be created");
@@ -44,21 +35,19 @@ fn a_decision_whose_sequences_cannot_be_released_reports_the_release_failure() {
         vec![two_option_question("leading")],
         two_option_question("last"),
     );
-    let admission = DecisionCapacityLedger::new(SEQUENCES_THE_LEDGER_HANDS_OUT)
-        .admit(layout.needs_question_lane())
-        .expect("the decision must be admitted");
     let AdmittedDecision {
         active_decision_request,
         mut decision_result_rx,
         decision_stop_tx: _decision_stop_tx,
-    } = AdmittedDecision::new(
-        admission,
+    } = AdmittedDecision::admit(
+        &DecisionCapacityLedger::new(SEQUENCES_THE_LEDGER_HANDS_OUT),
         runtime
             .inference_runtime_context
             .slot_aggregated_status
             .clone(),
         layout,
-    );
+    )
+    .expect("the decision must be admitted");
 
     active_decision_request.finish_with(
         &mut DecisionDecoder {

@@ -1,5 +1,4 @@
 use std::num::NonZeroU32;
-use std::time::Duration;
 
 use futures_util::StreamExt as _;
 use tokio_util::sync::CancellationToken;
@@ -10,6 +9,7 @@ use paddler_messaging::jsonrpc::error_envelope::ErrorEnvelope;
 use paddler_messaging::request_params::continue_from_raw_prompt_params::ContinueFromRawPromptParams;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
+use paddler_tests::short_buffered_request_timeout::SHORT_BUFFERED_REQUEST_TIMEOUT;
 use paddler_tests::start_cluster::start_cluster;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -17,7 +17,7 @@ async fn balancer_returns_503_when_request_buffering_disabled() {
     let mut cluster = start_cluster(ClusterParams {
         agents: Vec::new(),
         wait_for_slots_ready: false,
-        buffered_request_timeout: Duration::from_millis(50),
+        buffered_request_timeout: SHORT_BUFFERED_REQUEST_TIMEOUT,
         max_buffered_requests: 0,
         ..ClusterParams::default()
     })

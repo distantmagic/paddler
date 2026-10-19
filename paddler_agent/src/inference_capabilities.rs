@@ -1,4 +1,4 @@
-use paddler_agent_runtime::shuts_down_unless_shared::ShutsDownUnlessShared;
+use paddler_agent_runtime::shuts_down::ShutsDown;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InferenceCapabilities<TDecisions, TEmbeddings, TTextGeneration> {
@@ -7,22 +7,22 @@ pub struct InferenceCapabilities<TDecisions, TEmbeddings, TTextGeneration> {
     pub text_generation: TTextGeneration,
 }
 
-impl<TDecisions, TEmbeddings, TTextGeneration> ShutsDownUnlessShared
+impl<TDecisions, TEmbeddings, TTextGeneration> ShutsDown
     for InferenceCapabilities<TDecisions, TEmbeddings, TTextGeneration>
 where
-    TDecisions: ShutsDownUnlessShared + Send,
-    TEmbeddings: ShutsDownUnlessShared + Send,
-    TTextGeneration: ShutsDownUnlessShared + Send,
+    TDecisions: ShutsDown + Send,
+    TEmbeddings: ShutsDown + Send,
+    TTextGeneration: ShutsDown + Send,
 {
-    async fn shut_down_unless_shared(self) {
+    async fn shut_down(self) {
         let Self {
             decisions,
             embeddings,
             text_generation,
         } = self;
 
-        decisions.shut_down_unless_shared().await;
-        embeddings.shut_down_unless_shared().await;
-        text_generation.shut_down_unless_shared().await;
+        decisions.shut_down().await;
+        embeddings.shut_down().await;
+        text_generation.shut_down().await;
     }
 }

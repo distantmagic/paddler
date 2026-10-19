@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent_decision::decision_pipeline::DecisionPipeline;
@@ -9,7 +7,7 @@ use paddler_agent_embeddings::embedding_pipeline::EmbeddingPipeline;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::llama_model_settings::LlamaModelSettings;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
-use paddler_agent_runtime::shuts_down_unless_shared::ShutsDownUnlessShared as _;
+use paddler_agent_runtime::shuts_down::ShutsDown as _;
 use paddler_agent_runtime::spawn_blocking_resuming_panic::spawn_blocking_resuming_panic;
 use paddler_agent_runtime::startup_outcome::StartupOutcome;
 use paddler_agent_text_generation::llama_cpp_media_marker::LlamaCppMediaMarker;
@@ -24,22 +22,29 @@ use crate::inference_capabilities::InferenceCapabilities;
 use crate::loaded_model_serving_plan::LoadedModelServingPlan;
 use crate::model_serving_settings::ModelServingSettings;
 use crate::prepared_decisions::PreparedDecisions;
-use crate::prepared_decisions_plan::PreparedDecisionsPlan;
 use crate::served_capabilities::ServedCapabilities;
 use crate::served_decisions::ServedDecisions;
 use crate::served_embeddings::ServedEmbeddings;
 use crate::served_model::ServedModel;
 use crate::served_text_generation::ServedTextGeneration;
+use crate::serving_interruption::ServingInterruption;
 
 trait IntoEstablishedCapability<TStarted> {
     fn into_established_capability(self) -> Result<TStarted, CapabilityStartupInterruption>;
 }
 
-impl<TStarted> IntoEstablishedCapability<TStarted> for StartupOutcome<TStarted> {
+impl<TStarted, TError> IntoEstablishedCapability<TStarted>
+    for Result<StartupOutcome<TStarted>, TError>
+where
+    AgentError: From<TError>,
+{
     fn into_established_capability(self) -> Result<TStarted, CapabilityStartupInterruption> {
         match self {
-            Self::Ready(started) => Ok(started),
-            Self::Cancelled => Err(CapabilityStartupInterruption::Cancelled),
+            Ok(StartupOutcome::Ready(started)) => Ok(started),
+            Ok(StartupOutcome::Cancelled) => Err(CapabilityStartupInterruption::Cancelled),
+            Err(startup_error) => Err(CapabilityStartupInterruption::Failed(AgentError::from(
+                startup_error,
+            ))),
         }
     }
 }
@@ -52,32 +57,33 @@ pub struct CapabilityStarter<'startup> {
 impl CapabilityStarter<'_> {
     pub async fn prepare_decisions(
         &self,
-        decisions_plan: CapabilityPlan<ServedDecisions>,
         applicable_decisions: &ApplicableDecisions,
-    ) -> Result<PreparedDecisionsPlan, CapabilityStartupInterruption> {
-        match (decisions_plan, applicable_decisions) {
-            (CapabilityPlan::Keep(served_decisions), _) => {
-                Ok(PreparedDecisionsPlan::Keep(served_decisions))
-            }
-            (CapabilityPlan::Start, ApplicableDecisions::Disabled) => {
-                Ok(PreparedDecisionsPlan::Start(PreparedDecisions::Disabled))
-            }
-            (CapabilityPlan::Start, ApplicableDecisions::Enabled { pointer_head_path }) => {
+    ) -> Result<PreparedDecisions, CapabilityStartupInterruption> {
+        match applicable_decisions {
+            ApplicableDecisions::Disabled => Ok(PreparedDecisions::Disabled),
+            ApplicableDecisions::Enabled { pointer_head_path } => {
                 let decision_prerequisites = DecisionPrerequisites {
                     inference_runtime_context: self.inference_runtime_context.clone(),
                     pointer_head_path: pointer_head_path.clone(),
                 };
+                let cancellation_token = self.cancellation_token.clone();
 
-                spawn_blocking_resuming_panic(move || decision_prerequisites.load_pointer_head())
-                    .await
-                    .map(|loaded_pointer_head| {
-                        PreparedDecisionsPlan::Start(PreparedDecisions::Enabled(Box::new(
-                            loaded_pointer_head,
-                        )))
-                    })
-                    .map_err(|decision_error| {
-                        CapabilityStartupInterruption::Failed(AgentError::from(decision_error))
-                    })
+                spawn_blocking_resuming_panic(move || {
+                    decision_prerequisites
+                        .load_pointer_head()
+                        .map(|loaded_pointer_head| {
+                            if cancellation_token.is_cancelled() {
+                                StartupOutcome::Cancelled
+                            } else {
+                                StartupOutcome::Ready(loaded_pointer_head)
+                            }
+                        })
+                })
+                .await
+                .into_established_capability()
+                .map(|loaded_pointer_head| {
+                    PreparedDecisions::Enabled(Box::new(loaded_pointer_head))
+                })
             }
         }
     }
@@ -92,32 +98,10 @@ impl CapabilityStarter<'_> {
             llama_model_settings,
         )
         .await
-        .map_err(AgentError::from)?
         .into_established_capability()
     }
 
     pub async fn serve(
-        &self,
-        loaded_model_serving_plan: LoadedModelServingPlan<PreparedDecisionsPlan>,
-    ) -> Result<ServedModel, CapabilityStartupInterruption> {
-        let loaded_llama_model = loaded_model_serving_plan.loaded_llama_model.clone();
-        let model_serving_settings = loaded_model_serving_plan.model_serving_settings.clone();
-
-        match self.establish(loaded_model_serving_plan).await {
-            Ok(capabilities) => Ok(ServedModel {
-                capabilities,
-                loaded_llama_model,
-                model_serving_settings,
-            }),
-            Err(interruption) => {
-                loaded_llama_model.release().await;
-
-                Err(interruption)
-            }
-        }
-    }
-
-    async fn establish(
         &self,
         LoadedModelServingPlan {
             capability_plans:
@@ -128,15 +112,29 @@ impl CapabilityStarter<'_> {
                 },
             loaded_llama_model,
             model_serving_settings,
-        }: LoadedModelServingPlan<PreparedDecisionsPlan>,
-    ) -> Result<ServedCapabilities, CapabilityStartupInterruption> {
-        let decisions = self
+        }: LoadedModelServingPlan,
+        prepared_decisions: PreparedDecisions,
+    ) -> Result<ServedModel, ServingInterruption> {
+        let decisions = match self
             .establish_decisions(
                 &loaded_llama_model,
                 &model_serving_settings.model_runtime_parameters,
                 decisions_plan,
+                prepared_decisions,
             )
-            .await?;
+            .await
+        {
+            Ok(decisions) => decisions,
+            Err(interruption) => {
+                embeddings_plan.shut_down().await;
+                text_generation_plan.shut_down().await;
+
+                return Err(ServingInterruption {
+                    interruption,
+                    loaded_llama_model,
+                });
+            }
+        };
         let embeddings = match self
             .establish_embeddings(
                 &loaded_llama_model,
@@ -147,14 +145,18 @@ impl CapabilityStarter<'_> {
         {
             Ok(embeddings) => embeddings,
             Err(interruption) => {
-                decisions.shut_down_unless_shared().await;
+                decisions.shut_down().await;
+                text_generation_plan.shut_down().await;
 
-                return Err(interruption);
+                return Err(ServingInterruption {
+                    interruption,
+                    loaded_llama_model,
+                });
             }
         };
         let text_generation = match self
             .establish_text_generation(
-                loaded_llama_model,
+                &loaded_llama_model,
                 &model_serving_settings,
                 text_generation_plan,
             )
@@ -162,18 +164,51 @@ impl CapabilityStarter<'_> {
         {
             Ok(text_generation) => text_generation,
             Err(interruption) => {
-                decisions.shut_down_unless_shared().await;
-                embeddings.shut_down_unless_shared().await;
+                decisions.shut_down().await;
+                embeddings.shut_down().await;
 
-                return Err(interruption);
+                return Err(ServingInterruption {
+                    interruption,
+                    loaded_llama_model,
+                });
             }
         };
 
-        Ok(InferenceCapabilities {
-            decisions,
-            embeddings,
-            text_generation,
+        Ok(ServedModel {
+            capabilities: ServedCapabilities {
+                decisions,
+                embeddings,
+                text_generation,
+            },
+            loaded_llama_model,
+            model_serving_settings,
         })
+    }
+
+    async fn establish_decisions(
+        &self,
+        loaded_llama_model: &LoadedLlamaModel,
+        model_runtime_parameters: &ModelRuntimeParameters,
+        decisions_plan: CapabilityPlan<ServedDecisions>,
+        prepared_decisions: PreparedDecisions,
+    ) -> Result<ServedDecisions, CapabilityStartupInterruption> {
+        match (decisions_plan, prepared_decisions) {
+            (CapabilityPlan::Keep(served_decisions), _) => Ok(served_decisions),
+            (CapabilityPlan::Start, PreparedDecisions::Disabled) => Ok(ServedDecisions::Disabled),
+            (CapabilityPlan::Start, PreparedDecisions::Enabled(loaded_pointer_head)) => {
+                DecisionPipeline {
+                    architecture: GeneralArchitectureMetadata,
+                    inference_runtime_context: self.inference_runtime_context.clone(),
+                    loaded_llama_model: loaded_llama_model.clone(),
+                    loaded_pointer_head: *loaded_pointer_head,
+                    model_runtime_parameters: model_runtime_parameters.clone(),
+                }
+                .spawn(self.cancellation_token)
+                .await
+                .into_established_capability()
+                .map(ServedDecisions::Enabled)
+            }
+        }
     }
 
     async fn establish_embeddings(
@@ -192,15 +227,13 @@ impl CapabilityStarter<'_> {
             }
             .spawn(self.cancellation_token)
             .await
-            .map_err(AgentError::from)?
-            .into_established_capability()
-            .map(Arc::new),
+            .into_established_capability(),
         }
     }
 
     async fn establish_text_generation(
         &self,
-        loaded_llama_model: LoadedLlamaModel,
+        loaded_llama_model: &LoadedLlamaModel,
         model_serving_settings: &ModelServingSettings,
         text_generation_plan: CapabilityPlan<ServedTextGeneration>,
     ) -> Result<ServedTextGeneration, CapabilityStartupInterruption> {
@@ -208,7 +241,7 @@ impl CapabilityStarter<'_> {
             CapabilityPlan::Keep(text_generation) => Ok(text_generation),
             CapabilityPlan::Start => TextGenerationPipeline {
                 inference_runtime_context: self.inference_runtime_context.clone(),
-                loaded_llama_model,
+                loaded_llama_model: loaded_llama_model.clone(),
                 media_marker: LlamaCppMediaMarker,
                 model_runtime_parameters: model_serving_settings.model_runtime_parameters.clone(),
                 text_generation_settings: model_serving_settings
@@ -218,37 +251,7 @@ impl CapabilityStarter<'_> {
             }
             .spawn(self.cancellation_token)
             .await
-            .map_err(AgentError::from)?
-            .into_established_capability()
-            .map(Arc::new),
-        }
-    }
-
-    async fn establish_decisions(
-        &self,
-        loaded_llama_model: &LoadedLlamaModel,
-        model_runtime_parameters: &ModelRuntimeParameters,
-        prepared_decisions_plan: PreparedDecisionsPlan,
-    ) -> Result<ServedDecisions, CapabilityStartupInterruption> {
-        match prepared_decisions_plan {
-            PreparedDecisionsPlan::Keep(served_decisions) => Ok(served_decisions),
-            PreparedDecisionsPlan::Start(PreparedDecisions::Disabled) => {
-                Ok(ServedDecisions::Disabled)
-            }
-            PreparedDecisionsPlan::Start(PreparedDecisions::Enabled(loaded_pointer_head)) => {
-                DecisionPipeline {
-                    architecture: GeneralArchitectureMetadata,
-                    inference_runtime_context: self.inference_runtime_context.clone(),
-                    loaded_llama_model: loaded_llama_model.clone(),
-                    loaded_pointer_head: *loaded_pointer_head,
-                    model_runtime_parameters: model_runtime_parameters.clone(),
-                }
-                .spawn(self.cancellation_token)
-                .await
-                .map_err(AgentError::from)?
-                .into_established_capability()
-                .map(|decisions| ServedDecisions::Enabled(Arc::new(decisions)))
-            }
+            .into_established_capability(),
         }
     }
 }

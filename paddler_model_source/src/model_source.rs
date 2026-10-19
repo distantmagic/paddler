@@ -6,11 +6,11 @@ use paddler_messaging::agent_desired_model::AgentDesiredModel;
 use paddler_messaging::agent_issue::AgentIssue;
 use paddler_messaging::agent_issue_params::model_path::ModelPath;
 
+use crate::agent_local_model_path::AgentLocalModelPath;
 use crate::download_error_agent_issue::download_error_agent_issue;
 use crate::huggingface_model_reference::HuggingFaceModelReference;
 use crate::model_source_error::ModelSourceError;
 
-const AGENT_SCHEME: &str = "agent";
 const HUGGING_FACE_BLOB: &str = "blob";
 const HUGGING_FACE_HOST: &str = "huggingface.co";
 const HUGGING_FACE_RESOLVE: &str = "resolve";
@@ -40,7 +40,7 @@ fn huggingface_model_reference(url: &Url) -> Option<HuggingFaceModelReference> {
 #[derive(Debug, Eq, PartialEq)]
 pub enum ModelSource {
     HuggingFace(HuggingFaceModelReference),
-    LocalToAgent(String),
+    LocalToAgent(AgentLocalModelPath),
     Url(DownloadUrl),
 }
 
@@ -76,8 +76,9 @@ impl ModelSource {
                 });
         }
 
-        if url.scheme() == AGENT_SCHEME {
-            return Ok(Self::LocalToAgent(url.path().to_owned()));
+        if url.scheme() == AgentLocalModelPath::SCHEME {
+            return AgentLocalModelPath::from_agent_url(uri, &url, slot_aggregated_status)
+                .map(Self::LocalToAgent);
         }
 
         DownloadUrl::try_from(url)
@@ -105,7 +106,9 @@ impl ModelSource {
             }) => format!(
                 "https://{HUGGING_FACE_HOST}/{repo_id}/{HUGGING_FACE_BLOB}/{revision}/{filename}"
             ),
-            Self::LocalToAgent(path) => format!("{AGENT_SCHEME}://{path}"),
+            Self::LocalToAgent(agent_local_model_path) => {
+                agent_local_model_path.canonical_uri().to_owned()
+            }
             Self::Url(download_url) => download_url.as_str().to_owned(),
         }
     }
@@ -119,6 +122,7 @@ impl ModelSource {
 #[cfg(test)]
 mod tests {
     use std::error::Error as _;
+    use std::path::Path;
 
     use url::ParseError;
 
@@ -129,6 +133,7 @@ mod tests {
     use paddler_messaging::agent_issue_params::model_path::ModelPath;
 
     use super::ModelSource;
+    use crate::agent_local_model_path::AgentLocalModelPath;
     use crate::huggingface_model_reference::HuggingFaceModelReference;
     use crate::model_source_error::ModelSourceError;
 
@@ -196,7 +201,9 @@ mod tests {
         assert_eq!(
             ModelSource::parse("agent:///models/model.gguf", &SlotAggregatedStatus::new(1))
                 .unwrap(),
-            ModelSource::LocalToAgent("/models/model.gguf".to_owned())
+            ModelSource::LocalToAgent(
+                AgentLocalModelPath::from_absolute_path(Path::new("/models/model.gguf")).unwrap()
+            )
         );
     }
 
@@ -221,7 +228,10 @@ mod tests {
                     repo_id: "owner/repo".to_owned(),
                     revision: "main".to_owned(),
                 }),
-                ModelSource::LocalToAgent("/models/model.gguf".to_owned()),
+                ModelSource::LocalToAgent(
+                    AgentLocalModelPath::from_absolute_path(Path::new("/models/model.gguf"))
+                        .unwrap(),
+                ),
                 ModelSource::Url(DownloadUrl::parse("https://example.com/model.gguf").unwrap()),
             ]
             .iter()

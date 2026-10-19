@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use llama_cpp_bindings::model::AddBos;
-use llama_cpp_bindings::model::LlamaModel;
 use llama_cpp_bindings::model::ParseSpecialTokens;
 use llama_cpp_bindings::token::LlamaToken;
 
+use paddler_agent_runtime::resident_llama_model::ResidentLlamaModel;
 use paddler_messaging::chat_template_message::ChatTemplateMessage;
 use paddler_messaging::chat_template_message_content::ChatTemplateMessageContent;
 
@@ -17,7 +17,7 @@ use crate::text_generation_error::TextGenerationError;
 const LEADING_BOS_PROBE_TEXT: &str = "hi";
 
 pub struct PromptTokenizer {
-    pub model: Arc<LlamaModel>,
+    pub model: Arc<ResidentLlamaModel>,
     pub model_bos_token: ModelBosToken,
     pub sequence_context_size: u32,
 }

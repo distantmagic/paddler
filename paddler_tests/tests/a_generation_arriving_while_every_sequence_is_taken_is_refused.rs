@@ -1,8 +1,7 @@
 #![cfg(feature = "tests_that_use_llms")]
 
-use std::sync::mpsc::channel;
-
 use llama_cpp_bindings::llama_batch::LlamaBatch;
+use tokio::sync::mpsc::unbounded_channel;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent_runtime::scheduler_message::SchedulerMessage;
@@ -68,7 +67,7 @@ fn a_generation_arriving_while_every_sequence_is_taken_is_refused() {
             .slot_aggregated_status
             .clone(),
     );
-    let (scheduler_message_tx, scheduler_message_rx) = channel();
+    let (scheduler_message_tx, scheduler_message_rx) = unbounded_channel();
 
     for agent_request in [
         generation_taking_the_only_sequence,

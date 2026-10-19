@@ -37,14 +37,14 @@ mod tests {
 
         drop(outbound_rx);
 
-        assert_eq!(
+        assert!(matches!(
             enqueue_outbound_frame(
                 &outbound_tx,
                 Message::Ping(Bytes::new()),
-                ManagementConnectionStep::Continue
-            )
-            .outcome(),
-            Err(&ManagementConnectionEnd::OutgoingStreamFailed)
-        );
+                ManagementConnectionStep::Continue,
+            ),
+            ManagementConnectionStep::End(management_connection_end)
+                if management_connection_end == ManagementConnectionEnd::OutgoingStreamFailed
+        ));
     }
 }

@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use log::error;
 use tokio_util::sync::CancellationToken;
-use tokio_util::task::TaskTracker;
 
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
+use paddler_agent_runtime::shuts_down::ShutsDown as _;
 
 use crate::agent_applicable_state::AgentApplicableState;
 use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
@@ -13,12 +13,16 @@ use crate::finished_serving_startup::FinishedServingStartup;
 use crate::model_serving::ModelServing;
 use crate::pipeline_arbiter_params::PipelineArbiterParams;
 use crate::pipeline_request::PipelineRequest;
+use crate::preparation_outcome::PreparationOutcome;
+use crate::prepared_serving::PreparedServing;
+use crate::replacement_outcome::ReplacementOutcome;
 use crate::retry_delay::RetryDelay;
+use crate::serving_preparation::ServingPreparation;
+use crate::serving_replacement::ServingReplacement;
 use crate::serving_startup::ServingStartup;
-use crate::serving_startup_attempt::ServingStartupAttempt;
-use crate::serving_startup_failure::ServingStartupFailure;
-use crate::serving_startup_plan::ServingStartupPlan;
-use crate::started_serving::StartedServing;
+use crate::serving_startup_progress::ServingStartupProgress;
+use crate::startup_phase::StartupPhase;
+use crate::superseding_state::SupersedingState;
 
 pub struct PipelineArbiter {
     agent_shutdown: CancellationToken,
@@ -26,7 +30,7 @@ pub struct PipelineArbiter {
     model_serving: ModelServing,
     served_applicable_state_holder: Arc<AgentApplicableStateHolder>,
     serving_startup: ServingStartup,
-    task_tracker: TaskTracker,
+    superseding_state: SupersedingState,
 }
 
 impl PipelineArbiter {
@@ -44,69 +48,35 @@ impl PipelineArbiter {
             model_serving: ModelServing::Idle,
             served_applicable_state_holder,
             serving_startup: ServingStartup::Idle,
-            task_tracker: TaskTracker::new(),
+            superseding_state: SupersedingState::NotSuperseded,
         }
     }
 
     pub fn apply(&mut self, agent_applicable_state: AgentApplicableState) {
-        self.serving_startup.abandon(&self.task_tracker);
         self.inference_runtime_context
             .slot_aggregated_status
             .begin_pipeline();
-        self.start_serving(ServingStartupAttempt {
-            serving_startup_plan: ServingStartupPlan::new(
-                &self.model_serving,
-                &agent_applicable_state,
-            ),
-            agent_applicable_state,
-            retry_delay: RetryDelay::Immediately,
-        });
+
+        match self.serving_startup {
+            ServingStartup::Idle => self.prepare(agent_applicable_state, RetryDelay::Immediately),
+            ServingStartup::Preparing(_) | ServingStartup::Replacing(_) => {
+                self.serving_startup.cancel();
+                self.superseding_state = SupersedingState::SupersededBy(agent_applicable_state);
+            }
+        }
     }
 
-    pub async fn next_finished_startup(&mut self) -> FinishedServingStartup {
-        self.serving_startup.finish().await
+    pub async fn next_finished_startup(&mut self) -> ServingStartupProgress {
+        self.serving_startup.next_progress().await
     }
 
-    pub fn conclude(
-        &mut self,
-        FinishedServingStartup {
-            agent_applicable_state,
-            outcome,
-        }: FinishedServingStartup,
-    ) {
-        let slot_aggregated_status = &self.inference_runtime_context.slot_aggregated_status;
-        let uses_chat_template_override = agent_applicable_state.chat_template_override().is_some();
-
-        match outcome {
-            Ok(StartedServing::Serving(served_model)) => {
-                slot_aggregated_status
-                    .start_serving(served_model.serving_report(uses_chat_template_override));
-                self.inference_runtime_context
-                    .model_metadata_holder
-                    .set_model_metadata(served_model.loaded_llama_model.model_metadata.clone());
-                self.served_applicable_state_holder
-                    .set_agent_applicable_state(agent_applicable_state);
-                self.replace_model_serving(ModelServing::Serving(served_model));
+    pub fn conclude(&mut self, serving_startup_progress: ServingStartupProgress) {
+        match serving_startup_progress {
+            ServingStartupProgress::Prepared(preparation_outcome) => {
+                self.conclude_preparation(preparation_outcome);
             }
-            Ok(StartedServing::NothingToServe) => {
-                slot_aggregated_status.serve_nothing(uses_chat_template_override);
-                self.inference_runtime_context
-                    .model_metadata_holder
-                    .forget_model_metadata();
-                self.served_applicable_state_holder
-                    .set_agent_applicable_state(agent_applicable_state);
-                self.replace_model_serving(ModelServing::Idle);
-            }
-            Ok(StartedServing::Cancelled) => {}
-            Err(ServingStartupFailure { error, retry_plan }) => {
-                error!("Failed to serve the reconciled state: {error}");
-
-                slot_aggregated_status.retry_pipeline();
-                self.start_serving(ServingStartupAttempt {
-                    agent_applicable_state,
-                    retry_delay: RetryDelay::AfterRetryInterval,
-                    serving_startup_plan: retry_plan,
-                });
+            ServingStartupProgress::Replaced(finished_serving_startup) => {
+                self.conclude_replacement(finished_serving_startup);
             }
         }
     }
@@ -118,246 +88,162 @@ impl PipelineArbiter {
         );
     }
 
-    pub async fn shut_down(mut self) {
-        self.serving_startup.abandon(&self.task_tracker);
-        self.model_serving.shut_down().await;
-        self.task_tracker.close();
-        self.task_tracker.wait().await;
+    pub async fn shut_down(self) {
+        let Self {
+            model_serving,
+            serving_startup,
+            ..
+        } = self;
+
+        serving_startup.shut_down().await;
+        model_serving.shut_down().await;
     }
 
-    fn replace_model_serving(&mut self, model_serving: ModelServing) {
-        mem::replace(&mut self.model_serving, model_serving)
-            .shut_down_in_background(&self.task_tracker);
-    }
+    fn conclude_preparation(&mut self, preparation_outcome: PreparationOutcome) {
+        if let SupersedingState::SupersededBy(superseding_applicable_state) =
+            mem::replace(&mut self.superseding_state, SupersedingState::NotSuperseded)
+        {
+            self.prepare(superseding_applicable_state, RetryDelay::Immediately);
 
-    fn start_serving(&mut self, serving_startup_attempt: ServingStartupAttempt) {
-        self.serving_startup = serving_startup_attempt
-            .start(&self.agent_shutdown, self.inference_runtime_context.clone());
-    }
-}
+            return;
+        }
 
-#[cfg(test)]
-mod tests {
-    use std::collections::BTreeMap;
-    use std::num::NonZeroU32;
-    use std::path::PathBuf;
-    use std::sync::Arc;
+        match preparation_outcome {
+            PreparationOutcome::Cancelled => {}
+            PreparationOutcome::Failed {
+                agent_applicable_state,
+                error,
+            } => {
+                error!("Failed to prepare the reconciled state: {error}");
 
-    use tokio_util::sync::CancellationToken;
-
-    use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
-    use paddler_agent_runtime::model_metadata_holder::ModelMetadataHolder;
-    use paddler_agent_runtime::shared_llama_backend::SharedLlamaBackend;
-    use paddler_agent_runtime::system_parallelism::SystemParallelism;
-    use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
-    use paddler_agent_text_generation::multimodal_projection::MultimodalProjection;
-    use paddler_agent_text_generation::text_generation_settings::TextGenerationSettings;
-    use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
-    use paddler_inference_parameters::pooling_type::PoolingType;
-    use paddler_inference_parameters::sampling_parameters::SamplingParameters;
-    use paddler_messaging::agent_runtime_status::AgentRuntimeStatus;
-    use paddler_messaging::agent_state_application_status::AgentStateApplicationStatus;
-    use paddler_messaging::chat_template_source::ChatTemplateSource;
-    use paddler_messaging::model_metadata::ModelMetadata;
-    use paddler_messaging::produces_snapshot::ProducesSnapshot as _;
-
-    use super::PipelineArbiter;
-    use crate::agent_applicable_state::AgentApplicableState;
-    use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
-    use crate::applicable_decisions::ApplicableDecisions;
-    use crate::inference_capabilities::InferenceCapabilities;
-    use crate::model_serving_settings::ModelServingSettings;
-    use crate::pipeline_arbiter_params::PipelineArbiterParams;
-    use crate::state_overriding_the_chat_template::state_overriding_the_chat_template;
-
-    fn inference_runtime_context() -> InferenceRuntimeContext {
-        InferenceRuntimeContext {
-            agent_name: Some("agent".to_owned()),
-            available_parallelism: Arc::new(SystemParallelism),
-            llama_backend: Arc::new(SharedLlamaBackend::default()),
-            model_metadata_holder: Arc::new(ModelMetadataHolder::default()),
-            slot_aggregated_status: Arc::new(SlotAggregatedStatus::new(1)),
+                self.inference_runtime_context
+                    .slot_aggregated_status
+                    .retry_pipeline();
+                self.prepare(agent_applicable_state, RetryDelay::AfterRetryInterval);
+            }
+            PreparationOutcome::Prepared(prepared_serving) => self.replace(prepared_serving),
         }
     }
 
-    fn pipeline_arbiter(
-        inference_runtime_context: InferenceRuntimeContext,
-        served_applicable_state_holder: Arc<AgentApplicableStateHolder>,
-    ) -> PipelineArbiter {
-        PipelineArbiter::new(PipelineArbiterParams {
-            agent_shutdown: CancellationToken::new(),
-            inference_runtime_context,
-            served_applicable_state_holder,
-        })
+    fn conclude_replacement(
+        &mut self,
+        FinishedServingStartup {
+            agent_applicable_state,
+            outcome,
+        }: FinishedServingStartup,
+    ) {
+        if let SupersedingState::SupersededBy(superseding_applicable_state) =
+            mem::replace(&mut self.superseding_state, SupersedingState::NotSuperseded)
+        {
+            self.model_serving = outcome.into_model_serving();
+            self.prepare(superseding_applicable_state, RetryDelay::Immediately);
+
+            return;
+        }
+
+        self.settle_replacement(agent_applicable_state, &outcome);
+        self.model_serving = outcome.into_model_serving();
     }
 
-    fn state_whose_pipeline_cannot_start() -> AgentApplicableState {
-        AgentApplicableState::WithModel(ModelServingSettings {
-            capabilities: InferenceCapabilities {
-                decisions: ApplicableDecisions::Disabled,
-                embeddings: PoolingType::Last,
-                text_generation: TextGenerationSettings {
-                    chat_template_source: ChatTemplateSource::EmbeddedInModel,
-                    image_resize_to_fit: NonZeroU32::MIN,
-                    multimodal_projection: MultimodalProjection::NotConfigured,
-                    sampling_parameters: SamplingParameters::default(),
-                },
-            },
-            model_path: PathBuf::from("/nonexistent/model.gguf"),
-            model_runtime_parameters: ModelRuntimeParameters::default(),
-        })
-    }
+    fn prepare(&mut self, agent_applicable_state: AgentApplicableState, retry_delay: RetryDelay) {
+        let cancellation_token = self.agent_shutdown.child_token();
 
-    async fn concluded_startup(
-        pipeline_arbiter: &mut PipelineArbiter,
-    ) -> AgentStateApplicationStatus {
-        let finished_pipeline_startup = pipeline_arbiter.next_finished_startup().await;
-
-        pipeline_arbiter.conclude(finished_pipeline_startup);
-
-        pipeline_arbiter
-            .inference_runtime_context
-            .slot_aggregated_status
-            .get_state_application_status()
-    }
-
-    #[tokio::test]
-    async fn a_state_without_a_model_serves_nothing_and_forgets_the_previous_model() {
-        let inference_runtime_context = inference_runtime_context();
-        let mut pipeline_arbiter = pipeline_arbiter(
-            inference_runtime_context.clone(),
-            Arc::new(AgentApplicableStateHolder::default()),
-        );
-
-        inference_runtime_context
-            .model_metadata_holder
-            .set_model_metadata(Arc::new(ModelMetadata {
-                metadata: BTreeMap::from([("general.name".to_owned(), "previous".to_owned())]),
-            }));
-        pipeline_arbiter.apply(AgentApplicableState::NotConfigured);
-
-        assert_eq!(
-            concluded_startup(&mut pipeline_arbiter).await,
-            AgentStateApplicationStatus::Applied
-        );
-        assert_eq!(
-            inference_runtime_context
-                .slot_aggregated_status
-                .make_snapshot()
-                .status
-                .runtime,
-            AgentRuntimeStatus::Idle
-        );
-        assert_eq!(
-            inference_runtime_context
-                .model_metadata_holder
-                .get_model_metadata(),
-            None
-        );
-
-        pipeline_arbiter.shut_down().await;
-    }
-
-    #[tokio::test]
-    async fn a_pipeline_that_fails_to_start_is_retried_until_it_is_stuck() {
-        let mut pipeline_arbiter = pipeline_arbiter(
-            inference_runtime_context(),
-            Arc::new(AgentApplicableStateHolder::default()),
-        );
-
-        pipeline_arbiter.apply(state_whose_pipeline_cannot_start());
-
-        assert_eq!(
-            concluded_startup(&mut pipeline_arbiter).await,
-            AgentStateApplicationStatus::AttemptedAndRetrying
-        );
-        assert_eq!(
-            concluded_startup(&mut pipeline_arbiter).await,
-            AgentStateApplicationStatus::Stuck
-        );
-
-        pipeline_arbiter.shut_down().await;
-    }
-
-    #[tokio::test]
-    async fn a_pipeline_that_fails_to_start_leaves_the_previously_served_state_in_place() {
-        let served_applicable_state_holder = Arc::new(AgentApplicableStateHolder::default());
-        let mut pipeline_arbiter = pipeline_arbiter(
-            inference_runtime_context(),
-            served_applicable_state_holder.clone(),
-        );
-        let served_state = state_overriding_the_chat_template();
-
-        pipeline_arbiter.apply(served_state.clone());
-        concluded_startup(&mut pipeline_arbiter).await;
-        pipeline_arbiter.apply(state_whose_pipeline_cannot_start());
-        concluded_startup(&mut pipeline_arbiter).await;
-
-        assert_eq!(
-            served_applicable_state_holder.get_agent_applicable_state(),
-            served_state
-        );
-
-        pipeline_arbiter.shut_down().await;
-    }
-
-    #[tokio::test]
-    async fn a_startup_cancelled_by_the_agent_shutting_down_changes_nothing() {
-        let agent_shutdown = CancellationToken::new();
-        let mut pipeline_arbiter = PipelineArbiter::new(PipelineArbiterParams {
-            agent_shutdown: agent_shutdown.clone(),
-            inference_runtime_context: inference_runtime_context(),
-            served_applicable_state_holder: Arc::new(AgentApplicableStateHolder::default()),
+        self.serving_startup = ServingStartup::Preparing(StartupPhase {
+            cancellation_token: cancellation_token.clone(),
+            outcome: Box::pin(
+                ServingPreparation {
+                    agent_applicable_state,
+                    retry_delay,
+                }
+                .prepare(cancellation_token, self.inference_runtime_context.clone()),
+            ),
         });
-
-        agent_shutdown.cancel();
-        pipeline_arbiter.apply(state_whose_pipeline_cannot_start());
-
-        assert_eq!(
-            concluded_startup(&mut pipeline_arbiter).await,
-            AgentStateApplicationStatus::Fresh
-        );
-
-        pipeline_arbiter.shut_down().await;
     }
 
-    #[tokio::test]
-    async fn a_state_replaced_before_it_is_served_yields_to_its_replacement() {
-        let served_applicable_state_holder = Arc::new(AgentApplicableStateHolder::default());
-        let mut pipeline_arbiter = pipeline_arbiter(
-            inference_runtime_context(),
-            served_applicable_state_holder.clone(),
-        );
+    fn replace(&mut self, prepared_serving: PreparedServing) {
+        if let ModelServing::Serving(served_model) = &self.model_serving
+            && let AgentApplicableState::WithModel(desired_settings) =
+                &prepared_serving.agent_applicable_state
+            && served_model.model_serving_settings == *desired_settings
+        {
+            self.inference_runtime_context
+                .slot_aggregated_status
+                .start_serving(
+                    served_model.serving_report(
+                        prepared_serving
+                            .agent_applicable_state
+                            .chat_template_override()
+                            .is_some(),
+                    ),
+                );
+            self.served_applicable_state_holder
+                .set_agent_applicable_state(prepared_serving.agent_applicable_state);
 
-        pipeline_arbiter.apply(AgentApplicableState::NotConfigured);
-        pipeline_arbiter.apply(state_overriding_the_chat_template());
-        concluded_startup(&mut pipeline_arbiter).await;
+            return;
+        }
 
-        assert_eq!(
-            served_applicable_state_holder.get_agent_applicable_state(),
-            state_overriding_the_chat_template()
-        );
+        let held = self.withdraw_serving();
+        let cancellation_token = self.agent_shutdown.child_token();
 
-        pipeline_arbiter.shut_down().await;
+        self.serving_startup = ServingStartup::Replacing(StartupPhase {
+            cancellation_token: cancellation_token.clone(),
+            outcome: Box::pin(
+                ServingReplacement {
+                    held,
+                    prepared_serving,
+                }
+                .replace(cancellation_token, self.inference_runtime_context.clone()),
+            ),
+        });
     }
 
-    #[tokio::test]
-    async fn a_model_replaced_before_it_starts_loading_yields_to_its_replacement() {
-        let served_applicable_state_holder = Arc::new(AgentApplicableStateHolder::default());
-        let mut pipeline_arbiter = pipeline_arbiter(
-            inference_runtime_context(),
-            served_applicable_state_holder.clone(),
-        );
+    fn settle_replacement(
+        &mut self,
+        agent_applicable_state: AgentApplicableState,
+        outcome: &ReplacementOutcome,
+    ) {
+        let uses_chat_template_override = agent_applicable_state.chat_template_override().is_some();
 
-        pipeline_arbiter.apply(state_whose_pipeline_cannot_start());
-        pipeline_arbiter.apply(state_overriding_the_chat_template());
-        concluded_startup(&mut pipeline_arbiter).await;
+        match outcome {
+            ReplacementOutcome::Cancelled { .. } => {}
+            ReplacementOutcome::Failed { error, .. } => {
+                error!("Failed to serve the reconciled state: {error}");
 
-        assert_eq!(
-            served_applicable_state_holder.get_agent_applicable_state(),
-            state_overriding_the_chat_template()
-        );
+                self.inference_runtime_context
+                    .slot_aggregated_status
+                    .retry_pipeline();
+                self.prepare(agent_applicable_state, RetryDelay::AfterRetryInterval);
+            }
+            ReplacementOutcome::NothingToServe => {
+                self.inference_runtime_context
+                    .slot_aggregated_status
+                    .serve_nothing(uses_chat_template_override);
+                self.served_applicable_state_holder
+                    .set_agent_applicable_state(agent_applicable_state);
+            }
+            ReplacementOutcome::Serving(served_model) => {
+                self.inference_runtime_context
+                    .slot_aggregated_status
+                    .start_serving(served_model.serving_report(uses_chat_template_override));
+                self.inference_runtime_context
+                    .model_metadata_holder
+                    .set_model_metadata(served_model.loaded_llama_model.model_metadata.clone());
+                self.served_applicable_state_holder
+                    .set_agent_applicable_state(agent_applicable_state);
+            }
+        }
+    }
 
-        pipeline_arbiter.shut_down().await;
+    fn withdraw_serving(&mut self) -> ModelServing {
+        self.inference_runtime_context
+            .slot_aggregated_status
+            .withdraw_serving();
+        self.inference_runtime_context
+            .model_metadata_holder
+            .forget_model_metadata();
+        self.served_applicable_state_holder
+            .set_agent_applicable_state(AgentApplicableState::NotConfigured);
+
+        mem::replace(&mut self.model_serving, ModelServing::Idle)
     }
 }

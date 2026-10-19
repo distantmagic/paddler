@@ -4,7 +4,6 @@ use std::num::NonZeroU16;
 
 use tokio::sync::mpsc;
 
-use paddler_agent::desired_state_reconciliation::DesiredStateReconciliation;
 use paddler_agent::pipeline_request::PipelineRequest;
 use paddler_agent_runtime::agent_request::AgentRequest;
 use paddler_messaging::decision_question::DecisionQuestion;
@@ -17,12 +16,9 @@ use paddler_tests::serving_pipeline_arbiter::ServingPipelineArbiter;
 async fn an_agent_serving_text_generation_and_embeddings_rejects_decisions() {
     let mut serving_pipeline_arbiter = ServingPipelineArbiter::new(1);
 
-    assert_eq!(
-        serving_pipeline_arbiter
-            .serve(qwen3_0_6b().into_desired_state())
-            .await,
-        DesiredStateReconciliation::Reconciled
-    );
+    serving_pipeline_arbiter
+        .serve(qwen3_0_6b().into_desired_state())
+        .await;
 
     let (response_tx, mut response_rx) = mpsc::unbounded_channel();
     let (_stop_tx, stop_rx) = mpsc::unbounded_channel();

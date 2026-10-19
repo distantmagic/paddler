@@ -3,8 +3,8 @@ use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_messaging::decision_settings::DecisionSettings;
 use paddler_messaging::decision_slots_minimum::DECISION_SLOTS_MINIMUM;
 use paddler_messaging::inference_mode::InferenceMode;
-use paddler_model_source::model_source::ModelSource;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
+use paddler_test_cluster_harness::agent_desired_model_at::agent_desired_model_at;
 use paddler_test_cluster_harness::cluster_desired_state::ClusterDesiredState;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
 use paddler_test_cluster_harness::fixture_path::fixture_path;
@@ -24,11 +24,12 @@ async fn balancer_reports_model_cannot_be_loaded_for_invalid_gguf() {
             agents: AgentConfig::uniform(1, DECISION_SLOTS_MINIMUM.get()),
             desired_state: ClusterDesiredState::Apply(Box::new(BalancerDesiredState {
                 decision: DecisionSettings {
-                    pointer_head: pointer_head_fixture(QWEN3_5_0_8B_SYNTHETIC_POINTER_HEAD_FIXTURE),
+                    pointer_head: pointer_head_fixture(QWEN3_5_0_8B_SYNTHETIC_POINTER_HEAD_FIXTURE)
+                        .expect("the pointer head fixture path must be absolute"),
                 },
                 inference_mode,
-                model: ModelSource::LocalToAgent(model_path_on_agent.clone())
-                    .into_agent_desired_model(),
+                model: agent_desired_model_at(&fixture_path("invalid.gguf"))
+                    .expect("the invalid model fixture path must be absolute"),
                 ..BalancerDesiredState::default()
             })),
             wait_for_slots_ready: false,

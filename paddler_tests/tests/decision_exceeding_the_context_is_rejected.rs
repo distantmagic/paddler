@@ -1,30 +1,24 @@
 #![cfg(feature = "tests_that_use_llms")]
 
-use std::num::NonZeroU32;
-
 use tokio_util::sync::CancellationToken;
 
-use paddler_inference_parameters::batch_size::BatchSize;
 use paddler_messaging::decision_result::DecisionResult;
 use paddler_messaging::oversized_decision_details::OversizedDecisionDetails;
 use paddler_messaging::request_params::decide_params::raw_decide_params::RawDecideParams;
-use paddler_tests::decision_cluster_params::DecisionClusterParams;
 use paddler_tests::sample_decision::sample_decision;
 use paddler_tests::start_decision_cluster::start_decision_cluster;
 
-const SMALL_CONTEXT_SIZE: u32 = 256;
+use crate::small_context_decision_cluster_params::SMALL_DECISION_CONTEXT_SIZE;
+use crate::small_context_decision_cluster_params::small_context_decision_cluster_params;
+
 const STATE_REPETITIONS_EXCEEDING_THE_CONTEXT: usize = 20;
 const TOKENS_REQUIRED_BY_THE_REPEATED_STATE_DECISION: usize = 602;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn decision_exceeding_the_context_is_rejected() {
-    let cluster = start_decision_cluster(DecisionClusterParams {
-        context_size: NonZeroU32::new(SMALL_CONTEXT_SIZE).expect("the context size is non-zero"),
-        n_batch: BatchSize::try_from(SMALL_CONTEXT_SIZE).expect("the batch fits the context"),
-        ..DecisionClusterParams::default()
-    })
-    .await
-    .expect("the cluster must start");
+    let cluster = start_decision_cluster(small_context_decision_cluster_params())
+        .await
+        .expect("the cluster must start");
 
     let collected = cluster
         .decide(
@@ -43,7 +37,7 @@ async fn decision_exceeding_the_context_is_rejected() {
     assert_eq!(
         collected.terminal_result,
         DecisionResult::RequestExceedsContext(OversizedDecisionDetails {
-            context_size: SMALL_CONTEXT_SIZE,
+            context_size: SMALL_DECISION_CONTEXT_SIZE,
             required_tokens: TOKENS_REQUIRED_BY_THE_REPEATED_STATE_DECISION,
         })
     );

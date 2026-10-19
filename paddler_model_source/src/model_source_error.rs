@@ -11,6 +11,12 @@ use paddler_download_manager::download_error::DownloadError;
 
 #[derive(Debug, Error)]
 pub enum ModelSourceError {
+    #[error(
+        "Agent URI '{uri}' does not name an absolute local path: use agent:///absolute/path/to/model.gguf"
+    )]
+    AgentUriNotAnAbsoluteLocalPath { uri: String },
+    #[error("Agent URI '{uri}' is not canonical: use '{canonical_uri}'")]
+    AgentUriNotCanonical { canonical_uri: String, uri: String },
     #[error("Unable to resolve the model cache directory")]
     CacheDirectoryUnresolvable(#[source] CacheDirError),
     #[error("Unable to set up the model downloader")]
@@ -55,6 +61,10 @@ pub enum ModelSourceError {
         #[source]
         source: io::Error,
     },
+    #[error("Local model path '{path_display}' climbs to a parent directory", path_display = path.display())]
+    LocalModelPathClimbsToParentDirectory { path: PathBuf },
+    #[error("Local model path '{path_display}' is not absolute", path_display = path.display())]
+    LocalModelPathNotAbsolute { path: PathBuf },
     #[error("Model URI '{uri}' is neither a Hugging Face, an agent:// nor a downloadable URI")]
     ModelUriNotDownloadable {
         uri: String,

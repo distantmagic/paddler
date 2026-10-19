@@ -1,5 +1,5 @@
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
-use paddler_agent_runtime::shuts_down_unless_shared::ShutsDownUnlessShared as _;
+use paddler_agent_runtime::shuts_down::ShutsDown;
 use paddler_agent_status::serving_report::ServingReport;
 use paddler_agent_text_generation::text_generation_request::TextGenerationRequest;
 
@@ -8,6 +8,7 @@ use crate::inference_capabilities::InferenceCapabilities;
 use crate::loaded_model_serving_plan::LoadedModelServingPlan;
 use crate::model_serving_settings::ModelServingSettings;
 use crate::pipeline_request::PipelineRequest;
+use crate::retained_serving::RetainedServing;
 use crate::served_capabilities::ServedCapabilities;
 
 pub struct ServedModel {
@@ -46,44 +47,61 @@ impl ServedModel {
         }
     }
 
-    #[must_use]
-    pub fn plan_restart(&self, desired_settings: ModelServingSettings) -> LoadedModelServingPlan {
-        let served_settings = &self.model_serving_settings;
+    pub async fn retain_for(self, desired_settings: ModelServingSettings) -> RetainedServing {
+        let Self {
+            capabilities,
+            loaded_llama_model,
+            model_serving_settings: served_settings,
+        } = self;
+
+        if loaded_llama_model.llama_model_settings != desired_settings.llama_model_settings() {
+            capabilities.shut_down().await;
+            loaded_llama_model.release().await;
+
+            return RetainedServing::ModelToLoad(desired_settings);
+        }
 
         if served_settings.model_runtime_parameters != desired_settings.model_runtime_parameters {
-            return LoadedModelServingPlan::starting_every_capability(
-                self.loaded_llama_model.clone(),
-                desired_settings,
+            capabilities.shut_down().await;
+
+            return RetainedServing::LoadedModel(
+                LoadedModelServingPlan::starting_every_capability(
+                    loaded_llama_model,
+                    desired_settings,
+                ),
             );
         }
 
-        let ServedCapabilities {
-            decisions: served_decisions,
-            embeddings: served_embeddings,
-            text_generation: served_text_generation,
-        } = &self.capabilities;
+        let InferenceCapabilities {
+            decisions,
+            embeddings,
+            text_generation,
+        } = capabilities;
 
-        LoadedModelServingPlan {
+        RetainedServing::LoadedModel(LoadedModelServingPlan {
             capability_plans: InferenceCapabilities {
-                decisions: CapabilityPlan::between(
-                    served_decisions,
+                decisions: CapabilityPlan::retaining(
+                    decisions,
                     &served_settings.capabilities.decisions,
                     &desired_settings.capabilities.decisions,
-                ),
-                embeddings: CapabilityPlan::between(
-                    served_embeddings,
+                )
+                .await,
+                embeddings: CapabilityPlan::retaining(
+                    embeddings,
                     &served_settings.capabilities.embeddings,
                     &desired_settings.capabilities.embeddings,
-                ),
-                text_generation: CapabilityPlan::between(
-                    served_text_generation,
+                )
+                .await,
+                text_generation: CapabilityPlan::retaining(
+                    text_generation,
                     &served_settings.capabilities.text_generation,
                     &desired_settings.capabilities.text_generation,
-                ),
+                )
+                .await,
             },
-            loaded_llama_model: self.loaded_llama_model.clone(),
+            loaded_llama_model,
             model_serving_settings: desired_settings,
-        }
+        })
     }
 
     #[must_use]
@@ -105,15 +123,17 @@ impl ServedModel {
             uses_chat_template_override,
         }
     }
+}
 
-    pub async fn shut_down(self) {
+impl ShutsDown for ServedModel {
+    async fn shut_down(self) {
         let Self {
             capabilities,
             loaded_llama_model,
             ..
         } = self;
 
-        capabilities.shut_down_unless_shared().await;
+        capabilities.shut_down().await;
         loaded_llama_model.release().await;
     }
 }

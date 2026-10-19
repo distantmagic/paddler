@@ -13,13 +13,11 @@ use paddler_tests::decision_cluster_params::DecisionClusterParams;
 use paddler_tests::sample_decision::sample_decision;
 use paddler_tests::start_decision_cluster::start_decision_cluster;
 
+use crate::with_nul_byte::with_nul_byte;
+
 struct DecisionRejectedForANulByte {
     decision: RawDecideParams,
     text_with_nul_byte: String,
-}
-
-fn with_nul_byte(text: &str) -> String {
-    format!("{text} \0 byte")
 }
 
 #[tokio::test(flavor = "multi_thread")]

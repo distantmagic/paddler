@@ -1,5 +1,6 @@
 pub mod agent_config;
 mod agent_count_is;
+pub mod agent_desired_model_at;
 pub mod agent_readiness;
 mod agent_slots_processing_is;
 pub mod agent_spawner;
@@ -50,3 +51,5 @@ pub mod unending_generation;
 pub mod unending_grammar;
 pub mod unexpiring_shutdown_options;
 pub mod untrusted_agent_socket_client;
+pub mod untrusted_balancer_socket;
+pub mod untrusted_balancer_socket_server;

@@ -83,7 +83,7 @@ async fn main() -> Result<ExitCode> {
         arguments,
     } = RunWithTestClusterArguments::parse();
 
-    start_cluster(preset.cluster_params())
+    start_cluster(preset.cluster_params()?)
         .and_then(|cluster| run_against_cluster(cluster, program, arguments))
         .await
         .map(exit_code)

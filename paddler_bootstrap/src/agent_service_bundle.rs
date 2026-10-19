@@ -15,6 +15,7 @@ use paddler_agent::llamacpp_arbiter_service::LlamaCppArbiterService;
 use paddler_agent::management_socket_client_service::ManagementSocketClientService;
 use paddler_agent::pipeline_request::PipelineRequest;
 use paddler_agent::reconciliation_service::ReconciliationService;
+use paddler_agent_runtime::agent_vram_residencies::AgentVramResidencies;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::model_metadata_holder::ModelMetadataHolder;
 use paddler_agent_runtime::shared_llama_backend::SharedLlamaBackend;
@@ -62,6 +63,7 @@ impl AgentServiceBundle {
                 llama_backend: Arc::new(SharedLlamaBackend::default()),
                 model_metadata_holder: model_metadata_holder.clone(),
                 slot_aggregated_status: slot_aggregated_status.clone(),
+                vram_residencies: AgentVramResidencies::default(),
             },
             pipeline_request_rx,
             served_applicable_state_holder: served_applicable_state_holder.clone(),
@@ -84,9 +86,9 @@ impl AgentServiceBundle {
         };
 
         let reconciliation = ReconciliationService {
+            agent_applicable_state_holder,
             agent_desired_state_rx,
             desired_state_reconciler: DesiredStateReconciler {
-                agent_applicable_state_holder,
                 cache_dir,
                 slot_aggregated_status,
             },

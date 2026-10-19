@@ -26,7 +26,7 @@ fn a_decision_delimiter_containing_a_nul_byte_cannot_be_resolved() {
 
     assert_eq!(
         DecisionDelimiterTokens::resolve(
-            runtime.loaded_llama_model.model.as_ref(),
+            &runtime.loaded_llama_model.model.llama_model,
             &PointerHeadDelimiters {
                 decide: delimiter_with_nul_byte.clone(),
                 ..pointer_head.delimiters

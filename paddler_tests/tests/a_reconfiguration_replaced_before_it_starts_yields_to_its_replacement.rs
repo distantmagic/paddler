@@ -26,20 +26,17 @@ async fn a_reconfiguration_replaced_before_it_starts_yields_to_its_replacement()
     let served_desired_state = BalancerDesiredState {
         inference_mode: InferenceMode::TextGenerationAndEmbeddings,
         model: swappable_model_file.agent_desired_model(),
-        ..kev_0_8b_desired_state()
+        ..kev_0_8b_desired_state().expect("the kev desired state must name absolute paths")
     };
     let mut serving_pipeline_arbiter = ServingPipelineArbiter::new(1);
 
-    assert_eq!(
-        serving_pipeline_arbiter
-            .serve(served_desired_state.clone())
-            .await,
-        DesiredStateReconciliation::Reconciled
-    );
+    serving_pipeline_arbiter
+        .serve(served_desired_state.clone())
+        .await;
 
     swappable_model_file.replace_with_an_unloadable_file();
 
-    assert_eq!(
+    assert!(matches!(
         serving_pipeline_arbiter
             .apply(BalancerDesiredState {
                 embeddings: EmbeddingParameters {
@@ -49,17 +46,20 @@ async fn a_reconfiguration_replaced_before_it_starts_yields_to_its_replacement()
                 ..served_desired_state.clone()
             })
             .await,
-        DesiredStateReconciliation::Reconciled
-    );
-    assert_eq!(
+        DesiredStateReconciliation::Reconciled(_)
+    ));
+    assert!(matches!(
         serving_pipeline_arbiter
-            .serve(desired_state_with_chat_template_override(
+            .apply(desired_state_with_chat_template_override(
                 served_desired_state,
                 first_message_content_chat_template(),
             ))
             .await,
-        DesiredStateReconciliation::Reconciled
-    );
+        DesiredStateReconciliation::Reconciled(_)
+    ));
+    serving_pipeline_arbiter.conclude_next_progress().await;
+    serving_pipeline_arbiter.conclude_next_progress().await;
+    serving_pipeline_arbiter.conclude_next_progress().await;
     assert_eq!(
         serving_pipeline_arbiter
             .inference_runtime_context

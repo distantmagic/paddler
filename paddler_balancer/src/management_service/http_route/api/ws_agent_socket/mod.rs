@@ -20,7 +20,6 @@ use log::warn;
 use parking_lot::RwLock;
 use serde_json::Error as SerdeJsonError;
 use tokio::select;
-use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 
@@ -44,12 +43,14 @@ use crate::agent_controller_pool::AgentControllerPool;
 use crate::agent_controller_registration::AgentControllerRegistration;
 use crate::agent_controller_update_result::AgentControllerUpdateResult;
 use crate::agent_id_path_params::AgentIdPathParams;
+use crate::agent_outbox::AgentOutbox;
 use crate::agent_response_senders::AgentResponseSenders;
 use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::continuation_decision::ContinuationDecision;
 use crate::controls_session::ControlsSession as _;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::management_service::app_data::AppData;
+use crate::registered_agent_controller_guard::RegisteredAgentControllerGuard;
 use crate::response_senders::ResponseSenders;
 use crate::websocket_close_cause::WebSocketCloseCause;
 use crate::websocket_outbound_frame::WebSocketOutboundFrame;
@@ -62,11 +63,10 @@ fn forward_agent_response<TResponse>(
 ) {
     match response_senders.send_to(request_id, response) {
         RequestDelivery::Delivered => {}
-        RequestDelivery::ReceiverDropped => {
-            warn!("Dropped an agent response for request {request_id:?}: its receiver went away");
-        }
-        RequestDelivery::RequestNotRegistered => {
-            warn!("Dropped an agent response for unknown request {request_id:?}");
+        RequestDelivery::ReceiverDropped | RequestDelivery::RequestNotRegistered => {
+            warn!(
+                "Dropped an agent response for request {request_id:?}, which is no longer relayed"
+            );
         }
     }
 }
@@ -129,10 +129,8 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                     slot_aggregated_status_snapshot,
                 }),
             ) => {
-                let (agent_message_tx, mut agent_message_rx) =
-                    mpsc::unbounded_channel::<AgentJsonRpcMessage>();
                 let agent_controller = Arc::new(AgentController {
-                    agent_message_tx,
+                    agent_outbox: AgentOutbox::default(),
                     agent_response_senders: context.agent_response_senders.clone(),
                     connection_close: connection_close.clone(),
                     id: context.agent_id.clone(),
@@ -173,14 +171,16 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                 let forwarder_close = connection_close;
 
                 rt::spawn(async move {
-                    let _registered_agent_controller_guard = registered_agent_controller_guard;
+                    let RegisteredAgentControllerGuard {
+                        agent_controller, ..
+                    } = &registered_agent_controller_guard;
 
                     loop {
                         select! {
                             () = forwarder_close.cancelled() => {
                                 break;
                             }
-                            Some(message) = agent_message_rx.recv() => {
+                            message = agent_controller.agent_outbox.next() => {
                                 websocket_session_controller.send_response_safe(message).await;
                             }
                         }

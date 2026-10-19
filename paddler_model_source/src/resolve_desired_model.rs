@@ -32,10 +32,12 @@ pub async fn resolve_desired_model(
                 .resolve(cancellation_token, slot_aggregated_status)
                 .await
             }
-            ModelSource::LocalToAgent(path) => {
-                LocalModelPath::new(path)
-                    .resolve(cancellation_token, slot_aggregated_status)
-                    .await
+            ModelSource::LocalToAgent(agent_local_model_path) => {
+                LocalModelPath {
+                    path: agent_local_model_path.path().to_path_buf(),
+                }
+                .resolve(cancellation_token, slot_aggregated_status)
+                .await
             }
             ModelSource::Url(download_url) => {
                 UrlModelSource {
@@ -46,5 +48,44 @@ pub async fn resolve_desired_model(
                 .await
             }
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs::File;
+    use std::sync::Arc;
+
+    use tempfile::tempdir;
+    use tokio_util::sync::CancellationToken;
+    use url::Url;
+
+    use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
+    use paddler_cache_dir::cache_dir::CacheDir;
+    use paddler_messaging::agent_desired_model::AgentDesiredModel;
+
+    use super::resolve_desired_model;
+    use crate::desired_model_resolution::DesiredModelResolution;
+
+    #[tokio::test]
+    async fn resolves_an_agent_uri_whose_file_name_is_percent_encoded() {
+        let model_directory = tempdir().unwrap();
+        let model_path = model_directory.path().join("my modèl.gguf");
+
+        File::create(&model_path).unwrap();
+
+        let resolution = resolve_desired_model(
+            &CancellationToken::new(),
+            &CacheDir::from_process_env(),
+            &AgentDesiredModel::Uri(format!(
+                "agent://{}/my%20mod%C3%A8l.gguf",
+                Url::from_file_path(model_directory.path()).unwrap().path()
+            )),
+            Arc::new(SlotAggregatedStatus::new(1)),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(resolution, DesiredModelResolution::Resolved(model_path));
     }
 }

@@ -95,18 +95,19 @@ impl ResponsesStream {
 
         self.started = true;
 
+        let in_progress_response = self.header.in_progress();
         let created_sequence_number = self.next_sequence_number();
 
         events.push(ResponsesStreamEvent::Created(ResponseSnapshotEvent {
             sequence_number: created_sequence_number,
-            response: self.header.in_progress(),
+            response: in_progress_response.clone(),
         }));
 
         let in_progress_sequence_number = self.next_sequence_number();
 
         events.push(ResponsesStreamEvent::InProgress(ResponseSnapshotEvent {
             sequence_number: in_progress_sequence_number,
-            response: self.header.in_progress(),
+            response: in_progress_response,
         }));
     }
 

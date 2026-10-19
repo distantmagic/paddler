@@ -109,6 +109,7 @@ mod tests {
     use paddler_messaging::embedding_document_exceeding_sequence_context_details::EmbeddingDocumentExceedingSequenceContextDetails;
     use paddler_messaging::embedding_normalization_method::EmbeddingNormalizationMethod;
     use paddler_messaging::embedding_result::EmbeddingResult;
+    use paddler_messaging::embedding_vector::EmbeddingVector;
     use paddler_messaging::inference_client::message::Message as OutgoingMessage;
     use paddler_messaging::inference_client::response::Response as OutgoingResponse;
     use paddler_messaging::jsonrpc::error::Error as JsonRpcError;
@@ -137,7 +138,7 @@ mod tests {
 
     fn embedding_of(source_document_id: &str) -> EmbeddingResult {
         EmbeddingResult::Embedding(Embedding {
-            embedding: vec![0.25, 0.75],
+            embedding: EmbeddingVector::from(vec![0.25, 0.75]),
             normalization_method: EmbeddingNormalizationMethod::None,
             pooling_type: PoolingType::Mean,
             source_document_id: source_document_id.to_owned(),

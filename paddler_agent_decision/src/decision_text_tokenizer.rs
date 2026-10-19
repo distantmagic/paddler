@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::sync::Arc;
 
 use icu_normalizer::ComposingNormalizerBorrowed;
@@ -10,7 +11,7 @@ use crate::decision_error::DecisionError;
 use crate::escape_special_token_lookalikes::escape_special_token_lookalikes;
 
 pub struct DecisionTextTokenizer {
-    pub model: Arc<LlamaModel>,
+    pub model: Arc<dyn Deref<Target = LlamaModel> + Send + Sync>,
 }
 
 impl DecisionTextTokenizer {

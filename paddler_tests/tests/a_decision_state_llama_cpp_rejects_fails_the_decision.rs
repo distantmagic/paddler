@@ -6,29 +6,20 @@ use llama_cpp_bindings::token::LlamaToken;
 
 use paddler_agent_decision::decision_capacity_ledger::DecisionCapacityLedger;
 use paddler_agent_decision::decision_decoder::DecisionDecoder;
-use paddler_agent_decision::decision_delimiter_tokens::DecisionDelimiterTokens;
 use paddler_agent_decision::decision_error::DecisionError;
 use paddler_agent_decision::decision_token_layout::DecisionTokenLayout;
 use paddler_tests::admitted_decision::AdmittedDecision;
-use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
-use paddler_tests::kev_0_8b_pointer_head::kev_0_8b_pointer_head;
-use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
-use paddler_tests::llama_runtime::LlamaRuntime;
 use paddler_tests::two_option_question::two_option_question;
+
+use crate::kev_decision_model::KevDecisionModel;
 
 #[test]
 fn a_decision_state_llama_cpp_rejects_fails_the_decision() {
-    let runtime = LlamaRuntime::load(
-        &kev_0_8b_target_path("model.gguf"),
-        agent_inference_runtime_context(1),
-    )
-    .expect("the kev decision model must load");
-    let pointer_head = kev_0_8b_pointer_head().expect("the kev pointer head must load");
-    let delimiter_tokens = DecisionDelimiterTokens::resolve(
-        runtime.loaded_llama_model.model.as_ref(),
-        &pointer_head.delimiters,
-    )
-    .expect("the kev delimiters must resolve");
+    let KevDecisionModel {
+        delimiter_tokens,
+        pointer_head,
+        runtime,
+    } = KevDecisionModel::load(1);
     let mut llama_context = runtime
         .create_decision_llama_context(2)
         .expect("the decision context must be created");
@@ -40,17 +31,15 @@ fn a_decision_state_llama_cpp_rejects_fails_the_decision() {
         Vec::new(),
         two_option_question("question"),
     );
-    let admission = DecisionCapacityLedger::new(2)
-        .admit(layout.needs_question_lane())
-        .expect("the decision must be admitted");
-    let mut admitted_decision = AdmittedDecision::new(
-        admission,
+    let mut admitted_decision = AdmittedDecision::admit(
+        &DecisionCapacityLedger::new(2),
         runtime
             .inference_runtime_context
             .slot_aggregated_status
             .clone(),
         layout,
-    );
+    )
+    .expect("the decision must be admitted");
 
     assert_eq!(
         admitted_decision

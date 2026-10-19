@@ -1,4 +1,3 @@
-use std::num::NonZeroU16;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -9,7 +8,7 @@ use paddler_agent_decision::prepared_decision_request::PreparedDecisionRequest;
 use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
 use paddler_agent_status::slot_guard::SlotGuard;
 use paddler_messaging::decision_result::DecisionResult;
-use paddler_messaging::decision_slots_minimum::DECISION_SLOTS_MINIMUM;
+use paddler_messaging::decision_slots_for_leading_questions::decision_slots_for_leading_questions;
 
 pub struct PreparedDecision {
     pub decision_result_rx: mpsc::UnboundedReceiver<DecisionResult>,
@@ -25,11 +24,7 @@ impl PreparedDecision {
     ) -> Self {
         let (decision_result_tx, decision_result_rx) = mpsc::unbounded_channel();
         let (decision_stop_tx, decision_stop_rx) = mpsc::unbounded_channel();
-        let reserved_slots = if layout.needs_question_lane() {
-            DECISION_SLOTS_MINIMUM
-        } else {
-            NonZeroU16::MIN
-        };
+        let reserved_slots = decision_slots_for_leading_questions(layout.remaining_questions.len());
 
         Self {
             decision_result_rx,

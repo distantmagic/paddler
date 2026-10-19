@@ -1,16 +1,14 @@
+pub mod accept_newer_status_report;
 pub mod agent_controller;
-#[cfg(test)]
-mod agent_controller_fixture;
 pub mod agent_controller_pool;
 mod agent_controller_pool_total_slots;
 pub mod agent_controller_pool_updates;
 pub mod agent_controller_registration;
-#[cfg(test)]
-mod agent_controller_registration_agent_id;
 pub mod agent_controller_slot_guard;
 pub mod agent_controller_update_result;
 pub mod agent_desired_state_notification;
 pub mod agent_id_path_params;
+pub mod agent_outbox;
 pub mod agent_relay_error;
 mod agent_response_forwarding_mode;
 pub mod agent_response_receiver;
@@ -37,14 +35,11 @@ pub mod controls_session;
 pub mod controls_websocket_endpoint;
 pub mod cors_allowed_hosts_with_web_admin_panel;
 pub mod create_cors_middleware;
-#[cfg(test)]
-mod decision_waiting_behind_a_busy_slot;
-#[cfg(test)]
-mod decision_with_leading_questions_requirement;
 pub mod dispatch_candidate;
 pub mod dispatch_position;
 pub mod dispatch_requirement;
 pub mod dispatch_waiting_line;
+pub mod dispatchable_request;
 pub mod dispatched_agent;
 pub mod distinct_embedding_documents;
 pub mod embedding_chunk_dispatch;
@@ -61,12 +56,11 @@ pub mod invalid_request_parameters_description;
 pub mod management_service;
 pub mod max_websocket_message_size;
 mod ndjson_response;
-#[cfg(test)]
-mod one_slot_of;
 pub mod reconciliation_service;
 pub mod registered_agent_controller_guard;
 pub mod request_from_agent;
 pub mod request_from_dispatched_agent;
+pub mod requirements_waiting_ahead;
 pub mod resolved_socket_addr;
 pub mod respond_with_agent_response;
 pub mod respond_with_error;
@@ -76,8 +70,6 @@ pub mod response_senders;
 pub mod run_http_service;
 pub mod run_http_service_parameters;
 pub mod serve_http_until_shutdown;
-#[cfg(test)]
-mod serving_status_snapshot;
 pub mod slot_demand;
 pub mod snapshots_stream;
 pub mod sse_response_from_snapshots;
@@ -86,8 +78,6 @@ pub mod static_files;
 pub mod statsd_service;
 mod unbounded_stream_from_agent;
 mod unbounded_stream_from_agent_params;
-#[cfg(test)]
-mod unexpiring_inference_service_configuration;
 pub mod waiting_line_place;
 #[cfg(feature = "web_admin_panel")]
 pub mod web_admin_panel_service;

@@ -14,6 +14,7 @@ use crate::agent_streaming_request::AgentStreamingRequest;
 use crate::cancellation_token_stream_guard::CancellationTokenStreamGuard;
 use crate::chunk_forwarding_session_controller::ChunkForwardingSessionController;
 use crate::chunk_forwarding_session_controller::transforms_outgoing_message::TransformsOutgoingMessage;
+use crate::dispatchable_request::DispatchableRequest;
 use crate::request_from_agent::request_from_agent;
 use crate::unbounded_stream_from_agent_params::UnboundedStreamFromAgentParams;
 
@@ -45,7 +46,7 @@ where
                 buffered_request_manager,
                 connection_close,
                 inference_service_configuration,
-                request_params,
+                DispatchableRequest::from(request_params),
                 request_id,
                 session_controller,
                 shutdown,

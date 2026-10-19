@@ -4,7 +4,7 @@ use tempfile::NamedTempFile;
 
 use paddler_messaging::agent_state_application_status::AgentStateApplicationStatus;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
-use paddler_model_source::model_source::ModelSource;
+use paddler_test_cluster_harness::agent_desired_model_at::agent_desired_model_at;
 use paddler_tests::start_single_agent_cluster_with_desired_state::start_single_agent_cluster_with_desired_state;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -17,14 +17,8 @@ async fn an_agent_whose_model_cannot_start_reports_that_it_is_stuck() {
         .expect("the unloadable model contents must be writable");
 
     let mut cluster = start_single_agent_cluster_with_desired_state(BalancerDesiredState {
-        model: ModelSource::LocalToAgent(
-            unloadable_model
-                .path()
-                .to_str()
-                .expect("the temporary model path must be valid UTF-8")
-                .to_owned(),
-        )
-        .into_agent_desired_model(),
+        model: agent_desired_model_at(unloadable_model.path())
+            .expect("the temporary model path must be absolute"),
         ..BalancerDesiredState::default()
     })
     .await

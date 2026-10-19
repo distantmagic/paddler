@@ -17,6 +17,7 @@ use crate::buffered_request_agent_wait_result::BufferedRequestAgentWaitResult;
 use crate::buffered_request_manager::BufferedRequestManager;
 use crate::controls_session::ControlsSession;
 use crate::dispatch_requirement::DispatchRequirement;
+use crate::dispatchable_request::DispatchableRequest;
 use crate::dispatched_agent::DispatchedAgent;
 use crate::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::request_from_dispatched_agent::request_from_dispatched_agent;
@@ -92,7 +93,10 @@ pub async fn request_from_agent<TControlsSession, TParams>(
     buffered_request_manager: Arc<BufferedRequestManager>,
     connection_close: CancellationToken,
     inference_service_configuration: InferenceServiceConfiguration,
-    params: TParams,
+    DispatchableRequest {
+        dispatch_requirement,
+        params,
+    }: DispatchableRequest<TParams>,
     request_id: String,
     mut session_controller: TControlsSession,
     shutdown: CancellationToken,
@@ -104,7 +108,7 @@ pub async fn request_from_agent<TControlsSession, TParams>(
     let Some(dispatched_agent) = wait_for_agent_controller(
         buffered_request_manager.clone(),
         connection_close.clone(),
-        params.dispatch_requirement(),
+        dispatch_requirement,
         request_id.clone(),
         &mut session_controller,
         shutdown.clone(),

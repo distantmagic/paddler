@@ -4,11 +4,11 @@ use paddler_inference_parameters::embedding_parameters::EmbeddingParameters;
 use paddler_test_cluster_harness::model_card::nomic_embed_text_v1_5::nomic_embed_text_v1_5;
 use paddler_tests::qwen3_desired_state::qwen3_desired_state;
 
-use crate::state_transition_interrupted_by_shutdown::StateTransitionInterruptedByShutdown;
+use crate::shutdown_during_state_transition::ShutdownDuringStateTransition;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn agent_shuts_down_cleanly_while_switching_to_another_model() {
-    StateTransitionInterruptedByShutdown {
+    ShutdownDuringStateTransition {
         initial_desired_state: qwen3_desired_state(),
         next_desired_state: nomic_embed_text_v1_5()
             .into_desired_state_with_embedding_parameters(EmbeddingParameters::default()),

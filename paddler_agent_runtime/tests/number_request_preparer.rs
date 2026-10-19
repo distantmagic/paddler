@@ -1,6 +1,4 @@
 use std::sync::Arc;
-use std::sync::mpsc::Receiver;
-use std::sync::mpsc::channel;
 
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::mpsc::unbounded_channel;
@@ -15,13 +13,13 @@ use crate::number_command::NumberCommand;
 pub struct NumberRequestPreparer {
     pub rejected_rx: UnboundedReceiver<u32>,
     pub request_preparer: Arc<SchedulerRequestPreparer<EvenNumberPreparation>>,
-    pub scheduler_message_rx: Receiver<SchedulerMessage<NumberCommand>>,
+    pub scheduler_message_rx: UnboundedReceiver<SchedulerMessage<NumberCommand>>,
 }
 
 impl NumberRequestPreparer {
     pub fn new() -> Self {
         let (rejected_tx, rejected_rx) = unbounded_channel();
-        let (scheduler_message_tx, scheduler_message_rx) = channel();
+        let (scheduler_message_tx, scheduler_message_rx) = unbounded_channel();
 
         Self {
             rejected_rx,

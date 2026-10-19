@@ -64,6 +64,8 @@ http = { workspace = true }
 llama-cpp-bindings-types = { workspace = true }
 paddler_download_manager = { workspace = true }
 paddler_local_http_fixture = { workspace = true }
+paddler_typesafe_translation = { workspace = true }
+syn = { workspace = true }
 tokio-tungstenite = { workspace = true }
 
 [lints]

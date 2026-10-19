@@ -11,7 +11,7 @@ use paddler_messaging::conversation_history::ConversationHistory;
 use paddler_messaging::conversation_message::ConversationMessage;
 use paddler_messaging::conversation_message_content::ConversationMessageContent;
 use paddler_messaging::request_params::continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
-use paddler_model_source::model_source::ModelSource;
+use paddler_test_cluster_harness::agent_desired_model_at::agent_desired_model_at;
 use paddler_test_cluster_harness::model_card::qwen3_0_6b::qwen3_0_6b;
 use paddler_tests::qwen3_desired_state::qwen3_desired_state;
 use paddler_tests::start_single_agent_cluster_with_desired_state::start_single_agent_cluster_with_desired_state;
@@ -38,8 +38,8 @@ async fn agent_generates_with_a_model_that_declares_no_bos_token() {
     .expect("the model without a BOS token must be writable");
 
     let cluster = start_single_agent_cluster_with_desired_state(BalancerDesiredState {
-        model: ModelSource::LocalToAgent(model_without_bos_path.display().to_string())
-            .into_agent_desired_model(),
+        model: agent_desired_model_at(&model_without_bos_path)
+            .expect("the model without a BOS token must be at an absolute path"),
         ..qwen3_desired_state()
     })
     .await

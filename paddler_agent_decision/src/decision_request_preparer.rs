@@ -70,7 +70,7 @@ impl DecisionRequestPreparer {
         }: AgentRequest<DecideParams, DecisionResult>,
     ) -> Result<PreparedDecisionRequest, DecisionError> {
         let started_at = Instant::now();
-        let context_size = u32::from(params.required_slots().get()) * self.cells_per_slot;
+        let context_size = u32::from(slot_guard.slots().get()) * self.cells_per_slot;
         let DecideParams {
             last_question,
             leading_questions,

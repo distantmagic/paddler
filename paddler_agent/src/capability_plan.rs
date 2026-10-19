@@ -1,33 +1,36 @@
-use paddler_agent_runtime::shuts_down_unless_shared::ShutsDownUnlessShared;
+use paddler_agent_runtime::shuts_down::ShutsDown;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CapabilityPlan<TServed> {
     Keep(TServed),
     Start,
 }
 
-impl<TServed: Clone> CapabilityPlan<TServed> {
-    #[must_use]
-    pub fn between<TSettings: PartialEq>(
-        served: &TServed,
+impl<TServed> CapabilityPlan<TServed>
+where
+    TServed: ShutsDown + Send,
+{
+    pub async fn retaining<TSettings: PartialEq>(
+        served: TServed,
         served_settings: &TSettings,
         desired_settings: &TSettings,
     ) -> Self {
         if served_settings == desired_settings {
-            Self::Keep(served.clone())
+            Self::Keep(served)
         } else {
+            served.shut_down().await;
+
             Self::Start
         }
     }
 }
 
-impl<TServed> ShutsDownUnlessShared for CapabilityPlan<TServed>
+impl<TServed> ShutsDown for CapabilityPlan<TServed>
 where
-    TServed: ShutsDownUnlessShared + Send,
+    TServed: ShutsDown + Send,
 {
-    async fn shut_down_unless_shared(self) {
+    async fn shut_down(self) {
         match self {
-            Self::Keep(served) => served.shut_down_unless_shared().await,
+            Self::Keep(served) => served.shut_down().await,
             Self::Start => {}
         }
     }
@@ -35,21 +38,24 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::CapabilityPlan;
+    use std::mem::discriminant;
 
-    #[test]
-    fn keeps_a_capability_whose_settings_did_not_change() {
+    use super::CapabilityPlan;
+    use crate::served_decisions::ServedDecisions;
+
+    #[tokio::test]
+    async fn keeps_a_capability_whose_settings_did_not_change() {
         assert_eq!(
-            CapabilityPlan::between(&"served", &1, &1),
-            CapabilityPlan::Keep("served")
+            discriminant(&CapabilityPlan::retaining(ServedDecisions::Disabled, &1, &1).await),
+            discriminant(&CapabilityPlan::Keep(ServedDecisions::Disabled))
         );
     }
 
-    #[test]
-    fn restarts_a_capability_whose_settings_changed() {
+    #[tokio::test]
+    async fn restarts_a_capability_whose_settings_changed() {
         assert_eq!(
-            CapabilityPlan::between(&"served", &1, &2),
-            CapabilityPlan::Start
+            discriminant(&CapabilityPlan::retaining(ServedDecisions::Disabled, &1, &2).await),
+            discriminant(&CapabilityPlan::<ServedDecisions>::Start)
         );
     }
 }
