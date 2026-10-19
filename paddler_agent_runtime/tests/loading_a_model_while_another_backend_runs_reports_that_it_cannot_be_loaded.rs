@@ -3,9 +3,9 @@ use std::path::PathBuf;
 
 use llama_cpp_bindings::LlamaCppError;
 use llama_cpp_bindings::llama_backend::LlamaBackend;
-use llama_cpp_bindings::model::params::LlamaModelParams;
 
 use paddler_agent_runtime::agent_runtime_error::AgentRuntimeError;
+use paddler_agent_runtime::llama_model_settings::LlamaModelSettings;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
 use paddler_messaging::agent_issue::AgentIssue;
 use paddler_messaging::agent_issue_params::model_path::ModelPath;
@@ -20,8 +20,10 @@ fn loading_a_model_while_another_backend_runs_reports_that_it_cannot_be_loaded()
 
     let load_error = LoadedLlamaModel::load(
         &inference_runtime_context,
-        &model_path,
-        &LlamaModelParams::default(),
+        LlamaModelSettings {
+            model_path: model_path.clone(),
+            n_gpu_layers: 0,
+        },
     )
     .err()
     .expect("a second backend must not initialize");

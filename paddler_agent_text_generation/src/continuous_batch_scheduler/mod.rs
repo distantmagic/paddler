@@ -14,7 +14,6 @@ pub mod generating_contribution;
 pub mod ingesting_contribution;
 pub mod sequence_ordered_insertion_index;
 
-use std::mem::transmute;
 use std::slice;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::RecvError;
@@ -58,25 +57,21 @@ use crate::prepared_prompt::PreparedPrompt;
 use crate::text_generation_error::TextGenerationError;
 use crate::token_classification::TokenClassification;
 
-pub struct ContinuousBatchScheduler {
-    active_requests: Vec<ContinuousBatchActiveRequest>,
+pub struct ContinuousBatchScheduler<'model> {
+    active_requests: Vec<ContinuousBatchActiveRequest<'model>>,
     agent_shutdown: CancellationToken,
     batch: LlamaBatch<'static>,
     candidates: LlamaTokenDataArray,
     ingest_outcomes: Vec<IngestOutcome>,
-    llama_context: LlamaContext<'static>,
-    scheduler_context: ContinuousBatchSchedulerContext,
+    llama_context: LlamaContext<'model>,
+    scheduler_context: ContinuousBatchSchedulerContext<'model>,
     scheduler_message_rx: Receiver<SchedulerMessage<PreparedGenerationRequest>>,
     sequence_id_pool: SequenceIdPool,
     shutdown_requested: bool,
 }
 
-impl ContinuousBatchScheduler {
+impl<'model> ContinuousBatchScheduler<'model> {
     #[must_use]
-    #[expect(
-        unsafe_code,
-        reason = "required for FFI lifetime extension with llama.cpp"
-    )]
     pub fn new(
         ContinuousBatchSchedulerParams {
             agent_shutdown,
@@ -84,10 +79,8 @@ impl ContinuousBatchScheduler {
             llama_context,
             scheduler_context,
             scheduler_message_rx,
-        }: ContinuousBatchSchedulerParams,
+        }: ContinuousBatchSchedulerParams<'model>,
     ) -> Self {
-        let llama_context =
-            unsafe { transmute::<LlamaContext<'_>, LlamaContext<'static>>(llama_context) };
         let sequence_id_pool = SequenceIdPool::new(scheduler_context.desired_slots_total);
 
         Self {
@@ -162,26 +155,18 @@ impl ContinuousBatchScheduler {
         }
     }
 
-    #[expect(
-        unsafe_code,
-        reason = "the SchedulerContext owns the LlamaModel for the lifetime of the active_requests vec — same pattern as LlamaContext<'static> above"
-    )]
     fn build_token_classifier_for_active_request(
         &self,
         TokenClassification {
             bare_json_tool_calls,
             streaming_markers,
         }: TokenClassification,
-    ) -> SampledTokenClassifier<'static> {
-        let classifier = SampledTokenClassifier::new(
-            &self.scheduler_context.model,
+    ) -> SampledTokenClassifier<'model> {
+        SampledTokenClassifier::new(
+            self.scheduler_context.model,
             streaming_markers,
             bare_json_tool_calls,
-        );
-
-        unsafe {
-            transmute::<SampledTokenClassifier<'_>, SampledTokenClassifier<'static>>(classifier)
-        }
+        )
     }
 
     fn accept_generation_request(&mut self, request: PreparedGenerationRequest) {
@@ -225,7 +210,7 @@ impl ContinuousBatchScheduler {
             token_sampling,
             tool_call_handling,
         }: PreparedGenerationRequest,
-    ) -> Result<ContinuousBatchActiveRequest, TextGenerationError> {
+    ) -> Result<ContinuousBatchActiveRequest<'model>, TextGenerationError> {
         let sequence_id_guard = SequenceIdGuard::acquire(&self.sequence_id_pool)
             .ok_or(TextGenerationError::NoSequenceSlotAvailable)?;
         let mut token_classifier =

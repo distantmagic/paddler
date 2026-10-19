@@ -27,7 +27,10 @@ test("streamHttpNdjson delivers a decision timeout without agents", async functi
       });
 
       await putBalancerDesiredState({
-        desiredState: { ...storedDesiredState, inference_mode: "Decision" },
+        desiredState: {
+          ...storedDesiredState,
+          inference_mode: "TextGenerationEmbeddingsAndDecisions",
+        },
         managementAddress: management,
       });
 

@@ -1,20 +1,22 @@
+use std::collections::BTreeSet;
+
 use llama_cpp_bindings::context::LlamaContext;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
-use log::warn;
-use tokio::sync::mpsc;
 
-use paddler_agent_runtime::receives_stop_request::ReceivesStopRequest as _;
 use paddler_messaging::embedding::Embedding;
 use paddler_messaging::embedding_normalization_method::EmbeddingNormalizationMethod;
 use paddler_messaging::embedding_result::EmbeddingResult;
 
+use crate::active_embedding_request::ActiveEmbeddingRequest;
+use crate::batched_embedding_input::BatchedEmbeddingInput;
 use crate::embedding_error::EmbeddingError;
+use crate::embedding_input_tokenized::EmbeddingInputTokenized;
 use crate::embedding_normalization::EmbeddingNormalization;
+use crate::embedding_request_continuation::EmbeddingRequestContinuation;
+use crate::embedding_request_step::EmbeddingRequestStep;
 use crate::embedding_scheduler_context::EmbeddingSchedulerContext;
+use crate::next_embedding_batch::next_embedding_batch;
 use crate::normalizes_embedding::NormalizesEmbedding;
-use crate::plan_embedding_batches::plan_embedding_batches;
-use crate::prepared_embedding_batch_request::PreparedEmbeddingBatchRequest;
-use crate::sequenced_embedding_input::SequencedEmbeddingInput;
 
 pub struct EmbeddingBatchProcessor<
     'scheduler,
@@ -28,108 +30,147 @@ pub struct EmbeddingBatchProcessor<
 }
 
 impl<TNormalization: NormalizesEmbedding> EmbeddingBatchProcessor<'_, '_, TNormalization> {
-    pub fn process_embedding_batch(
+    #[must_use]
+    pub fn embed_next_batch(
         &mut self,
-        PreparedEmbeddingBatchRequest {
-            mut generate_embedding_stop_rx,
-            generated_embedding_tx,
-            inputs,
-            normalization_method,
-            oversized_documents,
-            slot_guard,
-        }: PreparedEmbeddingBatchRequest,
-    ) -> Result<(), EmbeddingError> {
-        let _slot_guard = slot_guard;
-
-        for oversized_document in oversized_documents {
-            warn!(
-                "{:?}: skipped an oversized embedding document: {oversized_document:?}",
-                self.scheduler_context.agent_name,
-            );
-
-            generated_embedding_tx
-                .send(oversized_document.into_embedding_result())
-                .map_err(EmbeddingError::ClientDisconnected)?;
-        }
-
-        let n_batch = self.scheduler_context.n_batch;
-        let max_sequences_per_batch = self.scheduler_context.desired_slots_total;
-
-        let token_counts: Vec<usize> = inputs.iter().map(|input| input.tokens.len()).collect();
-        let planned_batches =
-            plan_embedding_batches(&token_counts, n_batch, max_sequences_per_batch);
-        self.batch.clear();
-
-        let mut embeddings_emitted: usize = 0;
-
-        for planned_batch in planned_batches {
-            if generate_embedding_stop_rx.is_stop_requested() {
-                break;
-            }
-
-            let batch_inputs: Vec<SequencedEmbeddingInput> = (0..max_sequences_per_batch)
-                .zip(&inputs[planned_batch])
-                .map(|(sequence_id, input)| SequencedEmbeddingInput {
-                    input,
-                    sequence_id: i32::from(sequence_id),
-                })
-                .collect();
-
-            for SequencedEmbeddingInput { input, sequence_id } in &batch_inputs {
-                self.batch
-                    .add_sequence(&input.tokens, *sequence_id, true)
-                    .map_err(EmbeddingError::BatchAssemblyFailed)?;
-            }
-
-            self.embedding_batch_decode(
-                &batch_inputs,
-                &generated_embedding_tx,
-                &normalization_method,
-            )?;
-
-            embeddings_emitted += batch_inputs.len();
-        }
-
-        generated_embedding_tx
-            .send(if embeddings_emitted == 0 {
-                EmbeddingResult::NoEmbeddingsProduced
-            } else {
-                EmbeddingResult::Done
+        active_requests: Vec<ActiveEmbeddingRequest>,
+    ) -> Vec<ActiveEmbeddingRequest> {
+        let agent_name = self.scheduler_context.agent_name.as_deref();
+        let mut active_requests: Vec<ActiveEmbeddingRequest> = active_requests
+            .into_iter()
+            .filter_map(|active_request| {
+                match active_request.continue_unless_stop_requested(agent_name) {
+                    EmbeddingRequestContinuation::Concluded => None,
+                    EmbeddingRequestContinuation::Continues(active_request) => Some(active_request),
+                }
             })
-            .map_err(EmbeddingError::ClientDisconnected)
+            .collect();
+        let batched_inputs = next_embedding_batch(
+            &mut active_requests,
+            self.scheduler_context.n_batch,
+            self.scheduler_context.desired_slots_total,
+        );
+
+        if batched_inputs.is_empty() {
+            return active_requests;
+        }
+
+        let mut request_steps = vec![EmbeddingRequestStep::Continuing; active_requests.len()];
+
+        match self.decode(&batched_inputs) {
+            Ok(()) => {
+                self.deliver_embeddings(batched_inputs, &mut active_requests, &mut request_steps);
+            }
+            Err(batch_error) => {
+                let failed_request_indexes: BTreeSet<usize> = batched_inputs
+                    .iter()
+                    .map(|batched_input| batched_input.request_index)
+                    .collect();
+
+                batch_error.report_to_each(
+                    agent_name,
+                    failed_request_indexes.iter().map(|request_index| {
+                        &active_requests[*request_index].generated_embedding_tx
+                    }),
+                );
+
+                for request_index in failed_request_indexes {
+                    request_steps[request_index] = EmbeddingRequestStep::Ended;
+                }
+            }
+        }
+
+        active_requests
+            .into_iter()
+            .zip(request_steps)
+            .filter_map(|(active_request, request_step)| match request_step {
+                EmbeddingRequestStep::Continuing => {
+                    match active_request.continue_unless_every_input_is_embedded(agent_name) {
+                        EmbeddingRequestContinuation::Concluded => None,
+                        EmbeddingRequestContinuation::Continues(active_request) => {
+                            Some(active_request)
+                        }
+                    }
+                }
+                EmbeddingRequestStep::Ended => None,
+            })
+            .collect()
     }
 
-    fn embedding_batch_decode(
-        &mut self,
-        current_batch_embeddings: &[SequencedEmbeddingInput],
-        generated_embedding_tx: &mpsc::UnboundedSender<EmbeddingResult>,
-        normalization_method: &EmbeddingNormalizationMethod,
-    ) -> Result<(), EmbeddingError> {
+    fn decode(&mut self, batched_inputs: &[BatchedEmbeddingInput]) -> Result<(), EmbeddingError> {
+        self.batch.clear();
+
+        for BatchedEmbeddingInput {
+            input, sequence_id, ..
+        } in batched_inputs
+        {
+            self.batch
+                .add_sequence(&input.tokens, *sequence_id, true)
+                .map_err(EmbeddingError::BatchAssemblyFailed)?;
+        }
+
         self.llama_context.clear_kv_cache();
         self.llama_context
             .decode(self.batch)
-            .map_err(EmbeddingError::DecodeFailed)?;
+            .map_err(EmbeddingError::DecodeFailed)
+    }
 
-        for SequencedEmbeddingInput { input, sequence_id } in current_batch_embeddings {
-            let embedding = self
-                .llama_context
-                .embeddings_seq_ith(*sequence_id)
-                .map_err(EmbeddingError::EmbeddingsUnavailable)?;
+    fn deliver_embeddings(
+        &self,
+        batched_inputs: Vec<BatchedEmbeddingInput>,
+        active_requests: &mut [ActiveEmbeddingRequest],
+        request_steps: &mut [EmbeddingRequestStep],
+    ) {
+        let agent_name = self.scheduler_context.agent_name.as_deref();
 
-            generated_embedding_tx
-                .send(EmbeddingResult::Embedding(Embedding {
-                    embedding: self
-                        .normalization
-                        .normalize(embedding.to_vec(), normalization_method)?,
-                    normalization_method: normalization_method.clone(),
-                    pooling_type: self.scheduler_context.pooling_type.clone(),
-                    source_document_id: input.id.clone(),
-                }))
-                .map_err(EmbeddingError::ClientDisconnected)?;
+        for BatchedEmbeddingInput {
+            input,
+            request_index,
+            sequence_id,
+        } in batched_inputs
+        {
+            if request_steps[request_index] == EmbeddingRequestStep::Ended {
+                continue;
+            }
+
+            let active_request = &mut active_requests[request_index];
+            let delivery = self
+                .embedding_of(&input, sequence_id, &active_request.normalization_method)
+                .and_then(|embedding| {
+                    active_request
+                        .generated_embedding_tx
+                        .send(EmbeddingResult::Embedding(embedding))
+                        .map_err(EmbeddingError::ClientDisconnected)
+                });
+
+            match delivery {
+                Ok(()) => active_request.embeddings_emitted += 1,
+                Err(delivery_error) => {
+                    delivery_error.report(agent_name, &active_request.generated_embedding_tx);
+                    request_steps[request_index] = EmbeddingRequestStep::Ended;
+                }
+            }
         }
+    }
 
-        self.batch.clear();
+    fn embedding_of(
+        &self,
+        input: &EmbeddingInputTokenized,
+        sequence_id: i32,
+        normalization_method: &EmbeddingNormalizationMethod,
+    ) -> Result<Embedding, EmbeddingError> {
+        let embedding = self
+            .llama_context
+            .embeddings_seq_ith(sequence_id)
+            .map_err(EmbeddingError::EmbeddingsUnavailable)?;
 
-        Ok(())
+        Ok(Embedding {
+            embedding: self
+                .normalization
+                .normalize(embedding.to_vec(), normalization_method)?,
+            normalization_method: normalization_method.clone(),
+            pooling_type: self.scheduler_context.pooling_type.clone(),
+            source_document_id: input.id.clone(),
+        })
     }
 }

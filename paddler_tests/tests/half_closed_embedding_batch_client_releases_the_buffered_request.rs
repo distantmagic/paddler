@@ -9,9 +9,11 @@ use paddler_tests::start_cluster::start_cluster;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn half_closed_embedding_batch_client_releases_the_buffered_request() {
-    let mut cluster = start_cluster(cluster_without_agents_serving(InferenceMode::Embeddings))
-        .await
-        .expect("a balancer serving embeddings must start");
+    let mut cluster = start_cluster(cluster_without_agents_serving(
+        InferenceMode::TextGenerationAndEmbeddings,
+    ))
+    .await
+    .expect("a balancer serving text generation and embeddings must start");
     let mut client = HalfClosedClient::post_json_then_half_close(
         cluster.balancer.addresses.inference,
         ApiPath::GENERATE_EMBEDDING_BATCH,

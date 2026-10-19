@@ -1,6 +1,6 @@
 use clap::ValueEnum;
 
-use paddler_agent_decision::decision_slots_minimum::DECISION_SLOTS_MINIMUM;
+use paddler_messaging::decision_slots_minimum::DECISION_SLOTS_MINIMUM;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_test_cluster_harness::cluster_desired_state::ClusterDesiredState;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
@@ -23,7 +23,7 @@ impl TestClusterPreset {
     pub fn cluster_params(self) -> ClusterParams {
         match self {
             Self::Kev0_8b => ClusterParams {
-                agents: AgentConfig::uniform(1, DECISION_SLOTS_MINIMUM),
+                agents: AgentConfig::uniform(1, DECISION_SLOTS_MINIMUM.get()),
                 desired_state: ClusterDesiredState::Apply(Box::new(kev_0_8b_desired_state())),
                 ..ClusterParams::default()
             },

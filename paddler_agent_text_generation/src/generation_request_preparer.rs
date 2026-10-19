@@ -1,7 +1,9 @@
 use std::num::NonZeroU32;
+use std::sync::Arc;
 
 use llama_cpp_bindings::BareJsonToolCalls;
 use llama_cpp_bindings::ChatMessageParser;
+use llama_cpp_bindings::StreamingMarkers;
 use llama_cpp_bindings::mtmd::MtmdBitmap;
 use rand::Rng as _;
 use rand::rng;
@@ -22,9 +24,10 @@ use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
 use paddler_agent_runtime::prepares_scheduler_command::PreparesSchedulerCommand;
 
 use crate::chat_prompt_render_request::ChatPromptRenderRequest;
+use crate::conversation_prompt_support::ConversationPromptSupport;
+use crate::conversation_support::ConversationSupport;
 use crate::converts_to_mtmd_bitmap::ConvertsToMtmdBitmap;
 use crate::creates_sampler_chain::CreatesSamplerChain;
-use crate::image_input::ImageInput;
 use crate::json_tools_serializer::JsonToolsSerializer;
 use crate::prepared_generation_request::PreparedGenerationRequest;
 use crate::prepared_prompt::PreparedPrompt;
@@ -37,7 +40,6 @@ use crate::serializes_tools::SerializesTools;
 use crate::text_generation_error::TextGenerationError;
 use crate::text_generation_request::TextGenerationRequest;
 use crate::token_classification::TokenClassification;
-use crate::token_generation_support::TokenGenerationSupport;
 use crate::token_sampling::TokenSampling;
 use crate::tool_call_handling::ToolCallHandling;
 use crate::tool_call_pipeline::ToolCallPipeline;
@@ -46,12 +48,12 @@ pub struct GenerationRequestPreparer<
     TSamplerChainFactory = SamplerChainFactory,
     TToolsSerializer = JsonToolsSerializer,
 > {
-    pub image_input: ImageInput,
+    pub conversation_support: ConversationSupport,
     pub image_resize_to_fit: NonZeroU32,
     pub loaded_llama_model: LoadedLlamaModel,
     pub prompt_tokenizer: PromptTokenizer,
     pub sampler_chain_factory: TSamplerChainFactory,
-    pub token_generation_support: TokenGenerationSupport,
+    pub streaming_markers: Arc<StreamingMarkers>,
     pub tools_serializer: TToolsSerializer,
 }
 
@@ -75,9 +77,6 @@ where
             stop_rx: generate_tokens_stop_rx,
         }: AgentRequest<ContinueFromRawPromptParams, GeneratedTokenResult>,
     ) -> Result<PreparedGenerationRequest, TextGenerationError> {
-        let TokenGenerationSupport {
-            streaming_markers, ..
-        } = &self.token_generation_support;
         let prompt = PreparedPrompt::TextTokens(self.prompt_tokenizer.tokenize(&raw_prompt)?);
         let token_sampling = self.build_token_sampling(grammar)?;
 
@@ -89,7 +88,7 @@ where
             slot_guard,
             token_classification: TokenClassification {
                 bare_json_tool_calls: BareJsonToolCalls::Ignore,
-                streaming_markers: streaming_markers.clone(),
+                streaming_markers: self.streaming_markers.clone(),
             },
             token_sampling,
             tool_call_handling: ToolCallHandling::Streamed,
@@ -117,10 +116,10 @@ where
             GeneratedTokenResult,
         >,
     ) -> Result<PreparedGenerationRequest, TextGenerationError> {
-        let TokenGenerationSupport {
+        let ConversationPromptSupport {
             chat_prompt_renderer,
-            streaming_markers,
-        } = &self.token_generation_support;
+            image_input,
+        } = self.conversation_support.prompt_support()?;
 
         require_grammar_compatible_with_thinking(grammar.as_ref(), enable_thinking)?;
 
@@ -129,7 +128,7 @@ where
             messages,
         } = conversation_history
             .into_chat_template_conversation(&chat_prompt_renderer.media_marker);
-        let prompt_modality = self.image_input.prompt_modality_for(&image_urls)?;
+        let prompt_modality = image_input.prompt_modality_for(&image_urls)?;
 
         let tools_with_schema_documents: Vec<Tool<Value>> =
             tools.into_iter().map(Tool::from).collect();
@@ -175,7 +174,7 @@ where
             slot_guard,
             token_classification: TokenClassification {
                 bare_json_tool_calls,
-                streaming_markers: streaming_markers.clone(),
+                streaming_markers: self.streaming_markers.clone(),
             },
             token_sampling,
             tool_call_handling,

@@ -10,9 +10,11 @@ use paddler_tests::start_cluster::start_cluster;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn decision_without_questions_is_rejected_with_bad_request() {
-    let cluster = start_cluster(cluster_without_agents_serving(InferenceMode::Decision))
-        .await
-        .expect("the cluster must start");
+    let cluster = start_cluster(cluster_without_agents_serving(
+        InferenceMode::TextGenerationEmbeddingsAndDecisions,
+    ))
+    .await
+    .expect("the cluster must start");
 
     let decide_url = cluster
         .balancer

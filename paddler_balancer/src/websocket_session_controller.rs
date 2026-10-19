@@ -81,7 +81,7 @@ mod tests {
 
     fn cluster_inference_mode_notification() -> OutgoingMessage {
         OutgoingMessage::Notification(Notification::ClusterInferenceMode(
-            InferenceMode::TextGeneration,
+            InferenceMode::TextGenerationAndEmbeddings,
         ))
     }
 

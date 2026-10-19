@@ -19,11 +19,11 @@ async fn respond(
     app_data: web::Data<CompatibilityAppData>,
     system_one_request: web::Json<SystemOneRequest>,
 ) -> HttpResponse {
-    if let Err(cluster_serves_another_inference_mode) = app_data
+    if let Err(cluster_does_not_serve_inference_capability) = app_data
         .balancer_applicable_state_holder
-        .require_inference_mode(DecideParams::INFERENCE_MODE)
+        .require_inference_capability(DecideParams::INFERENCE_CAPABILITY)
     {
-        return inference_mode_refusal_http_response(cluster_serves_another_inference_mode);
+        return inference_mode_refusal_http_response(cluster_does_not_serve_inference_capability);
     }
 
     match system_one_request.into_inner().translate() {

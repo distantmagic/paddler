@@ -1,27 +1,28 @@
 use std::path::Path;
 
 use llama_cpp_bindings::context::LlamaContext;
-use llama_cpp_bindings::model::params::LlamaModelParams;
 
 use paddler_agent_decision::decision_error::DecisionError;
 use paddler_agent_decision::decision_llama_context_settings::DecisionLlamaContextSettings;
 use paddler_agent_embeddings::embedding_llama_context_settings::EmbeddingLlamaContextSettings;
 use paddler_agent_runtime::agent_runtime_error::AgentRuntimeError;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
-use paddler_agent_runtime::inference_thread_count::inference_thread_count;
 use paddler_agent_runtime::llama_context_settings::LlamaContextSettings;
+use paddler_agent_runtime::llama_model_settings::LlamaModelSettings;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
 use paddler_agent_text_generation::chat_prompt_renderer::ChatPromptRenderer;
+use paddler_agent_text_generation::conversation_prompt_support::ConversationPromptSupport;
+use paddler_agent_text_generation::conversation_support::ConversationSupport;
 use paddler_agent_text_generation::generation_request_preparer::GenerationRequestPreparer;
 use paddler_agent_text_generation::image_input::ImageInput;
 use paddler_agent_text_generation::model_bos_token::ModelBosToken;
 use paddler_agent_text_generation::prompt_tokenizer::PromptTokenizer;
 use paddler_agent_text_generation::sampler_chain_factory::SamplerChainFactory;
-use paddler_agent_text_generation::token_generation_support::TokenGenerationSupport;
 use paddler_inference_parameters::all_gpu_layers::ALL_GPU_LAYERS;
 use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
 use paddler_inference_parameters::pooling_type::PoolingType;
 use paddler_inference_parameters::sampling_parameters::SamplingParameters;
+use paddler_messaging::inference_capability::InferenceCapability;
 use paddler_messaging::media_marker::MediaMarker;
 use paddler_messaging::multimodal_settings::MultimodalSettings;
 
@@ -31,7 +32,6 @@ pub struct LlamaRuntime {
     pub inference_runtime_context: InferenceRuntimeContext,
     pub loaded_llama_model: LoadedLlamaModel,
     pub model_runtime_parameters: ModelRuntimeParameters,
-    pub thread_count: i32,
 }
 
 impl LlamaRuntime {
@@ -39,23 +39,22 @@ impl LlamaRuntime {
         model_path: &Path,
         inference_runtime_context: InferenceRuntimeContext,
     ) -> Result<Self, AgentRuntimeError> {
-        let thread_count =
-            inference_thread_count(inference_runtime_context.available_parallelism.as_ref())?;
         let model_runtime_parameters = ModelRuntimeParameters {
             n_gpu_layers: ALL_GPU_LAYERS,
             ..ModelRuntimeParameters::default()
         };
         let loaded_llama_model = LoadedLlamaModel::load(
             &inference_runtime_context,
-            model_path,
-            &LlamaModelParams::default().with_n_gpu_layers(model_runtime_parameters.n_gpu_layers),
+            LlamaModelSettings {
+                model_path: model_path.to_path_buf(),
+                n_gpu_layers: model_runtime_parameters.n_gpu_layers,
+            },
         )?;
 
         Ok(Self {
             inference_runtime_context,
             loaded_llama_model,
             model_runtime_parameters,
-            thread_count,
         })
     }
 
@@ -87,6 +86,7 @@ impl LlamaRuntime {
     ) -> Result<LlamaContext<'_>, AgentRuntimeError> {
         self.loaded_llama_model.create_llama_context(
             &self.inference_runtime_context,
+            InferenceCapability::TextGeneration,
             self.llama_context_settings(n_seq_max)
                 .into_llama_context_params(),
         )
@@ -114,7 +114,18 @@ impl LlamaRuntime {
         let model = &self.loaded_llama_model.model;
 
         GenerationRequestPreparer {
-            image_input: ImageInput::Unsupported,
+            conversation_support: ConversationSupport::Available(Box::new(
+                ConversationPromptSupport {
+                    chat_prompt_renderer: ChatPromptRenderer {
+                        chat_template_renderer,
+                        media_marker: MediaMarker::new("<media>".to_owned()),
+                        token_bos_str: String::new(),
+                        token_eos_str: String::new(),
+                        token_nl_str: String::new(),
+                    },
+                    image_input: ImageInput::Unsupported,
+                },
+            )),
             image_resize_to_fit: MultimodalSettings::default().image_resize_to_fit,
             loaded_llama_model: self.loaded_llama_model.clone(),
             prompt_tokenizer: PromptTokenizer {
@@ -123,25 +134,13 @@ impl LlamaRuntime {
                 sequence_context_size,
             },
             sampler_chain_factory,
-            token_generation_support: TokenGenerationSupport {
-                chat_prompt_renderer: ChatPromptRenderer {
-                    chat_template_renderer,
-                    media_marker: MediaMarker::new("<media>".to_owned()),
-                    token_bos_str: String::new(),
-                    token_eos_str: String::new(),
-                    token_nl_str: String::new(),
-                },
-                streaming_markers,
-            },
+            streaming_markers,
             tools_serializer,
         }
     }
 
     const fn llama_context_settings(&self, n_seq_max: u32) -> LlamaContextSettings<'_> {
-        LlamaContextSettings {
-            model_runtime_parameters: &self.model_runtime_parameters,
-            n_seq_max,
-            thread_count: self.thread_count,
-        }
+        self.loaded_llama_model
+            .llama_context_settings(&self.model_runtime_parameters, n_seq_max)
     }
 }

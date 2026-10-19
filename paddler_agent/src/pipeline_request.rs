@@ -1,6 +1,5 @@
 use paddler_messaging::decision_result::DecisionResult;
 use paddler_messaging::embedding_result::EmbeddingResult;
-use paddler_messaging::inference_mode::InferenceMode;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_messaging::request_params::continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
 use paddler_messaging::request_params::continue_from_conversation_history_params::tool::tool_params::function_call::parameters_schema::validated_parameters_schema::ValidatedParametersSchema;
@@ -26,34 +25,6 @@ pub enum PipelineRequest {
 }
 
 impl PipelineRequest {
-    pub fn reject_because_another_mode_is_served(
-        self,
-        agent_name: Option<&str>,
-        serving_inference_mode: InferenceMode,
-    ) {
-        match self {
-            Self::ContinueFromConversationHistory(AgentRequest { response_tx, .. })
-            | Self::ContinueFromRawPrompt(AgentRequest { response_tx, .. }) => {
-                TextGenerationError::InferenceModeMismatch {
-                    serving_inference_mode,
-                }
-                .report(agent_name, &response_tx);
-            }
-            Self::Decide(AgentRequest { response_tx, .. }) => {
-                DecisionError::InferenceModeMismatch {
-                    serving_inference_mode,
-                }
-                .report(agent_name, &response_tx);
-            }
-            Self::GenerateEmbeddingBatch(AgentRequest { response_tx, .. }) => {
-                EmbeddingError::InferenceModeMismatch {
-                    serving_inference_mode,
-                }
-                .report(agent_name, &response_tx);
-            }
-        }
-    }
-
     pub fn reject_because_no_model_is_loaded(self, agent_name: Option<&str>) {
         match self {
             Self::ContinueFromConversationHistory(AgentRequest { response_tx, .. })
@@ -108,6 +79,7 @@ impl From<AgentRequest<GenerateEmbeddingBatchParams, EmbeddingResult>> for Pipel
 
 #[cfg(test)]
 mod tests {
+    use std::num::NonZeroU16;
     use std::num::NonZeroU32;
     use std::sync::Arc;
 
@@ -117,18 +89,15 @@ mod tests {
     use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
     use paddler_agent_status::slot_guard::SlotGuard;
     use paddler_messaging::conversation_history::ConversationHistory;
-    use paddler_messaging::decision_question::DecisionQuestion;
     use paddler_messaging::decision_result::DecisionResult;
     use paddler_messaging::embedding_normalization_method::EmbeddingNormalizationMethod;
     use paddler_messaging::embedding_result::EmbeddingResult;
     use paddler_messaging::generated_token_result::GeneratedTokenResult;
-    use paddler_messaging::inference_mode::InferenceMode;
     use paddler_messaging::request_params::continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
-    use paddler_messaging::request_params::continue_from_raw_prompt_params::ContinueFromRawPromptParams;
-    use paddler_messaging::request_params::decide_params::DecideParams;
     use paddler_messaging::request_params::generate_embedding_batch_params::GenerateEmbeddingBatchParams;
 
     use super::PipelineRequest;
+    use crate::decision_request_fixture::decision_request_fixture;
 
     #[test]
     fn rejects_a_conversation_because_no_model_is_loaded() {
@@ -146,7 +115,7 @@ mod tests {
                 tools: Vec::new(),
             },
             response_tx: generated_tokens_tx,
-            slot_guard: SlotGuard::new(Arc::new(SlotAggregatedStatus::new(1))),
+            slot_guard: SlotGuard::new(Arc::new(SlotAggregatedStatus::new(1)), NonZeroU16::MIN),
             stop_rx: generate_tokens_stop_rx,
         })
         .reject_because_no_model_is_loaded(Some("agent"));
@@ -170,7 +139,7 @@ mod tests {
                 normalization_method: EmbeddingNormalizationMethod::None,
             },
             response_tx: generated_embedding_tx,
-            slot_guard: SlotGuard::new(Arc::new(SlotAggregatedStatus::new(1))),
+            slot_guard: SlotGuard::new(Arc::new(SlotAggregatedStatus::new(1)), NonZeroU16::MIN),
             stop_rx: generate_embedding_stop_rx,
         })
         .reject_because_no_model_is_loaded(Some("agent"));
@@ -183,101 +152,17 @@ mod tests {
         );
     }
 
-    fn decide_request(
-        decision_result_tx: mpsc::UnboundedSender<DecisionResult>,
-    ) -> PipelineRequest {
-        let (_decision_stop_tx, decision_stop_rx) = mpsc::unbounded_channel();
-
-        PipelineRequest::Decide(AgentRequest {
-            params: DecideParams {
-                last_question: DecisionQuestion {
-                    id: "paid".to_owned(),
-                    instructions: "Was it paid?".to_owned(),
-                    options: vec!["no".to_owned(), "yes".to_owned()],
-                },
-                leading_questions: Vec::new(),
-                state: "state".to_owned(),
-            },
-            response_tx: decision_result_tx,
-            slot_guard: SlotGuard::new(Arc::new(SlotAggregatedStatus::new(1))),
-            stop_rx: decision_stop_rx,
-        })
-    }
-
     #[test]
     fn rejects_a_decision_because_no_model_is_loaded() {
         let (decision_result_tx, mut decision_result_rx) = mpsc::unbounded_channel();
 
-        decide_request(decision_result_tx).reject_because_no_model_is_loaded(Some("agent"));
+        PipelineRequest::Decide(decision_request_fixture(decision_result_tx))
+            .reject_because_no_model_is_loaded(Some("agent"));
 
         assert_eq!(
             decision_result_rx.try_recv(),
             Ok(DecisionResult::ModelNotLoaded(
                 "agent: no model is loaded".to_owned()
-            ))
-        );
-    }
-
-    #[test]
-    fn rejects_a_decision_on_an_agent_serving_another_mode() {
-        let (decision_result_tx, mut decision_result_rx) = mpsc::unbounded_channel();
-
-        decide_request(decision_result_tx)
-            .reject_because_another_mode_is_served(Some("agent"), InferenceMode::Embeddings);
-
-        assert_eq!(
-            decision_result_rx.try_recv(),
-            Ok(DecisionResult::InferenceModeMismatch(
-                "agent: the agent serves Embeddings, so it cannot decide".to_owned()
-            ))
-        );
-    }
-
-    #[test]
-    fn rejects_an_embedding_batch_on_an_agent_serving_another_mode() {
-        let (generated_embedding_tx, mut generated_embedding_rx) = mpsc::unbounded_channel();
-        let (_generate_embedding_stop_tx, generate_embedding_stop_rx) = mpsc::unbounded_channel();
-
-        PipelineRequest::GenerateEmbeddingBatch(AgentRequest {
-            params: GenerateEmbeddingBatchParams {
-                input_batch: Vec::new(),
-                normalization_method: EmbeddingNormalizationMethod::None,
-            },
-            response_tx: generated_embedding_tx,
-            slot_guard: SlotGuard::new(Arc::new(SlotAggregatedStatus::new(1))),
-            stop_rx: generate_embedding_stop_rx,
-        })
-        .reject_because_another_mode_is_served(Some("agent"), InferenceMode::Decision);
-
-        assert_eq!(
-            generated_embedding_rx.try_recv(),
-            Ok(EmbeddingResult::InferenceModeMismatch(
-                "agent: the agent serves Decision, so it cannot generate embeddings".to_owned()
-            ))
-        );
-    }
-
-    #[test]
-    fn rejects_token_generation_on_an_agent_serving_another_mode() {
-        let (generated_tokens_tx, mut generated_tokens_rx) = mpsc::unbounded_channel();
-        let (_generate_tokens_stop_tx, generate_tokens_stop_rx) = mpsc::unbounded_channel();
-
-        PipelineRequest::ContinueFromRawPrompt(AgentRequest {
-            params: ContinueFromRawPromptParams {
-                grammar: None,
-                max_tokens: NonZeroU32::MIN,
-                raw_prompt: "Hello".to_owned(),
-            },
-            response_tx: generated_tokens_tx,
-            slot_guard: SlotGuard::new(Arc::new(SlotAggregatedStatus::new(1))),
-            stop_rx: generate_tokens_stop_rx,
-        })
-        .reject_because_another_mode_is_served(Some("agent"), InferenceMode::Decision);
-
-        assert_eq!(
-            generated_tokens_rx.try_recv(),
-            Ok(GeneratedTokenResult::InferenceModeMismatch(
-                "agent: the agent serves Decision, so it cannot generate tokens".to_owned()
             ))
         );
     }

@@ -53,7 +53,7 @@ mod tests {
     async fn reads_back_the_stored_desired_state() {
         let database = Memory::new(StoredBalancerDesiredState::NothingStored);
         let desired_state = BalancerDesiredState {
-            inference_mode: InferenceMode::Embeddings,
+            inference_mode: InferenceMode::TextGenerationEmbeddingsAndDecisions,
             model: AgentDesiredModel::Uri("test_model_path".to_owned()),
             ..BalancerDesiredState::default()
         };

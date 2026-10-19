@@ -40,8 +40,8 @@ fn a_decision_on_a_context_without_hidden_states_reports_them_unavailable() {
         Vec::new(),
         two_option_question("question"),
     );
-    let admission = DecisionCapacityLedger::new(llama_context.n_ctx() as usize, 1)
-        .admit(&layout.capacity_demand())
+    let admission = DecisionCapacityLedger::new(1)
+        .admit(layout.needs_question_lane())
         .expect("the decision must be admitted");
     let AdmittedDecision {
         mut active_decision_request,

@@ -22,7 +22,6 @@ use crate::decision_request_phase::DecisionRequestPhase;
 use crate::decision_token_layout::DecisionTokenLayout;
 use crate::llama_context_question_lane_release::LlamaContextQuestionLaneRelease;
 use crate::prepared_decision_request::PreparedDecisionRequest;
-use crate::promised_decision_cells::PromisedDecisionCells;
 use crate::question_lane::QuestionLane;
 use crate::releases_question_lane::ReleasesQuestionLane;
 use crate::reports_decision_outcome::ReportsDecisionOutcome;
@@ -34,7 +33,6 @@ pub struct ActiveDecisionRequest {
     pub hidden_states: Vec<Vec<f32>>,
     pub input_tokens: usize,
     pub phase: DecisionRequestPhase,
-    pub promised_cells: PromisedDecisionCells,
     pub question_lane: QuestionLane,
     pub question_lane_release: Box<dyn ReleasesQuestionLane>,
     pub remaining_questions: VecDeque<DecisionQuestionRow>,
@@ -53,10 +51,8 @@ impl ActiveDecisionRequest {
             layout,
             slot_guard,
             started_at,
-            ..
         }: PreparedDecisionRequest,
         DecisionAdmission {
-            promised_cells,
             question_lane,
             state_sequence,
         }: DecisionAdmission,
@@ -75,7 +71,6 @@ impl ActiveDecisionRequest {
             hidden_states: Vec::new(),
             input_tokens,
             phase: DecisionRequestPhase::IngestingState { next_offset: 0 },
-            promised_cells,
             question_lane,
             question_lane_release: Box::new(LlamaContextQuestionLaneRelease),
             remaining_questions,

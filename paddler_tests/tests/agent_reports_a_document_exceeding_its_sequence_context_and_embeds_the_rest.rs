@@ -25,7 +25,8 @@ const LLAMA_CPP_SEQUENCE_CONTEXT_SIZE: usize = 256;
 async fn agent_reports_a_document_exceeding_its_sequence_context_and_embeds_the_rest() {
     let context_size =
         NonZeroU32::new(CONTEXT_SIZE).expect("the context size must be greater than zero");
-    let desired_state = qwen3_0_6b().into_embeddings_desired_state(EmbeddingParameters::default());
+    let desired_state =
+        qwen3_0_6b().into_desired_state_with_embedding_parameters(EmbeddingParameters::default());
     let cluster = start_cluster(ClusterParams {
         agents: AgentConfig::uniform(1, SLOTS),
         desired_state: ClusterDesiredState::Apply(Box::new(BalancerDesiredState {

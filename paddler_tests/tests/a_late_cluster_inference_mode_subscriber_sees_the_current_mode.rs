@@ -3,16 +3,18 @@ use futures_util::StreamExt as _;
 use paddler_client::inference_socket::reported_cluster_inference_mode::ReportedClusterInferenceMode;
 use paddler_messaging::inference_mode::InferenceMode;
 use paddler_tests::cluster_without_agents_serving::cluster_without_agents_serving;
-use paddler_tests::minimal_raw_prompt_stream::minimal_raw_prompt_stream;
+use paddler_tests::rejected_conversation_stream::rejected_conversation_stream;
 use paddler_tests::start_cluster::start_cluster;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_late_cluster_inference_mode_subscriber_sees_the_current_mode() {
-    let cluster = start_cluster(cluster_without_agents_serving(InferenceMode::Embeddings))
-        .await
-        .expect("a balancer serving embeddings must start");
+    let cluster = start_cluster(cluster_without_agents_serving(
+        InferenceMode::TextGenerationAndEmbeddings,
+    ))
+    .await
+    .expect("a balancer serving text generation and embeddings must start");
 
-    minimal_raw_prompt_stream(&cluster.client_inference)
+    rejected_conversation_stream(&cluster.client_inference)
         .await
         .expect("the inference socket must accept the request before anyone subscribes")
         .next()
@@ -25,7 +27,7 @@ async fn a_late_cluster_inference_mode_subscriber_sees_the_current_mode() {
             .client_inference
             .subscribe_to_cluster_inference_mode()
             .borrow(),
-        ReportedClusterInferenceMode::Reported(InferenceMode::Embeddings)
+        ReportedClusterInferenceMode::Reported(InferenceMode::TextGenerationAndEmbeddings)
     );
 
     cluster

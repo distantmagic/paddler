@@ -1,0 +1,63 @@
+#![cfg(feature = "tests_that_use_llms")]
+
+use std::num::NonZeroU32;
+
+use paddler_agent::desired_state_reconciliation::DesiredStateReconciliation;
+use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
+use paddler_messaging::agent_state_application_status::AgentStateApplicationStatus;
+use paddler_messaging::balancer_desired_state::BalancerDesiredState;
+use paddler_messaging::inference_mode::InferenceMode;
+use paddler_tests::kev_0_8b_desired_state::kev_0_8b_desired_state;
+use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
+use paddler_tests::serving_pipeline_arbiter::ServingPipelineArbiter;
+
+use crate::swappable_model_file::SwappableModelFile;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn changing_the_context_size_restarts_serving_on_the_loaded_model() {
+    let swappable_model_file = SwappableModelFile::link_to(&kev_0_8b_target_path("model.gguf"));
+    let initial_desired_state = BalancerDesiredState {
+        inference_mode: InferenceMode::TextGenerationAndEmbeddings,
+        model: swappable_model_file.agent_desired_model(),
+        ..kev_0_8b_desired_state()
+    };
+    let mut serving_pipeline_arbiter = ServingPipelineArbiter::new(1);
+
+    assert_eq!(
+        serving_pipeline_arbiter
+            .serve(initial_desired_state.clone())
+            .await,
+        DesiredStateReconciliation::Reconciled
+    );
+
+    swappable_model_file.replace_with_an_unloadable_file();
+
+    assert_eq!(
+        serving_pipeline_arbiter
+            .serve(BalancerDesiredState {
+                model_runtime_parameters: ModelRuntimeParameters {
+                    context_size: NonZeroU32::new(
+                        initial_desired_state
+                            .model_runtime_parameters
+                            .context_size
+                            .get()
+                            / 2,
+                    )
+                    .expect("half of the initial context must hold tokens"),
+                    ..initial_desired_state.model_runtime_parameters.clone()
+                },
+                ..initial_desired_state
+            })
+            .await,
+        DesiredStateReconciliation::Reconciled
+    );
+    assert_eq!(
+        serving_pipeline_arbiter
+            .inference_runtime_context
+            .slot_aggregated_status
+            .get_state_application_status(),
+        AgentStateApplicationStatus::Applied
+    );
+
+    serving_pipeline_arbiter.shut_down().await;
+}

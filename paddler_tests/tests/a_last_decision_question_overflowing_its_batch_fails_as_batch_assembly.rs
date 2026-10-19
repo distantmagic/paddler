@@ -46,8 +46,8 @@ fn a_last_decision_question_overflowing_its_batch_fails_as_batch_assembly() {
         two_option_question("question"),
     );
     let state_tokens = layout.state.len();
-    let admission = DecisionCapacityLedger::new(llama_context.n_ctx() as usize, 1)
-        .admit(&layout.capacity_demand())
+    let admission = DecisionCapacityLedger::new(1)
+        .admit(layout.needs_question_lane())
         .expect("the decision must be admitted");
     let AdmittedDecision {
         mut active_decision_request,

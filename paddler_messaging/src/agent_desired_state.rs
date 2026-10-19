@@ -1,19 +1,24 @@
 use serde::Deserialize;
 use serde::Serialize;
 
+use paddler_inference_parameters::embedding_parameters::EmbeddingParameters;
 use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
+use paddler_inference_parameters::pooling_type::PoolingType;
 
+use crate::agent_decisions_settings::AgentDecisionsSettings;
 use crate::agent_desired_model::AgentDesiredModel;
-use crate::agent_inference_settings::AgentInferenceSettings;
 use crate::balancer_desired_state::BalancerDesiredState;
+use crate::balancer_text_generation_settings::BalancerTextGenerationSettings;
 use crate::inference_mode::InferenceMode;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct AgentDesiredState {
-    pub inference_settings: AgentInferenceSettings,
+    pub decisions: AgentDecisionsSettings,
     pub model: AgentDesiredModel,
     pub model_runtime_parameters: ModelRuntimeParameters,
+    pub pooling_type: PoolingType,
+    pub text_generation: BalancerTextGenerationSettings,
 }
 
 impl Default for AgentDesiredState {
@@ -26,7 +31,7 @@ impl From<BalancerDesiredState> for AgentDesiredState {
     fn from(
         BalancerDesiredState {
             decision,
-            embeddings,
+            embeddings: EmbeddingParameters { pooling_type, .. },
             inference_mode,
             model,
             model_runtime_parameters,
@@ -34,17 +39,16 @@ impl From<BalancerDesiredState> for AgentDesiredState {
         }: BalancerDesiredState,
     ) -> Self {
         Self {
-            inference_settings: match inference_mode {
-                InferenceMode::Decision => AgentInferenceSettings::Decision(decision),
-                InferenceMode::Embeddings => {
-                    AgentInferenceSettings::Embeddings(embeddings.pooling_type)
-                }
-                InferenceMode::TextGeneration => {
-                    AgentInferenceSettings::TextGeneration(text_generation)
+            decisions: match inference_mode {
+                InferenceMode::TextGenerationAndEmbeddings => AgentDecisionsSettings::NotServed,
+                InferenceMode::TextGenerationEmbeddingsAndDecisions => {
+                    AgentDecisionsSettings::Served(decision)
                 }
             },
             model,
             model_runtime_parameters,
+            pooling_type,
+            text_generation,
         }
     }
 }
@@ -55,13 +59,11 @@ mod tests {
 
     use paddler_inference_parameters::embedding_parameters::EmbeddingParameters;
     use paddler_inference_parameters::pooling_type::PoolingType;
-    use paddler_inference_parameters::sampling_parameters::SamplingParameters;
 
     use super::AgentDesiredState;
+    use crate::agent_decisions_settings::AgentDecisionsSettings;
     use crate::agent_desired_model::AgentDesiredModel;
-    use crate::agent_inference_settings::AgentInferenceSettings;
     use crate::balancer_desired_state::BalancerDesiredState;
-    use crate::balancer_text_generation_settings::BalancerTextGenerationSettings;
     use crate::decision_settings::DecisionSettings;
     use crate::inference_mode::InferenceMode;
 
@@ -71,44 +73,24 @@ mod tests {
         }
     }
 
-    fn embedding_parameters() -> EmbeddingParameters {
-        EmbeddingParameters {
-            embedding_batch_size: NonZeroUsize::MIN,
-            pooling_type: PoolingType::Mean,
-        }
-    }
-
-    fn text_generation_settings() -> BalancerTextGenerationSettings {
-        BalancerTextGenerationSettings {
-            sampling_parameters: SamplingParameters::deterministic(),
-            ..BalancerTextGenerationSettings::default()
-        }
-    }
-
-    fn agent_settings_while_serving(inference_mode: InferenceMode) -> AgentInferenceSettings {
+    fn agent_decisions_while_serving(inference_mode: InferenceMode) -> AgentDecisionsSettings {
         AgentDesiredState::from(BalancerDesiredState {
             decision: decision_settings(),
-            embeddings: embedding_parameters(),
             inference_mode,
-            text_generation: text_generation_settings(),
             ..BalancerDesiredState::default()
         })
-        .inference_settings
+        .decisions
     }
 
     #[test]
-    fn agents_receive_only_the_settings_of_the_active_inference_mode() {
+    fn agents_receive_the_decision_settings_only_while_the_cluster_serves_decisions() {
         assert_eq!(
-            agent_settings_while_serving(InferenceMode::Decision),
-            AgentInferenceSettings::Decision(decision_settings())
+            agent_decisions_while_serving(InferenceMode::TextGenerationAndEmbeddings),
+            AgentDecisionsSettings::NotServed
         );
         assert_eq!(
-            agent_settings_while_serving(InferenceMode::Embeddings),
-            AgentInferenceSettings::Embeddings(embedding_parameters().pooling_type)
-        );
-        assert_eq!(
-            agent_settings_while_serving(InferenceMode::TextGeneration),
-            AgentInferenceSettings::TextGeneration(text_generation_settings())
+            agent_decisions_while_serving(InferenceMode::TextGenerationEmbeddingsAndDecisions),
+            AgentDecisionsSettings::Served(decision_settings())
         );
     }
 
@@ -118,9 +100,8 @@ mod tests {
             AgentDesiredState::from(BalancerDesiredState {
                 embeddings: EmbeddingParameters {
                     embedding_batch_size,
-                    ..embedding_parameters()
+                    pooling_type: PoolingType::Mean,
                 },
-                inference_mode: InferenceMode::Embeddings,
                 ..BalancerDesiredState::default()
             })
         };

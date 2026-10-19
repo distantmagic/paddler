@@ -6,7 +6,7 @@ use crate::embedding_document_exceeding_sequence_context_details::EmbeddingDocum
 use crate::oversized_embedding_document_details::OversizedEmbeddingDocumentDetails;
 use crate::streamable_result::StreamableResult;
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub enum EmbeddingResult {
     AgentRuntimeFailed(String),
@@ -18,7 +18,6 @@ pub enum EmbeddingResult {
     Embedding(Embedding),
     EmbeddingTooLongForRmsNormalization(String),
     EmbeddingsUnavailable(String),
-    InferenceModeMismatch(String),
     InputTokenizationFailed(String),
     ModelNotLoaded(String),
     NoEmbeddingsProduced,
@@ -35,7 +34,6 @@ impl StreamableResult for EmbeddingResult {
                 | Self::Done
                 | Self::EmbeddingTooLongForRmsNormalization(_)
                 | Self::EmbeddingsUnavailable(_)
-                | Self::InferenceModeMismatch(_)
                 | Self::InputTokenizationFailed(_)
                 | Self::ModelNotLoaded(_)
                 | Self::NoEmbeddingsProduced
@@ -63,7 +61,6 @@ mod tests {
             EmbeddingResult::Done,
             EmbeddingResult::EmbeddingTooLongForRmsNormalization("failure".to_owned()),
             EmbeddingResult::EmbeddingsUnavailable("failure".to_owned()),
-            EmbeddingResult::InferenceModeMismatch("failure".to_owned()),
             EmbeddingResult::InputTokenizationFailed("failure".to_owned()),
             EmbeddingResult::ModelNotLoaded("failure".to_owned()),
             EmbeddingResult::NoEmbeddingsProduced,

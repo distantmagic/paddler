@@ -11,7 +11,7 @@ pub struct BalancerApplicableState {
 impl BalancerApplicableState {
     #[must_use]
     pub const fn inference_mode(&self) -> InferenceMode {
-        self.agent_desired_state.inference_settings.inference_mode()
+        self.balancer_desired_state.inference_mode
     }
 }
 

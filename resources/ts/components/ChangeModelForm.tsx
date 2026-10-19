@@ -146,7 +146,7 @@ export function ChangeModelForm() {
           <fieldset className={changeModelForm__parameters}>
             <legend>Inference Mode</legend>
             <ParameterSelect
-              description="What the cluster serves; switching it reloads every agent, and requests of the other modes are refused"
+              description="Every agent serves text generation and embeddings; decisions additionally need a pointer head trained for the model"
               name="inference_mode"
               onValue={function (selectedInferenceMode) {
                 setEditedDesiredState({
@@ -169,7 +169,7 @@ export function ChangeModelForm() {
               required
             />
           </label>
-          {inferenceMode === "Decision" && (
+          {inferenceMode === "TextGenerationEmbeddingsAndDecisions" && (
             <label className={changeModelForm__formLabel}>
               <div className={changeModelForm__formLabel__title}>
                 Pointer Head URI
@@ -182,35 +182,29 @@ export function ChangeModelForm() {
               />
             </label>
           )}
-          {inferenceMode === "TextGeneration" && (
-            <>
-              <label className={changeModelForm__formLabel}>
-                <div className={changeModelForm__formLabel__title}>
-                  Multimodal Projection URI (optional)
-                </div>
-                <ModelUriInput
-                  model={
-                    editedDesiredState.text_generation.multimodal.projection
-                  }
-                  name="multimodal_projection_uri"
-                  onModel={onMultimodalProjection}
-                  required={false}
-                />
-              </label>
-              <fieldset className={changeModelForm__chatTemplate}>
-                <legend>Chat Template</legend>
-                <ChatTemplateBehavior />
-              </fieldset>
-            </>
-          )}
+          <label className={changeModelForm__formLabel}>
+            <div className={changeModelForm__formLabel__title}>
+              Multimodal Projection URI (optional)
+            </div>
+            <ModelUriInput
+              model={editedDesiredState.text_generation.multimodal.projection}
+              name="multimodal_projection_uri"
+              onModel={onMultimodalProjection}
+              required={false}
+            />
+          </label>
+          <fieldset className={changeModelForm__chatTemplate}>
+            <legend>Chat Template</legend>
+            <ChatTemplateBehavior />
+          </fieldset>
           <fieldset className={changeModelForm__parameters}>
             <legend>Model Parameters</legend>
             <details className={changeModelForm__details}>
               <summary>What are these parameters?</summary>
               <p>
                 These parameters control how the model is loaded and how much
-                memory it uses. In text generation, the context is shared
-                between the slots of each agent.
+                memory it uses. Each slot is one sequence that holds an equal
+                share of the context, whichever capability uses it.
               </p>
               <p>
                 They are usually model-specific and are usually provided by the
@@ -220,18 +214,14 @@ export function ChangeModelForm() {
             </details>
             <ModelRuntimeParametersFields />
           </fieldset>
-          {inferenceMode === "TextGeneration" && (
-            <fieldset className={changeModelForm__parameters}>
-              <legend>Text Generation Parameters</legend>
-              <TextGenerationSettingsFields />
-            </fieldset>
-          )}
-          {inferenceMode === "Embeddings" && (
-            <fieldset className={changeModelForm__parameters}>
-              <legend>Embedding Parameters</legend>
-              <EmbeddingParametersFields />
-            </fieldset>
-          )}
+          <fieldset className={changeModelForm__parameters}>
+            <legend>Text Generation Parameters</legend>
+            <TextGenerationSettingsFields />
+          </fieldset>
+          <fieldset className={changeModelForm__parameters}>
+            <legend>Embedding Parameters</legend>
+            <EmbeddingParametersFields />
+          </fieldset>
           <div className={changeModelForm__formControls}>
             <button className={changeModelForm__submitButton}>
               Apply changes

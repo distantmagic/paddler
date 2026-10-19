@@ -8,9 +8,9 @@ use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
 use paddler_agent_text_generation::multimodal_projection::MultimodalProjection;
 use paddler_agent_text_generation::text_generation_settings::TextGenerationSettings;
 use paddler_cache_dir::cache_dir::CacheDir;
+use paddler_messaging::agent_decisions_settings::AgentDecisionsSettings;
 use paddler_messaging::agent_desired_model::AgentDesiredModel;
 use paddler_messaging::agent_desired_state::AgentDesiredState;
-use paddler_messaging::agent_inference_settings::AgentInferenceSettings;
 use paddler_messaging::agent_issue::AgentIssue;
 use paddler_messaging::agent_issue_params::model_path::ModelPath;
 use paddler_messaging::balancer_text_generation_settings::BalancerTextGenerationSettings;
@@ -22,6 +22,9 @@ use paddler_model_source::resolve_desired_model::resolve_desired_model;
 
 use crate::agent_applicable_state::AgentApplicableState;
 use crate::agent_desired_state_conversion::AgentDesiredStateConversion;
+use crate::applicable_decisions::ApplicableDecisions;
+use crate::inference_capabilities::InferenceCapabilities;
+use crate::model_serving_settings::ModelServingSettings;
 
 pub struct AgentDesiredStateConverter {
     pub cache_dir: CacheDir,
@@ -33,9 +36,20 @@ impl AgentDesiredStateConverter {
     pub async fn convert(
         &self,
         AgentDesiredState {
-            inference_settings,
+            decisions,
             model,
             model_runtime_parameters,
+            pooling_type,
+            text_generation:
+                BalancerTextGenerationSettings {
+                    chat_template_source,
+                    multimodal:
+                        MultimodalSettings {
+                            image_resize_to_fit,
+                            projection,
+                        },
+                    sampling_parameters,
+                },
         }: &AgentDesiredState,
     ) -> Result<AgentDesiredStateConversion, ModelSourceError> {
         let ControlFlow::Continue(model_path) = self
@@ -44,72 +58,66 @@ impl AgentDesiredStateConverter {
         else {
             return Ok(AgentDesiredStateConversion::Cancelled);
         };
-
-        let applicable_state = match inference_settings {
-            AgentInferenceSettings::Decision(DecisionSettings { pointer_head }) => {
-                let ControlFlow::Continue(pointer_head_path) = self
-                    .resolve_model_file(pointer_head, AgentIssue::PointerHeadCannotBeLoaded)
-                    .await?
-                else {
-                    return Ok(AgentDesiredStateConversion::Cancelled);
-                };
-
-                match (model_path, pointer_head_path) {
-                    (Some(model_path), Some(pointer_head_path)) => AgentApplicableState::Decision {
-                        model_path,
-                        model_runtime_parameters: model_runtime_parameters.clone(),
-                        pointer_head_path,
-                    },
-                    _ => AgentApplicableState::NotConfigured,
-                }
-            }
-            AgentInferenceSettings::Embeddings(pooling_type) => {
-                model_path.map_or(AgentApplicableState::NotConfigured, |model_path| {
-                    AgentApplicableState::Embeddings {
-                        model_path,
-                        model_runtime_parameters: model_runtime_parameters.clone(),
-                        pooling_type: pooling_type.clone(),
-                    }
-                })
-            }
-            AgentInferenceSettings::TextGeneration(BalancerTextGenerationSettings {
-                chat_template_source,
-                multimodal:
-                    MultimodalSettings {
-                        image_resize_to_fit,
-                        projection,
-                    },
-                sampling_parameters,
-            }) => {
-                let ControlFlow::Continue(multimodal_projection_path) = self
-                    .resolve_model_file(projection, AgentIssue::MultimodalProjectionCannotBeLoaded)
-                    .await?
-                else {
-                    return Ok(AgentDesiredStateConversion::Cancelled);
-                };
-
-                model_path.map_or_else(
-                    || AgentApplicableState::TextGenerationWithoutModel {
-                        chat_template_source: chat_template_source.clone(),
-                    },
-                    |model_path| AgentApplicableState::TextGeneration {
-                        model_path,
-                        model_runtime_parameters: model_runtime_parameters.clone(),
-                        text_generation_settings: TextGenerationSettings {
-                            chat_template_source: chat_template_source.clone(),
-                            image_resize_to_fit: *image_resize_to_fit,
-                            multimodal_projection: multimodal_projection_path.map_or(
-                                MultimodalProjection::NotConfigured,
-                                MultimodalProjection::File,
-                            ),
-                            sampling_parameters: sampling_parameters.clone(),
-                        },
-                    },
-                )
-            }
+        let ControlFlow::Continue(multimodal_projection_path) = self
+            .resolve_model_file(projection, AgentIssue::MultimodalProjectionCannotBeLoaded)
+            .await?
+        else {
+            return Ok(AgentDesiredStateConversion::Cancelled);
+        };
+        let Some(model_path) = model_path else {
+            return Ok(AgentDesiredStateConversion::Converted(
+                AgentApplicableState::WithoutModel {
+                    chat_template_source: chat_template_source.clone(),
+                },
+            ));
+        };
+        let ControlFlow::Continue(applicable_decisions) = self.resolve_decisions(decisions).await?
+        else {
+            return Ok(AgentDesiredStateConversion::Cancelled);
+        };
+        let Some(applicable_decisions) = applicable_decisions else {
+            return Ok(AgentDesiredStateConversion::Converted(
+                AgentApplicableState::NotConfigured,
+            ));
         };
 
-        Ok(AgentDesiredStateConversion::Converted(applicable_state))
+        Ok(AgentDesiredStateConversion::Converted(
+            AgentApplicableState::WithModel(ModelServingSettings {
+                capabilities: InferenceCapabilities {
+                    decisions: applicable_decisions,
+                    embeddings: pooling_type.clone(),
+                    text_generation: TextGenerationSettings {
+                        chat_template_source: chat_template_source.clone(),
+                        image_resize_to_fit: *image_resize_to_fit,
+                        multimodal_projection: multimodal_projection_path.map_or(
+                            MultimodalProjection::NotConfigured,
+                            MultimodalProjection::File,
+                        ),
+                        sampling_parameters: sampling_parameters.clone(),
+                    },
+                },
+                model_path,
+                model_runtime_parameters: model_runtime_parameters.clone(),
+            }),
+        ))
+    }
+
+    async fn resolve_decisions(
+        &self,
+        decisions: &AgentDecisionsSettings,
+    ) -> Result<ControlFlow<(), Option<ApplicableDecisions>>, ModelSourceError> {
+        match decisions {
+            AgentDecisionsSettings::NotServed => {
+                Ok(ControlFlow::Continue(Some(ApplicableDecisions::Disabled)))
+            }
+            AgentDecisionsSettings::Served(DecisionSettings { pointer_head }) => Ok(self
+                .resolve_model_file(pointer_head, AgentIssue::PointerHeadCannotBeLoaded)
+                .await?
+                .map_continue(|pointer_head_path| {
+                    pointer_head_path
+                        .map(|pointer_head_path| ApplicableDecisions::Enabled { pointer_head_path })
+                })),
+        }
     }
 
     async fn resolve_model_file(
@@ -157,9 +165,9 @@ mod tests {
     use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
     use paddler_inference_parameters::pooling_type::PoolingType;
     use paddler_inference_parameters::sampling_parameters::SamplingParameters;
+    use paddler_messaging::agent_decisions_settings::AgentDecisionsSettings;
     use paddler_messaging::agent_desired_model::AgentDesiredModel;
     use paddler_messaging::agent_desired_state::AgentDesiredState;
-    use paddler_messaging::agent_inference_settings::AgentInferenceSettings;
     use paddler_messaging::agent_issue::AgentIssue;
     use paddler_messaging::agent_issue_params::model_path::ModelPath;
     use paddler_messaging::balancer_text_generation_settings::BalancerTextGenerationSettings;
@@ -174,6 +182,9 @@ mod tests {
     use crate::agent_applicable_state::AgentApplicableState;
     use crate::agent_desired_state_conversion::AgentDesiredStateConversion;
     use crate::agent_desired_state_converter::AgentDesiredStateConverter;
+    use crate::applicable_decisions::ApplicableDecisions;
+    use crate::inference_capabilities::InferenceCapabilities;
+    use crate::model_serving_settings::ModelServingSettings;
 
     struct MissingLocalModel {
         _dir_guard: TempDir,
@@ -199,18 +210,49 @@ mod tests {
         multimodal_projection: AgentDesiredModel,
     ) -> AgentDesiredState {
         AgentDesiredState {
-            inference_settings: AgentInferenceSettings::TextGeneration(
-                BalancerTextGenerationSettings {
-                    multimodal: MultimodalSettings {
-                        projection: multimodal_projection,
-                        ..MultimodalSettings::default()
-                    },
-                    ..BalancerTextGenerationSettings::default()
-                },
-            ),
+            decisions: AgentDecisionsSettings::NotServed,
             model,
             model_runtime_parameters: ModelRuntimeParameters::default(),
+            pooling_type: PoolingType::Last,
+            text_generation: BalancerTextGenerationSettings {
+                multimodal: MultimodalSettings {
+                    projection: multimodal_projection,
+                    ..MultimodalSettings::default()
+                },
+                ..BalancerTextGenerationSettings::default()
+            },
         }
+    }
+
+    fn desired_state_serving_decisions(
+        model: AgentDesiredModel,
+        pointer_head: AgentDesiredModel,
+    ) -> AgentDesiredState {
+        AgentDesiredState {
+            decisions: AgentDecisionsSettings::Served(DecisionSettings { pointer_head }),
+            ..desired_state(model, AgentDesiredModel::None)
+        }
+    }
+
+    fn served_settings(
+        model_file: &NamedTempFile,
+        decisions: ApplicableDecisions,
+        multimodal_projection: MultimodalProjection,
+    ) -> AgentApplicableState {
+        AgentApplicableState::WithModel(ModelServingSettings {
+            capabilities: InferenceCapabilities {
+                decisions,
+                embeddings: PoolingType::Last,
+                text_generation: TextGenerationSettings {
+                    chat_template_source: ChatTemplateSource::default(),
+                    image_resize_to_fit: MultimodalSettings::default().image_resize_to_fit,
+                    multimodal_projection,
+                    sampling_parameters: SamplingParameters::default(),
+                },
+            },
+            model_path: model_file.path().to_path_buf(),
+            model_runtime_parameters: ModelRuntimeParameters::default(),
+        })
     }
 
     #[tokio::test]
@@ -293,6 +335,7 @@ mod tests {
     #[tokio::test]
     async fn local_missing_pointer_head_registers_pointer_head_cannot_be_loaded_and_errs() {
         let status = fresh_status();
+        let model_file = NamedTempFile::new().unwrap();
         let MissingLocalModel {
             _dir_guard,
             path: missing_path,
@@ -304,14 +347,11 @@ mod tests {
         };
 
         let outcome = converter
-            .convert(&AgentDesiredState {
-                inference_settings: AgentInferenceSettings::Decision(DecisionSettings {
-                    pointer_head: ModelSource::LocalToAgent(missing_path.display().to_string())
-                        .into_agent_desired_model(),
-                }),
-                model: AgentDesiredModel::None,
-                model_runtime_parameters: ModelRuntimeParameters::default(),
-            })
+            .convert(&desired_state_serving_decisions(
+                local_model(&model_file),
+                ModelSource::LocalToAgent(missing_path.display().to_string())
+                    .into_agent_desired_model(),
+            ))
             .await;
 
         assert_eq!(
@@ -345,16 +385,15 @@ mod tests {
 
     #[tokio::test]
     async fn cancelling_while_the_pointer_head_resolves_cancels_the_conversion() {
+        let model_file = NamedTempFile::new().unwrap();
+
         assert_eq!(
             conversion(
                 cancelled_token(),
-                &AgentDesiredState {
-                    inference_settings: AgentInferenceSettings::Decision(DecisionSettings {
-                        pointer_head: uncached_hugging_face_model(),
-                    }),
-                    model: AgentDesiredModel::None,
-                    model_runtime_parameters: ModelRuntimeParameters::default(),
-                },
+                &desired_state_serving_decisions(
+                    local_model(&model_file),
+                    uncached_hugging_face_model(),
+                ),
             )
             .await,
             Some(AgentDesiredStateConversion::Cancelled)
@@ -402,43 +441,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn an_embeddings_state_without_a_model_is_not_configured() {
-        assert_eq!(
-            converted(&AgentDesiredState {
-                inference_settings: AgentInferenceSettings::Embeddings(PoolingType::Last),
-                model: AgentDesiredModel::None,
-                model_runtime_parameters: ModelRuntimeParameters::default(),
-            })
-            .await,
-            Some(AgentDesiredStateConversion::Converted(
-                AgentApplicableState::NotConfigured
-            ))
-        );
-    }
-
-    #[tokio::test]
-    async fn an_embeddings_state_carries_its_resolved_model() {
-        let model_file = NamedTempFile::new().unwrap();
-
-        assert_eq!(
-            converted(&AgentDesiredState {
-                inference_settings: AgentInferenceSettings::Embeddings(PoolingType::Last),
-                model: local_model(&model_file),
-                model_runtime_parameters: ModelRuntimeParameters::default(),
-            })
-            .await,
-            Some(AgentDesiredStateConversion::Converted(
-                AgentApplicableState::Embeddings {
-                    model_path: model_file.path().to_path_buf(),
-                    model_runtime_parameters: ModelRuntimeParameters::default(),
-                    pooling_type: PoolingType::Last,
-                }
-            ))
-        );
-    }
-
-    #[tokio::test]
-    async fn a_text_generation_state_carries_its_resolved_multimodal_projection() {
+    async fn a_state_with_a_model_serves_text_generation_and_embeddings_with_its_resolved_files() {
         let model_file = NamedTempFile::new().unwrap();
         let projection_file = NamedTempFile::new().unwrap();
 
@@ -448,43 +451,31 @@ mod tests {
                 local_model(&projection_file),
             ))
             .await,
-            Some(AgentDesiredStateConversion::Converted(
-                AgentApplicableState::TextGeneration {
-                    model_path: model_file.path().to_path_buf(),
-                    model_runtime_parameters: ModelRuntimeParameters::default(),
-                    text_generation_settings: TextGenerationSettings {
-                        chat_template_source: ChatTemplateSource::default(),
-                        image_resize_to_fit: MultimodalSettings::default().image_resize_to_fit,
-                        multimodal_projection: MultimodalProjection::File(
-                            projection_file.path().to_path_buf()
-                        ),
-                        sampling_parameters: SamplingParameters::default(),
-                    },
-                }
-            ))
+            Some(AgentDesiredStateConversion::Converted(served_settings(
+                &model_file,
+                ApplicableDecisions::Disabled,
+                MultimodalProjection::File(projection_file.path().to_path_buf()),
+            )))
         );
     }
 
     #[tokio::test]
-    async fn a_text_generation_state_without_a_model_keeps_its_chat_template() {
+    async fn a_state_without_a_model_keeps_its_chat_template() {
         let chat_template = ChatTemplate {
             content: "{{ messages }}".to_owned(),
         };
 
         assert_eq!(
             converted(&AgentDesiredState {
-                inference_settings: AgentInferenceSettings::TextGeneration(
-                    BalancerTextGenerationSettings {
-                        chat_template_source: ChatTemplateSource::Override(chat_template.clone()),
-                        ..BalancerTextGenerationSettings::default()
-                    },
-                ),
-                model: AgentDesiredModel::None,
-                model_runtime_parameters: ModelRuntimeParameters::default(),
+                text_generation: BalancerTextGenerationSettings {
+                    chat_template_source: ChatTemplateSource::Override(chat_template.clone()),
+                    ..BalancerTextGenerationSettings::default()
+                },
+                ..desired_state(AgentDesiredModel::None, AgentDesiredModel::None)
             })
             .await,
             Some(AgentDesiredStateConversion::Converted(
-                AgentApplicableState::TextGenerationWithoutModel {
+                AgentApplicableState::WithoutModel {
                     chat_template_source: ChatTemplateSource::Override(chat_template),
                 }
             ))
@@ -492,39 +483,35 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_decision_state_carries_its_model_and_pointer_head() {
+    async fn a_state_serving_decisions_carries_its_pointer_head() {
         let model_file = NamedTempFile::new().unwrap();
         let pointer_head_file = NamedTempFile::new().unwrap();
 
         assert_eq!(
-            converted(&AgentDesiredState {
-                inference_settings: AgentInferenceSettings::Decision(DecisionSettings {
-                    pointer_head: local_model(&pointer_head_file),
-                }),
-                model: local_model(&model_file),
-                model_runtime_parameters: ModelRuntimeParameters::default(),
-            })
-            .await,
-            Some(AgentDesiredStateConversion::Converted(
-                AgentApplicableState::Decision {
-                    model_path: model_file.path().to_path_buf(),
-                    model_runtime_parameters: ModelRuntimeParameters::default(),
-                    pointer_head_path: pointer_head_file.path().to_path_buf(),
-                }
+            converted(&desired_state_serving_decisions(
+                local_model(&model_file),
+                local_model(&pointer_head_file),
             ))
+            .await,
+            Some(AgentDesiredStateConversion::Converted(served_settings(
+                &model_file,
+                ApplicableDecisions::Enabled {
+                    pointer_head_path: pointer_head_file.path().to_path_buf(),
+                },
+                MultimodalProjection::NotConfigured,
+            )))
         );
     }
 
     #[tokio::test]
-    async fn a_decision_state_without_a_pointer_head_is_not_configured() {
+    async fn a_state_serving_decisions_without_a_pointer_head_is_not_configured() {
         let model_file = NamedTempFile::new().unwrap();
 
         assert_eq!(
-            converted(&AgentDesiredState {
-                inference_settings: AgentInferenceSettings::Decision(DecisionSettings::default()),
-                model: local_model(&model_file),
-                model_runtime_parameters: ModelRuntimeParameters::default(),
-            })
+            converted(&desired_state_serving_decisions(
+                local_model(&model_file),
+                AgentDesiredModel::None,
+            ))
             .await,
             Some(AgentDesiredStateConversion::Converted(
                 AgentApplicableState::NotConfigured

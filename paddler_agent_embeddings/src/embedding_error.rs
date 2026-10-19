@@ -12,17 +12,11 @@ use paddler_agent_runtime::agent_runtime_error::AgentRuntimeError;
 use paddler_agent_runtime::rejection_description::rejection_description;
 use paddler_agent_runtime::send_result_or_warn::send_result_or_warn;
 use paddler_messaging::embedding_result::EmbeddingResult;
-use paddler_messaging::inference_mode::InferenceMode;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EmbeddingError {
     #[error(transparent)]
     AgentRuntime(#[from] AgentRuntimeError),
-
-    #[error("the agent serves {serving_inference_mode:?}, so it cannot generate embeddings")]
-    InferenceModeMismatch {
-        serving_inference_mode: InferenceMode,
-    },
 
     #[error("failed to tokenize embedding input {source_document_id:?}: {source}")]
     InputTokenizationFailed {
@@ -63,6 +57,16 @@ impl EmbeddingError {
         agent_name: Option<&str>,
         generated_embedding_tx: &mpsc::UnboundedSender<EmbeddingResult>,
     ) {
+        self.report_to_each(agent_name, [generated_embedding_tx]);
+    }
+
+    pub fn report_to_each<'sender>(
+        self,
+        agent_name: Option<&str>,
+        generated_embedding_txs: impl IntoIterator<
+            Item = &'sender mpsc::UnboundedSender<EmbeddingResult>,
+        >,
+    ) {
         let message = rejection_description(agent_name, &self);
 
         error!("{message}");
@@ -76,7 +80,6 @@ impl EmbeddingError {
                 EmbeddingResult::EmbeddingTooLongForRmsNormalization(message)
             }
             Self::EmbeddingsUnavailable(_) => EmbeddingResult::EmbeddingsUnavailable(message),
-            Self::InferenceModeMismatch { .. } => EmbeddingResult::InferenceModeMismatch(message),
             Self::InputTokenizationFailed { .. } => {
                 EmbeddingResult::InputTokenizationFailed(message)
             }
@@ -84,7 +87,9 @@ impl EmbeddingError {
             Self::SchedulerUnavailable => EmbeddingResult::SchedulerUnavailable(message),
         };
 
-        send_result_or_warn(agent_name, generated_embedding_tx, result);
+        for generated_embedding_tx in generated_embedding_txs {
+            send_result_or_warn(agent_name, generated_embedding_tx, result.clone());
+        }
     }
 }
 
@@ -104,27 +109,8 @@ mod tests {
 
     use paddler_agent_runtime::agent_runtime_error::AgentRuntimeError;
     use paddler_messaging::embedding_result::EmbeddingResult;
-    use paddler_messaging::inference_mode::InferenceMode;
 
     use super::EmbeddingError;
-
-    #[test]
-    fn reports_a_request_for_another_mode_naming_the_served_mode() {
-        let (generated_embedding_tx, mut generated_embedding_rx) = mpsc::unbounded_channel();
-
-        EmbeddingError::InferenceModeMismatch {
-            serving_inference_mode: InferenceMode::TextGeneration,
-        }
-        .report(Some("agent"), &generated_embedding_tx);
-
-        assert_eq!(
-            generated_embedding_rx.try_recv(),
-            Ok(EmbeddingResult::InferenceModeMismatch(
-                "agent: the agent serves TextGeneration, so it cannot generate embeddings"
-                    .to_owned()
-            ))
-        );
-    }
 
     #[test]
     fn every_embedding_failure_reports_its_own_embedding_result() {
@@ -154,12 +140,6 @@ mod tests {
             (
                 EmbeddingError::EmbeddingsUnavailable(EmbeddingsError::NextnEmbeddingsNotEnabled),
                 EmbeddingResult::EmbeddingsUnavailable(description()),
-            ),
-            (
-                EmbeddingError::InferenceModeMismatch {
-                    serving_inference_mode: InferenceMode::Decision,
-                },
-                EmbeddingResult::InferenceModeMismatch(description()),
             ),
             (
                 EmbeddingError::InputTokenizationFailed {
@@ -209,5 +189,21 @@ mod tests {
         EmbeddingError::SchedulerUnavailable.report(None, &generated_embedding_tx);
 
         assert!(generated_embedding_tx.is_closed());
+    }
+
+    #[test]
+    fn reports_one_failure_to_every_request_it_affects() {
+        let (first_embedding_tx, mut first_embedding_rx) = mpsc::unbounded_channel();
+        let (second_embedding_tx, mut second_embedding_rx) = mpsc::unbounded_channel();
+
+        EmbeddingError::DecodeFailed(DecodeError::NoKvCacheSlot)
+            .report_to_each(None, [&first_embedding_tx, &second_embedding_tx]);
+
+        let expected_result = Ok(EmbeddingResult::DecodeFailed(
+            EmbeddingError::DecodeFailed(DecodeError::NoKvCacheSlot).to_string(),
+        ));
+
+        assert_eq!(first_embedding_rx.try_recv(), expected_result);
+        assert_eq!(second_embedding_rx.try_recv(), expected_result);
     }
 }

@@ -42,16 +42,16 @@ async fn agents_serve_the_inference_mode_the_cluster_switches_to_at_runtime() {
         .put_balancer_desired_state(
             CancellationToken::new(),
             &BalancerDesiredState {
-                inference_mode: InferenceMode::TextGeneration,
+                inference_mode: InferenceMode::TextGenerationAndEmbeddings,
                 ..decision_desired_state
             },
         )
         .await
-        .expect("the balancer must switch the cluster to text generation");
+        .expect("the balancer must stop serving decisions");
     cluster
-        .wait_for_first_agent_to_serve(InferenceMode::TextGeneration)
+        .wait_for_first_agent_to_serve(InferenceMode::TextGenerationAndEmbeddings)
         .await
-        .expect("the agent must reload into text generation");
+        .expect("the agent must stop serving decisions");
 
     let generated = cluster
         .continue_from_raw_prompt(

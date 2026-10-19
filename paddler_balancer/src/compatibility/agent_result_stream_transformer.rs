@@ -118,7 +118,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn refuses_to_relay_a_response_of_another_inference_mode() {
+    async fn refuses_to_relay_a_response_of_another_inference_capability() {
         let embedding_response = || {
             OutgoingMessage::Response(ResponseEnvelope {
                 generated_by: None,
@@ -147,7 +147,7 @@ mod tests {
     async fn refuses_to_relay_a_cluster_notification() {
         let cluster_notification = || {
             OutgoingMessage::Notification(Notification::ClusterInferenceMode(
-                InferenceMode::Decision,
+                InferenceMode::TextGenerationEmbeddingsAndDecisions,
             ))
         };
 

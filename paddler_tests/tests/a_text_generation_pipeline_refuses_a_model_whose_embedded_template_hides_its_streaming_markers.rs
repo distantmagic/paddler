@@ -11,6 +11,7 @@ use paddler_messaging::chat_template_source::ChatTemplateSource;
 use paddler_test_cluster_harness::model_card::qwen3_0_6b::qwen3_0_6b;
 use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
 use paddler_tests::first_message_content_chat_template::first_message_content_chat_template;
+use paddler_tests::llama_runtime::LlamaRuntime;
 use paddler_tests::text_generation_pipeline_parts::TextGenerationPipelineParts;
 use paddler_tests::write_patched_gguf::write_patched_gguf;
 
@@ -39,9 +40,9 @@ async fn a_text_generation_pipeline_refuses_a_model_whose_embedded_template_hide
             chat_template_source: ChatTemplateSource::Override(
                 first_message_content_chat_template()
             ),
-            inference_runtime_context: agent_inference_runtime_context(1),
             media_marker: LlamaCppMediaMarker,
-            model_path,
+            llama_runtime: LlamaRuntime::load(&model_path, agent_inference_runtime_context(1))
+                .expect("the model must load"),
             multimodal_projection: MultimodalProjection::NotConfigured,
         }
         .spawn_refusal()

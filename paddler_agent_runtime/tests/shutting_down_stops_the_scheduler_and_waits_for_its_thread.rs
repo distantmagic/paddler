@@ -4,7 +4,6 @@ use std::thread::spawn;
 
 use paddler_agent_runtime::scheduler_handle::SchedulerHandle;
 use paddler_agent_runtime::scheduler_message::SchedulerMessage;
-use paddler_messaging::model_metadata::ModelMetadata;
 
 use crate::number_command::NumberCommand;
 use crate::number_request_preparer::NumberRequestPreparer;
@@ -28,7 +27,6 @@ async fn shutting_down_stops_the_scheduler_and_waits_for_its_thread() {
     });
 
     SchedulerHandle {
-        model_metadata: ModelMetadata::default(),
         request_preparer,
         scheduler_thread_handle,
     }

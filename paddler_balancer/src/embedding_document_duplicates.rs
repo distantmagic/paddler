@@ -90,7 +90,6 @@ impl EmbeddingDocumentDuplicates {
             | EmbeddingResult::Done
             | EmbeddingResult::EmbeddingTooLongForRmsNormalization(_)
             | EmbeddingResult::EmbeddingsUnavailable(_)
-            | EmbeddingResult::InferenceModeMismatch(_)
             | EmbeddingResult::InputTokenizationFailed(_)
             | EmbeddingResult::ModelNotLoaded(_)
             | EmbeddingResult::NoEmbeddingsProduced

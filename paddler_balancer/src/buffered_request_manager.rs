@@ -6,13 +6,13 @@ use tokio::time::error::Elapsed;
 use tokio::time::timeout;
 
 use paddler_messaging::buffered_request_manager_snapshot::BufferedRequestManagerSnapshot;
-use paddler_messaging::inference_mode::InferenceMode;
 use paddler_messaging::produces_snapshot::ProducesSnapshot;
 use paddler_messaging::subscribes_to_updates::SubscribesToUpdates;
 
 use crate::agent_controller_pool::AgentControllerPool;
 use crate::buffered_request_agent_wait_result::BufferedRequestAgentWaitResult;
 use crate::buffered_request_counter::BufferedRequestCounter;
+use crate::dispatch_requirement::DispatchRequirement;
 use crate::dispatched_agent::DispatchedAgent;
 
 pub struct BufferedRequestManager {
@@ -43,18 +43,21 @@ impl BufferedRequestManager {
     }
 
     #[must_use]
-    pub fn take_available_agent(&self, inference_mode: InferenceMode) -> Option<DispatchedAgent> {
+    pub fn take_available_agent(
+        &self,
+        dispatch_requirement: DispatchRequirement,
+    ) -> Option<DispatchedAgent> {
         self.agent_controller_pool
-            .take_least_busy_agent_controller(inference_mode)
+            .take_least_busy_agent_controller(dispatch_requirement)
     }
 
     pub async fn wait_for_available_agent(
         &self,
-        inference_mode: InferenceMode,
+        dispatch_requirement: DispatchRequirement,
     ) -> BufferedRequestAgentWaitResult {
         let agent_availability_changed = self.agent_controller_pool.agent_availability_changed();
 
-        if let Some(dispatched_agent) = self.take_available_agent(inference_mode) {
+        if let Some(dispatched_agent) = self.take_available_agent(dispatch_requirement) {
             return BufferedRequestAgentWaitResult::Found(dispatched_agent);
         }
 
@@ -65,7 +68,7 @@ impl BufferedRequestManager {
         match timeout(
             self.buffered_request_timeout,
             self.agent_controller_pool
-                .next_available_agent(agent_availability_changed, inference_mode),
+                .next_available_agent(agent_availability_changed, dispatch_requirement),
         )
         .await
         {
@@ -95,6 +98,7 @@ impl SubscribesToUpdates for BufferedRequestManager {
 mod tests {
     use std::hint::spin_loop;
     use std::mem::discriminant;
+    use std::num::NonZeroU16;
     use std::sync::Arc;
     use std::sync::atomic::AtomicBool;
     use std::thread::available_parallelism;
@@ -107,12 +111,14 @@ mod tests {
     use tokio_util::sync::CancellationToken;
 
     use paddler_messaging::atomic_value::AtomicValue;
-    use paddler_messaging::inference_mode::InferenceMode;
+    use paddler_messaging::inference_capability::InferenceCapability;
     use paddler_messaging::subscribes_to_updates::SubscribesToUpdates as _;
 
     use super::BufferedRequestManager;
     use crate::agent_controller_pool::AgentControllerPool;
     use crate::buffered_request_agent_wait_result::BufferedRequestAgentWaitResult;
+    use crate::dispatch_requirement::DispatchRequirement;
+    use crate::slot_demand::SlotDemand;
 
     const BUFFER_CAPACITY: u64 = 1;
     const RACE_ROUNDS: usize = 64;
@@ -153,8 +159,13 @@ mod tests {
                         caller_runtime.block_on(async {
                             if let Some(wait_result) = admitted_callers_release
                                 .run_until_cancelled(
-                                    buffered_request_manager
-                                        .wait_for_available_agent(InferenceMode::TextGeneration),
+                                    buffered_request_manager.wait_for_available_agent(
+                                        DispatchRequirement {
+                                            inference_capability:
+                                                InferenceCapability::TextGeneration,
+                                            slot_demand: SlotDemand::Exactly(NonZeroU16::MIN),
+                                        },
+                                    ),
                                 )
                                 .await
                                 && discriminant(&wait_result)

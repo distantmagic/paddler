@@ -29,10 +29,11 @@ pub async fn request_from_dispatched_agent<TControlsSession, TParams>(
     TParams: AgentStreamingRequest + Debug + Send,
     TParams::Response: Debug + Into<OutgoingResponse> + StreamableResult,
 {
-    let receive_response_controller = match dispatched_agent
-        .agent_controller
-        .stream_responses_to(nanoid!(), params)
-    {
+    let receive_response_controller = match dispatched_agent.agent_controller.stream_responses_to(
+        nanoid!(),
+        params,
+        dispatched_agent.reserved_slots(),
+    ) {
         Ok(receive_response_controller) => receive_response_controller,
         Err(err) => {
             error!("Failed to handle request {request_id:?}: {err}");
@@ -65,6 +66,7 @@ pub async fn request_from_dispatched_agent<TControlsSession, TParams>(
 
 #[cfg(test)]
 mod tests {
+    use std::num::NonZeroU16;
     use std::num::NonZeroU32;
     use std::sync::Arc;
 
@@ -102,6 +104,7 @@ mod tests {
                 AgentControllerSlotGuard::new(
                     agent_controller,
                     Arc::new(AgentControllerPoolUpdates::default()),
+                    NonZeroU16::MIN,
                 ),
             ),
             CancellationToken::new(),

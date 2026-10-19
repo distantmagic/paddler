@@ -38,23 +38,14 @@ impl AgentApplicableStateHolder {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
-    use paddler_inference_parameters::pooling_type::PoolingType;
-
     use super::AgentApplicableStateHolder;
-    use crate::agent_applicable_state::AgentApplicableState;
+    use crate::state_overriding_the_chat_template::state_overriding_the_chat_template;
 
     #[test]
     fn a_new_subscriber_sees_the_state_applied_before_it_subscribed() {
         let holder = AgentApplicableStateHolder::default();
 
-        let applied_state = AgentApplicableState::Embeddings {
-            model_path: PathBuf::from("model.gguf"),
-            model_runtime_parameters: ModelRuntimeParameters::default(),
-            pooling_type: PoolingType::Last,
-        };
+        let applied_state = state_overriding_the_chat_template();
 
         holder.set_agent_applicable_state(applied_state.clone());
 
@@ -67,11 +58,7 @@ mod tests {
     #[test]
     fn an_identical_state_is_not_applied_again() {
         let holder = AgentApplicableStateHolder::default();
-        let applied_state = AgentApplicableState::Embeddings {
-            model_path: PathBuf::from("model.gguf"),
-            model_runtime_parameters: ModelRuntimeParameters::default(),
-            pooling_type: PoolingType::Last,
-        };
+        let applied_state = state_overriding_the_chat_template();
 
         holder.set_agent_applicable_state(applied_state.clone());
 

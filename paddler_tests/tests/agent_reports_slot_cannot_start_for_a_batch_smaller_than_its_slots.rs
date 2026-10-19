@@ -23,7 +23,8 @@ async fn agent_reports_slot_cannot_start_for_a_batch_smaller_than_its_slots() {
         qwen3_5_0_8b().into_decision_desired_state(pointer_head_fixture(
             QWEN3_5_0_8B_SYNTHETIC_POINTER_HEAD_FIXTURE,
         )),
-        nomic_embed_text_v1_5().into_embeddings_desired_state(EmbeddingParameters::default()),
+        nomic_embed_text_v1_5()
+            .into_desired_state_with_embedding_parameters(EmbeddingParameters::default()),
     ] {
         let mut cluster = start_cluster(ClusterParams {
             agents: vec![AgentConfig::single(SLOTS)],

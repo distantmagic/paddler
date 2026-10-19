@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::inference_capability::InferenceCapability;
 use crate::inference_mode::InferenceMode;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -24,12 +25,12 @@ impl AgentRuntimeStatus {
     }
 
     #[must_use]
-    pub fn slots_serving(&self, requested_inference_mode: InferenceMode) -> u64 {
+    pub const fn slots_serving(&self, inference_capability: InferenceCapability) -> u64 {
         match self {
             Self::Serving {
                 inference_mode,
                 slots_total,
-            } if *inference_mode == requested_inference_mode => *slots_total,
+            } if inference_mode.serves(inference_capability) => *slots_total,
             Self::Idle | Self::Serving { .. } => 0,
         }
     }
@@ -38,12 +39,14 @@ impl AgentRuntimeStatus {
 #[cfg(test)]
 mod tests {
     use super::AgentRuntimeStatus;
+    use crate::inference_capability::InferenceCapability;
     use crate::inference_mode::InferenceMode;
 
-    const SERVING_EMBEDDINGS: AgentRuntimeStatus = AgentRuntimeStatus::Serving {
-        inference_mode: InferenceMode::Embeddings,
-        slots_total: 3,
-    };
+    const SERVING_TEXT_GENERATION_AND_EMBEDDINGS: AgentRuntimeStatus =
+        AgentRuntimeStatus::Serving {
+            inference_mode: InferenceMode::TextGenerationAndEmbeddings,
+            slots_total: 3,
+        };
 
     #[test]
     fn an_idle_agent_has_no_slots() {
@@ -52,21 +55,34 @@ mod tests {
 
     #[test]
     fn a_serving_agent_has_its_slots() {
-        assert_eq!(SERVING_EMBEDDINGS.slots_total(), 3);
+        assert_eq!(SERVING_TEXT_GENERATION_AND_EMBEDDINGS.slots_total(), 3);
     }
 
     #[test]
-    fn a_serving_agent_offers_its_slots_to_the_inference_mode_it_serves() {
+    fn a_serving_agent_offers_its_slots_to_every_capability_its_mode_serves() {
         assert_eq!(
-            SERVING_EMBEDDINGS.slots_serving(InferenceMode::Embeddings),
+            SERVING_TEXT_GENERATION_AND_EMBEDDINGS.slots_serving(InferenceCapability::Embeddings),
+            3
+        );
+        assert_eq!(
+            SERVING_TEXT_GENERATION_AND_EMBEDDINGS
+                .slots_serving(InferenceCapability::TextGeneration),
             3
         );
     }
 
     #[test]
-    fn a_serving_agent_offers_no_slots_to_another_inference_mode() {
+    fn a_serving_agent_offers_no_slots_to_a_capability_its_mode_does_not_serve() {
         assert_eq!(
-            SERVING_EMBEDDINGS.slots_serving(InferenceMode::TextGeneration),
+            SERVING_TEXT_GENERATION_AND_EMBEDDINGS.slots_serving(InferenceCapability::Decisions),
+            0
+        );
+    }
+
+    #[test]
+    fn an_idle_agent_offers_no_slots_to_any_capability() {
+        assert_eq!(
+            AgentRuntimeStatus::Idle.slots_serving(InferenceCapability::TextGeneration),
             0
         );
     }

@@ -20,7 +20,10 @@ test("parses an agent that is downloading its model", function () {
       issues: [],
       model_path: "/models/qwen.gguf",
       runtime: {
-        Serving: { inference_mode: "TextGeneration", slots_total: 4 },
+        Serving: {
+          inference_mode: "TextGenerationAndEmbeddings",
+          slots_total: 4,
+        },
       },
       state_application_status: "Applied",
       uses_chat_template_override: false,

@@ -93,7 +93,7 @@ fn a_generation_arriving_while_every_sequence_is_taken_is_refused() {
         scheduler_context: ContinuousBatchSchedulerContext {
             agent_name: None,
             desired_slots_total: 1,
-            model: runtime.loaded_llama_model.model.clone(),
+            model: &runtime.loaded_llama_model.model,
             n_batch: runtime.model_runtime_parameters.n_batch,
             sequence_context_size,
         },

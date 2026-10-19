@@ -17,7 +17,7 @@ const SHORT_BUFFERED_REQUEST_TIMEOUT: Duration = Duration::from_millis(50);
 async fn openai_chat_completion_reports_a_buffered_request_timeout_as_a_gateway_timeout() {
     let cluster = start_cluster(ClusterParams {
         buffered_request_timeout: SHORT_BUFFERED_REQUEST_TIMEOUT,
-        ..cluster_without_agents_serving(InferenceMode::TextGeneration)
+        ..cluster_without_agents_serving(InferenceMode::TextGenerationAndEmbeddings)
     })
     .await
     .expect("a balancer without agents must start");

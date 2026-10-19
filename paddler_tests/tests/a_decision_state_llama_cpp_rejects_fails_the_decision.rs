@@ -40,8 +40,8 @@ fn a_decision_state_llama_cpp_rejects_fails_the_decision() {
         Vec::new(),
         two_option_question("question"),
     );
-    let admission = DecisionCapacityLedger::new(llama_context.n_ctx() as usize, 2)
-        .admit(&layout.capacity_demand())
+    let admission = DecisionCapacityLedger::new(2)
+        .admit(layout.needs_question_lane())
         .expect("the decision must be admitted");
     let mut admitted_decision = AdmittedDecision::new(
         admission,

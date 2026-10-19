@@ -1,5 +1,6 @@
 #![cfg(feature = "tests_that_use_llms")]
 
+use std::num::NonZeroU16;
 use std::num::NonZeroU32;
 
 use tokio::sync::mpsc;
@@ -63,7 +64,10 @@ fn tools_that_cannot_be_serialized_refuse_the_generation() {
                 tools: vec![get_weather_tool()],
             },
             response_tx: generated_tokens_tx,
-            slot_guard: SlotGuard::new(runtime.inference_runtime_context.slot_aggregated_status),
+            slot_guard: SlotGuard::new(
+                runtime.inference_runtime_context.slot_aggregated_status,
+                NonZeroU16::MIN,
+            ),
             stop_rx: generate_tokens_stop_rx,
         }),
     );

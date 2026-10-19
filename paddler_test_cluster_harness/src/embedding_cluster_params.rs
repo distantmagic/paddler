@@ -38,7 +38,8 @@ impl EmbeddingClusterParams {
                     n_gpu_layers: ALL_GPU_LAYERS,
                     ..model_runtime_parameters
                 },
-                ..nomic_embed_text_v1_5().into_embeddings_desired_state(embedding_parameters)
+                ..nomic_embed_text_v1_5()
+                    .into_desired_state_with_embedding_parameters(embedding_parameters)
             })),
             max_buffered_requests,
             wait_for_slots_ready: true,

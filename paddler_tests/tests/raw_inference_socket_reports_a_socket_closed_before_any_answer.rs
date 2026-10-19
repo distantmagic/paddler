@@ -9,10 +9,10 @@ use paddler_tests::start_cluster::start_cluster;
 #[tokio::test(flavor = "multi_thread")]
 async fn raw_inference_socket_reports_a_socket_closed_before_any_answer() {
     let cluster = start_cluster(cluster_without_agents_serving(
-        InferenceMode::TextGeneration,
+        InferenceMode::TextGenerationAndEmbeddings,
     ))
     .await
-    .expect("a balancer serving text generation must start");
+    .expect("a balancer serving text generation and embeddings must start");
     let mut raw_inference_socket =
         RawInferenceSocket::connect(cluster.balancer.addresses.inference)
             .await

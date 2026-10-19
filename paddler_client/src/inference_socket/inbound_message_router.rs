@@ -230,7 +230,8 @@ mod tests {
             .expect("an open registry must accept a request");
 
         router_for(&pending).route_text(
-            &json!({ "Notification": { "ClusterInferenceMode": "Embeddings" } }).to_string(),
+            &json!({ "Notification": { "ClusterInferenceMode": "TextGenerationAndEmbeddings" } })
+                .to_string(),
         );
 
         assert!(

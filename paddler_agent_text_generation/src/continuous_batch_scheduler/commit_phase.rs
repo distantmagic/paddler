@@ -2,11 +2,11 @@ use crate::continuous_batch_active_request::ContinuousBatchActiveRequest;
 use crate::continuous_batch_scheduler::batch_pass::BatchPass;
 use crate::continuous_batch_scheduler::contributions::Contributions;
 
-pub struct CommitPhase<'requests> {
-    pub requests: &'requests mut [ContinuousBatchActiveRequest],
+pub struct CommitPhase<'requests, 'model> {
+    pub requests: &'requests mut [ContinuousBatchActiveRequest<'model>],
 }
 
-impl CommitPhase<'_> {
+impl CommitPhase<'_, '_> {
     pub fn run(
         self,
         BatchPass {

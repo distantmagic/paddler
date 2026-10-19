@@ -59,7 +59,6 @@ pub async fn collect_embedding_results(
                     | EmbeddingResult::DecodeFailed(_)
                     | EmbeddingResult::EmbeddingTooLongForRmsNormalization(_)
                     | EmbeddingResult::EmbeddingsUnavailable(_)
-                    | EmbeddingResult::InferenceModeMismatch(_)
                     | EmbeddingResult::InputTokenizationFailed(_)
                     | EmbeddingResult::ModelNotLoaded(_)
                     | EmbeddingResult::SchedulerUnavailable(_)) => {

@@ -22,7 +22,6 @@ pub enum GeneratedTokenResult {
     GrammarRejectedModelOutput(String),
     GrammarSyntaxError(String),
     ImageDecodingFailed(String),
-    InferenceModeMismatch(String),
     KvCacheClearFailed(String),
     MediaExceedsMicroBatch(OversizedMediaDetails),
     MediaMicroBatchCheckFailed(String),
@@ -99,7 +98,6 @@ impl StreamableResult for GeneratedTokenResult {
                 | Self::GrammarRejectedModelOutput(_)
                 | Self::GrammarSyntaxError(_)
                 | Self::ImageDecodingFailed(_)
-                | Self::InferenceModeMismatch(_)
                 | Self::KvCacheClearFailed(_)
                 | Self::MediaExceedsMicroBatch(_)
                 | Self::MediaMicroBatchCheckFailed(_)
@@ -148,7 +146,6 @@ mod tests {
             GeneratedTokenResult::GrammarRejectedModelOutput("failure".to_owned()),
             GeneratedTokenResult::GrammarSyntaxError("failure".to_owned()),
             GeneratedTokenResult::ImageDecodingFailed("failure".to_owned()),
-            GeneratedTokenResult::InferenceModeMismatch("failure".to_owned()),
             GeneratedTokenResult::KvCacheClearFailed("failure".to_owned()),
             GeneratedTokenResult::MediaExceedsMicroBatch(OversizedMediaDetails {
                 media_tokens: 368,

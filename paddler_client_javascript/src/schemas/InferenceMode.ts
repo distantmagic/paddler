@@ -1,9 +1,8 @@
 import { z } from "zod";
 
 export const inferenceModes = [
-  "Decision",
-  "Embeddings",
-  "TextGeneration",
+  "TextGenerationAndEmbeddings",
+  "TextGenerationEmbeddingsAndDecisions",
 ] as const;
 
 export const InferenceModeSchema = z.enum(inferenceModes);

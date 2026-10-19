@@ -11,9 +11,11 @@ use paddler_tests::start_cluster::start_cluster;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_client_dropped_before_its_cluster_reports_ends_its_inference_mode_reports() {
-    let cluster = start_cluster(cluster_without_agents_serving(InferenceMode::Embeddings))
-        .await
-        .expect("a balancer serving embeddings must start");
+    let cluster = start_cluster(cluster_without_agents_serving(
+        InferenceMode::TextGenerationAndEmbeddings,
+    ))
+    .await
+    .expect("a balancer serving text generation and embeddings must start");
     let client_inference = ClientInference::new(ClientInferenceParams {
         inference_socket_pool_size: NonZeroUsize::MIN,
         url: cluster

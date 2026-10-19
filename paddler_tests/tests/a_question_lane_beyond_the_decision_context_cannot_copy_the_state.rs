@@ -43,12 +43,9 @@ fn a_question_lane_beyond_the_decision_context_cannot_copy_the_state() {
         vec![two_option_question("leading")],
         two_option_question("last"),
     );
-    let admission = DecisionCapacityLedger::new(
-        llama_context.n_ctx() as usize,
-        SEQUENCES_THE_LEDGER_HANDS_OUT,
-    )
-    .admit(&layout.capacity_demand())
-    .expect("the decision must be admitted");
+    let admission = DecisionCapacityLedger::new(SEQUENCES_THE_LEDGER_HANDS_OUT)
+        .admit(layout.needs_question_lane())
+        .expect("the decision must be admitted");
     let AdmittedDecision {
         mut active_decision_request,
         decision_result_rx: _decision_result_rx,

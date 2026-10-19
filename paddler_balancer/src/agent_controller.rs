@@ -1,3 +1,4 @@
+use std::num::NonZeroU16;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 
@@ -81,10 +82,11 @@ impl AgentController {
         &self,
         request_id: String,
         request: TRequest,
+        reserved_slots: NonZeroU16,
     ) -> Result<AgentResponseReceiver<TRequest::Response>, AgentRelayError> {
         self.relay_request(
             request_id,
-            request.into(),
+            request.into_reserved_agent_request(reserved_slots),
             TRequest::response_senders(&self.agent_response_senders),
         )
     }
@@ -153,6 +155,7 @@ impl ProducesSnapshot for AgentController {
 
 #[cfg(test)]
 mod tests {
+    use std::num::NonZeroU16;
     use std::num::NonZeroU32;
     use std::sync::Arc;
 
@@ -171,7 +174,7 @@ mod tests {
         SlotAggregatedStatusSnapshot {
             status: AgentStatus {
                 runtime: AgentRuntimeStatus::Serving {
-                    inference_mode: InferenceMode::TextGeneration,
+                    inference_mode: InferenceMode::TextGenerationAndEmbeddings,
                     slots_total,
                 },
                 ..AgentStatus::default()
@@ -241,8 +244,11 @@ mod tests {
     fn releases_the_request_id_of_a_stream_to_an_agent_whose_socket_is_gone() {
         let agent_controller = agent_controller_with(reported(1, 4));
 
-        let stream_result =
-            agent_controller.stream_responses_to("request".to_owned(), raw_prompt_params());
+        let stream_result = agent_controller.stream_responses_to(
+            "request".to_owned(),
+            raw_prompt_params(),
+            NonZeroU16::MIN,
+        );
 
         assert!(matches!(
             stream_result,
@@ -264,11 +270,11 @@ mod tests {
             agent_message_rx: _agent_message_rx,
         } = AgentControllerFixture::reporting("agent", reported(1, 4));
         let _in_flight_stream = agent_controller
-            .stream_responses_to("request".to_owned(), raw_prompt_params())
+            .stream_responses_to("request".to_owned(), raw_prompt_params(), NonZeroU16::MIN)
             .expect("the first stream must reach the agent");
 
         assert!(matches!(
-            agent_controller.stream_responses_to("request".to_owned(), raw_prompt_params()),
+            agent_controller.stream_responses_to("request".to_owned(), raw_prompt_params(), NonZeroU16::MIN),
             Err(AgentRelayError::RequestIdAlreadyRelayed { request_id }) if request_id == "request"
         ));
     }

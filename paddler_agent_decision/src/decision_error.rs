@@ -193,7 +193,7 @@ mod tests {
             ),
             (
                 DecisionError::InferenceModeMismatch {
-                    serving_inference_mode: InferenceMode::Embeddings,
+                    serving_inference_mode: InferenceMode::TextGenerationAndEmbeddings,
                 },
                 DecisionResult::InferenceModeMismatch(description()),
             ),

@@ -16,7 +16,7 @@ const ALLOWED_ORIGIN: &str = "http://example.com";
 async fn typesafe_service_lets_browsers_send_and_read_typesafe_headers() {
     let cluster = start_cluster(ClusterParams {
         inference_cors_allowed_hosts: vec![ALLOWED_ORIGIN.to_owned()],
-        ..cluster_without_agents_serving(InferenceMode::Decision)
+        ..cluster_without_agents_serving(InferenceMode::TextGenerationEmbeddingsAndDecisions)
     })
     .await
     .expect("a decision balancer without agents must start");

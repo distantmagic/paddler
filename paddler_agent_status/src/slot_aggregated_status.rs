@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+use std::num::NonZeroU16;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU64;
 
@@ -11,7 +13,6 @@ use paddler_messaging::agent_runtime_status::AgentRuntimeStatus;
 use paddler_messaging::agent_state_application_status::AgentStateApplicationStatus;
 use paddler_messaging::agent_status::AgentStatus;
 use paddler_messaging::atomic_value::AtomicValue;
-use paddler_messaging::inference_mode::InferenceMode;
 use paddler_messaging::model_download_status::ModelDownloadStatus;
 use paddler_messaging::produces_snapshot::ProducesSnapshot;
 use paddler_messaging::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
@@ -19,6 +20,7 @@ use paddler_messaging::subscribes_to_updates::SubscribesToUpdates;
 
 use crate::agent_issue_fix::AgentIssueFix;
 use crate::dispenses_slots::DispensesSlots;
+use crate::serving_report::ServingReport;
 
 pub struct SlotAggregatedStatus {
     pub desired_slots_total: u16,
@@ -27,6 +29,7 @@ pub struct SlotAggregatedStatus {
     model_path: RwLock<Option<String>>,
     pipeline_issues: DashSet<AgentIssue>,
     runtime: RwLock<AgentRuntimeStatus>,
+    serving_issues: RwLock<BTreeSet<AgentIssue>>,
     slots_processing: RwLock<u64>,
     slots_released: Notify,
     state_application_status: RwLock<AgentStateApplicationStatus>,
@@ -47,6 +50,7 @@ impl SlotAggregatedStatus {
             model_path: RwLock::new(None),
             pipeline_issues: DashSet::new(),
             runtime: RwLock::new(AgentRuntimeStatus::Idle),
+            serving_issues: RwLock::new(BTreeSet::new()),
             state_application_status: RwLock::new(AgentStateApplicationStatus::Fresh),
             slots_processing: RwLock::new(0),
             slots_released: Notify::new(),
@@ -66,7 +70,9 @@ impl SlotAggregatedStatus {
     }
 
     pub fn has_issue(&self, issue: &AgentIssue) -> bool {
-        self.desired_state_issues.contains(issue) || self.pipeline_issues.contains(issue)
+        self.desired_state_issues.contains(issue)
+            || self.pipeline_issues.contains(issue)
+            || self.serving_issues.read().contains(issue)
     }
 
     pub fn has_issue_like<TFunction>(&self, issue_like: TFunction) -> bool
@@ -77,6 +83,7 @@ impl SlotAggregatedStatus {
             .iter()
             .chain(self.pipeline_issues.iter())
             .any(|ref_multi| issue_like(ref_multi.key()))
+            || self.serving_issues.read().iter().any(issue_like)
     }
 
     pub fn add_downloaded_bytes(&self, added_bytes: u64) {
@@ -149,6 +156,7 @@ impl SlotAggregatedStatus {
     pub fn serve_nothing(&self, uses_chat_template_override: bool) {
         *self.model_path.write() = None;
         *self.runtime.write() = AgentRuntimeStatus::Idle;
+        self.serving_issues.write().clear();
         *self.state_application_status.write() = AgentStateApplicationStatus::Applied;
         self.uses_chat_template_override
             .set(uses_chat_template_override);
@@ -162,9 +170,12 @@ impl SlotAggregatedStatus {
 
     pub fn start_serving(
         &self,
-        inference_mode: InferenceMode,
-        model_path: String,
-        uses_chat_template_override: bool,
+        ServingReport {
+            inference_mode,
+            model_path,
+            serving_issues,
+            uses_chat_template_override,
+        }: ServingReport,
     ) {
         for slot_index in 0..u32::from(self.desired_slots_total) {
             self.register_fix(&AgentIssueFix::SlotStarted(slot_index));
@@ -175,6 +186,7 @@ impl SlotAggregatedStatus {
             inference_mode,
             slots_total: u64::from(self.desired_slots_total),
         };
+        *self.serving_issues.write() = serving_issues;
         *self.state_application_status.write() = AgentStateApplicationStatus::Applied;
         self.uses_chat_template_override
             .set(uses_chat_template_override);
@@ -199,13 +211,13 @@ impl SlotAggregatedStatus {
 }
 
 impl DispensesSlots for SlotAggregatedStatus {
-    fn release_slot(&self) {
-        *self.slots_processing.write() -= 1;
+    fn release_slots(&self, slots: NonZeroU16) {
+        *self.slots_processing.write() -= u64::from(slots.get());
         self.slots_released.notify_waiters();
     }
 
-    fn take_slot(&self) {
-        *self.slots_processing.write() += 1;
+    fn take_slots(&self, slots: NonZeroU16) {
+        *self.slots_processing.write() += u64::from(slots.get());
     }
 }
 
@@ -228,6 +240,7 @@ impl ProducesSnapshot for SlotAggregatedStatus {
                     .iter()
                     .chain(self.pipeline_issues.iter())
                     .map(|issue| issue.clone())
+                    .chain(self.serving_issues.read().iter().cloned())
                     .collect(),
                 model_path: self.model_path.read().clone(),
                 runtime: *self.runtime.read(),
@@ -242,6 +255,7 @@ impl ProducesSnapshot for SlotAggregatedStatus {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
+    use std::num::NonZeroU16;
     use std::task::Poll;
 
     use tokio_test::task::spawn;
@@ -251,6 +265,7 @@ mod tests {
     use paddler_messaging::agent_issue_params::slot_cannot_start_params::SlotCannotStartParams;
     use paddler_messaging::agent_runtime_status::AgentRuntimeStatus;
     use paddler_messaging::agent_state_application_status::AgentStateApplicationStatus;
+    use paddler_messaging::inference_capability::InferenceCapability;
     use paddler_messaging::inference_mode::InferenceMode;
     use paddler_messaging::model_download_status::ModelDownloadStatus;
     use paddler_messaging::produces_snapshot::ProducesSnapshot;
@@ -259,18 +274,28 @@ mod tests {
     use super::SlotAggregatedStatus;
     use crate::agent_issue_fix::AgentIssueFix;
     use crate::dispenses_slots::DispensesSlots;
+    use crate::serving_report::ServingReport;
+
+    fn serving_report(inference_mode: InferenceMode) -> ServingReport {
+        ServingReport {
+            inference_mode,
+            model_path: "model".to_owned(),
+            serving_issues: BTreeSet::new(),
+            uses_chat_template_override: false,
+        }
+    }
 
     #[test]
     fn waiting_for_idle_slots_completes_once_the_last_slot_is_released() {
         let status = SlotAggregatedStatus::new(1);
 
-        status.take_slot();
+        status.take_slots(NonZeroU16::MIN);
 
         let mut idle_wait = spawn(status.wait_until_no_slots_are_processing());
 
         assert!(idle_wait.poll().is_pending());
 
-        status.release_slot();
+        status.release_slots(NonZeroU16::MIN);
 
         assert!(idle_wait.is_woken());
         assert_eq!(idle_wait.poll(), Poll::Ready(()));
@@ -281,7 +306,7 @@ mod tests {
         let status = SlotAggregatedStatus::new(2);
         let update_rx = status.subscribe_to_updates();
 
-        status.take_slot();
+        status.take_slots(NonZeroU16::MIN);
 
         assert!(!update_rx.has_changed().unwrap());
     }
@@ -331,6 +356,7 @@ mod tests {
 
         status.register_pipeline_issue(AgentIssue::SlotCannotStart(SlotCannotStartParams {
             error: "failed".to_owned(),
+            inference_capability: InferenceCapability::Embeddings,
             slot_index: 3,
         }));
 
@@ -348,11 +374,12 @@ mod tests {
         for slot_index in 0..2 {
             status.register_pipeline_issue(AgentIssue::SlotCannotStart(SlotCannotStartParams {
                 error: "context creation failed".to_owned(),
+                inference_capability: InferenceCapability::TextGeneration,
                 slot_index,
             }));
         }
 
-        status.start_serving(InferenceMode::TextGeneration, "model".to_owned(), false);
+        status.start_serving(serving_report(InferenceMode::TextGenerationAndEmbeddings));
 
         assert!(!status.has_issue_like(is_slot_cannot_start));
     }
@@ -361,7 +388,7 @@ mod tests {
     fn serving_nothing_makes_the_agent_idle() {
         let status = SlotAggregatedStatus::new(2);
 
-        status.start_serving(InferenceMode::Embeddings, "model".to_owned(), false);
+        status.start_serving(serving_report(InferenceMode::TextGenerationAndEmbeddings));
         status.serve_nothing(false);
 
         assert_eq!(
@@ -374,16 +401,18 @@ mod tests {
     fn starting_to_serve_reports_the_model_its_mode_and_the_applied_state() {
         let status = SlotAggregatedStatus::new(4);
 
-        status.start_serving(InferenceMode::Embeddings, "test_model".to_owned(), false);
+        status.start_serving(serving_report(
+            InferenceMode::TextGenerationEmbeddingsAndDecisions,
+        ));
 
         let snapshot = status.make_snapshot();
 
         assert_eq!(snapshot.status.desired_slots_total, 4);
-        assert_eq!(snapshot.status.model_path, Some("test_model".to_owned()));
+        assert_eq!(snapshot.status.model_path, Some("model".to_owned()));
         assert_eq!(
             snapshot.status.runtime,
             AgentRuntimeStatus::Serving {
-                inference_mode: InferenceMode::Embeddings,
+                inference_mode: InferenceMode::TextGenerationEmbeddingsAndDecisions,
                 slots_total: 4,
             }
         );
@@ -447,11 +476,11 @@ mod tests {
 
         assert_eq!(status.slots_processing_count(), 0);
 
-        status.take_slot();
+        status.take_slots(NonZeroU16::MIN);
 
         assert_eq!(status.slots_processing_count(), 1);
 
-        status.release_slot();
+        status.release_slots(NonZeroU16::MIN);
 
         assert_eq!(status.slots_processing_count(), 0);
     }
@@ -460,12 +489,8 @@ mod tests {
     fn serving_nothing_forgets_the_model_but_keeps_requests_in_flight() {
         let status = SlotAggregatedStatus::new(2);
 
-        status.start_serving(
-            InferenceMode::TextGeneration,
-            "test_model".to_owned(),
-            false,
-        );
-        status.take_slot();
+        status.start_serving(serving_report(InferenceMode::TextGenerationAndEmbeddings));
+        status.take_slots(NonZeroU16::MIN);
 
         status.serve_nothing(false);
 
@@ -547,12 +572,72 @@ mod tests {
 
         assert!(!status.make_snapshot().status.uses_chat_template_override);
 
-        status.start_serving(InferenceMode::TextGeneration, "model".to_owned(), true);
+        status.start_serving(ServingReport {
+            uses_chat_template_override: true,
+            ..serving_report(InferenceMode::TextGenerationAndEmbeddings)
+        });
 
         assert!(status.make_snapshot().status.uses_chat_template_override);
 
         status.serve_nothing(false);
 
         assert!(!status.make_snapshot().status.uses_chat_template_override);
+    }
+
+    fn serving_without_a_chat_template() -> ServingReport {
+        ServingReport {
+            serving_issues: BTreeSet::from([AgentIssue::UnableToFindChatTemplate(model_path(
+                "model",
+            ))]),
+            ..serving_report(InferenceMode::TextGenerationAndEmbeddings)
+        }
+    }
+
+    #[test]
+    fn serving_issues_stay_reported_while_a_new_pipeline_begins() {
+        let status = SlotAggregatedStatus::new(2);
+        let serving_issue = AgentIssue::UnableToFindChatTemplate(model_path("model"));
+
+        status.start_serving(serving_without_a_chat_template());
+        status.begin_pipeline();
+
+        assert!(status.has_issue(&serving_issue));
+        assert!(status.has_issue_like(|agent_issue| *agent_issue == serving_issue));
+        assert_eq!(
+            status.make_snapshot().status.issues,
+            BTreeSet::from([serving_issue])
+        );
+    }
+
+    #[test]
+    fn serving_again_replaces_the_previous_serving_issues() {
+        let status = SlotAggregatedStatus::new(2);
+
+        status.start_serving(serving_without_a_chat_template());
+        status.start_serving(serving_report(InferenceMode::TextGenerationAndEmbeddings));
+
+        assert_eq!(status.make_snapshot().status.issues, BTreeSet::new());
+    }
+
+    #[test]
+    fn serving_nothing_clears_the_serving_issues() {
+        let status = SlotAggregatedStatus::new(2);
+
+        status.start_serving(serving_without_a_chat_template());
+        status.serve_nothing(false);
+
+        assert_eq!(status.make_snapshot().status.issues, BTreeSet::new());
+    }
+
+    #[test]
+    fn released_slots_return_exactly_the_slots_that_were_taken() {
+        let status = SlotAggregatedStatus::new(4);
+        let two_slots = NonZeroU16::new(2).unwrap();
+
+        status.take_slots(two_slots);
+        status.take_slots(NonZeroU16::MIN);
+        status.release_slots(two_slots);
+
+        assert_eq!(status.slots_processing_count(), 1);
     }
 }

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use parking_lot::RwLock;
 
 use paddler_messaging::model_metadata::ModelMetadata;
@@ -14,7 +16,7 @@ impl ModelMetadataHolder {
         Self::default()
     }
 
-    pub fn set_model_metadata(&self, model_metadata: ModelMetadata) {
+    pub fn set_model_metadata(&self, model_metadata: Arc<ModelMetadata>) {
         *self.loaded_model_metadata.write() = LoadedModelMetadata::Loaded(model_metadata);
     }
 
@@ -25,7 +27,9 @@ impl ModelMetadataHolder {
     #[must_use]
     pub fn get_model_metadata(&self) -> Option<ModelMetadata> {
         match &*self.loaded_model_metadata.read() {
-            LoadedModelMetadata::Loaded(model_metadata) => Some(model_metadata.clone()),
+            LoadedModelMetadata::Loaded(model_metadata) => {
+                Some(ModelMetadata::clone(model_metadata))
+            }
             LoadedModelMetadata::NoModelLoaded => None,
         }
     }
@@ -42,6 +46,7 @@ impl Default for ModelMetadataHolder {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
+    use std::sync::Arc;
 
     use paddler_messaging::model_metadata::ModelMetadata;
 
@@ -62,7 +67,7 @@ mod tests {
     fn stored_metadata_is_returned() {
         let holder = ModelMetadataHolder::new();
 
-        holder.set_model_metadata(llama_metadata());
+        holder.set_model_metadata(Arc::new(llama_metadata()));
 
         assert_eq!(holder.get_model_metadata(), Some(llama_metadata()));
     }
@@ -71,7 +76,7 @@ mod tests {
     fn forgotten_metadata_is_no_longer_returned() {
         let holder = ModelMetadataHolder::new();
 
-        holder.set_model_metadata(llama_metadata());
+        holder.set_model_metadata(Arc::new(llama_metadata()));
         holder.forget_model_metadata();
 
         assert_eq!(holder.get_model_metadata(), None);

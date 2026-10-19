@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::mpsc::channel;
 
@@ -9,26 +8,25 @@ use llama_cpp_bindings::context::LlamaContext;
 use llama_cpp_bindings::error::TokenToStringError;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
 use llama_cpp_bindings::model::LlamaModel;
-use llama_cpp_bindings::model::params::LlamaModelParams;
 use llama_cpp_bindings::mtmd::MtmdContext;
 use llama_cpp_bindings::mtmd::MtmdContextParams;
 use llama_cpp_bindings::mtmd::micro_batch_tokens;
 use llama_cpp_bindings::token::LlamaToken;
 use log::info;
+use log::warn;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
 use paddler_agent_runtime::continue_startup_unless_shutting_down::continue_startup_unless_shutting_down;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
-use paddler_agent_runtime::inference_thread_count::inference_thread_count;
-use paddler_agent_runtime::llama_context_settings::LlamaContextSettings;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
 use paddler_agent_runtime::run_scheduler_unless_startup_abandoned::run_scheduler_unless_startup_abandoned;
+use paddler_agent_runtime::scheduler_handle::SchedulerHandle;
 use paddler_agent_runtime::scheduler_ready::SchedulerReady;
 use paddler_agent_runtime::scheduler_request_preparer::SchedulerRequestPreparer;
-use paddler_agent_runtime::scheduler_spawn_outcome::SchedulerSpawnOutcome;
 use paddler_agent_runtime::start_scheduler_thread::start_scheduler_thread;
+use paddler_agent_runtime::startup_outcome::StartupOutcome;
 use paddler_agent_status::agent_issue_fix::AgentIssueFix;
 use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
 use paddler_messaging::agent_issue::AgentIssue;
@@ -36,6 +34,7 @@ use paddler_messaging::agent_issue_params::chat_template_does_not_compile_params
 use paddler_messaging::agent_issue_params::model_path::ModelPath;
 use paddler_messaging::chat_template::ChatTemplate;
 use paddler_messaging::chat_template_source::ChatTemplateSource;
+use paddler_messaging::inference_capability::InferenceCapability;
 use paddler_messaging::media_marker::MediaMarker;
 
 use crate::chat_prompt_renderer::ChatPromptRenderer;
@@ -43,6 +42,8 @@ use crate::chat_template_renderer::ChatTemplateRenderer;
 use crate::continuous_batch_scheduler::ContinuousBatchScheduler;
 use crate::continuous_batch_scheduler_context::ContinuousBatchSchedulerContext;
 use crate::continuous_batch_scheduler_params::ContinuousBatchSchedulerParams;
+use crate::conversation_prompt_support::ConversationPromptSupport;
+use crate::conversation_support::ConversationSupport;
 use crate::generation_request_preparer::GenerationRequestPreparer;
 use crate::image_input::ImageInput;
 use crate::json_tools_serializer::JsonToolsSerializer;
@@ -55,7 +56,6 @@ use crate::provides_media_marker::ProvidesMediaMarker;
 use crate::sampler_chain_factory::SamplerChainFactory;
 use crate::text_generation_error::TextGenerationError;
 use crate::text_generation_settings::TextGenerationSettings;
-use crate::token_generation_support::TokenGenerationSupport;
 
 fn special_token_text(
     model: &LlamaModel,
@@ -70,8 +70,8 @@ fn special_token_text(
 
 pub struct TextGenerationPipeline<TMediaMarker: ProvidesMediaMarker = LlamaCppMediaMarker> {
     pub inference_runtime_context: InferenceRuntimeContext,
+    pub loaded_llama_model: LoadedLlamaModel,
     pub media_marker: TMediaMarker,
-    pub model_path: PathBuf,
     pub model_runtime_parameters: ModelRuntimeParameters,
     pub text_generation_settings: TextGenerationSettings,
 }
@@ -80,7 +80,8 @@ impl<TMediaMarker: ProvidesMediaMarker> TextGenerationPipeline<TMediaMarker> {
     pub async fn spawn(
         self,
         cancellation_token: &CancellationToken,
-    ) -> Result<SchedulerSpawnOutcome<GenerationRequestPreparer>, TextGenerationError> {
+    ) -> Result<StartupOutcome<SchedulerHandle<GenerationRequestPreparer>>, TextGenerationError>
+    {
         start_scheduler_thread(
             cancellation_token,
             move |agent_shutdown, scheduler_startup_tx| {
@@ -101,193 +102,173 @@ impl<TMediaMarker: ProvidesMediaMarker> TextGenerationPipeline<TMediaMarker> {
             .inference_runtime_context
             .slot_aggregated_status
             .desired_slots_total;
+        let loaded_llama_model = self.loaded_llama_model.clone();
 
         continue_startup_unless_shutting_down(agent_shutdown, || {
-            let thread_count = inference_thread_count(
-                self.inference_runtime_context
-                    .available_parallelism
-                    .as_ref(),
-            )?;
-            let loaded_llama_model = LoadedLlamaModel::load(
+            let streaming_markers = loaded_llama_model
+                .model
+                .streaming_markers()
+                .map_err(TextGenerationError::StreamingMarkersUnavailable)?;
+            let mut llama_context = loaded_llama_model.create_llama_context(
                 &self.inference_runtime_context,
-                &self.model_path,
-                &LlamaModelParams::default()
-                    .with_n_gpu_layers(self.model_runtime_parameters.n_gpu_layers),
+                InferenceCapability::TextGeneration,
+                loaded_llama_model
+                    .llama_context_settings(
+                        &self.model_runtime_parameters,
+                        u32::from(desired_slots_total),
+                    )
+                    .into_llama_context_params(),
             )?;
+            let sequence_context_size = llama_context.n_ctx_seq();
+            let prompt_tokenizer = PromptTokenizer {
+                model: loaded_llama_model.model.clone(),
+                model_bos_token: ModelBosToken::of(&loaded_llama_model.model),
+                sequence_context_size,
+            };
 
             continue_startup_unless_shutting_down(agent_shutdown, || {
-                let token_generation_support =
-                    self.token_generation_support(&loaded_llama_model.model)?;
-
-                let mut llama_context = loaded_llama_model.create_llama_context(
-                    &self.inference_runtime_context,
-                    LlamaContextSettings {
-                        model_runtime_parameters: &self.model_runtime_parameters,
-                        n_seq_max: u32::from(desired_slots_total),
-                        thread_count,
-                    }
-                    .into_llama_context_params(),
-                )?;
-                let sequence_context_size = llama_context.n_ctx_seq();
-                let prompt_tokenizer = PromptTokenizer {
-                    model: loaded_llama_model.model.clone(),
-                    model_bos_token: ModelBosToken::of(&loaded_llama_model.model),
-                    sequence_context_size,
-                };
+                let conversation_support =
+                    self.conversation_support(&llama_context, &prompt_tokenizer)?;
+                let mut batch = LlamaBatch::new(
+                    self.model_runtime_parameters.n_batch.capacity(),
+                    i32::from(desired_slots_total),
+                );
 
                 continue_startup_unless_shutting_down(agent_shutdown, || {
-                    let image_input = self.image_input(
-                        &loaded_llama_model.model,
-                        &llama_context,
-                        &prompt_tokenizer,
-                        &token_generation_support.chat_prompt_renderer,
-                    )?;
-                    let mut batch = LlamaBatch::new(
-                        self.model_runtime_parameters.n_batch.capacity(),
-                        i32::from(desired_slots_total),
+                    loaded_llama_model.warm_up_llama_context(
+                        &mut llama_context,
+                        &mut batch,
+                        desired_slots_total,
                     );
 
-                    continue_startup_unless_shutting_down(agent_shutdown, || {
-                        loaded_llama_model.warm_up_llama_context(
-                            &mut llama_context,
-                            &mut batch,
-                            desired_slots_total,
-                        );
+                    let (scheduler_message_tx, scheduler_message_rx) = channel();
 
-                        let (scheduler_message_tx, scheduler_message_rx) = channel();
-
-                        run_scheduler_unless_startup_abandoned(
-                            scheduler_startup_tx,
-                            Ok(SchedulerReady {
-                                model_metadata: loaded_llama_model.model_metadata.clone(),
-                                request_preparer: Arc::new(SchedulerRequestPreparer {
-                                    agent_name: self.inference_runtime_context.agent_name.clone(),
-                                    preparation: GenerationRequestPreparer {
-                                        image_input,
-                                        image_resize_to_fit: self
+                    run_scheduler_unless_startup_abandoned(
+                        scheduler_startup_tx,
+                        Ok(SchedulerReady {
+                            request_preparer: Arc::new(SchedulerRequestPreparer {
+                                agent_name: self.inference_runtime_context.agent_name.clone(),
+                                preparation: GenerationRequestPreparer {
+                                    conversation_support,
+                                    image_resize_to_fit: self
+                                        .text_generation_settings
+                                        .image_resize_to_fit,
+                                    loaded_llama_model: loaded_llama_model.clone(),
+                                    prompt_tokenizer,
+                                    sampler_chain_factory: SamplerChainFactory {
+                                        sampling_parameters: self
                                             .text_generation_settings
-                                            .image_resize_to_fit,
-                                        loaded_llama_model: loaded_llama_model.clone(),
-                                        prompt_tokenizer,
-                                        sampler_chain_factory: SamplerChainFactory {
-                                            sampling_parameters: self
-                                                .text_generation_settings
-                                                .sampling_parameters
-                                                .clone(),
-                                            n_vocab: loaded_llama_model.model.n_vocab(),
-                                        },
-                                        token_generation_support,
-                                        tools_serializer: JsonToolsSerializer,
+                                            .sampling_parameters
+                                            .clone(),
+                                        n_vocab: loaded_llama_model.model.n_vocab(),
                                     },
-                                    preparation_tasks: TaskTracker::new(),
-                                    scheduler_message_tx,
-                                }),
+                                    streaming_markers,
+                                    tools_serializer: JsonToolsSerializer,
+                                },
+                                preparation_tasks: TaskTracker::new(),
+                                scheduler_message_tx,
                             }),
-                            || {
-                                ContinuousBatchScheduler::new(ContinuousBatchSchedulerParams {
-                                    agent_shutdown: agent_shutdown.clone(),
-                                    batch,
-                                    scheduler_message_rx,
-                                    llama_context,
-                                    scheduler_context: ContinuousBatchSchedulerContext {
-                                        agent_name: self.inference_runtime_context.agent_name,
-                                        desired_slots_total,
-                                        model: loaded_llama_model.model.clone(),
-                                        n_batch: self.model_runtime_parameters.n_batch,
-                                        sequence_context_size,
-                                    },
-                                })
-                                .run();
-                            },
-                        );
+                        }),
+                        || {
+                            ContinuousBatchScheduler::new(ContinuousBatchSchedulerParams {
+                                agent_shutdown: agent_shutdown.clone(),
+                                batch,
+                                scheduler_message_rx,
+                                llama_context,
+                                scheduler_context: ContinuousBatchSchedulerContext {
+                                    agent_name: self.inference_runtime_context.agent_name,
+                                    desired_slots_total,
+                                    model: &loaded_llama_model.model,
+                                    n_batch: self.model_runtime_parameters.n_batch,
+                                    sequence_context_size,
+                                },
+                            })
+                            .run();
+                        },
+                    );
 
-                        Ok(())
-                    })
+                    Ok(())
                 })
             })
         })
     }
 
-    fn token_generation_support(
+    fn conversation_support(
         &self,
-        model: &LlamaModel,
-    ) -> Result<TokenGenerationSupport, TextGenerationError> {
-        let chat_template = self.chat_template(model)?;
+        llama_context: &LlamaContext<'_>,
+        prompt_tokenizer: &PromptTokenizer,
+    ) -> Result<ConversationSupport, TextGenerationError> {
+        let chat_template = match &self.text_generation_settings.chat_template_source {
+            ChatTemplateSource::Override(chat_template_override) => chat_template_override.clone(),
+            ChatTemplateSource::EmbeddedInModel => {
+                match self.loaded_llama_model.model.chat_template(None) {
+                    Ok(model_chat_template) => ChatTemplate {
+                        content: model_chat_template
+                            .to_string()
+                            .map_err(TextGenerationError::ChatTemplateNotUtf8)?,
+                    },
+                    Err(chat_template_error) => {
+                        warn!(
+                            "{:?}: the model serves no conversations: {chat_template_error}",
+                            self.inference_runtime_context.agent_name
+                        );
+
+                        return Ok(ConversationSupport::ChatTemplateMissing(
+                            self.loaded_llama_model
+                                .llama_model_settings
+                                .reported_model_path(),
+                        ));
+                    }
+                }
+            }
+        };
+        let chat_prompt_renderer = self.chat_prompt_renderer(chat_template)?;
+
+        Ok(ConversationSupport::Available(Box::new(
+            ConversationPromptSupport {
+                image_input: self.image_input(
+                    llama_context,
+                    prompt_tokenizer,
+                    &chat_prompt_renderer,
+                )?,
+                chat_prompt_renderer,
+            },
+        )))
+    }
+
+    fn chat_prompt_renderer(
+        &self,
+        chat_template: ChatTemplate,
+    ) -> Result<ChatPromptRenderer, TextGenerationError> {
+        let model = &self.loaded_llama_model.model;
         let chat_template_renderer = self.chat_template_renderer(chat_template)?;
         let mut special_token_decoder = UTF_8.new_decoder();
 
-        Ok(TokenGenerationSupport {
-            chat_prompt_renderer: ChatPromptRenderer {
-                chat_template_renderer,
-                media_marker: MediaMarker::new(
-                    self.media_marker
-                        .media_marker()
-                        .map_err(TextGenerationError::MediaMarkerUnavailable)?
-                        .to_owned(),
-                ),
-                token_bos_str: special_token_text(
-                    model,
-                    model.token_bos(),
-                    &mut special_token_decoder,
-                )
+        Ok(ChatPromptRenderer {
+            chat_template_renderer,
+            media_marker: MediaMarker::new(
+                self.media_marker
+                    .media_marker()
+                    .map_err(TextGenerationError::MediaMarkerUnavailable)?
+                    .to_owned(),
+            ),
+            token_bos_str: special_token_text(model, model.token_bos(), &mut special_token_decoder)
                 .map_err(TextGenerationError::SpecialTokenUnrenderable)?,
-                token_eos_str: special_token_text(
-                    model,
-                    model.token_eos(),
-                    &mut special_token_decoder,
-                )
+            token_eos_str: special_token_text(model, model.token_eos(), &mut special_token_decoder)
                 .map_err(TextGenerationError::SpecialTokenUnrenderable)?,
-                token_nl_str: special_token_text(
-                    model,
-                    model.token_nl(),
-                    &mut special_token_decoder,
-                )
+            token_nl_str: special_token_text(model, model.token_nl(), &mut special_token_decoder)
                 .map_err(TextGenerationError::SpecialTokenUnrenderable)?,
-            },
-            streaming_markers: model
-                .streaming_markers()
-                .map_err(TextGenerationError::StreamingMarkersUnavailable)?,
         })
-    }
-
-    fn chat_template(&self, model: &LlamaModel) -> Result<ChatTemplate, TextGenerationError> {
-        let model_issue_path = ModelPath::from(self.model_path.as_path());
-        let chat_template = match &self.text_generation_settings.chat_template_source {
-            ChatTemplateSource::Override(chat_template_override) => {
-                Ok(chat_template_override.clone())
-            }
-            ChatTemplateSource::EmbeddedInModel => model
-                .chat_template(None)
-                .map_err(TextGenerationError::ChatTemplateUnavailable)
-                .and_then(|model_chat_template| {
-                    model_chat_template
-                        .to_string()
-                        .map_err(TextGenerationError::ChatTemplateNotUtf8)
-                })
-                .map(|content| ChatTemplate { content }),
-        };
-        let slot_aggregated_status = &self.inference_runtime_context.slot_aggregated_status;
-
-        match &chat_template {
-            Ok(_) => {
-                slot_aggregated_status
-                    .register_fix(&AgentIssueFix::ModelChatTemplateIsLoaded(model_issue_path));
-            }
-            Err(_chat_template_unavailable) => {
-                slot_aggregated_status.register_pipeline_issue(
-                    AgentIssue::UnableToFindChatTemplate(model_issue_path),
-                );
-            }
-        }
-
-        chat_template
     }
 
     fn chat_template_renderer(
         &self,
         chat_template: ChatTemplate,
     ) -> Result<ChatTemplateRenderer, TextGenerationError> {
-        let model_issue_path = ModelPath::from(self.model_path.as_path());
+        let model_issue_path = self
+            .loaded_llama_model
+            .llama_model_settings
+            .reported_model_path();
         let template_content = chat_template.content.clone();
         let slot_aggregated_status = &self.inference_runtime_context.slot_aggregated_status;
 
@@ -316,7 +297,6 @@ impl<TMediaMarker: ProvidesMediaMarker> TextGenerationPipeline<TMediaMarker> {
 
     fn image_input(
         &self,
-        model: &LlamaModel,
         llama_context: &LlamaContext<'_>,
         prompt_tokenizer: &PromptTokenizer,
         chat_prompt_renderer: &ChatPromptRenderer,
@@ -332,7 +312,7 @@ impl<TMediaMarker: ProvidesMediaMarker> TextGenerationPipeline<TMediaMarker> {
 
         match MtmdContext::init_from_file(
             &multimodal_projection_path.to_string_lossy(),
-            model,
+            &self.loaded_llama_model.model,
             &MtmdContextParams::default(),
         ) {
             Ok(multimodal_context) => {

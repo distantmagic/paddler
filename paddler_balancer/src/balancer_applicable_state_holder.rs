@@ -4,10 +4,10 @@ use tokio::sync::watch;
 
 use paddler_messaging::agent_desired_state::AgentDesiredState;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
-use paddler_messaging::inference_mode::InferenceMode;
+use paddler_messaging::inference_capability::InferenceCapability;
 
 use crate::balancer_applicable_state::BalancerApplicableState;
-use crate::cluster_serves_another_inference_mode::ClusterServesAnotherInferenceMode;
+use crate::cluster_does_not_serve_inference_capability::ClusterDoesNotServeInferenceCapability;
 
 pub struct BalancerApplicableStateHolder {
     balancer_applicable_state_rx: watch::Receiver<Arc<BalancerApplicableState>>,
@@ -32,6 +32,11 @@ impl BalancerApplicableStateHolder {
     }
 
     #[must_use]
+    pub fn get_balancer_applicable_state(&self) -> Arc<BalancerApplicableState> {
+        self.balancer_applicable_state_rx.borrow().clone()
+    }
+
+    #[must_use]
     pub fn get_balancer_desired_state(&self) -> BalancerDesiredState {
         self.balancer_applicable_state_rx
             .borrow()
@@ -39,18 +44,18 @@ impl BalancerApplicableStateHolder {
             .clone()
     }
 
-    pub fn require_inference_mode(
+    pub fn require_inference_capability(
         &self,
-        requested_inference_mode: InferenceMode,
-    ) -> Result<Arc<BalancerApplicableState>, ClusterServesAnotherInferenceMode> {
+        requested_inference_capability: InferenceCapability,
+    ) -> Result<Arc<BalancerApplicableState>, ClusterDoesNotServeInferenceCapability> {
         let balancer_applicable_state = self.balancer_applicable_state_rx.borrow().clone();
         let served_inference_mode = balancer_applicable_state.inference_mode();
 
-        if served_inference_mode == requested_inference_mode {
+        if served_inference_mode.serves(requested_inference_capability) {
             Ok(balancer_applicable_state)
         } else {
-            Err(ClusterServesAnotherInferenceMode {
-                requested_inference_mode,
+            Err(ClusterDoesNotServeInferenceCapability {
+                requested_inference_capability,
                 served_inference_mode,
             })
         }
@@ -69,35 +74,43 @@ mod tests {
     use tokio::sync::watch;
 
     use paddler_messaging::balancer_desired_state::BalancerDesiredState;
+    use paddler_messaging::inference_capability::InferenceCapability;
     use paddler_messaging::inference_mode::InferenceMode;
 
     use super::BalancerApplicableStateHolder;
     use crate::balancer_applicable_state::BalancerApplicableState;
-    use crate::cluster_serves_another_inference_mode::ClusterServesAnotherInferenceMode;
+    use crate::cluster_does_not_serve_inference_capability::ClusterDoesNotServeInferenceCapability;
 
-    #[test]
-    fn requires_the_inference_mode_the_applied_state_serves() {
+    fn holder_serving_text_generation_and_embeddings() -> BalancerApplicableStateHolder {
         let (_balancer_applicable_state_tx, balancer_applicable_state_rx) = watch::channel(
             Arc::new(BalancerApplicableState::from(BalancerDesiredState {
-                inference_mode: InferenceMode::Embeddings,
+                inference_mode: InferenceMode::TextGenerationAndEmbeddings,
                 ..BalancerDesiredState::default()
             })),
         );
-        let holder = BalancerApplicableStateHolder::new(balancer_applicable_state_rx);
 
+        BalancerApplicableStateHolder::new(balancer_applicable_state_rx)
+    }
+
+    #[test]
+    fn grants_a_capability_the_served_mode_includes() {
         assert_eq!(
-            holder
-                .require_inference_mode(InferenceMode::Embeddings)
+            holder_serving_text_generation_and_embeddings()
+                .require_inference_capability(InferenceCapability::Embeddings)
                 .map(|balancer_applicable_state| balancer_applicable_state.inference_mode()),
-            Ok(InferenceMode::Embeddings)
+            Ok(InferenceMode::TextGenerationAndEmbeddings)
         );
+    }
+
+    #[test]
+    fn refuses_a_capability_the_served_mode_lacks() {
         assert_eq!(
-            holder
-                .require_inference_mode(InferenceMode::TextGeneration)
+            holder_serving_text_generation_and_embeddings()
+                .require_inference_capability(InferenceCapability::Decisions)
                 .err(),
-            Some(ClusterServesAnotherInferenceMode {
-                requested_inference_mode: InferenceMode::TextGeneration,
-                served_inference_mode: InferenceMode::Embeddings,
+            Some(ClusterDoesNotServeInferenceCapability {
+                requested_inference_capability: InferenceCapability::Decisions,
+                served_inference_mode: InferenceMode::TextGenerationAndEmbeddings,
             })
         );
     }

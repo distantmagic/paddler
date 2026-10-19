@@ -1,19 +1,22 @@
 #![cfg(feature = "tests_that_use_llms")]
 
-use std::num::NonZeroU32;
+use std::mem::discriminant;
 
 use tokio::spawn;
 use tokio_util::sync::CancellationToken;
 
 use paddler_messaging::agent_issue::AgentIssue;
+use paddler_messaging::agent_issue_params::model_path::ModelPath;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
+use paddler_messaging::decision_settings::DecisionSettings;
 use paddler_messaging::inference_mode::InferenceMode;
-use paddler_messaging::request_params::continue_from_raw_prompt_params::ContinueFromRawPromptParams;
 use paddler_model_source::model_source::ModelSource;
 use paddler_tests::decision_cluster_params::DecisionClusterParams;
+use paddler_tests::decision_done_discriminant::decision_done_discriminant;
+use paddler_tests::sample_decision::sample_decision;
 use paddler_tests::start_decision_cluster::start_decision_cluster;
 
-const MAX_TOKENS: NonZeroU32 = NonZeroU32::new(16).unwrap();
+const MISSING_POINTER_HEAD_PATH: &str = "/nonexistent/pointer_head.gguf";
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_request_waits_while_agents_still_serve_the_previous_inference_mode() {
@@ -21,60 +24,74 @@ async fn a_request_waits_while_agents_still_serve_the_previous_inference_mode() 
         .await
         .expect("a decision cluster must start");
 
-    let decision_desired_state = cluster
+    let decisions_desired_state = cluster
         .client_management
         .get_balancer_desired_state(CancellationToken::new())
         .await
         .expect("the balancer must report its desired state");
-    let text_generation_desired_state = BalancerDesiredState {
-        inference_mode: InferenceMode::TextGeneration,
-        ..decision_desired_state
-    };
 
     cluster
         .client_management
         .put_balancer_desired_state(
             CancellationToken::new(),
             &BalancerDesiredState {
-                model: ModelSource::LocalToAgent("/nonexistent/model.gguf".to_owned())
-                    .into_agent_desired_model(),
-                ..text_generation_desired_state.clone()
+                inference_mode: InferenceMode::TextGenerationAndEmbeddings,
+                ..decisions_desired_state.clone()
             },
         )
         .await
-        .expect("the balancer must switch the cluster to text generation");
-
+        .expect("the balancer must stop serving decisions");
     cluster
-        .wait_for_first_agent_issue(|issue| matches!(issue, AgentIssue::ModelFileDoesNotExist(_)))
+        .wait_for_first_agent_to_serve(InferenceMode::TextGenerationAndEmbeddings)
         .await
-        .expect("the agent must keep serving decisions while the desired model is missing");
+        .expect("the agent must stop serving decisions");
+    cluster
+        .client_management
+        .put_balancer_desired_state(
+            CancellationToken::new(),
+            &BalancerDesiredState {
+                decision: DecisionSettings {
+                    pointer_head: ModelSource::LocalToAgent(MISSING_POINTER_HEAD_PATH.to_owned())
+                        .into_agent_desired_model(),
+                },
+                ..decisions_desired_state.clone()
+            },
+        )
+        .await
+        .expect("the balancer must serve decisions again");
+    cluster
+        .wait_for_first_agent_issue(|issue| {
+            *issue
+                == AgentIssue::PointerHeadCannotBeLoaded(ModelPath {
+                    model_path: MISSING_POINTER_HEAD_PATH.to_owned(),
+                })
+        })
+        .await
+        .expect("the agent must report the pointer head it cannot load");
 
-    let generation = spawn(cluster.continue_from_raw_prompt(
-        CancellationToken::new(),
-        &ContinueFromRawPromptParams {
-            grammar: None,
-            max_tokens: MAX_TOKENS,
-            raw_prompt: "The capital of France is".to_owned(),
-        },
-    ));
+    let decision = spawn(cluster.decide(CancellationToken::new(), &sample_decision()));
 
     cluster
         .wait_for_buffered_request_count(1)
         .await
-        .expect("the request must wait in the buffer");
+        .expect("the decision must wait in the buffer");
 
     cluster
         .client_management
-        .put_balancer_desired_state(CancellationToken::new(), &text_generation_desired_state)
+        .put_balancer_desired_state(CancellationToken::new(), &decisions_desired_state)
         .await
-        .expect("the balancer must accept a text generation model the agent can load");
+        .expect("the balancer must accept a pointer head the agent can load");
 
-    generation
-        .await
-        .expect("the generation task must not panic")
-        .expect("the buffered request must be answered")
-        .summary()
-        .expect("the buffered request must be served by an agent serving text generation");
+    assert_eq!(
+        discriminant(
+            &decision
+                .await
+                .expect("the decision task must not panic")
+                .expect("the buffered decision must be answered")
+                .terminal_result
+        ),
+        decision_done_discriminant()
+    );
 
     cluster
         .shutdown()

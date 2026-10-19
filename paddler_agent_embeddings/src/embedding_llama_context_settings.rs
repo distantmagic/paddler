@@ -5,6 +5,7 @@ use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::llama_context_settings::LlamaContextSettings;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
 use paddler_inference_parameters::pooling_type::PoolingType;
+use paddler_messaging::inference_capability::InferenceCapability;
 
 use crate::agent_pooling_type::AgentPoolingType;
 use crate::converts_to_llama_pooling_type::ConvertsToLlamaPoolingType as _;
@@ -32,6 +33,7 @@ impl EmbeddingLlamaContextSettings<'_> {
 
         loaded_llama_model.create_llama_context(
             inference_runtime_context,
+            InferenceCapability::Embeddings,
             llama_context_settings
                 .into_llama_context_params()
                 .with_embeddings(true)

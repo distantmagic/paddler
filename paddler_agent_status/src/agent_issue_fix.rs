@@ -7,7 +7,6 @@ pub enum AgentIssueFix {
     ChatTemplateIsCompiled(ModelPath),
     HuggingFaceDownloadedModel(ModelPath),
     HuggingFaceStartedDownloading(ModelPath),
-    ModelChatTemplateIsLoaded(ModelPath),
     ModelFileExists(ModelPath),
     ModelIsLoaded(ModelPath),
     ModelDownloadCompleted(ModelPath),
@@ -58,21 +57,17 @@ impl AgentIssueFix {
             | AgentIssue::ModelUriIsUnparseable(_)
             | AgentIssue::PointerHeadCannotBeLoaded(_)
             | AgentIssue::PointerHeadIncompatibleWithModel(_)
-            | AgentIssue::SlotsInsufficientForDecisions(_) => false,
+            | AgentIssue::SlotsInsufficientForDecisions(_)
+            | AgentIssue::UnableToFindChatTemplate(_) => false,
             AgentIssue::MultimodalProjectionCannotBeLoaded(_) => {
                 matches!(self, Self::MultimodalProjectionIsLoaded(_))
             }
             AgentIssue::SlotCannotStart(SlotCannotStartParams {
                 error: _,
+                inference_capability: _,
                 slot_index,
             }) => match self {
                 Self::SlotStarted(started_slot_index) => slot_index == started_slot_index,
-                _ => false,
-            },
-            AgentIssue::UnableToFindChatTemplate(issue_model_path) => match self {
-                Self::ModelChatTemplateIsLoaded(fix_model_path) => {
-                    issue_model_path.eq(fix_model_path)
-                }
                 _ => false,
             },
             AgentIssue::CacheCannotAcquireLock(issue_model_path)
@@ -105,6 +100,7 @@ mod tests {
     use paddler_messaging::agent_issue_params::pointer_head_incompatible_with_model_params::PointerHeadIncompatibleWithModelParams;
     use paddler_messaging::agent_issue_params::slot_cannot_start_params::SlotCannotStartParams;
     use paddler_messaging::agent_issue_params::slots_insufficient_for_decisions_params::SlotsInsufficientForDecisionsParams;
+    use paddler_messaging::inference_capability::InferenceCapability;
 
     use super::AgentIssueFix;
 
@@ -138,12 +134,12 @@ mod tests {
                 desired_slots: 1,
                 required_slots: 2,
             }),
+            AgentIssue::UnableToFindChatTemplate(issue_path.clone()),
         ];
         let targeted_fixes = [
             AgentIssueFix::ChatTemplateIsCompiled(issue_path.clone()),
             AgentIssueFix::HuggingFaceDownloadedModel(issue_path.clone()),
             AgentIssueFix::HuggingFaceStartedDownloading(issue_path.clone()),
-            AgentIssueFix::ModelChatTemplateIsLoaded(issue_path.clone()),
             AgentIssueFix::ModelDownloadCompleted(issue_path.clone()),
             AgentIssueFix::ModelDownloadStarted(issue_path.clone()),
             AgentIssueFix::ModelFileExists(issue_path.clone()),
@@ -188,23 +184,17 @@ mod tests {
         let fix = AgentIssueFix::SlotStarted(3);
         let matching_issue = AgentIssue::SlotCannotStart(SlotCannotStartParams {
             error: "failed".to_owned(),
+            inference_capability: InferenceCapability::TextGeneration,
             slot_index: 3,
         });
         let non_matching_issue = AgentIssue::SlotCannotStart(SlotCannotStartParams {
             error: "failed".to_owned(),
+            inference_capability: InferenceCapability::Decisions,
             slot_index: 5,
         });
 
         assert!(fix.can_fix(&matching_issue));
         assert!(!fix.can_fix(&non_matching_issue));
-    }
-
-    #[test]
-    fn model_is_loaded_does_not_fix_unrelated_issue() {
-        let fix = AgentIssueFix::ModelIsLoaded(model_path("model_a"));
-        let issue = AgentIssue::UnableToFindChatTemplate(model_path("model_a"));
-
-        assert!(!fix.can_fix(&issue));
     }
 
     #[test]
@@ -406,18 +396,11 @@ mod tests {
         let fix = AgentIssueFix::ModelIsLoaded(model_path("model_a"));
         let issue = AgentIssue::SlotCannotStart(SlotCannotStartParams {
             error: "failed".to_owned(),
+            inference_capability: InferenceCapability::Embeddings,
             slot_index: 1,
         });
 
         assert!(!fix.can_fix(&issue));
-    }
-
-    #[test]
-    fn unable_to_find_chat_template_fixed_by_model_chat_template_loaded() {
-        let issue = AgentIssue::UnableToFindChatTemplate(model_path("model_a"));
-
-        assert!(AgentIssueFix::ModelChatTemplateIsLoaded(model_path("model_a")).can_fix(&issue));
-        assert!(!AgentIssueFix::ModelChatTemplateIsLoaded(model_path("model_b")).can_fix(&issue));
     }
 
     #[test]

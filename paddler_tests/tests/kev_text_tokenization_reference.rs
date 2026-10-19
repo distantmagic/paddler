@@ -3,11 +3,12 @@
 use std::fs::read_to_string;
 use std::path::PathBuf;
 
-use llama_cpp_bindings::model::params::LlamaModelParams;
 use serde_json::from_str;
 
 use paddler_agent_decision::decision_text_tokenizer::DecisionTextTokenizer;
+use paddler_agent_runtime::llama_model_settings::LlamaModelSettings;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
+use paddler_inference_parameters::all_gpu_layers::ALL_GPU_LAYERS;
 use paddler_test_cluster_harness::fixture_path::fixture_path;
 use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
 use paddler_tests::tokenizer_reference_entry::TokenizerReferenceEntry;
@@ -22,8 +23,10 @@ impl KevTextTokenizationReference {
         let text_tokenizer = DecisionTextTokenizer {
             loaded_llama_model: LoadedLlamaModel::load(
                 &agent_inference_runtime_context(1),
-                &self.model_path,
-                &LlamaModelParams::default().with_vocab_only(true),
+                LlamaModelSettings {
+                    model_path: self.model_path,
+                    n_gpu_layers: ALL_GPU_LAYERS,
+                },
             )
             .expect("the decision model vocabulary must load"),
         };

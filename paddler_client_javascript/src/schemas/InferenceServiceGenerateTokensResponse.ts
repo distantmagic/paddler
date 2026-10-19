@@ -58,7 +58,6 @@ const GeneratedTokenResultSchema = z.union([
   z.object({ GrammarRejectedModelOutput: z.string() }),
   z.object({ GrammarSyntaxError: z.string() }),
   z.object({ ImageDecodingFailed: z.string() }),
-  z.object({ InferenceModeMismatch: z.string() }),
   z.object({ MediaExceedsMicroBatch: OversizedMediaDetailsSchema }),
   z.object({ ModelNotLoaded: z.string() }),
   z.object({ MultimodalNotSupported: z.string() }),
@@ -572,15 +571,6 @@ export const InferenceServiceGenerateTokensResponseSchema = z
         generated_by,
         400,
         variant.MultimodalNotSupported,
-      );
-    }
-
-    if ("InferenceModeMismatch" in variant) {
-      return terminalError(
-        request_id,
-        generated_by,
-        503,
-        variant.InferenceModeMismatch,
       );
     }
 

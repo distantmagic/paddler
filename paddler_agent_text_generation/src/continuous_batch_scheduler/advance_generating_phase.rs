@@ -26,11 +26,11 @@ pub struct AdvanceGeneratingPhase<'context> {
     pub candidates: &'context mut LlamaTokenDataArray,
     pub ingest_outcomes: &'context mut Vec<IngestOutcome>,
     pub llama_context: &'context LlamaContext<'context>,
-    pub scheduler_context: &'context ContinuousBatchSchedulerContext,
+    pub scheduler_context: &'context ContinuousBatchSchedulerContext<'context>,
 }
 
 impl AdvanceGeneratingPhase<'_> {
-    pub fn run(mut self, requests: &mut [ContinuousBatchActiveRequest]) {
+    pub fn run(mut self, requests: &mut [ContinuousBatchActiveRequest<'_>]) {
         for request in requests {
             let outcome = self.advance_one(request);
 
@@ -40,7 +40,7 @@ impl AdvanceGeneratingPhase<'_> {
 
     fn advance_one(
         &mut self,
-        request: &mut ContinuousBatchActiveRequest,
+        request: &mut ContinuousBatchActiveRequest<'_>,
     ) -> Option<AdvanceOutcome> {
         let ContinuousBatchRequestPhase::Generating(ContinuousBatchGenerationStep::ReadyToSample {
             batch_position,
@@ -146,7 +146,7 @@ impl AdvanceGeneratingPhase<'_> {
 
     fn client_disconnected_while_emitting(
         &mut self,
-        request: &mut ContinuousBatchActiveRequest,
+        request: &mut ContinuousBatchActiveRequest<'_>,
     ) -> bool {
         for ingest_outcome in self.ingest_outcomes.drain(..) {
             let classified =
@@ -182,7 +182,7 @@ impl AdvanceGeneratingPhase<'_> {
 
     fn complete_after_resolving_tool_calls(
         &self,
-        request: &mut ContinuousBatchActiveRequest,
+        request: &mut ContinuousBatchActiveRequest<'_>,
         finish: GenerationFinish,
     ) -> AdvanceOutcome {
         if let Some(tool_call_result) = request.tool_call_handling.resolve_at_completion()
@@ -203,7 +203,10 @@ impl AdvanceGeneratingPhase<'_> {
         }))
     }
 
-    fn apply_outcome(request: &mut ContinuousBatchActiveRequest, outcome: Option<AdvanceOutcome>) {
+    fn apply_outcome(
+        request: &mut ContinuousBatchActiveRequest<'_>,
+        outcome: Option<AdvanceOutcome>,
+    ) {
         match outcome {
             None => {}
             Some(AdvanceOutcome::SampledAndStored(token)) => {

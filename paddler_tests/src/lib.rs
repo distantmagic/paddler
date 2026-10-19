@@ -1,3 +1,4 @@
+pub mod active_embedding_request_fixture;
 pub mod admitted_decision;
 pub mod agent_inference_runtime_context;
 pub mod cluster_without_agents_serving;
@@ -41,6 +42,7 @@ pub mod qwen3_0_6b_newline_token;
 pub mod qwen3_0_6b_unused_padding_token;
 pub mod qwen3_desired_state;
 pub mod raw_prompt_generation;
+pub mod rejected_conversation_stream;
 pub mod release_half_closed_openai_request;
 pub mod responses_message_text;
 pub mod sample_decision;

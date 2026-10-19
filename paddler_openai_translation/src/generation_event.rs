@@ -90,8 +90,7 @@ impl From<GeneratedTokenResult> for GenerationEvent {
             | GeneratedTokenResult::ToolSchemaInvalid(description) => {
                 Self::failed(GenerationFailureCause::InvalidRequest, description)
             }
-            GeneratedTokenResult::InferenceModeMismatch(description)
-            | GeneratedTokenResult::ModelNotLoaded(description)
+            GeneratedTokenResult::ModelNotLoaded(description)
             | GeneratedTokenResult::NoSequenceSlotAvailable(description)
             | GeneratedTokenResult::SchedulerUnavailable(description) => {
                 Self::failed(GenerationFailureCause::Unavailable, description)
@@ -264,10 +263,6 @@ mod tests {
         assert_failures_classified_as(
             GenerationFailureCause::Unavailable,
             vec![
-                (
-                    GeneratedTokenResult::InferenceModeMismatch("unavailable".to_owned()),
-                    "unavailable",
-                ),
                 (
                     GeneratedTokenResult::ModelNotLoaded("unavailable".to_owned()),
                     "unavailable",

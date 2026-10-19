@@ -24,17 +24,19 @@ impl AgentReadiness {
     ) -> Result<bool, ClusterHarnessError> {
         match self {
             Self::Registered => Ok(true),
+            Self::SlotsReady(expected_slot_count)
+                if registered_agent.status.runtime.slots_total()
+                    == u64::from(*expected_slot_count) =>
+            {
+                Ok(true)
+            }
             Self::SlotsReady(_) if !registered_agent.status.issues.is_empty() => {
                 Err(ClusterHarnessError::AgentReportedIssues {
                     agent_name: agent_name.to_owned(),
                     issues: registered_agent.status.issues.clone(),
                 })
             }
-            Self::SlotsReady(expected_slot_count) => Ok(registered_agent
-                .status
-                .runtime
-                .slots_total()
-                == u64::from(*expected_slot_count)),
+            Self::SlotsReady(_) => Ok(false),
         }
     }
 }

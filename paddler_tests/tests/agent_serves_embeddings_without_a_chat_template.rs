@@ -18,7 +18,8 @@ async fn agent_serves_embeddings_without_a_chat_template() {
         agents: AgentConfig::uniform(1, 1),
         wait_for_slots_ready: true,
         desired_state: ClusterDesiredState::Apply(Box::new(
-            nomic_embed_text_v1_5().into_embeddings_desired_state(EmbeddingParameters::default()),
+            nomic_embed_text_v1_5()
+                .into_desired_state_with_embedding_parameters(EmbeddingParameters::default()),
         )),
         ..ClusterParams::default()
     })

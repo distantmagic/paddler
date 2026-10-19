@@ -24,6 +24,7 @@ use paddler_messaging::management_socket::agent::notification::Notification as J
 use paddler_messaging::management_socket::agent::notification_params::version_params::VersionParams;
 use paddler_messaging::management_socket::agent::request::Request as JsonRpcRequest;
 use paddler_messaging::management_socket::agent::response::Response as JsonRpcResponse;
+use paddler_messaging::reserved_request::ReservedRequest;
 use paddler_request_registry::request_delivery::RequestDelivery;
 use paddler_request_registry::request_registry::RequestRegistry;
 use paddler_request_registry::request_registry_guard::RequestRegistryGuard;
@@ -167,7 +168,10 @@ impl BalancerMessageContext {
     fn stream_responses<TParams, TResponse>(
         &self,
         request_id: String,
-        params: TParams,
+        ReservedRequest {
+            params,
+            reserved_slots,
+        }: ReservedRequest<TParams>,
     ) -> ManagementConnectionStep
     where
         AgentRequest<TParams, TResponse>: Into<PipelineRequest>,
@@ -192,7 +196,7 @@ impl BalancerMessageContext {
             AgentRequest {
                 params,
                 response_tx,
-                slot_guard: SlotGuard::new(self.slot_aggregated_status.clone()),
+                slot_guard: SlotGuard::new(self.slot_aggregated_status.clone(), reserved_slots),
                 stop_rx,
             }
             .into(),
@@ -216,6 +220,7 @@ impl BalancerMessageContext {
 #[cfg(test)]
 mod tests {
     use std::mem::discriminant;
+    use std::num::NonZeroU16;
     use std::num::NonZeroU32;
 
     use futures_util::StreamExt as _;
@@ -236,6 +241,7 @@ mod tests {
     use paddler_messaging::management_socket::agent::notification_params::version_params::VersionParams;
     use paddler_messaging::management_socket::agent::request::Request as JsonRpcRequest;
     use paddler_messaging::request_params::continue_from_raw_prompt_params::ContinueFromRawPromptParams;
+    use paddler_messaging::reserved_request::ReservedRequest;
     use paddler_request_registry::request_delivery::RequestDelivery;
     use paddler_request_registry::request_registry_guard::RequestRegistryGuard;
 
@@ -252,10 +258,15 @@ mod tests {
         }
     }
 
+    const RESERVED_SLOTS: NonZeroU16 = NonZeroU16::new(2).unwrap();
+
     fn raw_prompt_request(request_id: &str) -> JsonRpcMessage {
         JsonRpcMessage::Request(RequestEnvelope {
             id: request_id.to_owned(),
-            request: JsonRpcRequest::ContinueFromRawPrompt(raw_prompt_params()),
+            request: JsonRpcRequest::ContinueFromRawPrompt(ReservedRequest {
+                params: raw_prompt_params(),
+                reserved_slots: RESERVED_SLOTS,
+            }),
         })
     }
 
@@ -467,5 +478,28 @@ mod tests {
             RequestDelivery::Delivered
         );
         assert_eq!(existing_stop_rx.try_recv(), Ok(()));
+    }
+
+    #[test]
+    fn a_dispatched_request_holds_the_slots_the_balancer_reserved_for_it() {
+        let BalancerMessageContextFixture {
+            context,
+            mut pipeline_request_rx,
+            ..
+        } = BalancerMessageContextFixture::default();
+
+        let _step = context.handle_deserialized_message(raw_prompt_request("req_generate"));
+        let dispatched_request = pipeline_request_rx
+            .try_recv()
+            .expect("the request must be dispatched to the arbiter");
+
+        assert_eq!(
+            context.slot_aggregated_status.slots_processing_count(),
+            u64::from(RESERVED_SLOTS.get())
+        );
+
+        drop(dispatched_request);
+
+        assert_eq!(context.slot_aggregated_status.slots_processing_count(), 0);
     }
 }

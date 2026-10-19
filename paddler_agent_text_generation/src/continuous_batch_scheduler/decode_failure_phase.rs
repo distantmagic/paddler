@@ -4,11 +4,11 @@ use crate::continuous_batch_active_request::ContinuousBatchActiveRequest;
 use crate::continuous_batch_scheduler::batch_pass::BatchPass;
 use crate::continuous_batch_scheduler::contributions::Contributions;
 
-pub struct DecodeFailurePhase<'requests> {
-    pub requests: &'requests mut [ContinuousBatchActiveRequest],
+pub struct DecodeFailurePhase<'requests, 'model> {
+    pub requests: &'requests mut [ContinuousBatchActiveRequest<'model>],
 }
 
-impl DecodeFailurePhase<'_> {
+impl DecodeFailurePhase<'_, '_> {
     pub fn run(
         self,
         BatchPass {

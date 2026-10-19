@@ -82,7 +82,7 @@ fn a_generation_overflowing_its_batch_fails_as_batch_assembly() {
         scheduler_context: ContinuousBatchSchedulerContext {
             agent_name: None,
             desired_slots_total: 1,
-            model: runtime.loaded_llama_model.model.clone(),
+            model: &runtime.loaded_llama_model.model,
             n_batch: runtime.model_runtime_parameters.n_batch,
             sequence_context_size,
         },

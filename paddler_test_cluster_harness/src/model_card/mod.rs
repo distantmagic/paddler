@@ -42,7 +42,7 @@ impl ModelCard {
 
     #[must_use]
     pub fn into_desired_state(self) -> BalancerDesiredState {
-        self.into_desired_state_serving(InferenceMode::TextGeneration)
+        self.into_desired_state_serving(InferenceMode::TextGenerationAndEmbeddings)
     }
 
     #[must_use]
@@ -50,7 +50,8 @@ impl ModelCard {
         self,
         multimodal_projection: Self,
     ) -> BalancerDesiredState {
-        let desired_state = self.into_desired_state_serving(InferenceMode::TextGeneration);
+        let desired_state =
+            self.into_desired_state_serving(InferenceMode::TextGenerationAndEmbeddings);
 
         BalancerDesiredState {
             text_generation: BalancerTextGenerationSettings {
@@ -71,18 +72,18 @@ impl ModelCard {
     ) -> BalancerDesiredState {
         BalancerDesiredState {
             decision: DecisionSettings { pointer_head },
-            ..self.into_desired_state_serving(InferenceMode::Decision)
+            ..self.into_desired_state_serving(InferenceMode::TextGenerationEmbeddingsAndDecisions)
         }
     }
 
     #[must_use]
-    pub fn into_embeddings_desired_state(
+    pub fn into_desired_state_with_embedding_parameters(
         self,
         embedding_parameters: EmbeddingParameters,
     ) -> BalancerDesiredState {
         BalancerDesiredState {
             embeddings: embedding_parameters,
-            ..self.into_desired_state_serving(InferenceMode::Embeddings)
+            ..self.into_desired_state()
         }
     }
 

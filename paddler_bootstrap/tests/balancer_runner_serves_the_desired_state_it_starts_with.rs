@@ -13,7 +13,7 @@ use crate::ephemeral_balancer_runner_params::ephemeral_balancer_runner_params;
 async fn balancer_runner_serves_the_desired_state_it_starts_with() {
     let initial_desired_state = BalancerDesiredState {
         model: AgentDesiredModel::Uri("initial-embedding-model".to_owned()),
-        inference_mode: InferenceMode::Embeddings,
+        inference_mode: InferenceMode::TextGenerationEmbeddingsAndDecisions,
         ..BalancerDesiredState::default()
     };
     let mut params = ephemeral_balancer_runner_params(CancellationToken::new());

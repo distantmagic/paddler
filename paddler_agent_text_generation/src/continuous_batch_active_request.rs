@@ -11,9 +11,9 @@ use crate::continuous_batch_terminal_outcome::ContinuousBatchTerminalOutcome;
 use crate::token_sampling::TokenSampling;
 use crate::tool_call_handling::ToolCallHandling;
 
-pub struct ContinuousBatchActiveRequest {
+pub struct ContinuousBatchActiveRequest<'model> {
     pub state: ContinuousBatchRequestState,
-    pub token_classifier: SampledTokenClassifier<'static>,
+    pub token_classifier: SampledTokenClassifier<'model>,
     pub token_sampling: TokenSampling,
     pub generated_tokens_tx: mpsc::UnboundedSender<GeneratedTokenResult>,
     pub generate_tokens_stop_rx: mpsc::UnboundedReceiver<()>,
@@ -22,7 +22,7 @@ pub struct ContinuousBatchActiveRequest {
     pub tool_call_handling: ToolCallHandling,
 }
 
-impl ContinuousBatchActiveRequest {
+impl ContinuousBatchActiveRequest<'_> {
     pub fn complete_with_outcome(&mut self, outcome: GeneratedTokenResult) {
         self.state
             .mark_completed(ContinuousBatchTerminalOutcome::EmitToClient(outcome));

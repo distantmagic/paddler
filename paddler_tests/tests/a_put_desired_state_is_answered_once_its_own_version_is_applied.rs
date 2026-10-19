@@ -12,16 +12,18 @@ const DECISION_MODEL_URI: &str = "agent:///decision-model.gguf";
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_put_desired_state_is_answered_once_its_own_version_is_applied() {
-    let cluster = start_cluster(cluster_without_agents_serving(InferenceMode::Embeddings))
-        .await
-        .expect("a balancer serving embeddings must start");
+    let cluster = start_cluster(cluster_without_agents_serving(
+        InferenceMode::TextGenerationAndEmbeddings,
+    ))
+    .await
+    .expect("a balancer serving text generation and embeddings must start");
 
     cluster
         .client_management
         .put_balancer_desired_state(
             CancellationToken::new(),
             &BalancerDesiredState {
-                inference_mode: InferenceMode::Decision,
+                inference_mode: InferenceMode::TextGenerationEmbeddingsAndDecisions,
                 model: AgentDesiredModel::Uri(DECISION_MODEL_URI.to_owned()),
                 ..BalancerDesiredState::default()
             },

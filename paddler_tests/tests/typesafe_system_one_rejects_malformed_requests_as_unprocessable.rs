@@ -9,9 +9,11 @@ use paddler_tests::start_cluster::start_cluster;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn typesafe_system_one_rejects_malformed_requests_as_unprocessable() {
-    let cluster = start_cluster(cluster_without_agents_serving(InferenceMode::Decision))
-        .await
-        .expect("a decision balancer without agents must start");
+    let cluster = start_cluster(cluster_without_agents_serving(
+        InferenceMode::TextGenerationEmbeddingsAndDecisions,
+    ))
+    .await
+    .expect("a decision balancer without agents must start");
 
     let without_questions = cluster
         .typesafe_system_one(

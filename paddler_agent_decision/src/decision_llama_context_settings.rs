@@ -3,6 +3,7 @@ use llama_cpp_bindings::context::LlamaContext;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::llama_context_settings::LlamaContextSettings;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
+use paddler_messaging::inference_capability::InferenceCapability;
 
 use crate::decision_error::DecisionError;
 
@@ -18,6 +19,7 @@ impl DecisionLlamaContextSettings<'_> {
     ) -> Result<LlamaContext<'model>, DecisionError> {
         let mut llama_context = loaded_llama_model.create_llama_context(
             inference_runtime_context,
+            InferenceCapability::Decisions,
             self.llama_context_settings
                 .into_llama_context_params()
                 .with_kv_unified(true),

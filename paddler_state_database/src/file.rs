@@ -347,7 +347,7 @@ mod tests {
             decision: DecisionSettings {
                 pointer_head: AgentDesiredModel::Uri("pointer_head.gguf".to_owned()),
             },
-            inference_mode: InferenceMode::Embeddings,
+            inference_mode: InferenceMode::TextGenerationAndEmbeddings,
             text_generation: BalancerTextGenerationSettings {
                 chat_template_source: ChatTemplateSource::Override(ChatTemplate {
                     content: "{% for message in messages %}{{ message.content }}{% endfor %}"

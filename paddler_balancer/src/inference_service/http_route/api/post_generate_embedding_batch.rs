@@ -3,7 +3,6 @@ use std::sync::Arc;
 use actix_web::Error;
 use actix_web::HttpResponse;
 use actix_web::Responder;
-use actix_web::error::ErrorServiceUnavailable;
 use actix_web::http::header;
 use actix_web::rt;
 use actix_web::web;
@@ -46,8 +45,7 @@ async fn respond(
 ) -> Result<impl Responder, Error> {
     let embedding_batch_size = app_data
         .balancer_applicable_state_holder
-        .require_inference_mode(GenerateEmbeddingBatchParams::INFERENCE_MODE)
-        .map_err(ErrorServiceUnavailable)?
+        .get_balancer_applicable_state()
         .balancer_desired_state
         .embeddings
         .embedding_batch_size;
@@ -73,7 +71,7 @@ async fn respond(
         .map(|batch| {
             match app_data
                 .buffered_request_manager
-                .take_available_agent(GenerateEmbeddingBatchParams::INFERENCE_MODE)
+                .take_available_agent(batch.dispatch_requirement())
             {
                 Some(dispatched_agent) => EmbeddingChunkDispatch::Claimed {
                     batch,

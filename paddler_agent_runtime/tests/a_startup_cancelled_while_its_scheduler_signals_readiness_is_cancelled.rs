@@ -13,10 +13,9 @@ use paddler_agent_runtime::await_scheduler_startup::await_scheduler_startup;
 use paddler_agent_runtime::scheduler_ready::SchedulerReady;
 use paddler_agent_runtime::send_startup_signal::send_startup_signal;
 use paddler_agent_runtime::startup_signal_delivery::StartupSignalDelivery;
-use paddler_messaging::model_metadata::ModelMetadata;
 
 use crate::number_request_preparer::NumberRequestPreparer;
-use crate::reports_ready_model_metadata::ReportsReadyModelMetadata as _;
+use crate::reports_ready_request_preparer::ReportsReadyRequestPreparer as _;
 
 #[tokio::test]
 async fn a_startup_cancelled_while_its_scheduler_signals_readiness_is_cancelled() {
@@ -33,10 +32,7 @@ async fn a_startup_cancelled_while_its_scheduler_signals_readiness_is_cancelled(
         readiness_signalled_tx
             .send(send_startup_signal(
                 &scheduler_startup_tx,
-                Ok::<_, String>(SchedulerReady {
-                    model_metadata: ModelMetadata::default(),
-                    request_preparer,
-                }),
+                Ok::<_, String>(SchedulerReady { request_preparer }),
             ))
             .expect("the test must wait for the readiness signal");
     });
@@ -67,11 +63,11 @@ async fn a_startup_cancelled_while_its_scheduler_signals_readiness_is_cancelled(
 
     cancellation_token.cancel();
 
-    assert_eq!(
+    assert!(
         startup
             .await
             .expect("a cancelled startup must join its scheduler thread")
-            .ready_model_metadata(),
-        None
+            .ready_request_preparer()
+            .is_none()
     );
 }

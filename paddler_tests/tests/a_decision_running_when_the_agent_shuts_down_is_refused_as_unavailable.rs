@@ -38,7 +38,7 @@ fn a_decision_running_when_the_agent_shuts_down_is_refused_as_unavailable() {
         .create_decision_llama_context(2)
         .expect("the decision context must be created");
     let n_batch = runtime.model_runtime_parameters.n_batch.tokens_usize();
-    let capacity_ledger = DecisionCapacityLedger::new(llama_context.n_ctx() as usize, 2);
+    let capacity_ledger = DecisionCapacityLedger::new(2);
     let layout = DecisionTokenLayout::new(
         &delimiter_tokens,
         vec![LlamaToken::new(0)],
@@ -46,7 +46,7 @@ fn a_decision_running_when_the_agent_shuts_down_is_refused_as_unavailable() {
         two_option_question("question"),
     );
     let admission = capacity_ledger
-        .admit(&layout.capacity_demand())
+        .admit(layout.needs_question_lane())
         .expect("the decision must be admitted");
     let AdmittedDecision {
         active_decision_request,

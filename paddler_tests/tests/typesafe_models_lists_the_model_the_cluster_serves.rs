@@ -24,10 +24,10 @@ async fn typesafe_models_lists_the_model_the_cluster_serves() {
         let cluster = start_cluster(ClusterParams {
             desired_state: ClusterDesiredState::Apply(Box::new(BalancerDesiredState {
                 model,
-                inference_mode: InferenceMode::Decision,
+                inference_mode: InferenceMode::TextGenerationEmbeddingsAndDecisions,
                 ..BalancerDesiredState::default()
             })),
-            ..cluster_without_agents_serving(InferenceMode::Decision)
+            ..cluster_without_agents_serving(InferenceMode::TextGenerationEmbeddingsAndDecisions)
         })
         .await
         .expect("a decision balancer without agents must start");

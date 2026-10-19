@@ -4,33 +4,53 @@ pub mod agent_desired_state_conversion;
 pub mod agent_desired_state_converter;
 pub mod agent_error;
 pub mod agent_response_message;
+pub mod applicable_decisions;
 pub mod balancer_message_context;
+pub mod capability_plan;
+pub mod capability_starter;
+pub mod capability_startup_interruption;
 pub mod desired_state_reconciler;
 pub mod desired_state_reconciliation;
 pub mod desired_state_reconciliation_attempt;
 pub mod enqueue_management_message;
 pub mod enqueue_outbound_frame;
-pub mod finished_pipeline_startup;
+pub mod finished_serving_startup;
 pub mod forward_outbound_frames;
+pub mod inference_capabilities;
 pub mod last_announced_agent_status;
 pub mod llamacpp_arbiter_service;
+pub mod loaded_model_serving_plan;
 pub mod management_connection_end;
 pub mod management_connection_step;
 pub mod management_socket_client_service;
+pub mod model_serving;
+pub mod model_serving_settings;
 pub mod pipeline_arbiter;
 pub mod pipeline_arbiter_params;
 pub mod pipeline_request;
 pub mod pipeline_response_stream;
-pub mod pipeline_startup;
+pub mod prepared_decisions;
+pub mod prepared_decisions_plan;
 pub mod reconciliation_service;
 pub mod retry_delay;
-pub mod running_pipeline;
-pub mod serving_pipeline;
-pub mod started_pipeline;
+pub mod served_capabilities;
+pub mod served_decisions;
+pub mod served_embeddings;
+pub mod served_model;
+pub mod served_text_generation;
+pub mod serving_startup;
+pub mod serving_startup_attempt;
+pub mod serving_startup_failure;
+pub mod serving_startup_plan;
+pub mod started_serving;
 
 #[cfg(test)]
 mod balancer_message_context_fixture;
 #[cfg(test)]
+mod decision_request_fixture;
+#[cfg(test)]
 mod management_connection_step_outcome;
 #[cfg(test)]
 mod management_connection_step_written_message;
+#[cfg(test)]
+mod state_overriding_the_chat_template;

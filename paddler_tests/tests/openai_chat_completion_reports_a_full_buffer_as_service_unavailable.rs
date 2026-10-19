@@ -13,7 +13,7 @@ use paddler_tests::start_cluster::start_cluster;
 async fn openai_chat_completion_reports_a_full_buffer_as_service_unavailable() {
     let cluster = start_cluster(ClusterParams {
         max_buffered_requests: 0,
-        ..cluster_without_agents_serving(InferenceMode::TextGeneration)
+        ..cluster_without_agents_serving(InferenceMode::TextGenerationAndEmbeddings)
     })
     .await
     .expect("a balancer without agents must start");

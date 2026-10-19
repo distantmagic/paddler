@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { AgentIssueModelPathSchema } from "./AgentIssueModelPath";
 import { HuggingFaceDownloadLockSchema } from "./HuggingFaceDownloadLock";
+import { InferenceCapabilitySchema } from "./InferenceCapability";
 
 export const AgentIssueSchema = z.union([
   z.object({
@@ -96,6 +97,7 @@ export const AgentIssueSchema = z.union([
   z.object({
     SlotCannotStart: z.object({
       error: z.string(),
+      inference_capability: InferenceCapabilitySchema,
       slot_index: z.number(),
     }),
   }),

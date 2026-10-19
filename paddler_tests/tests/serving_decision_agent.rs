@@ -5,9 +5,9 @@ use tokio::sync::mpsc::UnboundedReceiver;
 
 use paddler_agent::desired_state_reconciliation::DesiredStateReconciliation;
 use paddler_agent::pipeline_request::PipelineRequest;
-use paddler_agent_decision::decision_slots_minimum::DECISION_SLOTS_MINIMUM;
 use paddler_agent_runtime::agent_request::AgentRequest;
 use paddler_messaging::decision_result::DecisionResult;
+use paddler_messaging::decision_slots_minimum::DECISION_SLOTS_MINIMUM;
 use paddler_messaging::request_params::decide_params::raw_decide_params::RawDecideParams;
 use paddler_messaging::validates::Validates as _;
 use paddler_test_cluster_harness::model_card::qwen3_5_0_8b::qwen3_5_0_8b;
@@ -21,16 +21,17 @@ pub struct ServingDecisionAgent {
 
 impl ServingDecisionAgent {
     pub async fn start() -> Self {
-        let serving_pipeline_arbiter = ServingPipelineArbiter::start(
-            qwen3_5_0_8b().into_decision_desired_state(pointer_head_fixture(
-                QWEN3_5_0_8B_SYNTHETIC_POINTER_HEAD_FIXTURE,
-            )),
-            DECISION_SLOTS_MINIMUM,
-        )
-        .await;
+        let mut serving_pipeline_arbiter =
+            ServingPipelineArbiter::new(DECISION_SLOTS_MINIMUM.get());
 
         assert_eq!(
-            serving_pipeline_arbiter.desired_state_reconciliation,
+            serving_pipeline_arbiter
+                .serve(
+                    qwen3_5_0_8b().into_decision_desired_state(pointer_head_fixture(
+                        QWEN3_5_0_8B_SYNTHETIC_POINTER_HEAD_FIXTURE,
+                    ))
+                )
+                .await,
             DesiredStateReconciliation::Reconciled
         );
 
@@ -45,15 +46,18 @@ impl ServingDecisionAgent {
         decision_stop_rx: UnboundedReceiver<()>,
     ) -> UnboundedReceiver<DecisionResult> {
         let (decision_result_tx, decision_result_rx) = mpsc::unbounded_channel();
+        let decide_params = raw_decide_params
+            .validate()
+            .expect("the decision parameters must be valid");
 
         self.serving_pipeline_arbiter
             .pipeline_arbiter
             .forward(PipelineRequest::Decide(AgentRequest {
-                params: raw_decide_params
-                    .validate()
-                    .expect("the decision parameters must be valid"),
+                slot_guard: self
+                    .serving_pipeline_arbiter
+                    .slot_guard(decide_params.required_slots()),
+                params: decide_params,
                 response_tx: decision_result_tx,
-                slot_guard: self.serving_pipeline_arbiter.slot_guard(),
                 stop_rx: decision_stop_rx,
             }));
 

@@ -10,7 +10,7 @@ use paddler_tests::start_cluster::start_cluster;
 async fn typesafe_system_one_reports_a_full_buffer_as_service_unavailable() {
     let cluster = start_cluster(ClusterParams {
         max_buffered_requests: 0,
-        ..cluster_without_agents_serving(InferenceMode::Decision)
+        ..cluster_without_agents_serving(InferenceMode::TextGenerationEmbeddingsAndDecisions)
     })
     .await
     .expect("a decision balancer without agents must start");

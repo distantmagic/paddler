@@ -41,8 +41,8 @@ fn a_question_lane_that_cannot_be_released_after_its_answer_fails_the_decision()
         vec![two_option_question("leading")],
         two_option_question("last"),
     );
-    let admission = DecisionCapacityLedger::new(llama_context.n_ctx() as usize, 2)
-        .admit(&layout.capacity_demand())
+    let admission = DecisionCapacityLedger::new(2)
+        .admit(layout.needs_question_lane())
         .expect("the decision must be admitted");
     let AdmittedDecision {
         mut active_decision_request,

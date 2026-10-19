@@ -117,7 +117,7 @@ fn a_token_the_sampler_cannot_read_ends_the_generation() {
         scheduler_context: &ContinuousBatchSchedulerContext {
             agent_name: None,
             desired_slots_total: 1,
-            model: runtime.loaded_llama_model.model.clone(),
+            model: &runtime.loaded_llama_model.model,
             n_batch: runtime.model_runtime_parameters.n_batch,
             sequence_context_size,
         },

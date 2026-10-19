@@ -20,7 +20,7 @@ use crate::reports_decision_outcome::ReportsDecisionOutcome as _;
 use crate::tokenized_decision_question::TokenizedDecisionQuestion;
 
 pub struct DecisionRequestPreparer {
-    pub context_cells: u32,
+    pub cells_per_slot: u32,
     pub delimiter_tokens: DecisionDelimiterTokens,
     pub text_tokenizer: DecisionTextTokenizer,
 }
@@ -63,18 +63,19 @@ impl DecisionRequestPreparer {
     fn prepare(
         &self,
         AgentRequest {
-            params:
-                DecideParams {
-                    last_question,
-                    leading_questions,
-                    state,
-                },
+            params,
             response_tx: decision_result_tx,
             slot_guard,
             stop_rx: decision_stop_rx,
         }: AgentRequest<DecideParams, DecisionResult>,
     ) -> Result<PreparedDecisionRequest, DecisionError> {
         let started_at = Instant::now();
+        let context_size = u32::from(params.required_slots().get()) * self.cells_per_slot;
+        let DecideParams {
+            last_question,
+            leading_questions,
+            state,
+        } = params;
         let mut tokens_by_text = HashMap::new();
         let layout = DecisionTokenLayout::new(
             &self.delimiter_tokens,
@@ -85,19 +86,18 @@ impl DecisionRequestPreparer {
                 .collect::<Result<Vec<_>, _>>()?,
             self.tokenize_question(&mut tokens_by_text, last_question)?,
         );
-        let capacity_demand = layout.capacity_demand();
+        let required_tokens = layout.required_cells();
 
-        if capacity_demand.required_cells > self.context_cells as usize {
+        if required_tokens > context_size as usize {
             return Err(DecisionError::RequestExceedsContext {
                 details: OversizedDecisionDetails {
-                    context_size: self.context_cells,
-                    required_tokens: capacity_demand.required_cells,
+                    context_size,
+                    required_tokens,
                 },
             });
         }
 
         Ok(PreparedDecisionRequest {
-            capacity_demand,
             decision_result_tx,
             decision_stop_rx,
             layout,

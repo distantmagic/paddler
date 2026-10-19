@@ -6,14 +6,15 @@ use tokio_util::sync::CancellationToken;
 
 use crate::await_scheduler_startup::await_scheduler_startup;
 use crate::prepares_scheduler_command::PreparesSchedulerCommand;
+use crate::scheduler_handle::SchedulerHandle;
 use crate::scheduler_ready::SchedulerReady;
-use crate::scheduler_spawn_outcome::SchedulerSpawnOutcome;
 use crate::send_startup_signal::send_startup_signal;
+use crate::startup_outcome::StartupOutcome;
 
 pub async fn start_scheduler_thread<TPreparation, TError, TStartScheduler>(
     cancellation_token: &CancellationToken,
     start_scheduler: TStartScheduler,
-) -> Result<SchedulerSpawnOutcome<TPreparation>, TError>
+) -> Result<StartupOutcome<SchedulerHandle<TPreparation>>, TError>
 where
     TPreparation: PreparesSchedulerCommand,
     TError: Send + 'static,

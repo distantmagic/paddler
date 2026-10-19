@@ -16,7 +16,7 @@ test("fetchJson reads the desired state the balancer stores", async function () 
         updateDesiredState(storedDesiredState) {
           return {
             ...storedDesiredState,
-            inference_mode: "Decision",
+            inference_mode: "TextGenerationEmbeddingsAndDecisions",
             text_generation: {
               ...storedDesiredState.text_generation,
               chat_template_source: {

@@ -8,7 +8,6 @@ use tokio_util::sync::CancellationToken;
 
 use paddler_messaging::inference_client::message::Message as OutgoingMessage;
 use paddler_messaging::inference_client::response::Response as OutgoingResponse;
-use paddler_messaging::inference_mode::InferenceMode;
 use paddler_messaging::jsonrpc::error::Error as JsonRpcError;
 use paddler_messaging::streamable_result::StreamableResult;
 
@@ -17,6 +16,7 @@ use crate::balancer_shutdown_error::balancer_shutdown_error;
 use crate::buffered_request_agent_wait_result::BufferedRequestAgentWaitResult;
 use crate::buffered_request_manager::BufferedRequestManager;
 use crate::controls_session::ControlsSession;
+use crate::dispatch_requirement::DispatchRequirement;
 use crate::dispatched_agent::DispatchedAgent;
 use crate::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::request_from_dispatched_agent::request_from_dispatched_agent;
@@ -25,7 +25,7 @@ use crate::respond_with_error::respond_with_error;
 async fn wait_for_agent_controller<TControlsSession>(
     buffered_request_manager: Arc<BufferedRequestManager>,
     connection_close: CancellationToken,
-    inference_mode: InferenceMode,
+    dispatch_requirement: DispatchRequirement,
     request_id: String,
     session_controller: &mut TControlsSession,
     shutdown: CancellationToken,
@@ -52,7 +52,7 @@ where
 
             None
         },
-        buffered_request_agent_wait_result = buffered_request_manager.wait_for_available_agent(inference_mode) => {
+        buffered_request_agent_wait_result = buffered_request_manager.wait_for_available_agent(dispatch_requirement) => {
             match buffered_request_agent_wait_result {
                 BufferedRequestAgentWaitResult::Found(dispatched_agent) => Some(dispatched_agent),
                 BufferedRequestAgentWaitResult::BufferOverflow => {
@@ -104,7 +104,7 @@ pub async fn request_from_agent<TControlsSession, TParams>(
     let Some(dispatched_agent) = wait_for_agent_controller(
         buffered_request_manager.clone(),
         connection_close.clone(),
-        TParams::INFERENCE_MODE,
+        params.dispatch_requirement(),
         request_id.clone(),
         &mut session_controller,
         shutdown.clone(),

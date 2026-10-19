@@ -44,12 +44,9 @@ fn a_decision_whose_sequences_cannot_be_released_reports_the_release_failure() {
         vec![two_option_question("leading")],
         two_option_question("last"),
     );
-    let admission = DecisionCapacityLedger::new(
-        llama_context.n_ctx() as usize,
-        SEQUENCES_THE_LEDGER_HANDS_OUT,
-    )
-    .admit(&layout.capacity_demand())
-    .expect("the decision must be admitted");
+    let admission = DecisionCapacityLedger::new(SEQUENCES_THE_LEDGER_HANDS_OUT)
+        .admit(layout.needs_question_lane())
+        .expect("the decision must be admitted");
     let AdmittedDecision {
         active_decision_request,
         mut decision_result_rx,

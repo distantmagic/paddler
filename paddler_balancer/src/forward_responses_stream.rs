@@ -155,6 +155,7 @@ pub async fn forward_responses_stream<TControlsSession, TResponse>(
 
 #[cfg(test)]
 mod tests {
+    use std::num::NonZeroU16;
     use std::sync::Arc;
 
     use llama_cpp_bindings_types::TokenUsage;
@@ -233,6 +234,7 @@ mod tests {
                 AgentControllerSlotGuard::new(
                     agent_controller.clone(),
                     Arc::new(AgentControllerPoolUpdates::default()),
+                    NonZeroU16::MIN,
                 ),
             ),
             unexpiring_inference_service_configuration(),
@@ -280,6 +282,7 @@ mod tests {
                 AgentControllerSlotGuard::new(
                     agent_controller.clone(),
                     Arc::new(AgentControllerPoolUpdates::default()),
+                    NonZeroU16::MIN,
                 ),
             ),
             unexpiring_inference_service_configuration(),

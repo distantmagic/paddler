@@ -1,3 +1,4 @@
+use std::num::NonZeroU16;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 
@@ -29,7 +30,7 @@ impl RawPromptGeneration {
                     raw_prompt: raw_prompt.to_owned(),
                 },
                 response_tx: generated_tokens_tx,
-                slot_guard: SlotGuard::new(slot_aggregated_status),
+                slot_guard: SlotGuard::new(slot_aggregated_status, NonZeroU16::MIN),
                 stop_rx: generate_tokens_stop_rx,
             },
             generate_tokens_stop_tx,

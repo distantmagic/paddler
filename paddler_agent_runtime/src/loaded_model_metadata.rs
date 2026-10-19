@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use paddler_messaging::model_metadata::ModelMetadata;
 
 #[derive(Clone, Debug)]
 pub enum LoadedModelMetadata {
-    Loaded(ModelMetadata),
+    Loaded(Arc<ModelMetadata>),
     NoModelLoaded,
 }

@@ -14,5 +14,5 @@ pub struct ContinuousBatchSchedulerParams<'model> {
     pub batch: LlamaBatch<'static>,
     pub scheduler_message_rx: Receiver<SchedulerMessage<PreparedGenerationRequest>>,
     pub llama_context: LlamaContext<'model>,
-    pub scheduler_context: ContinuousBatchSchedulerContext,
+    pub scheduler_context: ContinuousBatchSchedulerContext<'model>,
 }

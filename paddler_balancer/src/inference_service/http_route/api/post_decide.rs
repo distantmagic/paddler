@@ -24,7 +24,7 @@ async fn respond(
 ) -> Result<impl Responder, Error> {
     app_data
         .balancer_applicable_state_holder
-        .require_inference_mode(DecideParams::INFERENCE_MODE)
+        .require_inference_capability(DecideParams::INFERENCE_CAPABILITY)
         .map_err(ErrorServiceUnavailable)?;
 
     let validated_params = params.into_inner().validate().map_err(|validation_error| {

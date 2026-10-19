@@ -182,12 +182,14 @@ export function AgentIssues({ issues }: { issues: Array<AgentIssue> }) {
         }
 
         if ("SlotCannotStart" in issue) {
-          const { error, slot_index } = issue.SlotCannotStart;
+          const { error, inference_capability, slot_index } =
+            issue.SlotCannotStart;
 
           return (
             <li className={agentIssues__issue} key={index}>
               <strong>
-                Unable to start slot {slot_index}: {error}
+                Unable to start slot {slot_index} for {inference_capability}:{" "}
+                {error}
               </strong>
             </li>
           );

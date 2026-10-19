@@ -118,7 +118,7 @@ fn a_multimodal_prompt_that_cannot_be_ingested_ends_the_generation() {
                 scheduler_context: ContinuousBatchSchedulerContext {
                     agent_name: None,
                     desired_slots_total: 1,
-                    model: runtime.loaded_llama_model.model.clone(),
+                    model: &runtime.loaded_llama_model.model,
                     n_batch,
                     sequence_context_size,
                 },

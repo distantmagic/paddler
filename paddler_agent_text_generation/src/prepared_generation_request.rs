@@ -31,6 +31,7 @@ impl SchedulerCommand for PreparedGenerationRequest {
 
 #[cfg(test)]
 mod tests {
+    use std::num::NonZeroU16;
     use std::num::NonZeroU32;
     use std::sync::Arc;
 
@@ -63,7 +64,7 @@ mod tests {
             generated_tokens_tx,
             max_tokens: NonZeroU32::new(1).unwrap(),
             prompt: PreparedPrompt::TextTokens(Vec::new()),
-            slot_guard: SlotGuard::new(Arc::new(SlotAggregatedStatus::new(1))),
+            slot_guard: SlotGuard::new(Arc::new(SlotAggregatedStatus::new(1)), NonZeroU16::MIN),
             token_classification: TokenClassification {
                 bare_json_tool_calls: BareJsonToolCalls::Ignore,
                 streaming_markers: Arc::new(StreamingMarkers::default()),

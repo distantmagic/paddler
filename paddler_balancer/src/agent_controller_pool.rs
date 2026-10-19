@@ -8,7 +8,6 @@ use tokio::sync::watch;
 
 use paddler_messaging::agent_controller_pool_snapshot::AgentControllerPoolSnapshot;
 use paddler_messaging::agent_desired_state::AgentDesiredState;
-use paddler_messaging::inference_mode::InferenceMode;
 use paddler_messaging::produces_snapshot::ProducesSnapshot;
 use paddler_messaging::subscribes_to_updates::SubscribesToUpdates;
 
@@ -18,6 +17,7 @@ use crate::agent_controller_pool_updates::AgentControllerPoolUpdates;
 use crate::agent_controller_registration::AgentControllerRegistration;
 use crate::agent_controller_slot_guard::AgentControllerSlotGuard;
 use crate::dispatch_candidate::DispatchCandidate;
+use crate::dispatch_requirement::DispatchRequirement;
 use crate::dispatched_agent::DispatchedAgent;
 use crate::registered_agent_controller_guard::RegisteredAgentControllerGuard;
 
@@ -31,28 +31,25 @@ impl AgentControllerPool {
     #[must_use]
     pub fn select_least_busy_with_capacity(
         &self,
-        inference_mode: InferenceMode,
+        dispatch_requirement: DispatchRequirement,
     ) -> Option<DispatchCandidate> {
         let mut best: Option<DispatchCandidate> = None;
 
         for entry in &self.agents {
             let agent_controller = entry.value().clone();
             let snapshot = agent_controller.slots_processing.get();
-            let slots_serving = agent_controller
-                .reported_status
-                .read()
-                .status
-                .runtime
-                .slots_serving(inference_mode);
-
-            if snapshot >= slots_serving {
+            let Some(reserved_slots) = dispatch_requirement.reservable_slots(
+                &agent_controller.reported_status.read().status.runtime,
+                snapshot,
+            ) else {
                 continue;
-            }
+            };
 
             best = Some(match best {
                 Some(current) if current.snapshot <= snapshot => current,
                 _ => DispatchCandidate {
                     agent_controller,
+                    reserved_slots,
                     snapshot,
                 },
             });
@@ -68,13 +65,17 @@ impl AgentControllerPool {
         if candidate
             .agent_controller
             .slots_processing
-            .compare_and_swap(candidate.snapshot, candidate.snapshot + 1)
+            .compare_and_swap(
+                candidate.snapshot,
+                candidate.snapshot + u64::from(candidate.reserved_slots.get()),
+            )
         {
             self.updates.signal();
 
             let slot_guard = AgentControllerSlotGuard::new(
                 candidate.agent_controller.clone(),
                 self.updates.clone(),
+                candidate.reserved_slots,
             );
 
             Ok(DispatchedAgent::new(candidate.agent_controller, slot_guard))
@@ -90,13 +91,15 @@ impl AgentControllerPool {
     pub async fn next_available_agent<'pool>(
         &'pool self,
         mut agent_availability_changed: Notified<'pool>,
-        inference_mode: InferenceMode,
+        dispatch_requirement: DispatchRequirement,
     ) -> DispatchedAgent {
         loop {
             agent_availability_changed.await;
             agent_availability_changed = self.agent_availability_changed();
 
-            if let Some(dispatched_agent) = self.take_least_busy_agent_controller(inference_mode) {
+            if let Some(dispatched_agent) =
+                self.take_least_busy_agent_controller(dispatch_requirement)
+            {
                 return dispatched_agent;
             }
         }
@@ -105,10 +108,10 @@ impl AgentControllerPool {
     #[must_use]
     pub fn take_least_busy_agent_controller(
         &self,
-        inference_mode: InferenceMode,
+        dispatch_requirement: DispatchRequirement,
     ) -> Option<DispatchedAgent> {
         loop {
-            let candidate = self.select_least_busy_with_capacity(inference_mode)?;
+            let candidate = self.select_least_busy_with_capacity(dispatch_requirement)?;
 
             if let Ok(dispatched) = self.try_claim(candidate) {
                 return Some(dispatched);
@@ -200,12 +203,14 @@ impl ProducesSnapshot for AgentControllerPool {
 
 #[cfg(test)]
 mod tests {
+    use std::num::NonZeroU16;
     use std::sync::Arc;
 
     use paddler_messaging::agent_desired_state::AgentDesiredState;
     use paddler_messaging::agent_runtime_status::AgentRuntimeStatus;
     use paddler_messaging::agent_status::AgentStatus;
     use paddler_messaging::balancer_desired_state::BalancerDesiredState;
+    use paddler_messaging::inference_capability::InferenceCapability;
     use paddler_messaging::inference_mode::InferenceMode;
     use paddler_messaging::management_socket::agent::message::Message as AgentJsonRpcMessage;
     use paddler_messaging::management_socket::agent::notification::Notification as AgentJsonRpcNotification;
@@ -214,6 +219,17 @@ mod tests {
     use super::AgentControllerPool;
     use crate::agent_controller_fixture::AgentControllerFixture;
     use crate::agent_controller_registration::AgentControllerRegistration;
+    use crate::dispatch_requirement::DispatchRequirement;
+    use crate::slot_demand::SlotDemand;
+
+    const TWO_SLOTS: NonZeroU16 = NonZeroU16::new(2).unwrap();
+
+    fn one_slot_of(inference_capability: InferenceCapability) -> DispatchRequirement {
+        DispatchRequirement {
+            inference_capability,
+            slot_demand: SlotDemand::Exactly(NonZeroU16::MIN),
+        }
+    }
 
     fn agent_with_inbox(agent_id: &str) -> AgentControllerFixture {
         agent_reporting(agent_id, AgentRuntimeStatus::Idle)
@@ -232,10 +248,10 @@ mod tests {
         )
     }
 
-    fn serving(inference_mode: InferenceMode) -> AgentRuntimeStatus {
+    fn serving(inference_mode: InferenceMode, slots_total: u64) -> AgentRuntimeStatus {
         AgentRuntimeStatus::Serving {
             inference_mode,
-            slots_total: 1,
+            slots_total,
         }
     }
 
@@ -245,7 +261,11 @@ mod tests {
         let registrations = [
             pool.register_agent_controller(agent_with_inbox("idle").agent_controller),
             pool.register_agent_controller(
-                agent_reporting("embeddings", serving(InferenceMode::Embeddings)).agent_controller,
+                agent_reporting(
+                    "embeddings",
+                    serving(InferenceMode::TextGenerationAndEmbeddings, 1),
+                )
+                .agent_controller,
             ),
         ];
 
@@ -257,7 +277,7 @@ mod tests {
             vec![Some("idle"), Some("embeddings")]
         );
         assert_eq!(
-            pool.select_least_busy_with_capacity(InferenceMode::Embeddings)
+            pool.select_least_busy_with_capacity(one_slot_of(InferenceCapability::Embeddings))
                 .map(|candidate| candidate.agent_controller.id.clone()),
             Some("embeddings".to_owned())
         );
@@ -281,19 +301,72 @@ mod tests {
     }
 
     #[test]
-    fn does_not_dispatch_to_agents_serving_another_inference_mode() {
+    fn does_not_dispatch_a_capability_to_agents_whose_mode_lacks_it() {
         let pool = Arc::new(AgentControllerPool::default());
         let _registration = pool.register_agent_controller(
-            agent_reporting("decision", serving(InferenceMode::Decision)).agent_controller,
+            agent_reporting(
+                "completions",
+                serving(InferenceMode::TextGenerationAndEmbeddings, 1),
+            )
+            .agent_controller,
         );
 
         assert_eq!(
-            [InferenceMode::Decision, InferenceMode::TextGeneration].map(|inference_mode| {
-                pool.select_least_busy_with_capacity(inference_mode)
+            [
+                InferenceCapability::TextGeneration,
+                InferenceCapability::Decisions
+            ]
+            .map(|inference_capability| {
+                pool.select_least_busy_with_capacity(one_slot_of(inference_capability))
                     .map(|candidate| candidate.agent_controller.id.clone())
             }),
-            [Some("decision".to_owned()), None]
+            [Some("completions".to_owned()), None]
         );
+    }
+
+    #[test]
+    fn does_not_dispatch_a_demand_to_agents_with_fewer_free_slots_than_it_needs() {
+        let pool = Arc::new(AgentControllerPool::default());
+        let _registration = pool.register_agent_controller(
+            agent_reporting(
+                "decisions",
+                serving(InferenceMode::TextGenerationEmbeddingsAndDecisions, 1),
+            )
+            .agent_controller,
+        );
+
+        assert!(
+            pool.select_least_busy_with_capacity(DispatchRequirement {
+                inference_capability: InferenceCapability::Decisions,
+                slot_demand: SlotDemand::Exactly(TWO_SLOTS),
+            })
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn a_dispatched_request_holds_its_reserved_slots_until_it_is_released() {
+        let pool = Arc::new(AgentControllerPool::default());
+        let agent_controller = agent_reporting(
+            "embeddings",
+            serving(InferenceMode::TextGenerationAndEmbeddings, 4),
+        )
+        .agent_controller;
+        let _registration = pool.register_agent_controller(agent_controller.clone());
+
+        let dispatched_agent = pool
+            .take_least_busy_agent_controller(DispatchRequirement {
+                inference_capability: InferenceCapability::Embeddings,
+                slot_demand: SlotDemand::UpTo(2),
+            })
+            .expect("an agent with free slots must be dispatched");
+
+        assert_eq!(dispatched_agent.reserved_slots(), TWO_SLOTS);
+        assert_eq!(agent_controller.slots_processing.get(), 2);
+
+        drop(dispatched_agent);
+
+        assert_eq!(agent_controller.slots_processing.get(), 0);
     }
 
     #[test]
@@ -302,7 +375,11 @@ mod tests {
         let _registrations = [
             pool.register_agent_controller(agent_with_inbox("idle").agent_controller),
             pool.register_agent_controller(
-                agent_reporting("serving", serving(InferenceMode::TextGeneration)).agent_controller,
+                agent_reporting(
+                    "serving",
+                    serving(InferenceMode::TextGenerationAndEmbeddings, 1),
+                )
+                .agent_controller,
             ),
         ];
 

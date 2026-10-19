@@ -2,7 +2,6 @@ use std::path::PathBuf;
 use std::str::Utf8Error;
 
 use llama_cpp_bindings::batch_add_error::BatchAddError;
-use llama_cpp_bindings::error::ChatTemplateError;
 use llama_cpp_bindings::error::ClearKvCacheSeqError;
 use llama_cpp_bindings::error::EvalMultimodalChunksError;
 use llama_cpp_bindings::error::GrammarError;
@@ -29,8 +28,8 @@ use paddler_agent_runtime::agent_runtime_error::AgentRuntimeError;
 use paddler_agent_runtime::rejection_description::rejection_description;
 use paddler_agent_runtime::send_result_or_warn::send_result_or_warn;
 use paddler_image_decoder::decoded_image_error::DecodedImageError;
+use paddler_messaging::agent_issue_params::model_path::ModelPath;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
-use paddler_messaging::inference_mode::InferenceMode;
 use paddler_messaging::oversized_media_details::OversizedMediaDetails;
 use paddler_messaging::oversized_prompt_details::OversizedPromptDetails;
 use paddler_tool_call_validator::tool_call_validation_error::ToolCallValidationError;
@@ -40,8 +39,11 @@ pub enum TextGenerationError {
     #[error(transparent)]
     AgentRuntime(#[from] AgentRuntimeError),
 
-    #[error("the model has no usable chat template: {0}")]
-    ChatTemplateUnavailable(#[source] ChatTemplateError),
+    #[error(
+        "the model {} has no chat template, so it cannot continue a conversation",
+        model_path.model_path
+    )]
+    ConversationRequiresChatTemplate { model_path: ModelPath },
 
     #[error("the model's chat template is not valid UTF-8: {0}")]
     ChatTemplateNotUtf8(#[source] Utf8Error),
@@ -82,11 +84,6 @@ pub enum TextGenerationError {
 
     #[error("Failed to convert JSON schema to grammar: {0}")]
     GrammarConversionFailed(#[source] JsonSchemaToGrammarError),
-
-    #[error("the agent serves {serving_inference_mode:?}, so it cannot generate tokens")]
-    InferenceModeMismatch {
-        serving_inference_mode: InferenceMode,
-    },
 
     #[error("failed to decode images: {0}")]
     ImageDecodingFailed(#[source] DecodedImageError),
@@ -226,9 +223,6 @@ impl TextGenerationError {
             Self::GrammarConversionFailed(_) | Self::GrammarInvalid(_) => {
                 GeneratedTokenResult::GrammarSyntaxError(message)
             }
-            Self::InferenceModeMismatch { .. } => {
-                GeneratedTokenResult::InferenceModeMismatch(message)
-            }
             Self::ImageDecodingFailed(_) | Self::ImageBitmapCreationFailed(_) => {
                 GeneratedTokenResult::ImageDecodingFailed(message)
             }
@@ -242,7 +236,7 @@ impl TextGenerationError {
             Self::ChatTemplateDoesNotCompile(_)
             | Self::ChatTemplateNotUtf8(_)
             | Self::ChatTemplateRenderingFailed(_)
-            | Self::ChatTemplateUnavailable(_)
+            | Self::ConversationRequiresChatTemplate { .. }
             | Self::ToolCallParserCreationFailed(_) => {
                 GeneratedTokenResult::ChatTemplateError(message)
             }
@@ -314,7 +308,7 @@ mod tests {
 
     use paddler_image_decoder::decoded_image_error::DecodedImageError;
     use paddler_messaging::generated_token_result::GeneratedTokenResult;
-    use paddler_messaging::inference_mode::InferenceMode;
+    use paddler_messaging::agent_issue_params::model_path::ModelPath;
     use paddler_messaging::oversized_media_details::OversizedMediaDetails;
     use paddler_messaging::oversized_prompt_details::OversizedPromptDetails;
     use paddler_messaging::request_params::continue_from_conversation_history_params::tool::Tool;
@@ -369,13 +363,15 @@ mod tests {
     }
 
     #[test]
-    fn reports_a_request_for_another_mode_naming_the_served_mode() {
+    fn reports_a_conversation_on_a_model_without_a_chat_template_as_a_chat_template_error() {
         assert_eq!(
-            reported(TextGenerationError::InferenceModeMismatch {
-                serving_inference_mode: InferenceMode::Embeddings,
+            reported(TextGenerationError::ConversationRequiresChatTemplate {
+                model_path: ModelPath {
+                    model_path: "nomic.gguf".to_owned(),
+                },
             }),
-            GeneratedTokenResult::InferenceModeMismatch(agent_message(
-                "the agent serves Embeddings, so it cannot generate tokens"
+            GeneratedTokenResult::ChatTemplateError(agent_message(
+                "the model nomic.gguf has no chat template, so it cannot continue a conversation"
             ))
         );
     }

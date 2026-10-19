@@ -18,7 +18,7 @@ pub fn kev_0_8b_desired_state() -> BalancerDesiredState {
             )
             .into_agent_desired_model(),
         },
-        inference_mode: InferenceMode::Decision,
+        inference_mode: InferenceMode::TextGenerationEmbeddingsAndDecisions,
         model: ModelSource::LocalToAgent(kev_0_8b_target_path("model.gguf").display().to_string())
             .into_agent_desired_model(),
         model_runtime_parameters: ModelRuntimeParameters {

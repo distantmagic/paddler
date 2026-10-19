@@ -75,7 +75,7 @@ mod tests {
     }
 
     #[test]
-    fn a_response_of_another_mode_is_returned_instead_of_a_decision_result() {
+    fn a_response_of_another_capability_is_returned_instead_of_a_decision_result() {
         assert_eq!(
             DecisionResult::try_from(Response::Embedding(EmbeddingResult::Done)),
             Err(Response::Embedding(EmbeddingResult::Done))
@@ -95,7 +95,7 @@ mod tests {
     }
 
     #[test]
-    fn a_response_of_another_mode_is_returned_instead_of_a_generated_token_result() {
+    fn a_response_of_another_capability_is_returned_instead_of_a_generated_token_result() {
         assert_eq!(
             GeneratedTokenResult::try_from(Response::Embedding(EmbeddingResult::Done)),
             Err(Response::Embedding(EmbeddingResult::Done))

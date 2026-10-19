@@ -1,7 +1,7 @@
-use paddler_agent_decision::decision_slots_minimum::DECISION_SLOTS_MINIMUM;
 use paddler_messaging::agent_issue::AgentIssue;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_messaging::decision_settings::DecisionSettings;
+use paddler_messaging::decision_slots_minimum::DECISION_SLOTS_MINIMUM;
 use paddler_messaging::inference_mode::InferenceMode;
 use paddler_model_source::model_source::ModelSource;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
@@ -17,12 +17,11 @@ async fn balancer_reports_model_cannot_be_loaded_for_invalid_gguf() {
     let model_path_on_agent = fixture_path("invalid.gguf").display().to_string();
 
     for inference_mode in [
-        InferenceMode::Decision,
-        InferenceMode::Embeddings,
-        InferenceMode::TextGeneration,
+        InferenceMode::TextGenerationAndEmbeddings,
+        InferenceMode::TextGenerationEmbeddingsAndDecisions,
     ] {
         let mut cluster = start_cluster(ClusterParams {
-            agents: AgentConfig::uniform(1, DECISION_SLOTS_MINIMUM),
+            agents: AgentConfig::uniform(1, DECISION_SLOTS_MINIMUM.get()),
             desired_state: ClusterDesiredState::Apply(Box::new(BalancerDesiredState {
                 decision: DecisionSettings {
                     pointer_head: pointer_head_fixture(QWEN3_5_0_8B_SYNTHETIC_POINTER_HEAD_FIXTURE),
