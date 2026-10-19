@@ -6,11 +6,13 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 use paddler_messaging::atomic_value::AtomicValue;
+use paddler_messaging::inference_mode::InferenceMode;
 use paddler_messaging::management_socket::agent::message::Message as AgentJsonRpcMessage;
 use paddler_messaging::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 
 use crate::agent_controller::AgentController;
 use crate::agent_response_senders::AgentResponseSenders;
+use crate::serving_status_snapshot::serving_status_snapshot;
 
 pub struct AgentControllerFixture {
     pub agent_controller: Arc<AgentController>,
@@ -33,6 +35,13 @@ impl AgentControllerFixture {
             }),
             agent_message_rx,
         }
+    }
+
+    pub fn serving(agent_id: &str, inference_mode: InferenceMode, slots_total: u64) -> Self {
+        Self::reporting(
+            agent_id,
+            serving_status_snapshot(inference_mode, slots_total, 0),
+        )
     }
 
     pub fn whose_socket_is_gone(

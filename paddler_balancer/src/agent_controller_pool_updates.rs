@@ -12,6 +12,10 @@ impl AgentControllerPoolUpdates {
         self.agent_availability_change.notified()
     }
 
+    pub fn signal_waiting_line_change(&self) {
+        self.agent_availability_change.notify_waiters();
+    }
+
     pub fn signal(&self) {
         self.update_tx.send_replace(());
         self.agent_availability_change.notify_waiters();

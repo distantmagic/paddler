@@ -2,68 +2,39 @@
 
 use std::num::NonZeroU16;
 
-use hf_hub::Cache;
 use llama_cpp_bindings::batch_add_error::BatchAddError;
-use llama_cpp_bindings::llama_batch::LlamaBatch;
 use llama_cpp_bindings::token::LlamaToken;
 use llama_cpp_bindings_types::BatchCapacity;
 
-use paddler_agent_embeddings::embedding_batch_processor::EmbeddingBatchProcessor;
 use paddler_agent_embeddings::embedding_error::EmbeddingError;
 use paddler_agent_embeddings::embedding_input_tokenized::EmbeddingInputTokenized;
 use paddler_agent_embeddings::embedding_normalization::EmbeddingNormalization;
-use paddler_agent_embeddings::embedding_scheduler_context::EmbeddingSchedulerContext;
 use paddler_inference_parameters::pooling_type::PoolingType;
 use paddler_messaging::embedding_result::EmbeddingResult;
-use paddler_test_cluster_harness::model_card::nomic_embed_text_v1_5::nomic_embed_text_v1_5;
 use paddler_tests::active_embedding_request_fixture::ActiveEmbeddingRequestFixture;
-use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
-use paddler_tests::llama_runtime::LlamaRuntime;
+
+use crate::nomic_embedding_batch_processing::NomicEmbeddingBatchProcessing;
 
 const TOKENS_THE_BATCH_HOLDS: NonZeroU16 = NonZeroU16::MIN;
 
 #[test]
 fn an_embedding_input_overflowing_its_batch_fails_as_batch_assembly() {
-    let runtime = LlamaRuntime::load(
-        &nomic_embed_text_v1_5()
-            .reference
-            .cached_path(&Cache::from_env())
-            .expect("the nomic embedding model must be in the Hugging Face cache"),
-        agent_inference_runtime_context(1),
-    )
-    .expect("the nomic embedding model must load");
-    let mut llama_context = runtime
-        .create_embedding_llama_context(1, PoolingType::Mean)
-        .expect("the embedding context must be created");
-    let mut batch = LlamaBatch::new(BatchCapacity::from(TOKENS_THE_BATCH_HOLDS), 1);
+    let nomic_embedding_batch_processing =
+        NomicEmbeddingBatchProcessing::load(PoolingType::Mean, NonZeroU16::MIN);
     let ActiveEmbeddingRequestFixture {
-        active_embedding_request,
+        admitted_requests,
         generate_embedding_stop_tx: _generate_embedding_stop_tx,
         mut generated_embedding_rx,
-    } = ActiveEmbeddingRequestFixture::new(
-        vec![EmbeddingInputTokenized {
-            id: "document".to_owned(),
-            tokens: vec![LlamaToken::new(101), LlamaToken::new(102)],
-        }],
-        runtime
-            .inference_runtime_context
-            .slot_aggregated_status
-            .clone(),
-        NonZeroU16::MIN,
-    );
+    } = nomic_embedding_batch_processing.admit(vec![EmbeddingInputTokenized {
+        id: "document".to_owned(),
+        tokens: vec![LlamaToken::new(101), LlamaToken::new(102)],
+    }]);
 
-    let continuing_requests = EmbeddingBatchProcessor {
-        batch: &mut batch,
-        llama_context: &mut llama_context,
-        normalization: EmbeddingNormalization,
-        scheduler_context: &EmbeddingSchedulerContext {
-            agent_name: None,
-            desired_slots_total: 1,
-            n_batch: runtime.model_runtime_parameters.n_batch.tokens_usize(),
-            pooling_type: PoolingType::Mean,
-        },
-    }
-    .embed_next_batch(vec![active_embedding_request]);
+    let continuing_requests = nomic_embedding_batch_processing.embed_next_batch(
+        BatchCapacity::from(TOKENS_THE_BATCH_HOLDS),
+        EmbeddingNormalization,
+        admitted_requests,
+    );
 
     assert_eq!(continuing_requests.len(), 0);
     assert_eq!(

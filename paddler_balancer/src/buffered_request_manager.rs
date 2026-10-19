@@ -12,6 +12,7 @@ use paddler_messaging::subscribes_to_updates::SubscribesToUpdates;
 use crate::agent_controller_pool::AgentControllerPool;
 use crate::buffered_request_agent_wait_result::BufferedRequestAgentWaitResult;
 use crate::buffered_request_counter::BufferedRequestCounter;
+use crate::dispatch_position::DispatchPosition;
 use crate::dispatch_requirement::DispatchRequirement;
 use crate::dispatched_agent::DispatchedAgent;
 
@@ -48,7 +49,7 @@ impl BufferedRequestManager {
         dispatch_requirement: DispatchRequirement,
     ) -> Option<DispatchedAgent> {
         self.agent_controller_pool
-            .take_least_busy_agent_controller(dispatch_requirement)
+            .take_least_busy_agent_controller(dispatch_requirement, DispatchPosition::Arriving)
     }
 
     pub async fn wait_for_available_agent(
@@ -61,14 +62,21 @@ impl BufferedRequestManager {
             return BufferedRequestAgentWaitResult::Found(dispatched_agent);
         }
 
+        let waiting_line_place = self
+            .agent_controller_pool
+            .join_waiting_line(dispatch_requirement);
+
         let Some(_buffered_request_count_guard) = self.buffered_request_counter.try_admit() else {
             return BufferedRequestAgentWaitResult::BufferOverflow;
         };
 
         match timeout(
             self.buffered_request_timeout,
-            self.agent_controller_pool
-                .next_available_agent(agent_availability_changed, dispatch_requirement),
+            self.agent_controller_pool.next_available_agent(
+                agent_availability_changed,
+                dispatch_requirement,
+                waiting_line_place.dispatch_position(),
+            ),
         )
         .await
         {
@@ -107,14 +115,18 @@ mod tests {
 
     use tokio::runtime::Builder;
     use tokio::select;
+    use tokio::spawn;
     use tokio::sync::mpsc;
     use tokio_util::sync::CancellationToken;
 
     use paddler_messaging::atomic_value::AtomicValue;
+    use paddler_messaging::decision_slots_minimum::DECISION_SLOTS_MINIMUM;
     use paddler_messaging::inference_capability::InferenceCapability;
+    use paddler_messaging::inference_mode::InferenceMode;
     use paddler_messaging::subscribes_to_updates::SubscribesToUpdates as _;
 
     use super::BufferedRequestManager;
+    use crate::agent_controller_fixture::AgentControllerFixture;
     use crate::agent_controller_pool::AgentControllerPool;
     use crate::buffered_request_agent_wait_result::BufferedRequestAgentWaitResult;
     use crate::dispatch_requirement::DispatchRequirement;
@@ -238,5 +250,146 @@ mod tests {
             assert_eq!(admitted_callers, BUFFER_CAPACITY);
             assert_eq!(overflowed_callers, racing_callers - 1);
         }
+    }
+
+    #[tokio::test]
+    async fn a_later_request_cannot_take_the_slots_a_waiting_request_needs() {
+        let agent_controller_pool = Arc::new(AgentControllerPool::default());
+        let _registration = agent_controller_pool.register_agent_controller(
+            AgentControllerFixture::serving(
+                "decisions",
+                InferenceMode::TextGenerationEmbeddingsAndDecisions,
+                u64::from(DECISION_SLOTS_MINIMUM.get()),
+            )
+            .agent_controller,
+        );
+        let buffered_request_manager = Arc::new(BufferedRequestManager::new(
+            agent_controller_pool,
+            Duration::MAX,
+            BUFFER_CAPACITY,
+        ));
+        let one_completion_slot = DispatchRequirement {
+            inference_capability: InferenceCapability::TextGeneration,
+            slot_demand: SlotDemand::Exactly(NonZeroU16::MIN),
+        };
+        let _busy_slot = buffered_request_manager
+            .take_available_agent(one_completion_slot)
+            .expect("one of the agent's slots must be free");
+        let decision_cancellation = CancellationToken::new();
+        let waiting_decision = spawn({
+            let buffered_request_manager = buffered_request_manager.clone();
+            let decision_cancellation = decision_cancellation.clone();
+
+            async move {
+                decision_cancellation
+                    .run_until_cancelled(buffered_request_manager.wait_for_available_agent(
+                        DispatchRequirement {
+                            inference_capability: InferenceCapability::Decisions,
+                            slot_demand: SlotDemand::Exactly(DECISION_SLOTS_MINIMUM),
+                        },
+                    ))
+                    .await
+            }
+        });
+
+        buffered_request_manager
+            .subscribe_to_updates()
+            .wait_for(|()| buffered_request_manager.buffered_request_counter.get() == 1)
+            .await
+            .expect("the buffered request manager must keep announcing updates");
+
+        assert!(
+            buffered_request_manager
+                .take_available_agent(one_completion_slot)
+                .is_none()
+        );
+
+        decision_cancellation.cancel();
+
+        assert!(
+            waiting_decision
+                .await
+                .expect("the waiting decision must not panic")
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn a_request_leaving_the_waiting_line_lets_the_requests_behind_it_dispatch() {
+        let agent_controller_pool = Arc::new(AgentControllerPool::default());
+        let agent_controller = AgentControllerFixture::serving(
+            "decisions",
+            InferenceMode::TextGenerationEmbeddingsAndDecisions,
+            u64::from(DECISION_SLOTS_MINIMUM.get()),
+        )
+        .agent_controller;
+        let _registration =
+            agent_controller_pool.register_agent_controller(agent_controller.clone());
+        let buffered_request_manager = Arc::new(BufferedRequestManager::new(
+            agent_controller_pool,
+            Duration::MAX,
+            u64::from(DECISION_SLOTS_MINIMUM.get()),
+        ));
+        let one_completion_slot = DispatchRequirement {
+            inference_capability: InferenceCapability::TextGeneration,
+            slot_demand: SlotDemand::Exactly(NonZeroU16::MIN),
+        };
+        let _busy_slot = buffered_request_manager
+            .take_available_agent(one_completion_slot)
+            .expect("one of the agent's slots must be free");
+        let mut buffered_request_updates = buffered_request_manager.subscribe_to_updates();
+        let decision_cancellation = CancellationToken::new();
+        let waiting_decision = spawn({
+            let buffered_request_manager = buffered_request_manager.clone();
+            let decision_cancellation = decision_cancellation.clone();
+
+            async move {
+                decision_cancellation
+                    .run_until_cancelled(buffered_request_manager.wait_for_available_agent(
+                        DispatchRequirement {
+                            inference_capability: InferenceCapability::Decisions,
+                            slot_demand: SlotDemand::Exactly(DECISION_SLOTS_MINIMUM),
+                        },
+                    ))
+                    .await
+            }
+        });
+
+        buffered_request_updates
+            .wait_for(|()| buffered_request_manager.buffered_request_counter.get() == 1)
+            .await
+            .expect("the buffered request manager must keep announcing updates");
+
+        let waiting_completion = spawn({
+            let buffered_request_manager = buffered_request_manager.clone();
+
+            async move {
+                buffered_request_manager
+                    .wait_for_available_agent(one_completion_slot)
+                    .await
+            }
+        });
+
+        buffered_request_updates
+            .wait_for(|()| buffered_request_manager.buffered_request_counter.get() == 2)
+            .await
+            .expect("the buffered request manager must keep announcing updates");
+        decision_cancellation.cancel();
+
+        assert!(
+            waiting_decision
+                .await
+                .expect("the waiting decision must not panic")
+                .is_none()
+        );
+
+        let _dispatched_completion = waiting_completion
+            .await
+            .expect("the waiting completion must not panic");
+
+        assert_eq!(
+            agent_controller.slots_processing.get(),
+            u64::from(DECISION_SLOTS_MINIMUM.get())
+        );
     }
 }

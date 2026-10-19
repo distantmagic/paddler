@@ -250,6 +250,8 @@ mod tests {
     use crate::management_connection_step::ManagementConnectionStep;
     use crate::pipeline_request::PipelineRequest;
 
+    const RESERVED_SLOTS: NonZeroU16 = NonZeroU16::new(2).unwrap();
+
     fn raw_prompt_params() -> ContinueFromRawPromptParams {
         ContinueFromRawPromptParams {
             grammar: None,
@@ -257,8 +259,6 @@ mod tests {
             raw_prompt: "hello".to_owned(),
         }
     }
-
-    const RESERVED_SLOTS: NonZeroU16 = NonZeroU16::new(2).unwrap();
 
     fn raw_prompt_request(request_id: &str) -> JsonRpcMessage {
         JsonRpcMessage::Request(RequestEnvelope {

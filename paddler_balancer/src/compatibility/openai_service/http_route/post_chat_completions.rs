@@ -55,7 +55,6 @@ mod tests {
     use std::net::SocketAddr;
     use std::sync::Arc;
     use std::time::Duration;
-    use tokio::sync::watch;
 
     use actix_web::App;
     use actix_web::http::StatusCode;
@@ -68,6 +67,7 @@ mod tests {
     use serde_json::Value;
     use serde_json::from_slice;
     use serde_json::json;
+    use tokio::sync::watch;
     use tokio_util::sync::CancellationToken;
 
     use paddler_messaging::balancer_desired_state::BalancerDesiredState;

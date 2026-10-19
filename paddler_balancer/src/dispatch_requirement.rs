@@ -16,13 +16,24 @@ impl DispatchRequirement {
     pub fn reservable_slots(
         &self,
         agent_runtime_status: &AgentRuntimeStatus,
-        slots_processing: u64,
+        slots_unavailable: u64,
     ) -> Option<NonZeroU16> {
         self.slot_demand.reservable_from(
             agent_runtime_status
                 .slots_serving(self.inference_capability)
-                .saturating_sub(slots_processing),
+                .saturating_sub(slots_unavailable),
         )
+    }
+
+    #[must_use]
+    pub fn slots_held_while_waiting(&self, agent_runtime_status: &AgentRuntimeStatus) -> u64 {
+        let minimum_slots = u64::from(self.slot_demand.minimum_slots());
+
+        if agent_runtime_status.slots_serving(self.inference_capability) >= minimum_slots {
+            minimum_slots
+        } else {
+            0
+        }
     }
 }
 

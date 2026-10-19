@@ -8,6 +8,14 @@ pub enum SlotDemand {
 
 impl SlotDemand {
     #[must_use]
+    pub const fn minimum_slots(self) -> u16 {
+        match self {
+            Self::Exactly(slots) => slots.get(),
+            Self::UpTo(_slots) => 1,
+        }
+    }
+
+    #[must_use]
     pub fn reservable_from(self, free_slots: u64) -> Option<NonZeroU16> {
         match self {
             Self::Exactly(slots) => (free_slots >= u64::from(slots.get())).then_some(slots),

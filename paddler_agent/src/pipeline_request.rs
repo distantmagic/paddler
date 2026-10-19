@@ -1,3 +1,8 @@
+use paddler_agent_decision::decision_error::DecisionError;
+use paddler_agent_decision::reports_decision_outcome::ReportsDecisionOutcome as _;
+use paddler_agent_embeddings::embedding_error::EmbeddingError;
+use paddler_agent_runtime::agent_request::AgentRequest;
+use paddler_agent_text_generation::text_generation_error::TextGenerationError;
 use paddler_messaging::decision_result::DecisionResult;
 use paddler_messaging::embedding_result::EmbeddingResult;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
@@ -6,11 +11,6 @@ use paddler_messaging::request_params::continue_from_conversation_history_params
 use paddler_messaging::request_params::continue_from_raw_prompt_params::ContinueFromRawPromptParams;
 use paddler_messaging::request_params::decide_params::DecideParams;
 use paddler_messaging::request_params::generate_embedding_batch_params::GenerateEmbeddingBatchParams;
-use paddler_agent_decision::decision_error::DecisionError;
-use paddler_agent_decision::reports_decision_outcome::ReportsDecisionOutcome as _;
-use paddler_agent_embeddings::embedding_error::EmbeddingError;
-use paddler_agent_runtime::agent_request::AgentRequest;
-use paddler_agent_text_generation::text_generation_error::TextGenerationError;
 
 pub enum PipelineRequest {
     ContinueFromConversationHistory(
@@ -89,7 +89,6 @@ mod tests {
     use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
     use paddler_agent_status::slot_guard::SlotGuard;
     use paddler_messaging::conversation_history::ConversationHistory;
-    use paddler_messaging::decision_result::DecisionResult;
     use paddler_messaging::embedding_normalization_method::EmbeddingNormalizationMethod;
     use paddler_messaging::embedding_result::EmbeddingResult;
     use paddler_messaging::generated_token_result::GeneratedTokenResult;
@@ -97,7 +96,6 @@ mod tests {
     use paddler_messaging::request_params::generate_embedding_batch_params::GenerateEmbeddingBatchParams;
 
     use super::PipelineRequest;
-    use crate::decision_request_fixture::decision_request_fixture;
 
     #[test]
     fn rejects_a_conversation_because_no_model_is_loaded() {
@@ -147,21 +145,6 @@ mod tests {
         assert_eq!(
             generated_embedding_rx.try_recv(),
             Ok(EmbeddingResult::ModelNotLoaded(
-                "agent: no model is loaded".to_owned()
-            ))
-        );
-    }
-
-    #[test]
-    fn rejects_a_decision_because_no_model_is_loaded() {
-        let (decision_result_tx, mut decision_result_rx) = mpsc::unbounded_channel();
-
-        PipelineRequest::Decide(decision_request_fixture(decision_result_tx))
-            .reject_because_no_model_is_loaded(Some("agent"));
-
-        assert_eq!(
-            decision_result_rx.try_recv(),
-            Ok(DecisionResult::ModelNotLoaded(
                 "agent: no model is loaded".to_owned()
             ))
         );

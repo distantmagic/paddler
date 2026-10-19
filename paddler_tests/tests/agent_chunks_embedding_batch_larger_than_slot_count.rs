@@ -4,11 +4,11 @@ use std::collections::BTreeSet;
 
 use tokio_util::sync::CancellationToken;
 
-use paddler_messaging::embedding_input_document::EmbeddingInputDocument;
 use paddler_messaging::embedding_normalization_method::EmbeddingNormalizationMethod;
 use paddler_messaging::request_params::generate_embedding_batch_params::GenerateEmbeddingBatchParams;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_test_cluster_harness::embedding_cluster_params::EmbeddingClusterParams;
+use paddler_tests::numbered_embedding_documents::numbered_embedding_documents;
 use paddler_tests::start_embedding_cluster::start_embedding_cluster;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -21,11 +21,10 @@ async fn agent_chunks_embedding_batch_larger_than_slot_count() {
     .await
     .expect("the cluster must start");
 
-    let input_batch: Vec<EmbeddingInputDocument> = (0..12)
-        .map(|index| EmbeddingInputDocument {
-            content: format!("Document number {index}."),
-            id: format!("doc-{index}"),
-        })
+    let input_batch = numbered_embedding_documents(12);
+    let expected_ids: BTreeSet<String> = input_batch
+        .iter()
+        .map(|document| document.id.clone())
         .collect();
 
     let collected = cluster
@@ -48,8 +47,6 @@ async fn agent_chunks_embedding_batch_larger_than_slot_count() {
         .iter()
         .map(|produced| produced.embedding.source_document_id.clone())
         .collect();
-    let expected_ids: BTreeSet<String> = (0..12).map(|index| format!("doc-{index}")).collect();
-
     assert_eq!(returned_ids, expected_ids);
 
     let first_dimension = collected.embeddings[0].embedding.embedding.len();

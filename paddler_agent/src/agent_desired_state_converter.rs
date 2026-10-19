@@ -71,14 +71,11 @@ impl AgentDesiredStateConverter {
                 },
             ));
         };
-        let ControlFlow::Continue(applicable_decisions) = self.resolve_decisions(decisions).await?
-        else {
-            return Ok(AgentDesiredStateConversion::Cancelled);
-        };
-        let Some(applicable_decisions) = applicable_decisions else {
-            return Ok(AgentDesiredStateConversion::Converted(
-                AgentApplicableState::NotConfigured,
-            ));
+        let applicable_decisions = match self.resolve_decisions(decisions).await? {
+            ControlFlow::Continue(applicable_decisions) => applicable_decisions,
+            ControlFlow::Break(conversion_without_decisions) => {
+                return Ok(conversion_without_decisions);
+            }
         };
 
         Ok(AgentDesiredStateConversion::Converted(
@@ -105,18 +102,28 @@ impl AgentDesiredStateConverter {
     async fn resolve_decisions(
         &self,
         decisions: &AgentDecisionsSettings,
-    ) -> Result<ControlFlow<(), Option<ApplicableDecisions>>, ModelSourceError> {
+    ) -> Result<ControlFlow<AgentDesiredStateConversion, ApplicableDecisions>, ModelSourceError>
+    {
         match decisions {
             AgentDecisionsSettings::NotServed => {
-                Ok(ControlFlow::Continue(Some(ApplicableDecisions::Disabled)))
+                Ok(ControlFlow::Continue(ApplicableDecisions::Disabled))
             }
-            AgentDecisionsSettings::Served(DecisionSettings { pointer_head }) => Ok(self
-                .resolve_model_file(pointer_head, AgentIssue::PointerHeadCannotBeLoaded)
-                .await?
-                .map_continue(|pointer_head_path| {
-                    pointer_head_path
-                        .map(|pointer_head_path| ApplicableDecisions::Enabled { pointer_head_path })
-                })),
+            AgentDecisionsSettings::Served(DecisionSettings { pointer_head }) => Ok(
+                match self
+                    .resolve_model_file(pointer_head, AgentIssue::PointerHeadCannotBeLoaded)
+                    .await?
+                {
+                    ControlFlow::Break(()) => {
+                        ControlFlow::Break(AgentDesiredStateConversion::Cancelled)
+                    }
+                    ControlFlow::Continue(None) => ControlFlow::Break(
+                        AgentDesiredStateConversion::Converted(AgentApplicableState::NotConfigured),
+                    ),
+                    ControlFlow::Continue(Some(pointer_head_path)) => {
+                        ControlFlow::Continue(ApplicableDecisions::Enabled { pointer_head_path })
+                    }
+                },
+            ),
         }
     }
 

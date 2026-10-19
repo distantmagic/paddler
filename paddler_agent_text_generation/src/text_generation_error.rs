@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::str::Utf8Error;
 
 use llama_cpp_bindings::batch_add_error::BatchAddError;
 use llama_cpp_bindings::error::ClearKvCacheSeqError;
@@ -44,9 +43,6 @@ pub enum TextGenerationError {
         model_path.model_path
     )]
     ConversationRequiresChatTemplate { model_path: ModelPath },
-
-    #[error("the model's chat template is not valid UTF-8: {0}")]
-    ChatTemplateNotUtf8(#[source] Utf8Error),
 
     #[error("the chat template does not compile: {0}")]
     ChatTemplateDoesNotCompile(#[source] MinijinjaError),
@@ -234,7 +230,6 @@ impl TextGenerationError {
             | Self::StreamingMarkersUnavailable(_) => GeneratedTokenResult::ModelNotLoaded(message),
             Self::MultimodalNotSupported => GeneratedTokenResult::MultimodalNotSupported(message),
             Self::ChatTemplateDoesNotCompile(_)
-            | Self::ChatTemplateNotUtf8(_)
             | Self::ChatTemplateRenderingFailed(_)
             | Self::ConversationRequiresChatTemplate { .. }
             | Self::ToolCallParserCreationFailed(_) => {
@@ -307,8 +302,8 @@ mod tests {
     use tokio::sync::mpsc;
 
     use paddler_image_decoder::decoded_image_error::DecodedImageError;
-    use paddler_messaging::generated_token_result::GeneratedTokenResult;
     use paddler_messaging::agent_issue_params::model_path::ModelPath;
+    use paddler_messaging::generated_token_result::GeneratedTokenResult;
     use paddler_messaging::oversized_media_details::OversizedMediaDetails;
     use paddler_messaging::oversized_prompt_details::OversizedPromptDetails;
     use paddler_messaging::request_params::continue_from_conversation_history_params::tool::Tool;

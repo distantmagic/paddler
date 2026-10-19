@@ -9,6 +9,9 @@ use rand::Rng as _;
 use rand::rng;
 use serde_json::Value;
 
+use paddler_agent_runtime::agent_request::AgentRequest;
+use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
+use paddler_agent_runtime::prepares_scheduler_command::PreparesSchedulerCommand;
 use paddler_image_decoder::decoded_image::DecodedImage;
 use paddler_messaging::chat_template_conversation::ChatTemplateConversation;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
@@ -19,9 +22,6 @@ use paddler_messaging::request_params::continue_from_conversation_history_params
 use paddler_messaging::request_params::continue_from_conversation_history_params::tool::tool_params::function_call::parameters_schema::validated_parameters_schema::ValidatedParametersSchema;
 use paddler_messaging::request_params::continue_from_raw_prompt_params::ContinueFromRawPromptParams;
 use paddler_tool_call_validator::tool_call_validator::ToolCallValidator;
-use paddler_agent_runtime::agent_request::AgentRequest;
-use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
-use paddler_agent_runtime::prepares_scheduler_command::PreparesSchedulerCommand;
 
 use crate::chat_prompt_render_request::ChatPromptRenderRequest;
 use crate::conversation_prompt_support::ConversationPromptSupport;

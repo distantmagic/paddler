@@ -159,8 +159,6 @@ mod tests {
     use std::num::NonZeroU32;
     use std::sync::Arc;
 
-    use paddler_messaging::agent_runtime_status::AgentRuntimeStatus;
-    use paddler_messaging::agent_status::AgentStatus;
     use paddler_messaging::inference_mode::InferenceMode;
     use paddler_messaging::request_params::continue_from_raw_prompt_params::ContinueFromRawPromptParams;
     use paddler_messaging::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
@@ -169,18 +167,14 @@ mod tests {
     use crate::agent_controller_fixture::AgentControllerFixture;
     use crate::agent_controller_update_result::AgentControllerUpdateResult;
     use crate::agent_relay_error::AgentRelayError;
+    use crate::serving_status_snapshot::serving_status_snapshot;
 
     fn reported(version: u64, slots_total: u64) -> SlotAggregatedStatusSnapshot {
-        SlotAggregatedStatusSnapshot {
-            status: AgentStatus {
-                runtime: AgentRuntimeStatus::Serving {
-                    inference_mode: InferenceMode::TextGenerationAndEmbeddings,
-                    slots_total,
-                },
-                ..AgentStatus::default()
-            },
+        serving_status_snapshot(
+            InferenceMode::TextGenerationAndEmbeddings,
+            slots_total,
             version,
-        }
+        )
     }
 
     fn agent_controller_with(

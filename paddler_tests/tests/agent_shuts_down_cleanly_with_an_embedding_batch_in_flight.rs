@@ -3,11 +3,11 @@
 use futures_util::StreamExt as _;
 use tokio_util::sync::CancellationToken;
 
-use paddler_messaging::embedding_input_document::EmbeddingInputDocument;
 use paddler_messaging::embedding_normalization_method::EmbeddingNormalizationMethod;
 use paddler_messaging::request_params::generate_embedding_batch_params::GenerateEmbeddingBatchParams;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_test_cluster_harness::embedding_cluster_params::EmbeddingClusterParams;
+use paddler_tests::numbered_embedding_documents::numbered_embedding_documents;
 use paddler_tests::start_embedding_cluster::start_embedding_cluster;
 
 const DOCUMENTS_OUTLASTING_A_SHUTDOWN: usize = 512;
@@ -25,12 +25,7 @@ async fn agent_shuts_down_cleanly_with_an_embedding_batch_in_flight() {
         .post_generate_embedding_batch(
             CancellationToken::new(),
             &GenerateEmbeddingBatchParams {
-                input_batch: (0..DOCUMENTS_OUTLASTING_A_SHUTDOWN)
-                    .map(|index| EmbeddingInputDocument {
-                        content: format!("Document number {index}."),
-                        id: format!("doc-{index}"),
-                    })
-                    .collect(),
+                input_batch: numbered_embedding_documents(DOCUMENTS_OUTLASTING_A_SHUTDOWN),
                 normalization_method: EmbeddingNormalizationMethod::None,
             },
         )

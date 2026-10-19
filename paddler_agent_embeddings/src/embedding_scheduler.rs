@@ -14,7 +14,6 @@ use crate::active_embedding_request::ActiveEmbeddingRequest;
 use crate::embedding_batch_processor::EmbeddingBatchProcessor;
 use crate::embedding_error::EmbeddingError;
 use crate::embedding_normalization::EmbeddingNormalization;
-use crate::embedding_request_continuation::EmbeddingRequestContinuation;
 use crate::embedding_scheduler_context::EmbeddingSchedulerContext;
 use crate::prepared_embedding_batch_request::PreparedEmbeddingBatchRequest;
 
@@ -82,12 +81,8 @@ impl EmbeddingScheduler<'_> {
     }
 
     fn admit(&mut self, request: PreparedEmbeddingBatchRequest) {
-        match request.admit(self.scheduler_context.agent_name.as_deref()) {
-            EmbeddingRequestContinuation::Concluded => {}
-            EmbeddingRequestContinuation::Continues(active_request) => {
-                self.active_requests.push(active_request);
-            }
-        }
+        self.active_requests
+            .extend(request.admit(self.scheduler_context.agent_name.as_deref()));
     }
 
     fn reject_unfinished_requests(&mut self) {

@@ -201,25 +201,24 @@ impl<TMediaMarker: ProvidesMediaMarker> TextGenerationPipeline<TMediaMarker> {
         let chat_template = match &self.text_generation_settings.chat_template_source {
             ChatTemplateSource::Override(chat_template_override) => chat_template_override.clone(),
             ChatTemplateSource::EmbeddedInModel => {
-                match self.loaded_llama_model.model.chat_template(None) {
-                    Ok(model_chat_template) => ChatTemplate {
-                        content: model_chat_template
-                            .to_string()
-                            .map_err(TextGenerationError::ChatTemplateNotUtf8)?,
-                    },
-                    Err(chat_template_error) => {
-                        warn!(
-                            "{:?}: the model serves no conversations: {chat_template_error}",
-                            self.inference_runtime_context.agent_name
-                        );
+                let Some(embedded_chat_template) = self
+                    .loaded_llama_model
+                    .model_metadata
+                    .embedded_chat_template()
+                else {
+                    warn!(
+                        "{:?}: the model embeds no chat template, so it serves no conversations",
+                        self.inference_runtime_context.agent_name
+                    );
 
-                        return Ok(ConversationSupport::ChatTemplateMissing(
-                            self.loaded_llama_model
-                                .llama_model_settings
-                                .reported_model_path(),
-                        ));
-                    }
-                }
+                    return Ok(ConversationSupport::ChatTemplateMissing(
+                        self.loaded_llama_model
+                            .llama_model_settings
+                            .reported_model_path(),
+                    ));
+                };
+
+                embedded_chat_template
             }
         };
         let chat_prompt_renderer = self.chat_prompt_renderer(chat_template)?;

@@ -48,7 +48,7 @@ impl BalancerApplicableStateHolder {
         &self,
         requested_inference_capability: InferenceCapability,
     ) -> Result<Arc<BalancerApplicableState>, ClusterDoesNotServeInferenceCapability> {
-        let balancer_applicable_state = self.balancer_applicable_state_rx.borrow().clone();
+        let balancer_applicable_state = self.get_balancer_applicable_state();
         let served_inference_mode = balancer_applicable_state.inference_mode();
 
         if served_inference_mode.serves(requested_inference_capability) {

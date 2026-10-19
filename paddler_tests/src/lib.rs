@@ -35,6 +35,7 @@ pub mod model_architecture_that_is_unreadable;
 pub mod next_reported_cluster_inference_mode;
 pub mod nomic_embed_desired_state_with_chat_template_override;
 pub mod normalization_of_an_embedding_too_long_for_rms_norm;
+pub mod numbered_embedding_documents;
 pub mod parallelism_that_is_unknown;
 pub mod point_qwen3_special_token_at_unused_padding;
 pub mod question_lane_release_that_fails;

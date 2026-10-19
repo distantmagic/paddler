@@ -38,7 +38,9 @@ pub mod controls_websocket_endpoint;
 pub mod cors_allowed_hosts_with_web_admin_panel;
 pub mod create_cors_middleware;
 pub mod dispatch_candidate;
+pub mod dispatch_position;
 pub mod dispatch_requirement;
+pub mod dispatch_waiting_line;
 pub mod dispatched_agent;
 pub mod distinct_embedding_documents;
 pub mod embedding_chunk_dispatch;
@@ -68,6 +70,8 @@ pub mod response_senders;
 pub mod run_http_service;
 pub mod run_http_service_parameters;
 pub mod serve_http_until_shutdown;
+#[cfg(test)]
+mod serving_status_snapshot;
 pub mod slot_demand;
 pub mod snapshots_stream;
 pub mod sse_response_from_snapshots;
@@ -78,6 +82,7 @@ mod unbounded_stream_from_agent;
 mod unbounded_stream_from_agent_params;
 #[cfg(test)]
 mod unexpiring_inference_service_configuration;
+pub mod waiting_line_place;
 #[cfg(feature = "web_admin_panel")]
 pub mod web_admin_panel_service;
 pub mod websocket_close_cause;

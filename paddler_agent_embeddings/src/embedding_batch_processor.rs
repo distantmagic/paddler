@@ -12,7 +12,6 @@ use crate::batched_embedding_input::BatchedEmbeddingInput;
 use crate::embedding_error::EmbeddingError;
 use crate::embedding_input_tokenized::EmbeddingInputTokenized;
 use crate::embedding_normalization::EmbeddingNormalization;
-use crate::embedding_request_continuation::EmbeddingRequestContinuation;
 use crate::embedding_request_step::EmbeddingRequestStep;
 use crate::embedding_scheduler_context::EmbeddingSchedulerContext;
 use crate::next_embedding_batch::next_embedding_batch;
@@ -38,12 +37,7 @@ impl<TNormalization: NormalizesEmbedding> EmbeddingBatchProcessor<'_, '_, TNorma
         let agent_name = self.scheduler_context.agent_name.as_deref();
         let mut active_requests: Vec<ActiveEmbeddingRequest> = active_requests
             .into_iter()
-            .filter_map(|active_request| {
-                match active_request.continue_unless_stop_requested(agent_name) {
-                    EmbeddingRequestContinuation::Concluded => None,
-                    EmbeddingRequestContinuation::Continues(active_request) => Some(active_request),
-                }
-            })
+            .flat_map(|active_request| active_request.continue_unless_stop_requested(agent_name))
             .collect();
         let batched_inputs = next_embedding_batch(
             &mut active_requests,
@@ -83,16 +77,11 @@ impl<TNormalization: NormalizesEmbedding> EmbeddingBatchProcessor<'_, '_, TNorma
         active_requests
             .into_iter()
             .zip(request_steps)
-            .filter_map(|(active_request, request_step)| match request_step {
-                EmbeddingRequestStep::Continuing => {
-                    match active_request.continue_unless_every_input_is_embedded(agent_name) {
-                        EmbeddingRequestContinuation::Concluded => None,
-                        EmbeddingRequestContinuation::Continues(active_request) => {
-                            Some(active_request)
-                        }
-                    }
-                }
-                EmbeddingRequestStep::Ended => None,
+            .filter(|(_active_request, request_step)| {
+                *request_step == EmbeddingRequestStep::Continuing
+            })
+            .flat_map(|(active_request, _request_step)| {
+                active_request.continue_unless_every_input_is_embedded(agent_name)
             })
             .collect()
     }

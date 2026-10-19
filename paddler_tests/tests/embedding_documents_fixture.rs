@@ -8,10 +8,10 @@ use tokio::sync::mpsc;
 use paddler_agent_runtime::agent_request::AgentRequest;
 use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
 use paddler_agent_status::slot_guard::SlotGuard;
-use paddler_messaging::embedding_input_document::EmbeddingInputDocument;
 use paddler_messaging::embedding_normalization_method::EmbeddingNormalizationMethod;
 use paddler_messaging::embedding_result::EmbeddingResult;
 use paddler_messaging::request_params::generate_embedding_batch_params::GenerateEmbeddingBatchParams;
+use paddler_tests::numbered_embedding_documents::numbered_embedding_documents;
 
 pub struct EmbeddingDocumentsFixture {
     pub agent_request: AgentRequest<GenerateEmbeddingBatchParams, EmbeddingResult>,
@@ -30,12 +30,7 @@ impl EmbeddingDocumentsFixture {
         Self {
             agent_request: AgentRequest {
                 params: GenerateEmbeddingBatchParams {
-                    input_batch: (0..document_count)
-                        .map(|document_index| EmbeddingInputDocument {
-                            content: format!("Document number {document_index}."),
-                            id: format!("doc-{document_index}"),
-                        })
-                        .collect(),
+                    input_batch: numbered_embedding_documents(document_count),
                     normalization_method: EmbeddingNormalizationMethod::None,
                 },
                 response_tx: generated_embedding_tx,

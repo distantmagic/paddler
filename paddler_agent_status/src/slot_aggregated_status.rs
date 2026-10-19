@@ -285,6 +285,25 @@ mod tests {
         }
     }
 
+    fn serving_without_a_chat_template() -> ServingReport {
+        ServingReport {
+            serving_issues: BTreeSet::from([AgentIssue::UnableToFindChatTemplate(model_path(
+                "model",
+            ))]),
+            ..serving_report(InferenceMode::TextGenerationAndEmbeddings)
+        }
+    }
+
+    fn model_path(path: &str) -> ModelPath {
+        ModelPath {
+            model_path: path.to_owned(),
+        }
+    }
+
+    fn is_slot_cannot_start(agent_issue: &AgentIssue) -> bool {
+        matches!(agent_issue, AgentIssue::SlotCannotStart(_))
+    }
+
     #[test]
     fn waiting_for_idle_slots_completes_once_the_last_slot_is_released() {
         let status = SlotAggregatedStatus::new(1);
@@ -311,12 +330,6 @@ mod tests {
         assert!(!update_rx.has_changed().unwrap());
     }
 
-    fn model_path(path: &str) -> ModelPath {
-        ModelPath {
-            model_path: path.to_owned(),
-        }
-    }
-
     #[test]
     fn register_issue_and_has_issue_round_trip() {
         let status = SlotAggregatedStatus::new(2);
@@ -338,10 +351,6 @@ mod tests {
         status.register_fix(&AgentIssueFix::ModelFileExists(model_path("model_test")));
 
         assert!(!status.has_issue(&issue));
-    }
-
-    fn is_slot_cannot_start(agent_issue: &AgentIssue) -> bool {
-        matches!(agent_issue, AgentIssue::SlotCannotStart(_))
     }
 
     #[test]
@@ -582,15 +591,6 @@ mod tests {
         status.serve_nothing(false);
 
         assert!(!status.make_snapshot().status.uses_chat_template_override);
-    }
-
-    fn serving_without_a_chat_template() -> ServingReport {
-        ServingReport {
-            serving_issues: BTreeSet::from([AgentIssue::UnableToFindChatTemplate(model_path(
-                "model",
-            ))]),
-            ..serving_report(InferenceMode::TextGenerationAndEmbeddings)
-        }
     }
 
     #[test]

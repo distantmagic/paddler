@@ -58,6 +58,7 @@ mod tests {
     use crate::active_embedding_request::ActiveEmbeddingRequest;
     use crate::batched_embedding_input::BatchedEmbeddingInput;
     use crate::embedding_input_tokenized::EmbeddingInputTokenized;
+    use crate::prepared_embedding_batch_request::PreparedEmbeddingBatchRequest;
 
     fn document(id: &str, tokens: usize) -> EmbeddingInputTokenized {
         EmbeddingInputTokenized {
@@ -68,22 +69,26 @@ mod tests {
 
     fn active_request(
         sequences: u16,
-        pending_inputs: Vec<EmbeddingInputTokenized>,
+        inputs: Vec<EmbeddingInputTokenized>,
     ) -> ActiveEmbeddingRequest {
         let (generated_embedding_tx, _generated_embedding_rx) = mpsc::unbounded_channel();
         let (_generate_embedding_stop_tx, generate_embedding_stop_rx) = mpsc::unbounded_channel();
 
-        ActiveEmbeddingRequest {
-            embeddings_emitted: 0,
+        PreparedEmbeddingBatchRequest {
             generate_embedding_stop_rx,
             generated_embedding_tx,
+            inputs,
             normalization_method: EmbeddingNormalizationMethod::None,
-            pending_inputs: VecDeque::from(pending_inputs),
+            oversized_documents: Vec::new(),
             slot_guard: SlotGuard::new(
                 Arc::new(SlotAggregatedStatus::new(8)),
                 NonZeroU16::new(sequences).unwrap(),
             ),
         }
+        .admit(None)
+        .into_iter()
+        .next()
+        .expect("a request with inputs to embed must stay active")
     }
 
     fn batched(
