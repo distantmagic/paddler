@@ -1,14 +1,11 @@
 use std::mem::take;
-use std::sync::mpsc::Receiver;
-use std::sync::mpsc::RecvError;
-use std::sync::mpsc::TryRecvError;
 
 use llama_cpp_bindings::context::LlamaContext;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
 use log::info;
 use tokio_util::sync::CancellationToken;
 
-use paddler_agent_runtime::scheduler_message::SchedulerMessage;
+use paddler_agent_runtime::scheduler_inbox::SchedulerInbox;
 
 use crate::active_embedding_request::ActiveEmbeddingRequest;
 use crate::embedding_batch_processor::EmbeddingBatchProcessor;
@@ -23,8 +20,7 @@ pub struct EmbeddingScheduler<'model> {
     pub batch: LlamaBatch<'static>,
     pub llama_context: LlamaContext<'model>,
     pub scheduler_context: EmbeddingSchedulerContext,
-    pub scheduler_message_rx: Receiver<SchedulerMessage<PreparedEmbeddingBatchRequest>>,
-    pub shutdown_requested: bool,
+    pub scheduler_inbox: SchedulerInbox<PreparedEmbeddingBatchRequest>,
 }
 
 impl EmbeddingScheduler<'_> {
@@ -36,7 +32,7 @@ impl EmbeddingScheduler<'_> {
 
         while !self.agent_shutdown.is_cancelled() {
             if self.active_requests.is_empty() {
-                if self.shutdown_requested {
+                if self.scheduler_inbox.shutdown_requested {
                     break;
                 }
 
@@ -67,16 +63,8 @@ impl EmbeddingScheduler<'_> {
     }
 
     fn accept_new_scheduler_messages(&mut self) {
-        loop {
-            match self.scheduler_message_rx.try_recv() {
-                Ok(SchedulerMessage::Command(request)) => self.admit(request),
-                Ok(SchedulerMessage::Shutdown) | Err(TryRecvError::Disconnected) => {
-                    self.shutdown_requested = true;
-
-                    break;
-                }
-                Err(TryRecvError::Empty) => break,
-            }
+        while let Some(request) = self.scheduler_inbox.take_next_waiting_command() {
+            self.admit(request);
         }
     }
 
@@ -95,9 +83,8 @@ impl EmbeddingScheduler<'_> {
     }
 
     fn wait_for_next_scheduler_message(&mut self) {
-        match self.scheduler_message_rx.recv() {
-            Ok(SchedulerMessage::Command(request)) => self.admit(request),
-            Ok(SchedulerMessage::Shutdown) | Err(RecvError) => self.shutdown_requested = true,
+        if let Some(request) = self.scheduler_inbox.wait_for_next_command() {
+            self.admit(request);
         }
     }
 }

@@ -17,5 +17,7 @@ mod number_request_preparer;
 mod prepared_requests_reach_the_scheduler_before_its_shutdown;
 mod reports_ready_request_preparer;
 mod requests_the_preparation_rejects_never_reach_the_scheduler;
+#[cfg(test)]
+mod scheduler_awaiting_its_first_message;
 mod scheduler_ran_after_handover;
 mod shutting_down_stops_the_scheduler_and_waits_for_its_thread;

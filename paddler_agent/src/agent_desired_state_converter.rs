@@ -262,6 +262,46 @@ mod tests {
         })
     }
 
+    fn local_model(model_file: &NamedTempFile) -> AgentDesiredModel {
+        ModelSource::LocalToAgent(model_file.path().display().to_string())
+            .into_agent_desired_model()
+    }
+
+    fn cancelled_token() -> CancellationToken {
+        let cancellation_token = CancellationToken::new();
+
+        cancellation_token.cancel();
+
+        cancellation_token
+    }
+
+    fn uncached_hugging_face_model() -> AgentDesiredModel {
+        ModelSource::HuggingFace(HuggingFaceModelReference {
+            filename: "uncached.gguf".to_owned(),
+            repo_id: "owner/repo".to_owned(),
+            revision: "main".to_owned(),
+        })
+        .into_agent_desired_model()
+    }
+
+    async fn conversion(
+        cancellation_token: CancellationToken,
+        desired: &AgentDesiredState,
+    ) -> AgentDesiredStateConversion {
+        AgentDesiredStateConverter {
+            cache_dir: CacheDir::from_process_env(),
+            cancellation_token,
+            slot_aggregated_status: fresh_status(),
+        }
+        .convert(desired)
+        .await
+        .expect("the desired state must convert")
+    }
+
+    async fn converted(desired: &AgentDesiredState) -> AgentDesiredStateConversion {
+        conversion(CancellationToken::new(), desired).await
+    }
+
     #[tokio::test]
     async fn local_missing_model_registers_model_file_does_not_exist_and_errs() {
         let status = fresh_status();
@@ -386,7 +426,7 @@ mod tests {
                 &desired_state(AgentDesiredModel::None, uncached_hugging_face_model()),
             )
             .await,
-            Some(AgentDesiredStateConversion::Cancelled)
+            AgentDesiredStateConversion::Cancelled
         );
     }
 
@@ -403,48 +443,8 @@ mod tests {
                 ),
             )
             .await,
-            Some(AgentDesiredStateConversion::Cancelled)
+            AgentDesiredStateConversion::Cancelled
         );
-    }
-
-    fn local_model(model_file: &NamedTempFile) -> AgentDesiredModel {
-        ModelSource::LocalToAgent(model_file.path().display().to_string())
-            .into_agent_desired_model()
-    }
-
-    fn cancelled_token() -> CancellationToken {
-        let cancellation_token = CancellationToken::new();
-
-        cancellation_token.cancel();
-
-        cancellation_token
-    }
-
-    fn uncached_hugging_face_model() -> AgentDesiredModel {
-        ModelSource::HuggingFace(HuggingFaceModelReference {
-            filename: "uncached.gguf".to_owned(),
-            repo_id: "owner/repo".to_owned(),
-            revision: "main".to_owned(),
-        })
-        .into_agent_desired_model()
-    }
-
-    async fn conversion(
-        cancellation_token: CancellationToken,
-        desired: &AgentDesiredState,
-    ) -> Option<AgentDesiredStateConversion> {
-        AgentDesiredStateConverter {
-            cache_dir: CacheDir::from_process_env(),
-            cancellation_token,
-            slot_aggregated_status: fresh_status(),
-        }
-        .convert(desired)
-        .await
-        .ok()
-    }
-
-    async fn converted(desired: &AgentDesiredState) -> Option<AgentDesiredStateConversion> {
-        conversion(CancellationToken::new(), desired).await
     }
 
     #[tokio::test]
@@ -458,11 +458,11 @@ mod tests {
                 local_model(&projection_file),
             ))
             .await,
-            Some(AgentDesiredStateConversion::Converted(served_settings(
+            AgentDesiredStateConversion::Converted(served_settings(
                 &model_file,
                 ApplicableDecisions::Disabled,
                 MultimodalProjection::File(projection_file.path().to_path_buf()),
-            )))
+            ))
         );
     }
 
@@ -481,11 +481,9 @@ mod tests {
                 ..desired_state(AgentDesiredModel::None, AgentDesiredModel::None)
             })
             .await,
-            Some(AgentDesiredStateConversion::Converted(
-                AgentApplicableState::WithoutModel {
-                    chat_template_source: ChatTemplateSource::Override(chat_template),
-                }
-            ))
+            AgentDesiredStateConversion::Converted(AgentApplicableState::WithoutModel {
+                chat_template_source: ChatTemplateSource::Override(chat_template),
+            })
         );
     }
 
@@ -500,13 +498,13 @@ mod tests {
                 local_model(&pointer_head_file),
             ))
             .await,
-            Some(AgentDesiredStateConversion::Converted(served_settings(
+            AgentDesiredStateConversion::Converted(served_settings(
                 &model_file,
                 ApplicableDecisions::Enabled {
                     pointer_head_path: pointer_head_file.path().to_path_buf(),
                 },
                 MultimodalProjection::NotConfigured,
-            )))
+            ))
         );
     }
 
@@ -520,9 +518,7 @@ mod tests {
                 AgentDesiredModel::None,
             ))
             .await,
-            Some(AgentDesiredStateConversion::Converted(
-                AgentApplicableState::NotConfigured
-            ))
+            AgentDesiredStateConversion::Converted(AgentApplicableState::NotConfigured)
         );
     }
 }

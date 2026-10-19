@@ -19,6 +19,24 @@ pub struct LoadedModelServingPlan<TDecisionsPlan = CapabilityPlan<ServedDecision
     pub model_serving_settings: ModelServingSettings,
 }
 
+impl LoadedModelServingPlan {
+    #[must_use]
+    pub const fn starting_every_capability(
+        loaded_llama_model: LoadedLlamaModel,
+        model_serving_settings: ModelServingSettings,
+    ) -> Self {
+        Self {
+            capability_plans: InferenceCapabilities {
+                decisions: CapabilityPlan::Start,
+                embeddings: CapabilityPlan::Start,
+                text_generation: CapabilityPlan::Start,
+            },
+            loaded_llama_model,
+            model_serving_settings,
+        }
+    }
+}
+
 impl<TDecisionsPlan> LoadedModelServingPlan<TDecisionsPlan>
 where
     TDecisionsPlan: ShutsDownUnlessShared + Send,

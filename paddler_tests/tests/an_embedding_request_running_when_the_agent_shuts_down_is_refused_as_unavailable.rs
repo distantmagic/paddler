@@ -5,18 +5,18 @@ use tokio_util::sync::CancellationToken;
 use paddler_messaging::embedding_result::EmbeddingResult;
 
 use crate::embedding_documents_fixture::EmbeddingDocumentsFixture;
-use crate::kev_model_serving_every_capability::KevModelServingEveryCapability;
+use crate::kev_model_serving_without_decisions::KevModelServingWithoutDecisions;
 
 const DOCUMENT_COUNT: usize = 64;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn an_embedding_request_running_when_the_agent_shuts_down_is_refused_as_unavailable() {
     let agent_shutdown = CancellationToken::new();
-    let KevModelServingEveryCapability {
+    let KevModelServingWithoutDecisions {
         llama_runtime,
         served_model,
         ..
-    } = KevModelServingEveryCapability::start(&agent_shutdown).await;
+    } = KevModelServingWithoutDecisions::start(&agent_shutdown).await;
     let EmbeddingDocumentsFixture {
         agent_request,
         generate_embedding_stop_tx: _generate_embedding_stop_tx,

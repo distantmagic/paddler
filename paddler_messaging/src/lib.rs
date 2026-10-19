@@ -29,6 +29,7 @@ pub mod decision_result;
 pub mod decision_settings;
 pub mod decision_slots_minimum;
 pub mod decision_summary;
+pub mod embedded_chat_template_key;
 pub mod embedding;
 pub mod embedding_document_exceeding_sequence_context_details;
 pub mod embedding_input_document;

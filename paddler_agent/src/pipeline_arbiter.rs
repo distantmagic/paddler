@@ -131,11 +131,8 @@ impl PipelineArbiter {
     }
 
     fn start_serving(&mut self, serving_startup_attempt: ServingStartupAttempt) {
-        self.serving_startup = ServingStartup::start(
-            serving_startup_attempt,
-            &self.agent_shutdown,
-            self.inference_runtime_context.clone(),
-        );
+        self.serving_startup = serving_startup_attempt
+            .start(&self.agent_shutdown, self.inference_runtime_context.clone());
     }
 }
 

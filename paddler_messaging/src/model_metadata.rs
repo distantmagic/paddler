@@ -4,8 +4,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::chat_template::ChatTemplate;
-
-const EMBEDDED_CHAT_TEMPLATE_KEY: &str = "tokenizer.chat_template";
+use crate::embedded_chat_template_key::EMBEDDED_CHAT_TEMPLATE_KEY;
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]

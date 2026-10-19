@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent_runtime::llama_model_settings::LlamaModelSettings;
-use paddler_agent_runtime::load_llama_model_unless_shutting_down::load_llama_model_unless_shutting_down;
+use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
 use paddler_agent_runtime::startup_outcome::StartupOutcome;
 use paddler_messaging::produces_snapshot::ProducesSnapshot as _;
 
@@ -18,7 +18,7 @@ async fn a_model_load_requested_during_shutdown_loads_nothing() {
 
     agent_shutdown.cancel();
 
-    let load_outcome = load_llama_model_unless_shutting_down(
+    let load_outcome = LoadedLlamaModel::load_unless_shutting_down(
         &agent_shutdown,
         inference_runtime_context.clone(),
         LlamaModelSettings {

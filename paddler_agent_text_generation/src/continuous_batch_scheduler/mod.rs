@@ -15,9 +15,6 @@ pub mod ingesting_contribution;
 pub mod sequence_ordered_insertion_index;
 
 use std::slice;
-use std::sync::mpsc::Receiver;
-use std::sync::mpsc::RecvError;
-use std::sync::mpsc::TryRecvError;
 
 use llama_cpp_bindings::SampledTokenClassifier;
 use llama_cpp_bindings::batch_add_error::BatchAddError;
@@ -32,7 +29,7 @@ use log::info;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent_runtime::receives_stop_request::ReceivesStopRequest as _;
-use paddler_agent_runtime::scheduler_message::SchedulerMessage;
+use paddler_agent_runtime::scheduler_inbox::SchedulerInbox;
 use paddler_agent_runtime::sequence_id::SequenceId;
 use paddler_agent_runtime::sequence_id_guard::SequenceIdGuard;
 use paddler_agent_runtime::sequence_id_pool::SequenceIdPool;
@@ -65,9 +62,8 @@ pub struct ContinuousBatchScheduler<'model> {
     ingest_outcomes: Vec<IngestOutcome>,
     llama_context: LlamaContext<'model>,
     scheduler_context: ContinuousBatchSchedulerContext<'model>,
-    scheduler_message_rx: Receiver<SchedulerMessage<PreparedGenerationRequest>>,
+    scheduler_inbox: SchedulerInbox<PreparedGenerationRequest>,
     sequence_id_pool: SequenceIdPool,
-    shutdown_requested: bool,
 }
 
 impl<'model> ContinuousBatchScheduler<'model> {
@@ -91,9 +87,8 @@ impl<'model> ContinuousBatchScheduler<'model> {
             ingest_outcomes: Vec::new(),
             llama_context,
             scheduler_context,
-            scheduler_message_rx,
+            scheduler_inbox: SchedulerInbox::new(scheduler_message_rx),
             sequence_id_pool,
-            shutdown_requested: false,
         }
     }
 
@@ -114,7 +109,7 @@ impl<'model> ContinuousBatchScheduler<'model> {
                         batch_add_error,
                     ));
                 }
-            } else if self.shutdown_requested {
+            } else if self.scheduler_inbox.shutdown_requested {
                 break;
             } else {
                 self.wait_for_next_scheduler_message();
@@ -135,23 +130,14 @@ impl<'model> ContinuousBatchScheduler<'model> {
     }
 
     fn wait_for_next_scheduler_message(&mut self) {
-        match self.scheduler_message_rx.recv() {
-            Ok(SchedulerMessage::Command(request)) => self.accept_generation_request(request),
-            Ok(SchedulerMessage::Shutdown) | Err(RecvError) => self.shutdown_requested = true,
+        if let Some(request) = self.scheduler_inbox.wait_for_next_command() {
+            self.accept_generation_request(request);
         }
     }
 
     fn accept_new_scheduler_messages(&mut self) {
-        loop {
-            match self.scheduler_message_rx.try_recv() {
-                Ok(SchedulerMessage::Command(request)) => self.accept_generation_request(request),
-                Ok(SchedulerMessage::Shutdown) | Err(TryRecvError::Disconnected) => {
-                    self.shutdown_requested = true;
-
-                    break;
-                }
-                Err(TryRecvError::Empty) => break,
-            }
+        while let Some(request) = self.scheduler_inbox.take_next_waiting_command() {
+            self.accept_generation_request(request);
         }
     }
 

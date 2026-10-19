@@ -37,10 +37,6 @@ impl AtomicValue<AtomicU64> {
             .is_ok()
     }
 
-    pub fn decrement(&self) {
-        self.value.fetch_sub(1, Ordering::SeqCst);
-    }
-
     pub fn subtract(&self, amount: u64) {
         self.value.fetch_sub(amount, Ordering::SeqCst);
     }

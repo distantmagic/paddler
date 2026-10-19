@@ -11,6 +11,7 @@ use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
 use paddler_agent_runtime::run_scheduler_unless_startup_abandoned::run_scheduler_unless_startup_abandoned;
 use paddler_agent_runtime::scheduler_handle::SchedulerHandle;
+use paddler_agent_runtime::scheduler_inbox::SchedulerInbox;
 use paddler_agent_runtime::scheduler_ready::SchedulerReady;
 use paddler_agent_runtime::scheduler_request_preparer::SchedulerRequestPreparer;
 use paddler_agent_runtime::start_scheduler_thread::start_scheduler_thread;
@@ -113,8 +114,7 @@ impl EmbeddingPipeline {
                                 n_batch,
                                 pooling_type,
                             },
-                            scheduler_message_rx,
-                            shutdown_requested: false,
+                            scheduler_inbox: SchedulerInbox::new(scheduler_message_rx),
                         }
                         .run();
                     },

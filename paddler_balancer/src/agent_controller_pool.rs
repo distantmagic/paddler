@@ -252,16 +252,11 @@ mod tests {
     use super::AgentControllerPool;
     use crate::agent_controller_fixture::AgentControllerFixture;
     use crate::agent_controller_registration::AgentControllerRegistration;
+    use crate::decision_with_leading_questions_requirement::DECISION_WITH_LEADING_QUESTIONS_REQUIREMENT;
     use crate::dispatch_position::DispatchPosition;
     use crate::dispatch_requirement::DispatchRequirement;
+    use crate::one_slot_of::one_slot_of;
     use crate::slot_demand::SlotDemand;
-
-    fn one_slot_of(inference_capability: InferenceCapability) -> DispatchRequirement {
-        DispatchRequirement {
-            inference_capability,
-            slot_demand: SlotDemand::Exactly(NonZeroU16::MIN),
-        }
-    }
 
     fn agent_with_inbox(agent_id: &str) -> AgentControllerFixture {
         AgentControllerFixture::reporting(agent_id, SlotAggregatedStatusSnapshot::default())
@@ -358,10 +353,7 @@ mod tests {
 
         assert!(
             pool.select_least_busy_with_capacity(
-                DispatchRequirement {
-                    inference_capability: InferenceCapability::Decisions,
-                    slot_demand: SlotDemand::Exactly(DECISION_SLOTS_MINIMUM),
-                },
+                DECISION_WITH_LEADING_QUESTIONS_REQUIREMENT,
                 DispatchPosition::Arriving,
             )
             .is_none()
@@ -381,10 +373,7 @@ mod tests {
 
         let dispatched_agent = pool
             .take_least_busy_agent_controller(
-                DispatchRequirement {
-                    inference_capability: InferenceCapability::Decisions,
-                    slot_demand: SlotDemand::Exactly(DECISION_SLOTS_MINIMUM),
-                },
+                DECISION_WITH_LEADING_QUESTIONS_REQUIREMENT,
                 DispatchPosition::Arriving,
             )
             .expect("an agent with free slots must be dispatched");
@@ -463,10 +452,7 @@ mod tests {
                 DispatchPosition::Arriving,
             )
             .expect("the agent must have a free slot");
-        let _waiting_decision = pool.join_waiting_line(DispatchRequirement {
-            inference_capability: InferenceCapability::Decisions,
-            slot_demand: SlotDemand::Exactly(DECISION_SLOTS_MINIMUM),
-        });
+        let _waiting_decision = pool.join_waiting_line(DECISION_WITH_LEADING_QUESTIONS_REQUIREMENT);
 
         assert_eq!(
             pool.take_least_busy_agent_controller(
@@ -492,10 +478,7 @@ mod tests {
             )
             .agent_controller,
         );
-        let _waiting_decision = pool.join_waiting_line(DispatchRequirement {
-            inference_capability: InferenceCapability::Decisions,
-            slot_demand: SlotDemand::Exactly(DECISION_SLOTS_MINIMUM),
-        });
+        let _waiting_decision = pool.join_waiting_line(DECISION_WITH_LEADING_QUESTIONS_REQUIREMENT);
 
         assert_eq!(
             pool.take_least_busy_agent_controller(

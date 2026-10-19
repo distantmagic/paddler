@@ -1,7 +1,4 @@
 use std::collections::VecDeque;
-use std::sync::mpsc::Receiver;
-use std::sync::mpsc::RecvError;
-use std::sync::mpsc::TryRecvError;
 
 use llama_cpp_bindings::context::LlamaContext;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
@@ -9,7 +6,7 @@ use log::info;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent_runtime::receives_stop_request::ReceivesStopRequest as _;
-use paddler_agent_runtime::scheduler_message::SchedulerMessage;
+use paddler_agent_runtime::scheduler_inbox::SchedulerInbox;
 use paddler_messaging::decision_result::DecisionResult;
 
 use crate::active_decision_request::ActiveDecisionRequest;
@@ -29,8 +26,7 @@ pub struct DecisionScheduler<'model> {
     pub llama_context: LlamaContext<'model>,
     pub pending_requests: VecDeque<PreparedDecisionRequest>,
     pub scheduler_context: DecisionSchedulerContext,
-    pub scheduler_message_rx: Receiver<SchedulerMessage<PreparedDecisionRequest>>,
-    pub shutdown_requested: bool,
+    pub scheduler_inbox: SchedulerInbox<PreparedDecisionRequest>,
 }
 
 impl DecisionScheduler<'_> {
@@ -42,7 +38,7 @@ impl DecisionScheduler<'_> {
 
         while !self.agent_shutdown.is_cancelled() {
             if self.active_requests.is_empty() && self.pending_requests.is_empty() {
-                if self.shutdown_requested {
+                if self.scheduler_inbox.shutdown_requested {
                     break;
                 }
 
@@ -65,16 +61,8 @@ impl DecisionScheduler<'_> {
     }
 
     fn accept_new_scheduler_messages(&mut self) {
-        loop {
-            match self.scheduler_message_rx.try_recv() {
-                Ok(SchedulerMessage::Command(request)) => self.pending_requests.push_back(request),
-                Ok(SchedulerMessage::Shutdown) | Err(TryRecvError::Disconnected) => {
-                    self.shutdown_requested = true;
-
-                    break;
-                }
-                Err(TryRecvError::Empty) => break,
-            }
+        while let Some(request) = self.scheduler_inbox.take_next_waiting_command() {
+            self.pending_requests.push_back(request);
         }
     }
 
@@ -144,9 +132,8 @@ impl DecisionScheduler<'_> {
     }
 
     fn wait_for_next_scheduler_message(&mut self) {
-        match self.scheduler_message_rx.recv() {
-            Ok(SchedulerMessage::Command(request)) => self.pending_requests.push_back(request),
-            Ok(SchedulerMessage::Shutdown) | Err(RecvError) => self.shutdown_requested = true,
+        if let Some(request) = self.scheduler_inbox.wait_for_next_command() {
+            self.pending_requests.push_back(request);
         }
     }
 }

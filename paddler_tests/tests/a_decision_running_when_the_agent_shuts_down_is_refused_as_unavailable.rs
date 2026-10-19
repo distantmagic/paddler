@@ -13,6 +13,7 @@ use paddler_agent_decision::decision_error::DecisionError;
 use paddler_agent_decision::decision_scheduler::DecisionScheduler;
 use paddler_agent_decision::decision_scheduler_context::DecisionSchedulerContext;
 use paddler_agent_decision::decision_token_layout::DecisionTokenLayout;
+use paddler_agent_runtime::scheduler_inbox::SchedulerInbox;
 use paddler_messaging::decision_result::DecisionResult;
 use paddler_tests::admitted_decision::AdmittedDecision;
 use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
@@ -77,8 +78,7 @@ fn a_decision_running_when_the_agent_shuts_down_is_refused_as_unavailable() {
             n_batch,
             pointer_head,
         },
-        scheduler_message_rx,
-        shutdown_requested: false,
+        scheduler_inbox: SchedulerInbox::new(scheduler_message_rx),
     }
     .run();
 

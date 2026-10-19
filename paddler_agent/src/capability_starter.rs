@@ -8,7 +8,6 @@ use paddler_agent_decision::general_architecture_metadata::GeneralArchitectureMe
 use paddler_agent_embeddings::embedding_pipeline::EmbeddingPipeline;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::llama_model_settings::LlamaModelSettings;
-use paddler_agent_runtime::load_llama_model_unless_shutting_down::load_llama_model_unless_shutting_down;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
 use paddler_agent_runtime::shuts_down_unless_shared::ShutsDownUnlessShared as _;
 use paddler_agent_runtime::spawn_blocking_resuming_panic::spawn_blocking_resuming_panic;
@@ -36,18 +35,11 @@ trait IntoEstablishedCapability<TStarted> {
     fn into_established_capability(self) -> Result<TStarted, CapabilityStartupInterruption>;
 }
 
-impl<TStarted, TError> IntoEstablishedCapability<TStarted>
-    for Result<StartupOutcome<TStarted>, TError>
-where
-    AgentError: From<TError>,
-{
+impl<TStarted> IntoEstablishedCapability<TStarted> for StartupOutcome<TStarted> {
     fn into_established_capability(self) -> Result<TStarted, CapabilityStartupInterruption> {
         match self {
-            Ok(StartupOutcome::Ready(started)) => Ok(started),
-            Ok(StartupOutcome::Cancelled) => Err(CapabilityStartupInterruption::Cancelled),
-            Err(startup_error) => Err(CapabilityStartupInterruption::Failed(AgentError::from(
-                startup_error,
-            ))),
+            Self::Ready(started) => Ok(started),
+            Self::Cancelled => Err(CapabilityStartupInterruption::Cancelled),
         }
     }
 }
@@ -94,12 +86,13 @@ impl CapabilityStarter<'_> {
         &self,
         llama_model_settings: LlamaModelSettings,
     ) -> Result<LoadedLlamaModel, CapabilityStartupInterruption> {
-        load_llama_model_unless_shutting_down(
+        LoadedLlamaModel::load_unless_shutting_down(
             self.cancellation_token,
             self.inference_runtime_context.clone(),
             llama_model_settings,
         )
         .await
+        .map_err(AgentError::from)?
         .into_established_capability()
     }
 
@@ -199,6 +192,7 @@ impl CapabilityStarter<'_> {
             }
             .spawn(self.cancellation_token)
             .await
+            .map_err(AgentError::from)?
             .into_established_capability()
             .map(Arc::new),
         }
@@ -224,6 +218,7 @@ impl CapabilityStarter<'_> {
             }
             .spawn(self.cancellation_token)
             .await
+            .map_err(AgentError::from)?
             .into_established_capability()
             .map(Arc::new),
         }
@@ -250,6 +245,7 @@ impl CapabilityStarter<'_> {
                 }
                 .spawn(self.cancellation_token)
                 .await
+                .map_err(AgentError::from)?
                 .into_established_capability()
                 .map(|decisions| ServedDecisions::Enabled(Arc::new(decisions)))
             }

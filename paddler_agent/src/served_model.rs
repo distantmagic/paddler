@@ -31,7 +31,11 @@ impl ServedModel {
                     .prepare(TextGenerationRequest::ContinueFromRawPrompt(request));
             }
             PipelineRequest::Decide(request) => {
-                self.capabilities.decisions.forward(agent_name, request);
+                self.capabilities.decisions.forward(
+                    agent_name,
+                    self.model_serving_settings.inference_mode(),
+                    request,
+                );
             }
             PipelineRequest::GenerateEmbeddingBatch(request) => {
                 self.capabilities
@@ -44,16 +48,23 @@ impl ServedModel {
 
     #[must_use]
     pub fn plan_restart(&self, desired_settings: ModelServingSettings) -> LoadedModelServingPlan {
+        let served_settings = &self.model_serving_settings;
+
+        if served_settings.model_runtime_parameters != desired_settings.model_runtime_parameters {
+            return LoadedModelServingPlan::starting_every_capability(
+                self.loaded_llama_model.clone(),
+                desired_settings,
+            );
+        }
+
         let ServedCapabilities {
             decisions: served_decisions,
             embeddings: served_embeddings,
             text_generation: served_text_generation,
         } = &self.capabilities;
-        let served_settings = &self.model_serving_settings;
-        let capability_plans = if served_settings.model_runtime_parameters
-            == desired_settings.model_runtime_parameters
-        {
-            InferenceCapabilities {
+
+        LoadedModelServingPlan {
+            capability_plans: InferenceCapabilities {
                 decisions: CapabilityPlan::between(
                     served_decisions,
                     &served_settings.capabilities.decisions,
@@ -69,17 +80,7 @@ impl ServedModel {
                     &served_settings.capabilities.text_generation,
                     &desired_settings.capabilities.text_generation,
                 ),
-            }
-        } else {
-            InferenceCapabilities {
-                decisions: CapabilityPlan::Start,
-                embeddings: CapabilityPlan::Start,
-                text_generation: CapabilityPlan::Start,
-            }
-        };
-
-        LoadedModelServingPlan {
-            capability_plans,
+            },
             loaded_llama_model: self.loaded_llama_model.clone(),
             model_serving_settings: desired_settings,
         }

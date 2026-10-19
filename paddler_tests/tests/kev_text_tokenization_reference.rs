@@ -2,13 +2,13 @@
 
 use std::fs::read_to_string;
 use std::path::PathBuf;
+use std::sync::Arc;
 
+use llama_cpp_bindings::model::LlamaModel;
+use llama_cpp_bindings::model::params::LlamaModelParams;
 use serde_json::from_str;
 
 use paddler_agent_decision::decision_text_tokenizer::DecisionTextTokenizer;
-use paddler_agent_runtime::llama_model_settings::LlamaModelSettings;
-use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
-use paddler_inference_parameters::all_gpu_layers::ALL_GPU_LAYERS;
 use paddler_test_cluster_harness::fixture_path::fixture_path;
 use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
 use paddler_tests::tokenizer_reference_entry::TokenizerReferenceEntry;
@@ -20,15 +20,19 @@ pub struct KevTextTokenizationReference {
 
 impl KevTextTokenizationReference {
     pub fn assert_matched_by_the_decision_text_tokenizer(self) {
+        let llama_backend = agent_inference_runtime_context(1)
+            .llama_backend
+            .get_or_init()
+            .expect("the llama.cpp backend must initialize");
         let text_tokenizer = DecisionTextTokenizer {
-            loaded_llama_model: LoadedLlamaModel::load(
-                &agent_inference_runtime_context(1),
-                LlamaModelSettings {
-                    model_path: self.model_path,
-                    n_gpu_layers: ALL_GPU_LAYERS,
-                },
-            )
-            .expect("the decision model vocabulary must load"),
+            model: Arc::new(
+                LlamaModel::load_from_file(
+                    &llama_backend,
+                    &self.model_path,
+                    &LlamaModelParams::default().with_vocab_only(true),
+                )
+                .expect("the decision model vocabulary must load"),
+            ),
         };
         let reference: Vec<TokenizerReferenceEntry> = from_str(
             &read_to_string(fixture_path(self.reference_fixture))

@@ -6,6 +6,7 @@ use hf_hub::Cache;
 use tempfile::TempDir;
 
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
+use paddler_messaging::embedded_chat_template_key::EMBEDDED_CHAT_TEMPLATE_KEY;
 use paddler_model_source::model_source::ModelSource;
 use paddler_test_cluster_harness::model_card::qwen3_0_6b::qwen3_0_6b;
 use paddler_tests::qwen3_desired_state::qwen3_desired_state;
@@ -29,7 +30,7 @@ impl Qwen3WithoutAChatTemplate {
             &qwen3_without_a_chat_template.model_path(),
             |gguf_context| {
                 gguf_context
-                    .remove_key("tokenizer.chat_template")
+                    .remove_key(EMBEDDED_CHAT_TEMPLATE_KEY)
                     .expect("Qwen3 must embed a chat template to remove");
             },
         )

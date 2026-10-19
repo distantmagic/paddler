@@ -22,13 +22,13 @@ use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_cont
 use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::llama_runtime::LlamaRuntime;
 
-pub struct KevModelServingEveryCapability {
+pub struct KevModelServingWithoutDecisions {
     pub llama_runtime: LlamaRuntime,
     pub model_serving_settings: ModelServingSettings,
     pub served_model: ServedModel,
 }
 
-impl KevModelServingEveryCapability {
+impl KevModelServingWithoutDecisions {
     pub async fn start(agent_shutdown: &CancellationToken) -> Self {
         let model_path = kev_0_8b_target_path("model.gguf");
         let llama_runtime = LlamaRuntime::load(&model_path, agent_inference_runtime_context(1))
@@ -61,7 +61,7 @@ impl KevModelServingEveryCapability {
             model_serving_settings: model_serving_settings.clone(),
         })
         .await
-        .expect("every capability must start");
+        .expect("text generation and embeddings must start");
 
         Self {
             llama_runtime,

@@ -37,6 +37,10 @@ pub mod controls_session;
 pub mod controls_websocket_endpoint;
 pub mod cors_allowed_hosts_with_web_admin_panel;
 pub mod create_cors_middleware;
+#[cfg(test)]
+mod decision_waiting_behind_a_busy_slot;
+#[cfg(test)]
+mod decision_with_leading_questions_requirement;
 pub mod dispatch_candidate;
 pub mod dispatch_position;
 pub mod dispatch_requirement;
@@ -57,6 +61,8 @@ pub mod invalid_request_parameters_description;
 pub mod management_service;
 pub mod max_websocket_message_size;
 mod ndjson_response;
+#[cfg(test)]
+mod one_slot_of;
 pub mod reconciliation_service;
 pub mod registered_agent_controller_guard;
 pub mod request_from_agent;

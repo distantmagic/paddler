@@ -7,6 +7,7 @@ use llama_cpp_bindings::llama_batch::LlamaBatch;
 use llama_cpp_bindings::model::LlamaModel;
 use llama_cpp_bindings::token::LlamaToken;
 use log::warn;
+use tokio_util::sync::CancellationToken;
 
 use paddler_agent_status::agent_issue_fix::AgentIssueFix;
 use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
@@ -22,6 +23,7 @@ use crate::inference_thread_count::inference_thread_count;
 use crate::llama_context_settings::LlamaContextSettings;
 use crate::llama_model_settings::LlamaModelSettings;
 use crate::spawn_blocking_resuming_panic::spawn_blocking_resuming_panic;
+use crate::startup_outcome::StartupOutcome;
 
 fn read_model_metadata(model: &LlamaModel) -> Result<ModelMetadata, AgentRuntimeError> {
     let mut model_metadata = ModelMetadata::default();
@@ -77,6 +79,29 @@ impl LoadedLlamaModel {
         }
 
         loaded
+    }
+
+    pub async fn load_unless_shutting_down(
+        cancellation_token: &CancellationToken,
+        inference_runtime_context: InferenceRuntimeContext,
+        llama_model_settings: LlamaModelSettings,
+    ) -> Result<StartupOutcome<Self>, AgentRuntimeError> {
+        if cancellation_token.is_cancelled() {
+            return Ok(StartupOutcome::Cancelled);
+        }
+
+        let loaded_llama_model = spawn_blocking_resuming_panic(move || {
+            Self::load(&inference_runtime_context, llama_model_settings)
+        })
+        .await?;
+
+        if cancellation_token.is_cancelled() {
+            loaded_llama_model.release().await;
+
+            return Ok(StartupOutcome::Cancelled);
+        }
+
+        Ok(StartupOutcome::Ready(loaded_llama_model))
     }
 
     pub async fn release(self) {

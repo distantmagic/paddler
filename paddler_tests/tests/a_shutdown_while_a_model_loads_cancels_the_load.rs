@@ -9,7 +9,7 @@ use tokio_util::sync::CancellationToken;
 
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::llama_model_settings::LlamaModelSettings;
-use paddler_agent_runtime::load_llama_model_unless_shutting_down::load_llama_model_unless_shutting_down;
+use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
 use paddler_agent_runtime::reports_available_parallelism::ReportsAvailableParallelism;
 use paddler_agent_runtime::startup_outcome::StartupOutcome;
 use paddler_agent_runtime::system_parallelism::SystemParallelism;
@@ -33,7 +33,7 @@ impl ReportsAvailableParallelism for ParallelismQueriedAsTheAgentShutsDown {
 async fn a_shutdown_while_a_model_loads_cancels_the_load() {
     let agent_shutdown = CancellationToken::new();
 
-    let load_outcome = load_llama_model_unless_shutting_down(
+    let load_outcome = LoadedLlamaModel::load_unless_shutting_down(
         &agent_shutdown,
         InferenceRuntimeContext {
             available_parallelism: Arc::new(ParallelismQueriedAsTheAgentShutsDown {

@@ -97,30 +97,16 @@ impl ServingStartupPlan {
                             .await;
                     }
                 };
-                let retry_plan = Self::OnLoadedModel(LoadedModelServingPlan {
-                    capability_plans: InferenceCapabilities {
-                        decisions: CapabilityPlan::Start,
-                        embeddings: CapabilityPlan::Start,
-                        text_generation: CapabilityPlan::Start,
-                    },
-                    loaded_llama_model: loaded_llama_model.clone(),
-                    model_serving_settings: model_serving_settings.clone(),
-                });
 
-                retry_plan
-                    .serve_or_retry(
-                        &capability_starter,
-                        LoadedModelServingPlan {
-                            capability_plans: InferenceCapabilities {
-                                decisions: prepared_decisions_plan,
-                                embeddings: CapabilityPlan::Start,
-                                text_generation: CapabilityPlan::Start,
-                            },
-                            loaded_llama_model,
-                            model_serving_settings,
-                        },
-                    )
-                    .await
+                Self::serve_loaded_model(
+                    &capability_starter,
+                    LoadedModelServingPlan::starting_every_capability(
+                        loaded_llama_model,
+                        model_serving_settings,
+                    ),
+                    prepared_decisions_plan,
+                )
+                .await
             }
             Self::NothingToServe => Ok(StartedServing::NothingToServe),
             Self::OnLoadedModel(loaded_model_serving_plan) => {
@@ -141,32 +127,13 @@ impl ServingStartupPlan {
                             .await;
                     }
                 };
-                let retry_plan = Self::OnLoadedModel(loaded_model_serving_plan.clone());
-                let LoadedModelServingPlan {
-                    capability_plans:
-                        InferenceCapabilities {
-                            embeddings,
-                            text_generation,
-                            ..
-                        },
-                    loaded_llama_model,
-                    model_serving_settings,
-                } = loaded_model_serving_plan;
 
-                retry_plan
-                    .serve_or_retry(
-                        &capability_starter,
-                        LoadedModelServingPlan {
-                            capability_plans: InferenceCapabilities {
-                                decisions: prepared_decisions_plan,
-                                embeddings,
-                                text_generation,
-                            },
-                            loaded_llama_model,
-                            model_serving_settings,
-                        },
-                    )
-                    .await
+                Self::serve_loaded_model(
+                    &capability_starter,
+                    loaded_model_serving_plan,
+                    prepared_decisions_plan,
+                )
+                .await
             }
         }
     }
@@ -188,14 +155,37 @@ impl ServingStartupPlan {
         }
     }
 
-    async fn serve_or_retry(
-        self,
+    async fn serve_loaded_model(
         capability_starter: &CapabilityStarter<'_>,
-        loaded_model_serving_plan: LoadedModelServingPlan<PreparedDecisionsPlan>,
+        loaded_model_serving_plan: LoadedModelServingPlan,
+        prepared_decisions_plan: PreparedDecisionsPlan,
     ) -> Result<StartedServing, ServingStartupFailure> {
-        match capability_starter.serve(loaded_model_serving_plan).await {
+        let retry_plan = Self::OnLoadedModel(loaded_model_serving_plan.clone());
+        let LoadedModelServingPlan {
+            capability_plans:
+                InferenceCapabilities {
+                    embeddings,
+                    text_generation,
+                    ..
+                },
+            loaded_llama_model,
+            model_serving_settings,
+        } = loaded_model_serving_plan;
+
+        match capability_starter
+            .serve(LoadedModelServingPlan {
+                capability_plans: InferenceCapabilities {
+                    decisions: prepared_decisions_plan,
+                    embeddings,
+                    text_generation,
+                },
+                loaded_llama_model,
+                model_serving_settings,
+            })
+            .await
+        {
             Ok(served_model) => Ok(StartedServing::Serving(Box::new(served_model))),
-            Err(interruption) => self.after_interruption(interruption).await,
+            Err(interruption) => retry_plan.after_interruption(interruption).await,
         }
     }
 }

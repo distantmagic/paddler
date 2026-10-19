@@ -10,15 +10,15 @@ use paddler_inference_parameters::pooling_type::PoolingType;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_tests::raw_prompt_generation::RawPromptGeneration;
 
-use crate::kev_model_serving_every_capability::KevModelServingEveryCapability;
+use crate::kev_model_serving_without_decisions::KevModelServingWithoutDecisions;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_released_restart_plan_stops_a_kept_scheduler_it_alone_holds() {
-    let KevModelServingEveryCapability {
+    let KevModelServingWithoutDecisions {
         llama_runtime,
         model_serving_settings,
         served_model,
-    } = KevModelServingEveryCapability::start(&CancellationToken::new()).await;
+    } = KevModelServingWithoutDecisions::start(&CancellationToken::new()).await;
     let text_generation_request_preparer = served_model
         .capabilities
         .text_generation
