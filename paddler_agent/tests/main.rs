@@ -16,6 +16,8 @@ mod arbiter_under_test;
 #[cfg(test)]
 mod occupied_blocking_thread;
 #[cfg(test)]
+mod reconciliation_after_replacement;
+#[cfg(test)]
 mod reconciliation_replaced_before_its_worker_runs;
 #[cfg(test)]
 mod settings_whose_model_cannot_load;

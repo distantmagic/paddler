@@ -19,12 +19,8 @@ use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_messaging::subscribes_to_updates::SubscribesToUpdates as _;
 
 use crate::occupied_blocking_thread::OccupiedBlockingThread;
+use crate::reconciliation_after_replacement::ReconciliationAfterReplacement;
 use crate::single_blocking_thread_runtime::single_blocking_thread_runtime;
-
-pub struct ReconciliationAfterReplacement {
-    pub agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
-    pub slot_aggregated_status: Arc<SlotAggregatedStatus>,
-}
 
 pub struct ReconciliationReplacedBeforeItsWorkerRuns {
     pub replaced_desired_state: AgentDesiredState,

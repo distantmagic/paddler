@@ -7,7 +7,7 @@ use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_model_source::agent_local_model_path::AgentLocalModelPath;
 use paddler_model_source::model_source::ModelSource;
 
-use crate::reconciliation_replaced_before_its_worker_runs::ReconciliationAfterReplacement;
+use crate::reconciliation_after_replacement::ReconciliationAfterReplacement;
 use crate::reconciliation_replaced_before_its_worker_runs::ReconciliationReplacedBeforeItsWorkerRuns;
 
 const MISSING_MODEL_PATH: &str = "/paddler-missing-model-of-a-replaced-desired-state.gguf";
