@@ -58,6 +58,7 @@ fn a_leading_decision_question_llama_cpp_rejects_fails_the_decision() {
                 n_batch,
             },
             &pointer_head,
+            None,
         )
         .expect("the decision must advance");
 
@@ -70,6 +71,7 @@ fn a_leading_decision_question_llama_cpp_rejects_fails_the_decision() {
                     n_batch,
                 },
                 &pointer_head,
+                None,
             )
             .err()
             .as_ref()

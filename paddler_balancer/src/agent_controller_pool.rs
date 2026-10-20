@@ -8,7 +8,6 @@ use tokio::sync::futures::Notified;
 use tokio::sync::watch;
 
 use paddler_messaging::agent_controller_pool_snapshot::AgentControllerPoolSnapshot;
-use paddler_messaging::agent_desired_state::AgentDesiredState;
 use paddler_messaging::inference_capability::InferenceCapability;
 use paddler_messaging::produces_snapshot::ProducesSnapshot;
 use paddler_messaging::subscribes_to_updates::SubscribesToUpdates;
@@ -18,6 +17,7 @@ use super::agent_controller_pool_total_slots::AgentControllerPoolTotalSlots;
 use crate::agent_controller_pool_updates::AgentControllerPoolUpdates;
 use crate::agent_controller_registration::AgentControllerRegistration;
 use crate::agent_controller_slot_guard::AgentControllerSlotGuard;
+use crate::balancer_applicable_state::BalancerApplicableState;
 use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::buffered_request_counter::BufferedRequestCounter;
 use crate::dispatch_candidate::DispatchCandidate;
@@ -159,7 +159,9 @@ impl AgentControllerPool {
             Entry::Vacant(vacant_agent_slot) => {
                 vacant_agent_slot
                     .insert(agent_controller.clone())
-                    .set_desired_state(balancer_applicable_state_holder.get_agent_desired_state());
+                    .set_desired_state(
+                        &balancer_applicable_state_holder.get_balancer_applicable_state(),
+                    );
                 self.updates.signal();
 
                 AgentControllerRegistration::Registered(RegisteredAgentControllerGuard {
@@ -175,9 +177,9 @@ impl AgentControllerPool {
         self.updates.signal();
     }
 
-    pub fn set_desired_state(&self, desired_state: &AgentDesiredState) {
+    pub fn set_desired_state(&self, balancer_applicable_state: &BalancerApplicableState) {
         for agent in &self.agents {
-            agent.value().set_desired_state(desired_state.clone());
+            agent.value().set_desired_state(balancer_applicable_state);
         }
     }
 
@@ -264,46 +266,55 @@ impl ProducesSnapshot for AgentControllerPool {
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
-    use std::sync::atomic::AtomicU64;
 
     use futures::FutureExt as _;
-    use parking_lot::RwLock;
+    use serde_json::Value;
     use serde_json::to_value;
     use tokio::sync::watch;
     use tokio_util::sync::CancellationToken;
 
     use paddler_messaging::agent_desired_model::AgentDesiredModel;
     use paddler_messaging::agent_desired_state::AgentDesiredState;
-    use paddler_messaging::atomic_value::AtomicValue;
     use paddler_messaging::balancer_desired_state::BalancerDesiredState;
     use paddler_messaging::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
-    use paddler_outbox::outbox::Outbox;
 
     use super::AgentControllerPool;
     use crate::agent_controller::AgentController;
+    use crate::agent_controller_params::AgentControllerParams;
     use crate::agent_desired_state_notification::agent_desired_state_notification;
-    use crate::agent_response_senders::AgentResponseSenders;
     use crate::balancer_applicable_state::BalancerApplicableState;
     use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 
-    #[test]
-    fn registering_an_agent_sends_it_the_current_desired_state_before_anything_else() {
-        let current_desired_state = BalancerDesiredState {
-            model: AgentDesiredModel::Uri("agent:///current/model.gguf".to_owned()),
+    fn desired_state_with_model(model_uri: &str) -> BalancerDesiredState {
+        BalancerDesiredState {
+            model: AgentDesiredModel::Uri(model_uri.to_owned()),
             ..BalancerDesiredState::default()
-        };
-        let (_applicable_state_tx, applicable_state_rx) = watch::channel(Arc::new(
-            BalancerApplicableState::from(current_desired_state.clone()),
-        ));
-        let agent_controller = Arc::new(AgentController {
-            agent_outbox: Outbox::default(),
-            agent_response_senders: AgentResponseSenders::default(),
+        }
+    }
+
+    fn registering_agent_controller() -> Arc<AgentController> {
+        Arc::new(AgentController::new(AgentControllerParams {
             connection_close: CancellationToken::new(),
             id: "registering".to_owned(),
             name: None,
-            reported_status: RwLock::new(SlotAggregatedStatusSnapshot::default()),
-            slots_processing: AtomicValue::<AtomicU64>::new(0),
-        });
+            reported_status: SlotAggregatedStatusSnapshot::default(),
+        }))
+    }
+
+    fn desired_state_notification_value(desired_state: BalancerDesiredState) -> Value {
+        to_value(agent_desired_state_notification(AgentDesiredState::from(
+            desired_state,
+        )))
+        .unwrap()
+    }
+
+    #[test]
+    fn registering_an_agent_sends_it_the_current_desired_state_before_anything_else() {
+        let current_desired_state = desired_state_with_model("agent:///current/model.gguf");
+        let (_applicable_state_tx, applicable_state_rx) = watch::channel(Arc::new(
+            BalancerApplicableState::from(current_desired_state.clone()),
+        ));
+        let agent_controller = registering_agent_controller();
         let _registration = Arc::new(AgentControllerPool::default()).register_agent_controller(
             agent_controller.clone(),
             &BalancerApplicableStateHolder::new(applicable_state_rx),
@@ -315,12 +326,7 @@ mod tests {
                 .next()
                 .now_or_never()
                 .map(|first_message| to_value(first_message).unwrap()),
-            Some(
-                to_value(agent_desired_state_notification(AgentDesiredState::from(
-                    current_desired_state
-                )))
-                .unwrap()
-            )
+            Some(desired_state_notification_value(current_desired_state))
         );
     }
 }

@@ -121,7 +121,11 @@ impl DecisionScheduler<'_> {
             return;
         }
 
-        match request.advance(&mut decoder, &self.scheduler_context.pointer_head) {
+        match request.advance(
+            &mut decoder,
+            &self.scheduler_context.pointer_head,
+            agent_name,
+        ) {
             Ok(DecisionAdvance::Continuing) => self.active_requests.push_back(request),
             Ok(DecisionAdvance::Completed) => {
                 let summary = request.summary();

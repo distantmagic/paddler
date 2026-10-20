@@ -51,6 +51,7 @@ fn a_decision_state_llama_cpp_rejects_fails_the_decision() {
                     n_batch,
                 },
                 &pointer_head,
+                None,
             )
             .err()
             .as_ref()

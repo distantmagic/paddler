@@ -35,12 +35,10 @@ impl Service for ReconciliationService {
                 changed = balancer_applicable_state_rx.changed() => {
                     changed.context("the desired state store stopped announcing applicable states")?;
 
-                    let agent_desired_state = balancer_applicable_state_rx
-                        .borrow_and_update()
-                        .agent_desired_state
-                        .clone();
+                    let balancer_applicable_state =
+                        balancer_applicable_state_rx.borrow_and_update().clone();
 
-                    agent_controller_pool.set_desired_state(&agent_desired_state);
+                    agent_controller_pool.set_desired_state(&balancer_applicable_state);
                 }
             }
         }

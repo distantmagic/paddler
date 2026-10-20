@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use llama_cpp_bindings::batch_add_error::BatchAddError;
 use llama_cpp_bindings::error::ClearKvCacheSeqError;
-use llama_cpp_bindings::error::DecodeError;
 use llama_cpp_bindings::error::EvalMultimodalChunksError;
 use llama_cpp_bindings::error::GrammarError;
 use llama_cpp_bindings::error::JsonSchemaToGrammarError;
@@ -151,9 +150,6 @@ pub enum TextGenerationError {
     #[error("failed to add a token to the batch: {0}")]
     BatchAssemblyFailed(#[source] BatchAddError),
 
-    #[error("failed to decode the leading BOS token of a multimodal prompt: {0}")]
-    LeadingBosDecodeFailed(#[source] DecodeError),
-
     #[error("failed to clear the KV cache of the sequence: {0}")]
     KvCacheClearFailed(#[source] ClearKvCacheSeqError),
 }
@@ -280,7 +276,6 @@ impl TextGenerationError {
                 GeneratedTokenResult::MultimodalIngestionFailed(message)
             }
             Self::BatchAssemblyFailed(_) => GeneratedTokenResult::BatchAssemblyFailed(message),
-            Self::LeadingBosDecodeFailed(_) => GeneratedTokenResult::DecodeFailed(message),
             Self::KvCacheClearFailed(_) => GeneratedTokenResult::KvCacheClearFailed(message),
         }
     }
@@ -292,7 +287,6 @@ mod tests {
 
     use llama_cpp_bindings::batch_add_error::BatchAddError;
     use llama_cpp_bindings::error::ClearKvCacheSeqError;
-    use llama_cpp_bindings::error::DecodeError;
     use llama_cpp_bindings::error::EvalMultimodalChunksError;
     use llama_cpp_bindings::error::FfiContractError;
     use llama_cpp_bindings::error::FfiStatusError;
@@ -593,10 +587,6 @@ mod tests {
                     },
                 ),
                 into_result: GeneratedTokenResult::KvCacheClearFailed,
-            },
-            ExpectedReport {
-                rejection: TextGenerationError::LeadingBosDecodeFailed(DecodeError::NoKvCacheSlot),
-                into_result: GeneratedTokenResult::DecodeFailed,
             },
             ExpectedReport {
                 rejection: TextGenerationError::ModelNotLoaded,

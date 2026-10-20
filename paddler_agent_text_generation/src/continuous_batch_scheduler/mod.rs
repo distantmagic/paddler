@@ -14,6 +14,7 @@ pub mod generating_contribution;
 pub mod ingesting_contribution;
 pub mod sequence_ordered_insertion_index;
 
+use std::mem;
 use std::slice;
 
 use llama_cpp_bindings::SampledTokenClassifier;
@@ -47,6 +48,7 @@ use crate::continuous_batch_request_phase::ContinuousBatchRequestPhase;
 use crate::continuous_batch_request_state::ContinuousBatchRequestState;
 use crate::continuous_batch_scheduler_context::ContinuousBatchSchedulerContext;
 use crate::continuous_batch_scheduler_params::ContinuousBatchSchedulerParams;
+use crate::leading_bos_ingestion::LeadingBosIngestion;
 use crate::multimodal_ingestion_progress::MultimodalIngestionProgress;
 use crate::prepared_generation_request::PreparedGenerationRequest;
 use crate::prepared_prompt::PreparedPrompt;
@@ -219,17 +221,28 @@ impl<'model> ContinuousBatchScheduler<'model> {
             sampled_tokens: 0,
         };
 
-        match prompt {
+        state.phase = match prompt {
             PreparedPrompt::TextTokens(prompt_tokens) => {
-                token_classifier.record_prompt_tokens(prompt_tokens.len() as u64);
-                token_classifier.ingest_prompt_tokens(&prompt_tokens);
                 state.prompt_tokens = prompt_tokens;
-            }
-            PreparedPrompt::Multimodal(ingestion) => {
-                state.phase = ContinuousBatchRequestPhase::IngestingMultimodal(ingestion);
-            }
-        }
 
+                ContinuousBatchRequestPhase::IngestingText
+            }
+            PreparedPrompt::Multimodal(mut ingestion) => match mem::replace(
+                &mut ingestion.leading_bos_ingestion,
+                LeadingBosIngestion::Skip,
+            ) {
+                LeadingBosIngestion::Ingest(bos_token) => {
+                    state.prompt_tokens = vec![bos_token];
+
+                    ContinuousBatchRequestPhase::IngestingLeadingBos(ingestion)
+                }
+                LeadingBosIngestion::Skip => {
+                    ContinuousBatchRequestPhase::IngestingMultimodal(ingestion)
+                }
+            },
+        };
+        token_classifier.record_prompt_tokens(state.prompt_tokens.len() as u64);
+        token_classifier.ingest_prompt_tokens(&state.prompt_tokens);
         state.last_outcome_section = token_classifier.current_section();
 
         Ok(ContinuousBatchActiveRequest {
@@ -254,8 +267,7 @@ impl<'model> ContinuousBatchScheduler<'model> {
 
             match ingestion.ingest_next_chunk(
                 &mut active_request.token_classifier,
-                &mut self.llama_context,
-                &mut self.batch,
+                &self.llama_context,
                 active_request.sequence_id_guard.sequence_id(),
                 active_request.state.current_token_position,
             ) {

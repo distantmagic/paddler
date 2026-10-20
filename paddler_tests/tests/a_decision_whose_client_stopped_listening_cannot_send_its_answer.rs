@@ -56,6 +56,7 @@ fn a_decision_whose_client_stopped_listening_cannot_send_its_answer() {
                 n_batch,
             },
             &pointer_head,
+            None,
         )
         .expect("the decision must advance");
 
@@ -68,6 +69,7 @@ fn a_decision_whose_client_stopped_listening_cannot_send_its_answer() {
                     n_batch,
                 },
                 &pointer_head,
+                None,
             )
             .err()
             .as_ref()

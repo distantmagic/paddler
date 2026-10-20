@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::sync::atomic::AtomicU64;
 
 use actix_web::rt;
 use log::error;
@@ -8,7 +7,6 @@ use parking_lot::RwLock;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
 
-use paddler_messaging::atomic_value::AtomicValue;
 use paddler_messaging::jsonrpc::response_envelope::ResponseEnvelope;
 use paddler_messaging::management_socket::agent::message::Message as AgentJsonRpcMessage;
 use paddler_messaging::management_socket::agent::response::Response as AgentJsonRpcResponse;
@@ -16,14 +14,13 @@ use paddler_messaging::management_socket::balancer::message::Message as Manageme
 use paddler_messaging::management_socket::balancer::notification::Notification as ManagementJsonRpcNotification;
 use paddler_messaging::management_socket::balancer::notification_params::register_agent_params::RegisterAgentParams;
 use paddler_messaging::management_socket::balancer::notification_params::update_agent_status_params::UpdateAgentStatusParams;
-use paddler_outbox::outbox::Outbox;
 
 use super::agent_socket_registration::AgentSocketRegistration;
 use crate::agent_controller::AgentController;
+use crate::agent_controller_params::AgentControllerParams;
 use crate::agent_controller_pool::AgentControllerPool;
 use crate::agent_controller_registration::AgentControllerRegistration;
 use crate::agent_controller_update_result::AgentControllerUpdateResult;
-use crate::agent_response_senders::AgentResponseSenders;
 use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::continuation_decision::ContinuationDecision;
 use crate::controls_session::ControlsSession as _;
@@ -104,15 +101,12 @@ impl AgentSocketControllerContext {
         }: RegisterAgentParams,
         mut websocket_session_controller: WebSocketSessionController<AgentJsonRpcMessage>,
     ) -> ContinuationDecision {
-        let agent_controller = Arc::new(AgentController {
-            agent_outbox: Outbox::default(),
-            agent_response_senders: AgentResponseSenders::default(),
+        let agent_controller = Arc::new(AgentController::new(AgentControllerParams {
             connection_close: connection_close.clone(),
             id: self.agent_id.clone(),
             name,
-            reported_status: RwLock::new(slot_aggregated_status_snapshot),
-            slots_processing: AtomicValue::<AtomicU64>::new(0),
-        });
+            reported_status: slot_aggregated_status_snapshot,
+        }));
 
         let registered_agent_controller_guard =
             match self.agent_controller_pool.register_agent_controller(

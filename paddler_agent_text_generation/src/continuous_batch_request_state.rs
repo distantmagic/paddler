@@ -1,3 +1,4 @@
+use std::mem;
 use std::num::NonZeroU32;
 
 use llama_cpp_bindings::SampledToken;
@@ -49,11 +50,8 @@ impl ContinuousBatchRequestState {
         self.current_token_position = next_token_position;
 
         if is_last_chunk {
-            self.phase = ContinuousBatchRequestPhase::Generating(
-                ContinuousBatchGenerationStep::ReadyToSample {
-                    batch_position: last_batch_position,
-                },
-            );
+            self.phase = mem::replace(&mut self.phase, ContinuousBatchRequestPhase::IngestingText)
+                .after_its_text_prompt(last_batch_position);
         }
     }
 
@@ -94,6 +92,7 @@ impl ContinuousBatchRequestState {
             ContinuousBatchRequestPhase::Completed(terminal_outcome) => terminal_outcome,
             ContinuousBatchRequestPhase::Generating(_)
             | ContinuousBatchRequestPhase::IngestingText
+            | ContinuousBatchRequestPhase::IngestingLeadingBos(_)
             | ContinuousBatchRequestPhase::IngestingMultimodal(_) => {
                 ContinuousBatchTerminalOutcome::EmitNothing
             }

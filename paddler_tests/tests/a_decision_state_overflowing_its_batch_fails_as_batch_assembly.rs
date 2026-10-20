@@ -59,6 +59,7 @@ fn a_decision_state_overflowing_its_batch_fails_as_batch_assembly() {
                     n_batch,
                 },
                 &pointer_head,
+                None,
             )
             .err()
             .as_ref()

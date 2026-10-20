@@ -6,6 +6,7 @@ pub mod await_scheduler_startup;
 pub mod continue_startup_unless_shutting_down;
 pub mod converts_to_llama_kv_cache_dtype;
 pub mod inference_runtime_context;
+pub mod inference_runtime_context_params;
 pub mod inference_thread_count;
 pub mod join_scheduler_thread;
 pub mod join_scheduler_thread_in_background;

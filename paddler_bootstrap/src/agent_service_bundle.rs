@@ -13,17 +13,13 @@ use paddler_agent::desired_state_reconciler::DesiredStateReconciler;
 use paddler_agent::llamacpp_arbiter_service::LlamaCppArbiterService;
 use paddler_agent::management_socket_client_service::ManagementSocketClientService;
 use paddler_agent::reconciliation_service::ReconciliationService;
-use paddler_agent_runtime::agent_vram_residencies::AgentVramResidencies;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
-use paddler_agent_runtime::model_metadata_holder::ModelMetadataHolder;
-use paddler_agent_runtime::shared_llama_backend::SharedLlamaBackend;
-use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
+use paddler_agent_runtime::inference_runtime_context_params::InferenceRuntimeContextParams;
 use paddler_messaging::agent_desired_state::AgentDesiredState;
 use paddler_messaging::api_path::ApiPath;
+use paddler_outbox::outbox::Outbox;
 
 use crate::agent_bootstrap_config::AgentBootstrapConfig;
-use paddler_agent_runtime::system_parallelism::SystemParallelism;
-use paddler_outbox::outbox::Outbox;
 
 pub struct AgentServiceBundle {
     llamacpp_arbiter: LlamaCppArbiterService,
@@ -49,20 +45,18 @@ impl AgentServiceBundle {
         let pipeline_requests = Arc::new(Outbox::default());
 
         let agent_applicable_state_holder = Arc::new(AgentApplicableStateHolder::default());
-        let model_metadata_holder = Arc::new(ModelMetadataHolder::default());
         let served_applicable_state_holder = Arc::new(AgentApplicableStateHolder::default());
-        let slot_aggregated_status = Arc::new(SlotAggregatedStatus::new(slots));
+        let inference_runtime_context =
+            InferenceRuntimeContext::new(InferenceRuntimeContextParams {
+                agent_name: agent_name.clone(),
+                slots,
+            });
+        let model_metadata_holder = inference_runtime_context.model_metadata_holder.clone();
+        let slot_aggregated_status = inference_runtime_context.slot_aggregated_status.clone();
 
         let llamacpp_arbiter = LlamaCppArbiterService {
             agent_applicable_state_holder: agent_applicable_state_holder.clone(),
-            inference_runtime_context: InferenceRuntimeContext {
-                agent_name: agent_name.clone(),
-                available_parallelism: Arc::new(SystemParallelism),
-                llama_backend: Arc::new(SharedLlamaBackend::default()),
-                model_metadata_holder: model_metadata_holder.clone(),
-                slot_aggregated_status: slot_aggregated_status.clone(),
-                vram_residencies: AgentVramResidencies::default(),
-            },
+            inference_runtime_context,
             pipeline_requests: pipeline_requests.clone(),
             served_applicable_state_holder: served_applicable_state_holder.clone(),
         };

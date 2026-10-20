@@ -56,6 +56,7 @@ fn a_question_lane_beyond_the_decision_context_cannot_be_cleared_for_the_state()
                 n_batch,
             },
             &pointer_head,
+            None,
         )
         .expect("the decision must advance");
 
@@ -68,6 +69,7 @@ fn a_question_lane_beyond_the_decision_context_cannot_be_cleared_for_the_state()
                     n_batch,
                 },
                 &pointer_head,
+                None,
             )
             .err()
             .as_ref()

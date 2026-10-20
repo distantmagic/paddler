@@ -81,9 +81,12 @@ impl AssembleBatchPhase {
             if !matches!(
                 request.state.phase,
                 ContinuousBatchRequestPhase::IngestingText
+                    | ContinuousBatchRequestPhase::IngestingLeadingBos(_)
             ) {
                 continue;
             }
+
+            let samples_after_its_text_prompt = request.state.phase.samples_after_its_text_prompt();
 
             let remaining = request.state.remaining_prompt_tokens();
             let chunk_size = compute_ingesting_chunk_size(
@@ -113,7 +116,7 @@ impl AssembleBatchPhase {
                     &SampledToken::Content(*token),
                     position,
                     &[request.sequence_id_guard.sequence_id().llama_sequence_id()],
-                    is_last_token_of_prompt,
+                    is_last_token_of_prompt && samples_after_its_text_prompt,
                 )?;
 
                 next_token_position = position + 1;

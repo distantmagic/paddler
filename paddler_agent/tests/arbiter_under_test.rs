@@ -5,12 +5,8 @@ use tokio_util::sync::CancellationToken;
 use paddler_agent::agent_applicable_state_holder::AgentApplicableStateHolder;
 use paddler_agent::pipeline_arbiter::PipelineArbiter;
 use paddler_agent::pipeline_arbiter_params::PipelineArbiterParams;
-use paddler_agent_runtime::agent_vram_residencies::AgentVramResidencies;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
-use paddler_agent_runtime::model_metadata_holder::ModelMetadataHolder;
-use paddler_agent_runtime::shared_llama_backend::SharedLlamaBackend;
-use paddler_agent_runtime::system_parallelism::SystemParallelism;
-use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
+use paddler_agent_runtime::inference_runtime_context_params::InferenceRuntimeContextParams;
 use paddler_messaging::agent_state_application_status::AgentStateApplicationStatus;
 
 pub struct ArbiterUnderTest {
@@ -21,14 +17,11 @@ pub struct ArbiterUnderTest {
 
 impl ArbiterUnderTest {
     pub fn new(agent_shutdown: CancellationToken) -> Self {
-        let inference_runtime_context = InferenceRuntimeContext {
-            agent_name: Some("agent".to_owned()),
-            available_parallelism: Arc::new(SystemParallelism),
-            llama_backend: Arc::new(SharedLlamaBackend::default()),
-            model_metadata_holder: Arc::new(ModelMetadataHolder::default()),
-            slot_aggregated_status: Arc::new(SlotAggregatedStatus::new(1)),
-            vram_residencies: AgentVramResidencies::default(),
-        };
+        let inference_runtime_context =
+            InferenceRuntimeContext::new(InferenceRuntimeContextParams {
+                agent_name: Some("agent".to_owned()),
+                slots: 1,
+            });
         let served_applicable_state_holder = Arc::new(AgentApplicableStateHolder::default());
 
         Self {

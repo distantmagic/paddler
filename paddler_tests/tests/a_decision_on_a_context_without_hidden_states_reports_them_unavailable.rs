@@ -53,6 +53,7 @@ fn a_decision_on_a_context_without_hidden_states_reports_them_unavailable() {
                 n_batch,
             },
             &pointer_head,
+            None,
         )
         .expect("the decision must advance");
 
@@ -65,6 +66,7 @@ fn a_decision_on_a_context_without_hidden_states_reports_them_unavailable() {
                     n_batch,
                 },
                 &pointer_head,
+                None,
             )
             .err()
             .as_ref()

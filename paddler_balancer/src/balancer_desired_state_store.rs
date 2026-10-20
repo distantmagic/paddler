@@ -57,10 +57,14 @@ impl BalancerDesiredStateStore {
         self.state_database
             .store_balancer_desired_state(&balancer_desired_state)
             .await?;
+
+        let superseding_applicable_state = self
+            .balancer_applicable_state_tx
+            .borrow()
+            .superseded_by(balancer_desired_state);
+
         self.balancer_applicable_state_tx
-            .send_replace(Arc::new(BalancerApplicableState::from(
-                balancer_desired_state,
-            )));
+            .send_replace(Arc::new(superseding_applicable_state));
 
         Ok(())
     }

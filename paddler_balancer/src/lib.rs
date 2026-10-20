@@ -1,5 +1,6 @@
 pub mod accept_newer_status_report;
 pub mod agent_controller;
+pub mod agent_controller_params;
 pub mod agent_controller_pool;
 mod agent_controller_pool_total_slots;
 pub mod agent_controller_pool_updates;

@@ -46,7 +46,6 @@ pub mod point_qwen3_special_token_at_unused_padding;
 pub mod post_openai_chat_completion;
 pub mod prepared_decision;
 pub mod question_answered_discriminant;
-pub mod question_lane_release_that_fails;
 pub mod questions_outlasting_a_disconnect;
 pub mod qwen3_0_6b_newline_token;
 pub mod qwen3_0_6b_unused_padding_token;

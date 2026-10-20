@@ -68,12 +68,8 @@ mod tests {
     use tokio_util::sync::CancellationToken;
     use trzcina::Service;
 
-    use paddler_agent_runtime::agent_vram_residencies::AgentVramResidencies;
     use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
-    use paddler_agent_runtime::model_metadata_holder::ModelMetadataHolder;
-    use paddler_agent_runtime::shared_llama_backend::SharedLlamaBackend;
-    use paddler_agent_runtime::system_parallelism::SystemParallelism;
-    use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
+    use paddler_agent_runtime::inference_runtime_context_params::InferenceRuntimeContextParams;
     use paddler_outbox::outbox::Outbox;
 
     use super::LlamaCppArbiterService;
@@ -84,14 +80,12 @@ mod tests {
         let agent_shutdown = CancellationToken::new();
         let service = LlamaCppArbiterService {
             agent_applicable_state_holder: Arc::new(AgentApplicableStateHolder::default()),
-            inference_runtime_context: InferenceRuntimeContext {
-                agent_name: None,
-                available_parallelism: Arc::new(SystemParallelism),
-                llama_backend: Arc::new(SharedLlamaBackend::default()),
-                model_metadata_holder: Arc::new(ModelMetadataHolder::default()),
-                slot_aggregated_status: Arc::new(SlotAggregatedStatus::new(1)),
-                vram_residencies: AgentVramResidencies::default(),
-            },
+            inference_runtime_context: InferenceRuntimeContext::new(
+                InferenceRuntimeContextParams {
+                    agent_name: None,
+                    slots: 1,
+                },
+            ),
             pipeline_requests: Arc::new(Outbox::default()),
             served_applicable_state_holder: Arc::new(AgentApplicableStateHolder::default()),
         };

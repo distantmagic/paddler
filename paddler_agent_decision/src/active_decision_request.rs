@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::mem;
 use std::time::Instant;
 
 use llama_cpp_bindings::token::LlamaToken;
@@ -20,10 +21,8 @@ use crate::decision_error::DecisionError;
 use crate::decision_question_row::DecisionQuestionRow;
 use crate::decision_request_phase::DecisionRequestPhase;
 use crate::decision_token_layout::DecisionTokenLayout;
-use crate::llama_context_question_lane_release::LlamaContextQuestionLaneRelease;
 use crate::prepared_decision_request::PreparedDecisionRequest;
 use crate::question_lane::QuestionLane;
-use crate::releases_question_lane::ReleasesQuestionLane;
 use crate::reports_decision_outcome::ReportsDecisionOutcome;
 
 pub struct ActiveDecisionRequest {
@@ -34,7 +33,6 @@ pub struct ActiveDecisionRequest {
     pub input_tokens: usize,
     pub phase: DecisionRequestPhase,
     pub question_lane: QuestionLane,
-    pub question_lane_release: Box<dyn ReleasesQuestionLane>,
     pub remaining_questions: VecDeque<DecisionQuestionRow>,
     pub slot_guard: SlotGuard,
     pub started_at: Instant,
@@ -72,7 +70,6 @@ impl ActiveDecisionRequest {
             input_tokens,
             phase: DecisionRequestPhase::IngestingState { next_offset: 0 },
             question_lane,
-            question_lane_release: Box::new(LlamaContextQuestionLaneRelease),
             remaining_questions,
             slot_guard,
             started_at,
@@ -85,6 +82,7 @@ impl ActiveDecisionRequest {
         &mut self,
         decoder: &mut DecisionDecoder,
         pointer_head: &PointerHead,
+        agent_name: Option<&str>,
     ) -> Result<DecisionAdvance, DecisionError> {
         match self.phase {
             DecisionRequestPhase::IngestingState { next_offset } => {
@@ -109,19 +107,20 @@ impl ActiveDecisionRequest {
                     self.answer_leading_question(
                         decoder,
                         pointer_head,
+                        agent_name,
                         lane_sequence_id,
                         next_offset,
                     )
                 }
                 QuestionLane::Released => {
-                    self.answer_last_question(decoder, pointer_head, next_offset)
+                    self.answer_last_question(decoder, pointer_head, agent_name, next_offset)
                 }
             },
         }
     }
 
     pub fn finish_with<TOutcome: ReportsDecisionOutcome>(
-        self,
+        mut self,
         decoder: &mut DecisionDecoder,
         agent_name: Option<&str>,
         outcome: TOutcome,
@@ -129,11 +128,7 @@ impl ActiveDecisionRequest {
         self.state_sequence
             .sequence_id()
             .release_kv_cache_in(decoder.llama_context, agent_name);
-
-        if let QuestionLane::Reserved(lane) = &self.question_lane {
-            lane.sequence_id()
-                .release_kv_cache_in(decoder.llama_context, agent_name);
-        }
+        self.release_question_lane(decoder, agent_name);
 
         outcome.report(agent_name, &self.decision_result_tx);
     }
@@ -154,6 +149,7 @@ impl ActiveDecisionRequest {
         &mut self,
         decoder: &mut DecisionDecoder,
         pointer_head: &PointerHead,
+        agent_name: Option<&str>,
         next_offset: usize,
     ) -> Result<DecisionAdvance, DecisionError> {
         let next_offset =
@@ -167,13 +163,14 @@ impl ActiveDecisionRequest {
 
         self.send_answer(pointer_head)?;
 
-        Ok(self.finish_question())
+        Ok(self.finish_question(decoder, agent_name))
     }
 
     fn answer_leading_question(
         &mut self,
         decoder: &mut DecisionDecoder,
         pointer_head: &PointerHead,
+        agent_name: Option<&str>,
         lane_sequence_id: SequenceId,
         next_offset: usize,
     ) -> Result<DecisionAdvance, DecisionError> {
@@ -190,10 +187,8 @@ impl ActiveDecisionRequest {
         }
 
         self.send_answer(pointer_head)?;
-        self.question_lane_release
-            .release_question_lane(decoder, lane_sequence_id)?;
 
-        Ok(self.finish_question())
+        Ok(self.finish_question(decoder, agent_name))
     }
 
     fn decode_question_chunk(
@@ -211,7 +206,11 @@ impl ActiveDecisionRequest {
         )
     }
 
-    fn finish_question(&mut self) -> DecisionAdvance {
+    fn finish_question(
+        &mut self,
+        decoder: &mut DecisionDecoder,
+        agent_name: Option<&str>,
+    ) -> DecisionAdvance {
         let Some(next_question) = self.remaining_questions.pop_front() else {
             return DecisionAdvance::Completed;
         };
@@ -219,12 +218,21 @@ impl ActiveDecisionRequest {
         self.current_question = next_question;
 
         if self.remaining_questions.is_empty() {
-            self.question_lane = QuestionLane::Released;
+            self.release_question_lane(decoder, agent_name);
         }
 
         self.phase = DecisionRequestPhase::AnsweringQuestion { next_offset: 0 };
 
         DecisionAdvance::Continuing
+    }
+
+    fn release_question_lane(&mut self, decoder: &mut DecisionDecoder, agent_name: Option<&str>) {
+        if let QuestionLane::Reserved(lane) =
+            mem::replace(&mut self.question_lane, QuestionLane::Released)
+        {
+            lane.sequence_id()
+                .release_kv_cache_in(decoder.llama_context, agent_name);
+        }
     }
 
     fn send_answer(&mut self, pointer_head: &PointerHead) -> Result<(), DecisionError> {

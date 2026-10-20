@@ -60,6 +60,7 @@ fn a_last_decision_question_overflowing_its_batch_fails_as_batch_assembly() {
                     n_batch: TOKENS_THE_BATCH_HOLDS.get().into(),
                 },
                 &pointer_head,
+                None,
             )
             .expect("the decision must advance");
     }
@@ -73,6 +74,7 @@ fn a_last_decision_question_overflowing_its_batch_fails_as_batch_assembly() {
                     n_batch: TOKENS_PER_QUESTION_CHUNK,
                 },
                 &pointer_head,
+                None,
             )
             .err()
             .as_ref()
