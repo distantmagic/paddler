@@ -8,29 +8,48 @@ use paddler_messaging::conversation_history::ConversationHistory;
 use paddler_messaging::conversation_message::ConversationMessage;
 use paddler_messaging::conversation_message_content::ConversationMessageContent;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
+use paddler_messaging::generation_finish::GenerationFinish;
+use paddler_messaging::generation_summary::GenerationSummary;
 use paddler_messaging::request_params::continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_test_cluster_harness::token_result_with_producer::TokenResultWithProducer;
-use paddler_tests::start_cluster_with_qwen3_5::start_cluster_with_qwen3_5;
+use paddler_tests::start_cluster_with_qwen3_5_without_endless_repetitions::start_cluster_with_qwen3_5_without_endless_repetitions;
 
 #[tokio::test(flavor = "multi_thread")]
-async fn qwen35_thinking_mode_ends_within_max_tokens() {
-    let cluster = start_cluster_with_qwen3_5(vec![AgentConfig::single(1)], false)
-        .await
-        .expect("the cluster must start");
+async fn qwen35_thinking_multi_turn_conversation_stops_cleanly() {
+    let cluster =
+        start_cluster_with_qwen3_5_without_endless_repetitions(vec![AgentConfig::single(1)])
+            .await
+            .expect("the cluster must start");
+
+    let conversation_history = ConversationHistory::new(vec![
+        ConversationMessage {
+            content: ConversationMessageContent::Text(
+                "You are a helpful assistant. Give engaging, short, precise answers. Be friendly, supportive, use emojis.".to_owned(),
+            ),
+            role: "system".to_owned(),
+        },
+        ConversationMessage {
+            content: ConversationMessageContent::Text(
+                "Hello! How can I help you today?".to_owned(),
+            ),
+            role: "assistant".to_owned(),
+        },
+        ConversationMessage {
+            content: ConversationMessageContent::Text("hi".to_owned()),
+            role: "user".to_owned(),
+        },
+    ]);
 
     let collected = cluster
         .continue_from_conversation_history(
             CancellationToken::new(),
             &ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
-                conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Text("What is 2+2?".to_owned()),
-                    role: "user".to_owned(),
-                }]),
+                conversation_history,
                 enable_thinking: true,
                 grammar: None,
-                max_tokens: NonZeroU32::new(2000).unwrap(),
+                max_tokens: NonZeroU32::new(1000).unwrap(),
                 parse_tool_calls: false,
                 tools: vec![],
             },
@@ -45,11 +64,13 @@ async fn qwen35_thinking_mode_ends_within_max_tokens() {
         .count();
 
     assert!(token_count > 0);
-    assert!(token_count <= 2000);
     assert!(matches!(
         collected.token_results.last(),
         Some(TokenResultWithProducer {
-            token_result: GeneratedTokenResult::Done(_),
+            token_result: GeneratedTokenResult::Done(GenerationSummary {
+                finish: GenerationFinish::EndOfGeneration,
+                ..
+            }),
             ..
         })
     ));

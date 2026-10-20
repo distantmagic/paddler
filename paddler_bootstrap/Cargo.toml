@@ -25,6 +25,7 @@ paddler_agent_status = { workspace = true }
 paddler_balancer = { workspace = true }
 paddler_cache_dir = { workspace = true }
 paddler_messaging = { workspace = true }
+paddler_outbox = { workspace = true }
 paddler_state_database = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }

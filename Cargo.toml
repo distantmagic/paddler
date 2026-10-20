@@ -22,6 +22,7 @@ members = [
     "paddler_openai_response_format_validator",
     "paddler_openai_translation",
     "paddler_opencode_tests",
+    "paddler_outbox",
     "paddler_request_registry",
     "paddler_state_database",
     "paddler_test_cluster_harness",
@@ -123,6 +124,7 @@ paddler_messaging = { version = "5.0", path = "paddler_messaging" }
 paddler_model_source = { version = "5.0", path = "paddler_model_source" }
 paddler_openai_response_format_validator = { version = "5.0", path = "paddler_openai_response_format_validator" }
 paddler_openai_translation = { version = "5.0", path = "paddler_openai_translation" }
+paddler_outbox = { version = "5.0", path = "paddler_outbox" }
 paddler_request_registry = { version = "5.0", path = "paddler_request_registry" }
 paddler_state_database = { version = "5.0", path = "paddler_state_database" }
 paddler_test_cluster_harness = { version = "5.0", path = "paddler_test_cluster_harness" }

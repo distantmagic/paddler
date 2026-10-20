@@ -3,11 +3,11 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 use tokio::select;
-use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use trzcina::Service;
 
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
+use paddler_outbox::outbox::Outbox;
 
 use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
 use crate::pipeline_arbiter::PipelineArbiter;
@@ -17,7 +17,7 @@ use crate::pipeline_request::PipelineRequest;
 pub struct LlamaCppArbiterService {
     pub agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
     pub inference_runtime_context: InferenceRuntimeContext,
-    pub pipeline_request_rx: mpsc::UnboundedReceiver<PipelineRequest>,
+    pub pipeline_requests: Arc<Outbox<PipelineRequest>>,
     pub served_applicable_state_holder: Arc<AgentApplicableStateHolder>,
 }
 
@@ -31,7 +31,7 @@ impl Service for LlamaCppArbiterService {
         let Self {
             agent_applicable_state_holder,
             inference_runtime_context,
-            mut pipeline_request_rx,
+            pipeline_requests,
             served_applicable_state_holder,
         } = *self;
         let mut agent_applicable_state_rx = agent_applicable_state_holder.subscribe();
@@ -51,10 +51,7 @@ impl Service for LlamaCppArbiterService {
                 finished_pipeline_startup = pipeline_arbiter.next_finished_startup() => {
                     pipeline_arbiter.conclude(finished_pipeline_startup);
                 }
-                pipeline_request = pipeline_request_rx.recv() => match pipeline_request {
-                    Some(pipeline_request) => pipeline_arbiter.forward(pipeline_request),
-                    None => break Ok(()),
-                },
+                pipeline_request = pipeline_requests.next() => pipeline_arbiter.forward(pipeline_request),
             }
         };
 
@@ -68,7 +65,6 @@ impl Service for LlamaCppArbiterService {
 mod tests {
     use std::sync::Arc;
 
-    use tokio::sync::mpsc;
     use tokio_util::sync::CancellationToken;
     use trzcina::Service;
 
@@ -78,13 +74,14 @@ mod tests {
     use paddler_agent_runtime::shared_llama_backend::SharedLlamaBackend;
     use paddler_agent_runtime::system_parallelism::SystemParallelism;
     use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
+    use paddler_outbox::outbox::Outbox;
 
     use super::LlamaCppArbiterService;
     use crate::agent_applicable_state_holder::AgentApplicableStateHolder;
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn exits_when_its_request_channel_closes() {
-        let (pipeline_request_tx, pipeline_request_rx) = mpsc::unbounded_channel();
+    async fn exits_when_the_agent_shuts_down() {
+        let agent_shutdown = CancellationToken::new();
         let service = LlamaCppArbiterService {
             agent_applicable_state_holder: Arc::new(AgentApplicableStateHolder::default()),
             inference_runtime_context: InferenceRuntimeContext {
@@ -95,15 +92,15 @@ mod tests {
                 slot_aggregated_status: Arc::new(SlotAggregatedStatus::new(1)),
                 vram_residencies: AgentVramResidencies::default(),
             },
-            pipeline_request_rx,
+            pipeline_requests: Arc::new(Outbox::default()),
             served_applicable_state_holder: Arc::new(AgentApplicableStateHolder::default()),
         };
 
-        drop(pipeline_request_tx);
+        agent_shutdown.cancel();
 
         Box::new(service)
-            .run(CancellationToken::new())
+            .run(agent_shutdown)
             .await
-            .expect("the service must finish cleanly once no request can arrive");
+            .expect("the service must finish cleanly once the agent shuts down");
     }
 }

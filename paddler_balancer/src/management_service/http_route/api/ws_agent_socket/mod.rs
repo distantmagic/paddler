@@ -34,6 +34,7 @@ use paddler_messaging::management_socket::balancer::message::Message as Manageme
 use paddler_messaging::management_socket::balancer::notification::Notification as ManagementJsonRpcNotification;
 use paddler_messaging::management_socket::balancer::notification_params::register_agent_params::RegisterAgentParams;
 use paddler_messaging::management_socket::balancer::notification_params::update_agent_status_params::UpdateAgentStatusParams;
+use paddler_outbox::outbox::Outbox;
 use paddler_request_registry::request_delivery::RequestDelivery;
 
 use self::agent_socket_controller_context::AgentSocketControllerContext;
@@ -43,7 +44,6 @@ use crate::agent_controller_pool::AgentControllerPool;
 use crate::agent_controller_registration::AgentControllerRegistration;
 use crate::agent_controller_update_result::AgentControllerUpdateResult;
 use crate::agent_id_path_params::AgentIdPathParams;
-use crate::agent_outbox::AgentOutbox;
 use crate::agent_response_senders::AgentResponseSenders;
 use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::continuation_decision::ContinuationDecision;
@@ -130,7 +130,7 @@ impl ControlsWebSocketEndpoint for AgentSocketController {
                 }),
             ) => {
                 let agent_controller = Arc::new(AgentController {
-                    agent_outbox: AgentOutbox::default(),
+                    agent_outbox: Outbox::default(),
                     agent_response_senders: context.agent_response_senders.clone(),
                     connection_close: connection_close.clone(),
                     id: context.agent_id.clone(),

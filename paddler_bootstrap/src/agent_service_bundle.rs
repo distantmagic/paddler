@@ -3,7 +3,6 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 use nanoid::nanoid;
-use tokio::sync::mpsc;
 use tokio::sync::watch;
 use trzcina::Service;
 use trzcina::ServiceBundle;
@@ -13,7 +12,6 @@ use paddler_agent::balancer_message_context::BalancerMessageContext;
 use paddler_agent::desired_state_reconciler::DesiredStateReconciler;
 use paddler_agent::llamacpp_arbiter_service::LlamaCppArbiterService;
 use paddler_agent::management_socket_client_service::ManagementSocketClientService;
-use paddler_agent::pipeline_request::PipelineRequest;
 use paddler_agent::reconciliation_service::ReconciliationService;
 use paddler_agent_runtime::agent_vram_residencies::AgentVramResidencies;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
@@ -25,6 +23,7 @@ use paddler_messaging::api_path::ApiPath;
 
 use crate::agent_bootstrap_config::AgentBootstrapConfig;
 use paddler_agent_runtime::system_parallelism::SystemParallelism;
+use paddler_outbox::outbox::Outbox;
 
 pub struct AgentServiceBundle {
     llamacpp_arbiter: LlamaCppArbiterService,
@@ -47,8 +46,7 @@ impl AgentServiceBundle {
 
         agent_desired_state_rx.mark_changed();
 
-        let (pipeline_request_tx, pipeline_request_rx) =
-            mpsc::unbounded_channel::<PipelineRequest>();
+        let pipeline_requests = Arc::new(Outbox::default());
 
         let agent_applicable_state_holder = Arc::new(AgentApplicableStateHolder::default());
         let model_metadata_holder = Arc::new(ModelMetadataHolder::default());
@@ -65,7 +63,7 @@ impl AgentServiceBundle {
                 slot_aggregated_status: slot_aggregated_status.clone(),
                 vram_residencies: AgentVramResidencies::default(),
             },
-            pipeline_request_rx,
+            pipeline_requests: pipeline_requests.clone(),
             served_applicable_state_holder: served_applicable_state_holder.clone(),
         };
 
@@ -73,7 +71,7 @@ impl AgentServiceBundle {
             balancer_message_context: BalancerMessageContext {
                 agent_desired_state_tx,
                 model_metadata_holder,
-                pipeline_request_tx,
+                pipeline_requests,
                 request_stoppers: Arc::default(),
                 served_applicable_state_holder,
                 slot_aggregated_status: slot_aggregated_status.clone(),

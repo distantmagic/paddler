@@ -45,3 +45,41 @@ where
 
     TypeSafeDecisionFailure::unfinished().into_http_response()
 }
+
+#[cfg(test)]
+mod tests {
+    use actix_web::body::to_bytes;
+    use actix_web::http::StatusCode;
+    use futures::stream::empty;
+    use serde_json::Value;
+    use serde_json::from_slice;
+    use serde_json::from_value;
+    use serde_json::json;
+
+    use paddler_messaging::decision_result::DecisionResult;
+    use paddler_typesafe_translation::system_one_request::SystemOneRequest;
+
+    use super::system_one_http_response;
+    use crate::compatibility::agent_result_stream_event::AgentResultStreamEvent;
+
+    #[actix_web::test]
+    async fn a_decision_stream_ending_without_a_result_answers_a_bad_gateway() {
+        let response = system_one_http_response(
+            &from_value::<SystemOneRequest>(
+                json!({"state": "state", "questions": {"paid": {"type": "noul"}}}),
+            )
+            .unwrap()
+            .translate()
+            .unwrap()
+            .response_layout,
+            empty::<AgentResultStreamEvent<DecisionResult>>(),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+        assert_eq!(
+            from_slice::<Value>(&to_bytes(response.into_body()).await.unwrap()).unwrap(),
+            json!({"detail": "the agent stopped before it finished the decision"})
+        );
+    }
+}

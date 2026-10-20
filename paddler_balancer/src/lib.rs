@@ -8,7 +8,6 @@ pub mod agent_controller_slot_guard;
 pub mod agent_controller_update_result;
 pub mod agent_desired_state_notification;
 pub mod agent_id_path_params;
-pub mod agent_outbox;
 pub mod agent_relay_error;
 mod agent_response_forwarding_mode;
 pub mod agent_response_receiver;

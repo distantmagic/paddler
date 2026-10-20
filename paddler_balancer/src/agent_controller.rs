@@ -16,18 +16,18 @@ use paddler_messaging::management_socket::agent::request::Request as AgentJsonRp
 use paddler_messaging::model_metadata::ModelMetadata;
 use paddler_messaging::produces_snapshot::ProducesSnapshot;
 use paddler_messaging::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
+use paddler_outbox::outbox::Outbox;
 
 use crate::accept_newer_status_report::accept_newer_status_report;
 use crate::agent_controller_update_result::AgentControllerUpdateResult;
 use crate::agent_desired_state_notification::agent_desired_state_notification;
-use crate::agent_outbox::AgentOutbox;
 use crate::agent_response_receiver::AgentResponseReceiver;
 use crate::agent_response_senders::AgentResponseSenders;
 use crate::agent_streaming_request::AgentStreamingRequest;
 use crate::response_senders::ResponseSenders;
 
 pub struct AgentController {
-    pub agent_outbox: AgentOutbox,
+    pub agent_outbox: Outbox<AgentJsonRpcMessage>,
     pub agent_response_senders: AgentResponseSenders,
     pub connection_close: CancellationToken,
     pub id: String,

@@ -32,6 +32,7 @@ nanoid = { workspace = true }
 paddler_inference_parameters = { workspace = true }
 paddler_messaging = { workspace = true }
 paddler_openai_translation = { workspace = true }
+paddler_outbox = { workspace = true }
 paddler_request_registry = { workspace = true }
 paddler_state_database = { workspace = true }
 paddler_typesafe_translation = { workspace = true }

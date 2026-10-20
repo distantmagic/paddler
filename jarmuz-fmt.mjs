@@ -30,6 +30,7 @@ jarmuz({
     "paddler_openai_response_format_validator",
     "paddler_openai_translation",
     "paddler_opencode_tests",
+    "paddler_outbox",
     "paddler_request_registry",
     "paddler_state_database",
     "paddler_test_cluster_harness",

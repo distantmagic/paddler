@@ -6,7 +6,6 @@ use log::error;
 use log::warn;
 use serde_json::from_str;
 use tokio::sync::mpsc;
-use tokio::sync::mpsc::error::SendError;
 use tokio::sync::watch;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
@@ -25,6 +24,7 @@ use paddler_messaging::management_socket::agent::notification_params::version_pa
 use paddler_messaging::management_socket::agent::request::Request as JsonRpcRequest;
 use paddler_messaging::management_socket::agent::response::Response as JsonRpcResponse;
 use paddler_messaging::reserved_request::ReservedRequest;
+use paddler_outbox::outbox::Outbox;
 use paddler_request_registry::request_delivery::RequestDelivery;
 use paddler_request_registry::request_registry::RequestRegistry;
 use paddler_request_registry::request_registry_guard::RequestRegistryGuard;
@@ -39,7 +39,7 @@ use crate::pipeline_response_stream::PipelineResponseStream;
 pub struct BalancerMessageContext {
     pub agent_desired_state_tx: watch::Sender<AgentDesiredState>,
     pub model_metadata_holder: Arc<ModelMetadataHolder>,
-    pub pipeline_request_tx: mpsc::UnboundedSender<PipelineRequest>,
+    pub pipeline_requests: Arc<Outbox<PipelineRequest>>,
     pub request_stoppers: Arc<RequestRegistry<mpsc::UnboundedSender<()>>>,
     pub served_applicable_state_holder: Arc<AgentApplicableStateHolder>,
     pub slot_aggregated_status: Arc<SlotAggregatedStatus>,
@@ -186,7 +186,7 @@ impl BalancerMessageContext {
             );
         };
 
-        match self.pipeline_request_tx.send(
+        self.pipeline_requests.push(
             AgentRequest {
                 params,
                 response_tx,
@@ -194,19 +194,14 @@ impl BalancerMessageContext {
                 stop_rx,
             }
             .into(),
-        ) {
-            Ok(()) => ManagementConnectionStep::StreamResponses(
-                PipelineResponseStream {
-                    response_rx,
-                    stopper_guard,
-                }
-                .boxed(),
-            ),
-            Err(SendError(_undelivered_request)) => {
-                error!("The inference arbiter stopped; deregistering the agent");
+        );
 
-                ManagementConnectionStep::Deregister
+        ManagementConnectionStep::StreamResponses(
+            PipelineResponseStream {
+                response_rx,
+                stopper_guard,
             }
-        }
+            .boxed(),
+        )
     }
 }
