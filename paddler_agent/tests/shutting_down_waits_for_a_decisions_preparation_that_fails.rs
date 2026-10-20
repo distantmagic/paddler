@@ -4,11 +4,9 @@ use tokio_util::sync::CancellationToken;
 
 use paddler_blocking_thread_fixture::occupied_blocking_thread::OccupiedBlockingThread;
 use paddler_blocking_thread_fixture::single_blocking_thread_runtime::single_blocking_thread_runtime;
-use paddler_messaging::agent_issue::AgentIssue;
-use paddler_messaging::agent_issue_params::slots_insufficient_for_decisions_params::SlotsInsufficientForDecisionsParams;
-use paddler_messaging::decision_slots_minimum::DECISION_SLOTS_MINIMUM;
 
 use crate::arbiter_under_test::ArbiterUnderTest;
+use crate::slots_insufficient_for_decisions::slots_insufficient_for_decisions;
 use crate::state_enabling_decisions::state_enabling_decisions;
 
 #[test]
@@ -44,11 +42,14 @@ fn shutting_down_waits_for_a_decisions_preparation_that_fails() {
                     .expect("the blocking thread occupant must be released");
             });
 
-            assert!(inference_runtime_context.slot_aggregated_status.has_issue(
-                &AgentIssue::SlotsInsufficientForDecisions(SlotsInsufficientForDecisionsParams {
-                    desired_slots: 1,
-                    required_slots: DECISION_SLOTS_MINIMUM.get(),
-                })
-            ));
+            assert!(
+                inference_runtime_context.slot_aggregated_status.has_issue(
+                    &slots_insufficient_for_decisions(
+                        inference_runtime_context
+                            .slot_aggregated_status
+                            .desired_slots_total
+                    )
+                )
+            );
         });
 }

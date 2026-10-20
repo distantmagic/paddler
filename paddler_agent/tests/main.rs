@@ -21,6 +21,10 @@ mod reconciliation_replaced_before_its_worker_runs;
 mod settings_whose_model_cannot_load;
 mod shutting_down_waits_for_a_decisions_preparation_that_fails;
 #[cfg(test)]
+mod slots_insufficient_for_decisions;
+#[cfg(test)]
+mod startup_superseded_while_its_blocking_work_waits;
+#[cfg(test)]
 mod state_enabling_decisions;
 #[cfg(test)]
 mod state_overriding_the_chat_template;
