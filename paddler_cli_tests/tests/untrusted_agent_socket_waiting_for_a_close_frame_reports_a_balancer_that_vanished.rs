@@ -10,8 +10,7 @@ use crate::agent_socket_of_a_vanished_balancer::AgentSocketOfAVanishedBalancer;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn untrusted_agent_socket_waiting_for_a_close_frame_reports_a_balancer_that_vanished() {
-    let mut agent_socket_of_a_vanished_balancer =
-        AgentSocketOfAVanishedBalancer::connect("agent-of-a-vanished-balancer").await;
+    let mut agent_socket_of_a_vanished_balancer = AgentSocketOfAVanishedBalancer::connect().await;
 
     let receive_error = agent_socket_of_a_vanished_balancer
         .agent_socket

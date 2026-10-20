@@ -4,13 +4,15 @@ use paddler_test_cluster_harness::cluster::Cluster;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
 use paddler_test_cluster_harness::untrusted_agent_socket_client::UntrustedAgentSocketClient;
 
+const AGENT_ID_OF_A_VANISHED_BALANCER: &str = "agent-of-a-vanished-balancer";
+
 pub struct AgentSocketOfAVanishedBalancer {
     pub agent_socket: UntrustedAgentSocketClient,
     pub cluster: Cluster,
 }
 
 impl AgentSocketOfAVanishedBalancer {
-    pub async fn connect(agent_id: &str) -> Self {
+    pub async fn connect() -> Self {
         let SubprocessCluster {
             balancer_signals,
             cluster,
@@ -24,11 +26,17 @@ impl AgentSocketOfAVanishedBalancer {
         )
         .await
         .expect("a cluster without agents must start");
-        let agent_socket =
-            UntrustedAgentSocketClient::connect(cluster.balancer.addresses.management, agent_id)
-                .await
-                .expect("the agent socket must reach the balancer");
+        let mut agent_socket = UntrustedAgentSocketClient::connect(
+            cluster.balancer.addresses.management,
+            AGENT_ID_OF_A_VANISHED_BALANCER,
+        )
+        .await
+        .expect("the agent socket must reach the balancer");
 
+        agent_socket
+            .next_text()
+            .await
+            .expect("the balancer must announce its version before it is killed");
         balancer_signals
             .kill()
             .expect("the balancer must be killed");

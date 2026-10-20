@@ -8,9 +8,7 @@ use crate::agent_socket_of_a_vanished_balancer::AgentSocketOfAVanishedBalancer;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn untrusted_agent_socket_waiting_for_text_reports_a_balancer_that_vanished() {
-    let mut agent_socket_of_a_vanished_balancer =
-        AgentSocketOfAVanishedBalancer::connect("agent-waiting-for-text-of-a-vanished-balancer")
-            .await;
+    let mut agent_socket_of_a_vanished_balancer = AgentSocketOfAVanishedBalancer::connect().await;
 
     assert_eq!(
         agent_socket_of_a_vanished_balancer
