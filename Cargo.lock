@@ -3210,6 +3210,7 @@ dependencies = [
  "paddler_agent_runtime",
  "paddler_agent_status",
  "paddler_agent_text_generation",
+ "paddler_blocking_thread_fixture",
  "paddler_cache_dir",
  "paddler_inference_parameters",
  "paddler_local_http_fixture",
@@ -3361,6 +3362,13 @@ dependencies = [
  "tokio-test",
  "tokio-util",
  "trzcina",
+]
+
+[[package]]
+name = "paddler_blocking_thread_fixture"
+version = "5.0.0"
+dependencies = [
+ "tokio",
 ]
 
 [[package]]
@@ -3682,6 +3690,7 @@ dependencies = [
  "paddler_agent_status",
  "paddler_agent_text_generation",
  "paddler_balancer",
+ "paddler_blocking_thread_fixture",
  "paddler_bootstrap",
  "paddler_cache_dir",
  "paddler_client",

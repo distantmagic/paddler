@@ -14,16 +14,12 @@ mod an_identical_state_is_not_applied_again;
 #[cfg(test)]
 mod arbiter_under_test;
 #[cfg(test)]
-mod occupied_blocking_thread;
-#[cfg(test)]
 mod reconciliation_after_replacement;
 #[cfg(test)]
 mod reconciliation_replaced_before_its_worker_runs;
 #[cfg(test)]
 mod settings_whose_model_cannot_load;
 mod shutting_down_waits_for_a_decisions_preparation_that_fails;
-#[cfg(test)]
-mod single_blocking_thread_runtime;
 #[cfg(test)]
 mod state_enabling_decisions;
 #[cfg(test)]

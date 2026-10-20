@@ -10,6 +10,8 @@ use paddler_agent::agent_applicable_state_holder::AgentApplicableStateHolder;
 use paddler_agent::desired_state_reconciler::DesiredStateReconciler;
 use paddler_agent::reconciliation_service::ReconciliationService;
 use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
+use paddler_blocking_thread_fixture::occupied_blocking_thread::OccupiedBlockingThread;
+use paddler_blocking_thread_fixture::single_blocking_thread_runtime::single_blocking_thread_runtime;
 use paddler_cache_dir::cache_dir::CacheDir;
 use paddler_local_http_fixture::fixture_response::FixtureResponse;
 use paddler_local_http_fixture::local_http_fixture::LocalHttpFixture;
@@ -18,9 +20,7 @@ use paddler_messaging::agent_desired_state::AgentDesiredState;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_messaging::subscribes_to_updates::SubscribesToUpdates as _;
 
-use crate::occupied_blocking_thread::OccupiedBlockingThread;
 use crate::reconciliation_after_replacement::ReconciliationAfterReplacement;
-use crate::single_blocking_thread_runtime::single_blocking_thread_runtime;
 
 pub struct ReconciliationReplacedBeforeItsWorkerRuns {
     pub replaced_desired_state: AgentDesiredState,
@@ -28,7 +28,9 @@ pub struct ReconciliationReplacedBeforeItsWorkerRuns {
 
 impl ReconciliationReplacedBeforeItsWorkerRuns {
     pub fn run(self) -> ReconciliationAfterReplacement {
-        single_blocking_thread_runtime().block_on(self.run_on_one_blocking_thread())
+        single_blocking_thread_runtime()
+            .expect("the test runtime must build")
+            .block_on(self.run_on_one_blocking_thread())
     }
 
     async fn run_on_one_blocking_thread(self) -> ReconciliationAfterReplacement {
@@ -69,7 +71,10 @@ impl ReconciliationReplacedBeforeItsWorkerRuns {
             model: AgentDesiredModel::Uri(stalled_model_server.url("/model.gguf")),
             ..AgentDesiredState::from(BalancerDesiredState::default())
         });
-        occupied_blocking_thread.release().await;
+        occupied_blocking_thread
+            .release()
+            .await
+            .expect("the blocking thread occupant must be released");
         stalled_model_server
             .wait_for_requests(1)
             .await

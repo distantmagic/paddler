@@ -204,6 +204,7 @@ test.coverage: esbuild-meta.json node_modules target/kev_0_8b/model.gguf target/
 		--gated paddler_agent_status=100 \
 		--gated paddler_agent_text_generation=96.77 \
 		--gated paddler_balancer=99 \
+		--gated paddler_blocking_thread_fixture=100 \
 		--gated paddler_bootstrap=100 \
 		--gated paddler_cache_dir=100 \
 		--gated paddler_cli=99 \

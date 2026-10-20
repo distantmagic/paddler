@@ -8,6 +8,7 @@ members = [
     "paddler_agent_status",
     "paddler_agent_text_generation",
     "paddler_balancer",
+    "paddler_blocking_thread_fixture",
     "paddler_bootstrap",
     "paddler_cache_dir",
     "paddler_cli",
@@ -112,6 +113,7 @@ paddler_agent_runtime = { version = "5.0", path = "paddler_agent_runtime" }
 paddler_agent_status = { version = "5.0", path = "paddler_agent_status" }
 paddler_agent_text_generation = { version = "5.0", path = "paddler_agent_text_generation" }
 paddler_balancer = { version = "5.0", path = "paddler_balancer" }
+paddler_blocking_thread_fixture = { version = "5.0", path = "paddler_blocking_thread_fixture" }
 paddler_bootstrap = { version = "5.0", path = "paddler_bootstrap" }
 paddler_cache_dir = { version = "5.0", path = "paddler_cache_dir" }
 paddler_cli = { version = "5.0", path = "paddler_cli" }

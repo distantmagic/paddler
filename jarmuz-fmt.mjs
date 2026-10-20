@@ -15,6 +15,7 @@ jarmuz({
     "paddler_agent_status",
     "paddler_agent_text_generation",
     "paddler_balancer",
+    "paddler_blocking_thread_fixture",
     "paddler_bootstrap",
     "paddler_cache_dir",
     "paddler_cli",
