@@ -4,12 +4,14 @@ use std::sync::Arc;
 use paddler_messaging::decision_result::DecisionResult;
 use paddler_messaging::embedding_result::EmbeddingResult;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
+use paddler_messaging::inference_client::response::Response as OutgoingResponse;
 use paddler_messaging::inference_capability::InferenceCapability;
 use paddler_messaging::request_params::continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
 use paddler_messaging::request_params::continue_from_conversation_history_params::tool::tool_params::function_call::parameters_schema::validated_parameters_schema::ValidatedParametersSchema;
 use paddler_messaging::request_params::continue_from_raw_prompt_params::ContinueFromRawPromptParams;
 use paddler_messaging::request_params::decide_params::DecideParams;
 use paddler_messaging::request_params::generate_embedding_batch_params::GenerateEmbeddingBatchParams;
+use paddler_messaging::streamable_result::StreamableResult;
 
 use crate::agent_response_senders::AgentResponseSenders;
 use crate::dispatch_requirement::DispatchRequirement;
@@ -20,7 +22,10 @@ use crate::slot_demand::SlotDemand;
 pub trait AgentStreamingRequest: IntoReservedAgentRequest {
     const INFERENCE_CAPABILITY: InferenceCapability;
 
-    type Response: Send + 'static;
+    type Response: StreamableResult<Final: Send + 'static, Partial: Send + 'static>
+        + Into<OutgoingResponse>
+        + Send
+        + 'static;
 
     fn response_senders(
         agent_response_senders: &AgentResponseSenders,

@@ -12,7 +12,7 @@ use paddler_openai_translation::chat_completion_delivery::ChatCompletionDelivery
 use paddler_openai_translation::chat_completion_request::ChatCompletionRequest;
 use paddler_openai_translation::completes_generation::CompletesGeneration as _;
 use paddler_openai_translation::generated_output::GeneratedOutput;
-use paddler_openai_translation::generation_event::GenerationEvent;
+use paddler_openai_translation::generation_outcome::GenerationOutcome;
 
 pub fn finishing_json_of(request: Value) -> Vec<Value> {
     let generation_summary = GenerationSummary {
@@ -34,10 +34,10 @@ pub fn finishing_json_of(request: Value) -> Vec<Value> {
             ))
             .expect("a completion must serialize"),
         ],
-        ChatCompletionDelivery::Streamed(mut chat_completion_stream) => chat_completion_stream
-            .advance(
+        ChatCompletionDelivery::Streamed(chat_completion_stream) => chat_completion_stream
+            .conclude(
                 "test-request",
-                GenerationEvent::Finished(generation_summary),
+                GenerationOutcome::Finished(generation_summary),
             )
             .expect("a finished generation must produce chunks")
             .iter()

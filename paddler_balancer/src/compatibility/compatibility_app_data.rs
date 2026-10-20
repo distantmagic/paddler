@@ -1,20 +1,14 @@
-use std::fmt::Debug;
 use std::sync::Arc;
 
-use futures_util::Stream;
 use tokio_util::sync::CancellationToken;
 
-use paddler_messaging::inference_client::response::Response as OutgoingResponse;
-use paddler_messaging::streamable_result::StreamableResult;
-
+use crate::agent_relay::AgentRelay;
 use crate::agent_streaming_request::AgentStreamingRequest;
+use crate::awaiting_agent_relay::AwaitingAgentRelay;
 use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::buffered_request_manager::BufferedRequestManager;
-use crate::compatibility::agent_result_stream_event::AgentResultStreamEvent;
-use crate::compatibility::agent_result_stream_transformer::AgentResultStreamTransformer;
+use crate::dispatchable_request::DispatchableRequest;
 use crate::inference_service::configuration::Configuration;
-use crate::unbounded_stream_from_agent::unbounded_stream_from_agent;
-use crate::unbounded_stream_from_agent_params::UnboundedStreamFromAgentParams;
 
 pub struct CompatibilityAppData {
     pub balancer_applicable_state_holder: Arc<BalancerApplicableStateHolder>,
@@ -24,26 +18,15 @@ pub struct CompatibilityAppData {
 }
 
 impl CompatibilityAppData {
-    pub fn agent_result_stream<TParams>(
-        &self,
-        request_params: TParams,
-    ) -> impl Stream<Item = AgentResultStreamEvent<TParams::Response>> + use<TParams>
+    pub fn agent_relay<TParams>(&self, request_params: TParams) -> AgentRelay<TParams>
     where
-        TParams: AgentStreamingRequest + Debug + Send + 'static,
-        TParams::Response: Debug
-            + Into<OutgoingResponse>
-            + StreamableResult
-            + TryFrom<OutgoingResponse, Error = OutgoingResponse>
-            + Send
-            + Sync
-            + 'static,
+        TParams: AgentStreamingRequest,
     {
-        unbounded_stream_from_agent(UnboundedStreamFromAgentParams {
+        AgentRelay::Awaiting(AwaitingAgentRelay {
             buffered_request_manager: self.buffered_request_manager.clone(),
-            inference_service_configuration: self.inference_service_configuration.clone(),
-            request_params,
+            dispatchable_request: DispatchableRequest::from(request_params),
+            inference_item_timeout: self.inference_service_configuration.inference_item_timeout,
             shutdown: self.shutdown.clone(),
-            transformer: AgentResultStreamTransformer::default(),
         })
     }
 }

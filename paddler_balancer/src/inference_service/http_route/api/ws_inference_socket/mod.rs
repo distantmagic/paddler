@@ -1,7 +1,6 @@
 mod inference_socket_controller_context;
 mod report_cluster_inference_mode;
 
-use std::fmt::Debug;
 use std::sync::Arc;
 
 use actix_web::Error;
@@ -22,7 +21,6 @@ use tokio_util::sync::CancellationToken;
 
 use paddler_messaging::api_path::ApiPath;
 use paddler_messaging::inference_client::message::Message as OutgoingMessage;
-use paddler_messaging::inference_client::response::Response as OutgoingResponse;
 use paddler_messaging::inference_server::identified_request::IdentifiedRequest;
 use paddler_messaging::inference_server::message::Message as InferenceServerMessage;
 use paddler_messaging::inference_server::notification::Notification as InferenceServerNotification;
@@ -30,22 +28,24 @@ use paddler_messaging::inference_server::request::Request as InferenceServerRequ
 use paddler_messaging::jsonrpc::error::Error as JsonRpcError;
 use paddler_messaging::jsonrpc::request_envelope::RequestEnvelope;
 use paddler_messaging::request_params::continue_from_conversation_history_params::tool::tool_params::function_call::parameters_schema::raw_parameters_schema::RawParametersSchema;
-use paddler_messaging::streamable_result::StreamableResult;
 use paddler_messaging::validates::Validates as _;
 use paddler_request_registry::request_registry_guard::RequestRegistryGuard;
 
 use self::inference_socket_controller_context::InferenceSocketControllerContext;
 use self::report_cluster_inference_mode::report_cluster_inference_mode;
+use crate::agent_relay::AgentRelay;
 use crate::agent_streaming_request::AgentStreamingRequest;
+use crate::awaiting_agent_relay::AwaitingAgentRelay;
 use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::buffered_request_manager::BufferedRequestManager;
 use crate::continuation_decision::ContinuationDecision;
 use crate::controls_websocket_endpoint::ControlsWebSocketEndpoint;
 use crate::dispatchable_request::DispatchableRequest;
+use crate::forward_agent_relay::forward_agent_relay;
 use crate::inference_service::app_data::AppData;
 use crate::inference_service::configuration::Configuration as InferenceServiceConfiguration;
 use crate::invalid_request_parameters_description::invalid_request_parameters_description;
-use crate::request_from_agent::request_from_agent;
+use crate::outgoing_message_relay_receiver::OutgoingMessageRelayReceiver;
 use crate::respond_with_error::respond_with_error;
 use crate::websocket_outbound_frame::WebSocketOutboundFrame;
 use crate::websocket_session_controller::WebSocketSessionController;
@@ -57,8 +57,7 @@ async fn handle_inference_request<TParams>(
     request_id: String,
     mut websocket_session_controller: WebSocketSessionController<OutgoingMessage>,
 ) where
-    TParams: AgentStreamingRequest + Debug + Send + 'static,
-    TParams::Response: Debug + Into<OutgoingResponse> + StreamableResult,
+    TParams: AgentStreamingRequest + Send + 'static,
 {
     let request_close = connection_close.child_token();
 
@@ -87,14 +86,20 @@ async fn handle_inference_request<TParams>(
     rt::spawn(async move {
         let _request_registration = request_registration;
 
-        request_from_agent(
-            context.buffered_request_manager.clone(),
+        forward_agent_relay(
+            AgentRelay::Awaiting(AwaitingAgentRelay {
+                buffered_request_manager: context.buffered_request_manager.clone(),
+                dispatchable_request: DispatchableRequest::from(params),
+                inference_item_timeout: context
+                    .inference_service_configuration
+                    .inference_item_timeout,
+                shutdown: context.shutdown.clone(),
+            }),
             request_close,
-            context.inference_service_configuration.clone(),
-            DispatchableRequest::from(params),
-            request_id,
-            websocket_session_controller,
-            context.shutdown.clone(),
+            OutgoingMessageRelayReceiver {
+                request_id,
+                session_controller: websocket_session_controller,
+            },
         )
         .await;
     });

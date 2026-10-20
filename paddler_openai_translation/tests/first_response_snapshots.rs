@@ -12,7 +12,7 @@ use paddler_messaging::generation_summary::GenerationSummary;
 use paddler_openai_translation::completes_generation::CompletesGeneration as _;
 use paddler_openai_translation::generated_output::GeneratedOutput;
 use paddler_openai_translation::generated_output_part::GeneratedOutputPart;
-use paddler_openai_translation::generation_event::GenerationEvent;
+use paddler_openai_translation::generation_progress::GenerationProgress;
 use paddler_openai_translation::responses_delivery::ResponsesDelivery;
 use paddler_openai_translation::responses_request::ResponsesRequest;
 
@@ -41,7 +41,7 @@ fn first_response_snapshot_of(request: Value) -> Value {
             .expect("a response must serialize")
         }
         ResponsesDelivery::Streamed(mut responses_stream) => to_value(
-            &responses_stream.advance(GenerationEvent::Produced(GeneratedOutputPart::Content(
+            &responses_stream.advance(GenerationProgress::Produced(GeneratedOutputPart::Content(
                 "hello".to_owned(),
             )))[0],
         )

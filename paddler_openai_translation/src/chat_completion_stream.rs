@@ -9,8 +9,9 @@ use crate::chat_completion_finish_reason::chat_completion_finish_reason;
 use crate::chat_completion_header::ChatCompletionHeader;
 use crate::chat_completion_stream_params::ChatCompletionStreamParams;
 use crate::generated_output_part::GeneratedOutputPart;
-use crate::generation_event::GenerationEvent;
 use crate::generation_failure::GenerationFailure;
+use crate::generation_outcome::GenerationOutcome;
+use crate::generation_progress::GenerationProgress;
 
 pub struct ChatCompletionStream {
     header: ChatCompletionHeader,
@@ -39,22 +40,34 @@ impl ChatCompletionStream {
     pub fn advance(
         &mut self,
         request_id: &str,
-        generation_event: GenerationEvent,
+        generation_progress: GenerationProgress,
     ) -> Result<Vec<ChatCompletionChunk>, GenerationFailure> {
-        match generation_event {
-            GenerationEvent::Produced(GeneratedOutputPart::Content(text)) => Ok(vec![self.chunk(
-                request_id,
-                ChatCompletionChunkPayload::Choice(ChatCompletionChunkChoice::Content(text)),
-            )]),
-            GenerationEvent::Produced(GeneratedOutputPart::Reasoning(_))
-            | GenerationEvent::ToolCallTokenProduced => Ok(Vec::new()),
-            GenerationEvent::Produced(GeneratedOutputPart::ToolCalls(parsed_calls)) => {
+        match generation_progress {
+            GenerationProgress::Produced(GeneratedOutputPart::Content(text)) => {
+                Ok(vec![self.chunk(
+                    request_id,
+                    ChatCompletionChunkPayload::Choice(ChatCompletionChunkChoice::Content(text)),
+                )])
+            }
+            GenerationProgress::Produced(GeneratedOutputPart::Reasoning(_))
+            | GenerationProgress::ToolCallTokenProduced => Ok(Vec::new()),
+            GenerationProgress::Produced(GeneratedOutputPart::ToolCalls(parsed_calls)) => {
                 Ok(self.tool_calls(request_id, parsed_calls))
             }
-            GenerationEvent::Finished(generation_summary) => {
+            GenerationProgress::Failed(generation_failure) => Err(generation_failure),
+        }
+    }
+
+    pub fn conclude(
+        &self,
+        request_id: &str,
+        generation_outcome: GenerationOutcome,
+    ) -> Result<Vec<ChatCompletionChunk>, GenerationFailure> {
+        match generation_outcome {
+            GenerationOutcome::Failed(generation_failure) => Err(generation_failure),
+            GenerationOutcome::Finished(generation_summary) => {
                 Ok(self.finish(request_id, &generation_summary))
             }
-            GenerationEvent::Failed(generation_failure) => Err(generation_failure),
         }
     }
 
@@ -124,9 +137,10 @@ mod tests {
     use crate::chat_completion_header::ChatCompletionHeader;
     use crate::chat_completion_stream_params::ChatCompletionStreamParams;
     use crate::generated_output_part::GeneratedOutputPart;
-    use crate::generation_event::GenerationEvent;
     use crate::generation_failure::GenerationFailure;
     use crate::generation_failure_cause::GenerationFailureCause;
+    use crate::generation_outcome::GenerationOutcome;
+    use crate::generation_progress::GenerationProgress;
 
     fn chat_completion_stream(include_usage: bool) -> ChatCompletionStream {
         ChatCompletionStream::new(ChatCompletionStreamParams {
@@ -139,8 +153,8 @@ mod tests {
         })
     }
 
-    fn finished(finish: GenerationFinish) -> GenerationEvent {
-        GenerationEvent::Finished(GenerationSummary {
+    fn finished(finish: GenerationFinish) -> GenerationOutcome {
+        GenerationOutcome::Finished(GenerationSummary {
             finish,
             usage: TokenUsage {
                 prompt_tokens: 7,
@@ -170,7 +184,7 @@ mod tests {
         assert_eq!(
             serialized_chunks(chat_completion_stream(false).advance(
                 "test-request",
-                GenerationEvent::Produced(GeneratedOutputPart::Content("hello".to_owned())),
+                GenerationProgress::Produced(GeneratedOutputPart::Content("hello".to_owned())),
             )),
             vec![
                 r#"{"id":"test-request","object":"chat.completion.chunk","created":0,"model":"test-model","system_fingerprint":"test-fingerprint","choices":[{"index":0,"delta":{"role":"assistant","content":"hello"},"logprobs":null,"finish_reason":null}]}"#,
@@ -182,13 +196,15 @@ mod tests {
     fn drops_reasoning_and_tool_call_tokens() {
         let mut chat_completion_stream = chat_completion_stream(false);
 
-        for generation_event in [
-            GenerationEvent::Produced(GeneratedOutputPart::Reasoning("thought".to_owned())),
-            GenerationEvent::ToolCallTokenProduced,
+        for generation_progress in [
+            GenerationProgress::Produced(GeneratedOutputPart::Reasoning("thought".to_owned())),
+            GenerationProgress::ToolCallTokenProduced,
         ] {
             assert!(
-                serialized_chunks(chat_completion_stream.advance("test-request", generation_event))
-                    .is_empty()
+                serialized_chunks(
+                    chat_completion_stream.advance("test-request", generation_progress)
+                )
+                .is_empty()
             );
         }
     }
@@ -198,7 +214,7 @@ mod tests {
         assert_eq!(
             serialized_chunks(chat_completion_stream(false).advance(
                 "test-request",
-                GenerationEvent::Produced(GeneratedOutputPart::ToolCalls(vec![
+                GenerationProgress::Produced(GeneratedOutputPart::ToolCalls(vec![
                     tool_call(
                         "call_x",
                         "get_weather",
@@ -224,14 +240,14 @@ mod tests {
         assert!(
             serialized_chunks(chat_completion_stream.advance(
                 "test-request",
-                GenerationEvent::Produced(GeneratedOutputPart::ToolCalls(Vec::new())),
+                GenerationProgress::Produced(GeneratedOutputPart::ToolCalls(Vec::new())),
             ))
             .is_empty()
         );
         assert_eq!(
             serialized_chunks(
                 chat_completion_stream
-                    .advance("test-request", finished(GenerationFinish::EndOfGeneration))
+                    .conclude("test-request", finished(GenerationFinish::EndOfGeneration))
             ),
             vec![
                 r#"{"id":"test-request","object":"chat.completion.chunk","created":0,"model":"test-model","system_fingerprint":"test-fingerprint","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}]}"#,
@@ -245,7 +261,7 @@ mod tests {
 
         serialized_chunks(after_tool_call.advance(
             "test-request",
-            GenerationEvent::Produced(GeneratedOutputPart::ToolCalls(vec![tool_call(
+            GenerationProgress::Produced(GeneratedOutputPart::ToolCalls(vec![tool_call(
                 "call_x",
                 "get_weather",
                 ToolCallArguments::ValidJson(json!({ "location": "Paris" })),
@@ -255,7 +271,7 @@ mod tests {
         assert_eq!(
             serialized_chunks(
                 after_tool_call
-                    .advance("test-request", finished(GenerationFinish::EndOfGeneration))
+                    .conclude("test-request", finished(GenerationFinish::EndOfGeneration))
             ),
             vec![
                 r#"{"id":"test-request","object":"chat.completion.chunk","created":0,"model":"test-model","system_fingerprint":"test-fingerprint","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"tool_calls"}]}"#,
@@ -264,7 +280,7 @@ mod tests {
         assert_eq!(
             serialized_chunks(
                 chat_completion_stream(false)
-                    .advance("test-request", finished(GenerationFinish::MaxTokens))
+                    .conclude("test-request", finished(GenerationFinish::MaxTokens))
             ),
             vec![
                 r#"{"id":"test-request","object":"chat.completion.chunk","created":0,"model":"test-model","system_fingerprint":"test-fingerprint","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"length"}]}"#,
@@ -277,7 +293,7 @@ mod tests {
         assert_eq!(
             serialized_chunks(
                 chat_completion_stream(true)
-                    .advance("test-request", finished(GenerationFinish::EndOfGeneration))
+                    .conclude("test-request", finished(GenerationFinish::EndOfGeneration))
             ),
             vec![
                 r#"{"id":"test-request","object":"chat.completion.chunk","created":0,"model":"test-model","system_fingerprint":"test-fingerprint","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}]}"#,
@@ -288,20 +304,29 @@ mod tests {
 
     #[test]
     fn passes_generation_failures_through() {
+        let generation_failure = || GenerationFailure {
+            cause: GenerationFailureCause::AgentFailed,
+            message: "sampler blew up".to_owned(),
+        };
+        let mut chat_completion_stream = chat_completion_stream(false);
+
         assert_eq!(
-            chat_completion_stream(false)
+            chat_completion_stream
                 .advance(
                     "test-request",
-                    GenerationEvent::Failed(GenerationFailure {
-                        cause: GenerationFailureCause::AgentFailed,
-                        message: "sampler blew up".to_owned(),
-                    }),
+                    GenerationProgress::Failed(generation_failure())
                 )
                 .err(),
-            Some(GenerationFailure {
-                cause: GenerationFailureCause::AgentFailed,
-                message: "sampler blew up".to_owned(),
-            })
+            Some(generation_failure())
+        );
+        assert_eq!(
+            chat_completion_stream
+                .conclude(
+                    "test-request",
+                    GenerationOutcome::Failed(generation_failure())
+                )
+                .err(),
+            Some(generation_failure())
         );
     }
 }

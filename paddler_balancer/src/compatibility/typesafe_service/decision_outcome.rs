@@ -1,33 +1,30 @@
 use actix_web::http::StatusCode;
 
-use paddler_messaging::decision_answer::DecisionAnswer;
-use paddler_messaging::decision_result::DecisionResult;
+use paddler_messaging::decision_final_result::DecisionFinalResult;
 use paddler_messaging::decision_summary::DecisionSummary;
 use paddler_messaging::oversized_decision_details::OversizedDecisionDetails;
 
 use crate::compatibility::typesafe_service::typesafe_decision_failure::TypeSafeDecisionFailure;
 use crate::compatibility::upstream_failure::UpstreamFailure;
 
-const fn failure(status_code: StatusCode, detail: String) -> DecisionEvent {
-    DecisionEvent::Failed(TypeSafeDecisionFailure {
+const fn failure(status_code: StatusCode, detail: String) -> DecisionOutcome {
+    DecisionOutcome::Failed(TypeSafeDecisionFailure {
         detail,
         status_code,
     })
 }
 
-#[derive(Debug, PartialEq)]
-pub enum DecisionEvent {
-    Answered(DecisionAnswer),
+#[derive(Debug, Eq, PartialEq)]
+pub enum DecisionOutcome {
     Failed(TypeSafeDecisionFailure),
     Finished(DecisionSummary),
 }
 
-impl From<DecisionResult> for DecisionEvent {
-    fn from(decision_result: DecisionResult) -> Self {
-        match decision_result {
-            DecisionResult::QuestionAnswered(answer) => Self::Answered(answer),
-            DecisionResult::Done(summary) => Self::Finished(summary),
-            DecisionResult::RequestExceedsContext(OversizedDecisionDetails {
+impl From<DecisionFinalResult> for DecisionOutcome {
+    fn from(decision_final_result: DecisionFinalResult) -> Self {
+        match decision_final_result {
+            DecisionFinalResult::Done(summary) => Self::Finished(summary),
+            DecisionFinalResult::RequestExceedsContext(OversizedDecisionDetails {
                 context_size,
                 required_tokens,
             }) => failure(
@@ -36,23 +33,26 @@ impl From<DecisionResult> for DecisionEvent {
                     "the request needs {required_tokens} tokens in the cache, more than the {context_size} the context holds"
                 ),
             ),
-            DecisionResult::InputTokenizationFailed(detail) => {
+            DecisionFinalResult::InputTokenizationFailed(detail) => {
                 failure(StatusCode::UNPROCESSABLE_ENTITY, detail)
             }
-            DecisionResult::InferenceModeMismatch(detail)
-            | DecisionResult::ModelNotLoaded(detail)
-            | DecisionResult::SchedulerUnavailable(detail) => {
+            DecisionFinalResult::InferenceModeMismatch(detail)
+            | DecisionFinalResult::ModelNotLoaded(detail)
+            | DecisionFinalResult::SchedulerUnavailable(detail) => {
                 failure(UpstreamFailure::Unavailable.status_code(), detail)
             }
-            DecisionResult::AgentRuntimeFailed(detail)
-            | DecisionResult::BatchAssemblyFailed(detail)
-            | DecisionResult::DecodeFailed(detail)
-            | DecisionResult::HiddenStateUnavailable(detail)
-            | DecisionResult::KvCacheCopyFailed(detail)
-            | DecisionResult::KvCacheRemovalFailed(detail) => {
+            DecisionFinalResult::AgentRuntimeFailed(detail)
+            | DecisionFinalResult::BatchAssemblyFailed(detail)
+            | DecisionFinalResult::DecodeFailed(detail)
+            | DecisionFinalResult::HiddenStateUnavailable(detail)
+            | DecisionFinalResult::KvCacheCopyFailed(detail)
+            | DecisionFinalResult::KvCacheRemovalFailed(detail) => {
                 failure(UpstreamFailure::AgentFailed.status_code(), detail)
             }
-            DecisionResult::StopRequested => Self::Failed(TypeSafeDecisionFailure::unfinished()),
+            DecisionFinalResult::StopRequested => failure(
+                UpstreamFailure::RelayFailed.status_code(),
+                "the agent stopped before it finished the decision".to_owned(),
+            ),
         }
     }
 }
@@ -61,43 +61,34 @@ impl From<DecisionResult> for DecisionEvent {
 mod tests {
     use actix_web::http::StatusCode;
 
-    use paddler_messaging::decision_answer::DecisionAnswer;
-    use paddler_messaging::decision_result::DecisionResult;
+    use paddler_messaging::decision_final_result::DecisionFinalResult;
     use paddler_messaging::decision_summary::DecisionSummary;
     use paddler_messaging::oversized_decision_details::OversizedDecisionDetails;
 
-    use super::DecisionEvent;
+    use super::DecisionOutcome;
     use crate::compatibility::typesafe_service::typesafe_decision_failure::TypeSafeDecisionFailure;
 
-    fn failed(status_code: StatusCode, detail: &str) -> DecisionEvent {
-        DecisionEvent::Failed(TypeSafeDecisionFailure {
+    fn failed(status_code: StatusCode, detail: &str) -> DecisionOutcome {
+        DecisionOutcome::Failed(TypeSafeDecisionFailure {
             detail: detail.to_owned(),
             status_code,
         })
     }
 
     #[test]
-    fn classifies_every_decision_result() {
-        let answer = DecisionAnswer {
-            id: "paid".to_owned(),
-            probabilities: vec![0.25, 0.75],
-        };
+    fn classifies_every_final_decision_result() {
         let summary = DecisionSummary {
             input_tokens: 1,
             processing_milliseconds: 1,
         };
 
-        for (decision_result, expected_event) in [
+        for (decision_final_result, expected_outcome) in [
             (
-                DecisionResult::QuestionAnswered(answer.clone()),
-                DecisionEvent::Answered(answer),
+                DecisionFinalResult::Done(summary.clone()),
+                DecisionOutcome::Finished(summary),
             ),
             (
-                DecisionResult::Done(summary.clone()),
-                DecisionEvent::Finished(summary),
-            ),
-            (
-                DecisionResult::RequestExceedsContext(OversizedDecisionDetails {
+                DecisionFinalResult::RequestExceedsContext(OversizedDecisionDetails {
                     context_size: 128,
                     required_tokens: 410,
                 }),
@@ -107,54 +98,57 @@ mod tests {
                 ),
             ),
             (
-                DecisionResult::InputTokenizationFailed("nul byte".to_owned()),
+                DecisionFinalResult::InputTokenizationFailed("nul byte".to_owned()),
                 failed(StatusCode::UNPROCESSABLE_ENTITY, "nul byte"),
             ),
             (
-                DecisionResult::InferenceModeMismatch("mode".to_owned()),
+                DecisionFinalResult::InferenceModeMismatch("mode".to_owned()),
                 failed(StatusCode::SERVICE_UNAVAILABLE, "mode"),
             ),
             (
-                DecisionResult::ModelNotLoaded("no model".to_owned()),
+                DecisionFinalResult::ModelNotLoaded("no model".to_owned()),
                 failed(StatusCode::SERVICE_UNAVAILABLE, "no model"),
             ),
             (
-                DecisionResult::SchedulerUnavailable("stopped".to_owned()),
+                DecisionFinalResult::SchedulerUnavailable("stopped".to_owned()),
                 failed(StatusCode::SERVICE_UNAVAILABLE, "stopped"),
             ),
             (
-                DecisionResult::AgentRuntimeFailed("runtime".to_owned()),
+                DecisionFinalResult::AgentRuntimeFailed("runtime".to_owned()),
                 failed(StatusCode::INTERNAL_SERVER_ERROR, "runtime"),
             ),
             (
-                DecisionResult::BatchAssemblyFailed("batch".to_owned()),
+                DecisionFinalResult::BatchAssemblyFailed("batch".to_owned()),
                 failed(StatusCode::INTERNAL_SERVER_ERROR, "batch"),
             ),
             (
-                DecisionResult::DecodeFailed("decode".to_owned()),
+                DecisionFinalResult::DecodeFailed("decode".to_owned()),
                 failed(StatusCode::INTERNAL_SERVER_ERROR, "decode"),
             ),
             (
-                DecisionResult::HiddenStateUnavailable("hidden".to_owned()),
+                DecisionFinalResult::HiddenStateUnavailable("hidden".to_owned()),
                 failed(StatusCode::INTERNAL_SERVER_ERROR, "hidden"),
             ),
             (
-                DecisionResult::KvCacheCopyFailed("copy".to_owned()),
+                DecisionFinalResult::KvCacheCopyFailed("copy".to_owned()),
                 failed(StatusCode::INTERNAL_SERVER_ERROR, "copy"),
             ),
             (
-                DecisionResult::KvCacheRemovalFailed("removal".to_owned()),
+                DecisionFinalResult::KvCacheRemovalFailed("removal".to_owned()),
                 failed(StatusCode::INTERNAL_SERVER_ERROR, "removal"),
             ),
             (
-                DecisionResult::StopRequested,
+                DecisionFinalResult::StopRequested,
                 failed(
                     StatusCode::BAD_GATEWAY,
                     "the agent stopped before it finished the decision",
                 ),
             ),
         ] {
-            assert_eq!(DecisionEvent::from(decision_result), expected_event);
+            assert_eq!(
+                DecisionOutcome::from(decision_final_result),
+                expected_outcome
+            );
         }
     }
 }

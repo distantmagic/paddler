@@ -1,6 +1,6 @@
 use actix_web::http::StatusCode;
 
-use paddler_messaging::jsonrpc::error::Error as JsonRpcError;
+use crate::relay_failure::RelayFailure;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum UpstreamFailure {
@@ -22,38 +22,51 @@ impl UpstreamFailure {
     }
 }
 
-impl From<&JsonRpcError> for UpstreamFailure {
-    fn from(JsonRpcError { code, .. }: &JsonRpcError) -> Self {
-        match code {
-            503 => Self::Unavailable,
-            504 => Self::TimedOut,
-            _ => Self::RelayFailed,
+impl From<&RelayFailure> for UpstreamFailure {
+    fn from(relay_failure: &RelayFailure) -> Self {
+        match relay_failure {
+            RelayFailure::AgentDisconnected => Self::RelayFailed,
+            RelayFailure::BalancerShuttingDown | RelayFailure::BufferOverflow => Self::Unavailable,
+            RelayFailure::BufferedRequestTimedOut | RelayFailure::ItemTimedOut { .. } => {
+                Self::TimedOut
+            }
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use actix_web::http::StatusCode;
 
-    use paddler_messaging::jsonrpc::error::Error as JsonRpcError;
-
     use super::UpstreamFailure;
+    use crate::relay_failure::RelayFailure;
 
     #[test]
-    fn maps_jsonrpc_codes_to_upstream_failures() {
-        for (code, expected_failure) in [
-            (503, UpstreamFailure::Unavailable),
-            (504, UpstreamFailure::TimedOut),
-            (500, UpstreamFailure::RelayFailed),
+    fn maps_relay_failures_to_upstream_failures() {
+        for (relay_failure, expected_failure) in [
+            (
+                RelayFailure::AgentDisconnected,
+                UpstreamFailure::RelayFailed,
+            ),
+            (
+                RelayFailure::BalancerShuttingDown,
+                UpstreamFailure::Unavailable,
+            ),
+            (RelayFailure::BufferOverflow, UpstreamFailure::Unavailable),
+            (
+                RelayFailure::BufferedRequestTimedOut,
+                UpstreamFailure::TimedOut,
+            ),
+            (
+                RelayFailure::ItemTimedOut {
+                    inference_item_timeout: Duration::from_millis(250),
+                },
+                UpstreamFailure::TimedOut,
+            ),
         ] {
-            assert_eq!(
-                UpstreamFailure::from(&JsonRpcError {
-                    code,
-                    description: "wire failure".to_owned(),
-                }),
-                expected_failure
-            );
+            assert_eq!(UpstreamFailure::from(&relay_failure), expected_failure);
         }
     }
 

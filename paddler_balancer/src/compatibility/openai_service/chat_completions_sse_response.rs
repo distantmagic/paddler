@@ -5,13 +5,16 @@ use futures::stream::Stream;
 use futures::stream::StreamExt as _;
 use futures::stream::iter;
 use futures::stream::once;
+use nanoid::nanoid;
 use serde_json::Error as SerdeJsonError;
 
-use paddler_messaging::generated_token_result::GeneratedTokenResult;
+use paddler_messaging::generated_token_final_result::GeneratedTokenFinalResult;
+use paddler_messaging::generated_token_partial_result::GeneratedTokenPartialResult;
 use paddler_openai_translation::chat_completion_stream::ChatCompletionStream;
-use paddler_openai_translation::generation_event::GenerationEvent;
+use paddler_openai_translation::generation_outcome::GenerationOutcome;
+use paddler_openai_translation::generation_progress::GenerationProgress;
 
-use crate::compatibility::agent_result_stream_event::AgentResultStreamEvent;
+use crate::agent_relay_event::AgentRelayEvent;
 use crate::compatibility::openai_service::openai_failure::OpenAIFailure;
 use crate::compatibility::openai_service::openai_sse_http_response::openai_sse_http_response;
 
@@ -21,41 +24,51 @@ fn openai_failure_data(openai_failure: OpenAIFailure) -> Vec<Result<sse::Data, S
 
 fn chat_completion_sse_data(
     chat_completion_stream: &mut ChatCompletionStream,
-    generated_token_event: AgentResultStreamEvent<GeneratedTokenResult>,
+    request_id: &str,
+    agent_relay_event: AgentRelayEvent<GeneratedTokenPartialResult, GeneratedTokenFinalResult>,
 ) -> Vec<Result<sse::Data, SerdeJsonError>> {
-    match generated_token_event {
-        AgentResultStreamEvent::Result { request_id, result } => {
-            match chat_completion_stream.advance(&request_id, GenerationEvent::from(result)) {
-                Ok(chat_completion_chunks) => chat_completion_chunks
-                    .into_iter()
-                    .map(sse::Data::new_json)
-                    .collect(),
-                Err(generation_failure) => {
-                    openai_failure_data(OpenAIFailure::Generation(generation_failure))
-                }
-            }
+    let chat_completion_chunks = match agent_relay_event {
+        AgentRelayEvent::Failed(relay_failure) => {
+            return openai_failure_data(OpenAIFailure::Relay(relay_failure));
         }
-        AgentResultStreamEvent::WireError(wire_error) => {
-            openai_failure_data(OpenAIFailure::Wire(wire_error))
+        AgentRelayEvent::Final(final_result) => {
+            chat_completion_stream.conclude(request_id, GenerationOutcome::from(final_result))
+        }
+        AgentRelayEvent::Partial(partial_result) => {
+            chat_completion_stream.advance(request_id, GenerationProgress::from(partial_result))
+        }
+    };
+
+    match chat_completion_chunks {
+        Ok(chat_completion_chunks) => chat_completion_chunks
+            .into_iter()
+            .map(sse::Data::new_json)
+            .collect(),
+        Err(generation_failure) => {
+            openai_failure_data(OpenAIFailure::Generation(generation_failure))
         }
     }
 }
 
-pub fn chat_completions_sse_response<TStream>(
+pub fn chat_completions_sse_response<TAgentRelayEvents>(
     chat_completion_stream: ChatCompletionStream,
-    generated_tokens: TStream,
+    agent_relay_events: TAgentRelayEvents,
 ) -> HttpResponse
 where
-    TStream: Stream<Item = AgentResultStreamEvent<GeneratedTokenResult>> + 'static,
+    TAgentRelayEvents: Stream<Item = AgentRelayEvent<GeneratedTokenPartialResult, GeneratedTokenFinalResult>>
+        + 'static,
 {
+    let request_id: String = nanoid!();
+
     openai_sse_http_response(
-        generated_tokens
+        agent_relay_events
             .scan(
                 chat_completion_stream,
-                |chat_completion_stream, generated_token_event| {
+                move |chat_completion_stream, agent_relay_event| {
                     ready(Some(chat_completion_sse_data(
                         chat_completion_stream,
-                        generated_token_event,
+                        &request_id,
+                        agent_relay_event,
                     )))
                 },
             )

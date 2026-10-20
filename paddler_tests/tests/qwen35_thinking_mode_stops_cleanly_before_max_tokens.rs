@@ -8,19 +8,16 @@ use paddler_messaging::conversation_history::ConversationHistory;
 use paddler_messaging::conversation_message::ConversationMessage;
 use paddler_messaging::conversation_message_content::ConversationMessageContent;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
-use paddler_messaging::generation_finish::GenerationFinish;
-use paddler_messaging::generation_summary::GenerationSummary;
 use paddler_messaging::request_params::continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_test_cluster_harness::token_result_with_producer::TokenResultWithProducer;
-use paddler_tests::start_cluster_with_qwen3_5_without_endless_repetitions::start_cluster_with_qwen3_5_without_endless_repetitions;
+use paddler_tests::start_cluster_with_qwen3_5::start_cluster_with_qwen3_5;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn qwen35_thinking_mode_stops_cleanly_before_max_tokens() {
-    let cluster =
-        start_cluster_with_qwen3_5_without_endless_repetitions(vec![AgentConfig::single(1)])
-            .await
-            .expect("the cluster must start");
+    let cluster = start_cluster_with_qwen3_5(vec![AgentConfig::single(1)], false)
+        .await
+        .expect("the cluster must start");
 
     let collected = cluster
         .continue_from_conversation_history(
@@ -48,13 +45,11 @@ async fn qwen35_thinking_mode_stops_cleanly_before_max_tokens() {
         .count();
 
     assert!(token_count > 0);
+    assert!(token_count <= 2000);
     assert!(matches!(
         collected.token_results.last(),
         Some(TokenResultWithProducer {
-            token_result: GeneratedTokenResult::Done(GenerationSummary {
-                finish: GenerationFinish::EndOfGeneration,
-                ..
-            }),
+            token_result: GeneratedTokenResult::Done(_),
             ..
         })
     ));

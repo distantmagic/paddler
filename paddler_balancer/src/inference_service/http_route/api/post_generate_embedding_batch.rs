@@ -24,7 +24,9 @@ use paddler_messaging::inference_client::response::Response as OutgoingResponse;
 use paddler_messaging::jsonrpc::response_envelope::ResponseEnvelope;
 use paddler_messaging::request_params::generate_embedding_batch_params::GenerateEmbeddingBatchParams;
 
+use crate::agent_relay::AgentRelay;
 use crate::agent_relay_error::AgentRelayError;
+use crate::awaiting_agent_relay::AwaitingAgentRelay;
 use crate::cancellation_token_stream_guard::CancellationTokenStreamGuard;
 use crate::chunk_forwarding_session_controller::ChunkForwardingSessionController;
 use crate::chunk_forwarding_session_controller::identity_transformer::IdentityTransformer;
@@ -32,12 +34,13 @@ use crate::chunk_forwarding_session_controller::transform_result::TransformResul
 use crate::chunk_forwarding_session_controller::transforms_outgoing_message::TransformsOutgoingMessage;
 use crate::controls_session::ControlsSession as _;
 use crate::dispatchable_request::DispatchableRequest;
+use crate::dispatched_agent_relay::DispatchedAgentRelay;
 use crate::distinct_embedding_documents::DistinctEmbeddingDocuments;
 use crate::embedding_chunk_dispatch::EmbeddingChunkDispatch;
 use crate::embedding_document_duplicates::EmbeddingDocumentDuplicates;
+use crate::forward_agent_relay::forward_agent_relay;
 use crate::inference_service::app_data::AppData;
-use crate::request_from_agent::request_from_agent;
-use crate::request_from_dispatched_agent::request_from_dispatched_agent;
+use crate::outgoing_message_relay_receiver::OutgoingMessageRelayReceiver;
 
 async fn respond(
     app_data: web::Data<AppData>,
@@ -84,6 +87,10 @@ async fn respond(
         })
         .collect();
 
+    let inference_item_timeout = app_data
+        .inference_service_configuration
+        .inference_item_timeout;
+
     for chunk_dispatch in chunk_dispatches {
         let session_controller = ChunkForwardingSessionController::new(
             chunk_tx.clone(),
@@ -92,31 +99,34 @@ async fn respond(
             },
         );
 
-        match chunk_dispatch {
+        let agent_relay = match chunk_dispatch {
             EmbeddingChunkDispatch::Claimed {
                 batch,
                 dispatched_agent,
-            } => chunk_tasks.spawn(request_from_dispatched_agent(
+            } => AgentRelay::Dispatched(DispatchedAgentRelay::start(
                 dispatched_agent,
-                connection_close.clone(),
-                app_data.inference_service_configuration.clone(),
                 batch,
-                request_id.clone(),
-                session_controller,
+                inference_item_timeout,
                 app_data.shutdown.clone(),
             )),
             EmbeddingChunkDispatch::Buffered(dispatchable_batch) => {
-                chunk_tasks.spawn(request_from_agent(
-                    app_data.buffered_request_manager.clone(),
-                    connection_close.clone(),
-                    app_data.inference_service_configuration.clone(),
-                    dispatchable_batch,
-                    request_id.clone(),
-                    session_controller,
-                    app_data.shutdown.clone(),
-                ))
+                AgentRelay::Awaiting(AwaitingAgentRelay {
+                    buffered_request_manager: app_data.buffered_request_manager.clone(),
+                    dispatchable_request: dispatchable_batch,
+                    inference_item_timeout,
+                    shutdown: app_data.shutdown.clone(),
+                })
             }
         };
+
+        chunk_tasks.spawn(forward_agent_relay(
+            agent_relay,
+            connection_close.clone(),
+            OutgoingMessageRelayReceiver {
+                request_id: request_id.clone(),
+                session_controller,
+            },
+        ));
     }
 
     let final_done_chunk_tx = chunk_tx.clone();

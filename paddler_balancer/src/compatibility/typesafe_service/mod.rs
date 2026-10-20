@@ -1,4 +1,4 @@
-pub mod decision_event;
+pub mod decision_outcome;
 pub mod http_route;
 pub mod inference_mode_refusal_http_response;
 pub mod system_one_http_response;

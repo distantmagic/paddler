@@ -7,24 +7,29 @@ use futures::stream::iter;
 use serde_json::Error as SerdeJsonError;
 use serde_json::to_string;
 
-use paddler_messaging::generated_token_result::GeneratedTokenResult;
-use paddler_openai_translation::generation_event::GenerationEvent;
+use paddler_messaging::generated_token_final_result::GeneratedTokenFinalResult;
+use paddler_messaging::generated_token_partial_result::GeneratedTokenPartialResult;
+use paddler_openai_translation::generation_outcome::GenerationOutcome;
+use paddler_openai_translation::generation_progress::GenerationProgress;
 use paddler_openai_translation::responses_stream::ResponsesStream;
 use paddler_openai_translation::responses_stream_event::ResponsesStreamEvent;
 
-use crate::compatibility::agent_result_stream_event::AgentResultStreamEvent;
+use crate::agent_relay_event::AgentRelayEvent;
 use crate::compatibility::openai_service::openai_sse_http_response::openai_sse_http_response;
 
 fn responses_stream_events(
     responses_stream: &mut ResponsesStream,
-    generated_token_event: AgentResultStreamEvent<GeneratedTokenResult>,
+    agent_relay_event: AgentRelayEvent<GeneratedTokenPartialResult, GeneratedTokenFinalResult>,
 ) -> Vec<ResponsesStreamEvent> {
-    match generated_token_event {
-        AgentResultStreamEvent::Result { result, .. } => {
-            responses_stream.advance(GenerationEvent::from(result))
+    match agent_relay_event {
+        AgentRelayEvent::Failed(relay_failure) => {
+            responses_stream.fail(relay_failure.description())
         }
-        AgentResultStreamEvent::WireError(wire_error) => {
-            responses_stream.fail(wire_error.description)
+        AgentRelayEvent::Final(final_result) => {
+            responses_stream.conclude(GenerationOutcome::from(final_result))
+        }
+        AgentRelayEvent::Partial(partial_result) => {
+            responses_stream.advance(GenerationProgress::from(partial_result))
         }
     }
 }
@@ -34,24 +39,22 @@ fn event_to_sse_data(event: &ResponsesStreamEvent) -> Result<sse::Data, SerdeJso
         .map(|serialized_event| sse::Data::new(serialized_event).event(event.event_name()))
 }
 
-pub fn responses_sse_response<TStream>(
+pub fn responses_sse_response<TAgentRelayEvents>(
     responses_stream: ResponsesStream,
-    generated_tokens: TStream,
+    agent_relay_events: TAgentRelayEvents,
 ) -> HttpResponse
 where
-    TStream: Stream<Item = AgentResultStreamEvent<GeneratedTokenResult>> + 'static,
+    TAgentRelayEvents: Stream<Item = AgentRelayEvent<GeneratedTokenPartialResult, GeneratedTokenFinalResult>>
+        + 'static,
 {
     openai_sse_http_response(
-        generated_tokens
-            .scan(
-                responses_stream,
-                |responses_stream, generated_token_event| {
-                    ready(Some(responses_stream_events(
-                        responses_stream,
-                        generated_token_event,
-                    )))
-                },
-            )
+        agent_relay_events
+            .scan(responses_stream, |responses_stream, agent_relay_event| {
+                ready(Some(responses_stream_events(
+                    responses_stream,
+                    agent_relay_event,
+                )))
+            })
             .flat_map(iter)
             .map(|event| event_to_sse_data(&event).map(sse::Event::Data)),
     )

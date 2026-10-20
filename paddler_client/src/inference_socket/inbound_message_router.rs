@@ -8,23 +8,27 @@ use paddler_messaging::inference_client::identified_message::IdentifiedMessage;
 use paddler_messaging::inference_client::message::Message as InferenceMessage;
 use paddler_messaging::inference_client::notification::Notification;
 use paddler_messaging::inference_client::response::Response;
-use paddler_messaging::streamable_result::StreamableResult;
+use paddler_messaging::jsonrpc::response_envelope::ResponseEnvelope;
+use paddler_messaging::result_step::ResultStep;
 
 use crate::error::Error;
 use crate::inference_socket::cluster_inference_mode_broadcaster::ClusterInferenceModeBroadcaster;
 use crate::inference_socket::pending_requests::PendingRequests;
 
-fn response_is_terminal(response: &Response) -> bool {
-    match response {
-        Response::Decision(result) => result.is_done(),
-        Response::Embedding(result) => result.is_done(),
-        Response::GeneratedToken(result) => result.is_done(),
-    }
-}
-
 struct RequestScopedMessage {
     is_done: bool,
+    message: InferenceMessage,
     request_id: String,
+}
+
+impl RequestScopedMessage {
+    fn of_response(is_done: bool, envelope: ResponseEnvelope<Response>) -> Self {
+        Self {
+            is_done,
+            request_id: envelope.request_id.clone(),
+            message: InferenceMessage::Response(envelope),
+        }
+    }
 }
 
 pub struct InboundMessageRouter {
@@ -64,26 +68,45 @@ impl InboundMessageRouter {
     }
 
     fn route(&self, message: InferenceMessage) {
-        let request_scoped_message = match &message {
+        let request_scoped_message = match message {
             InferenceMessage::Error(envelope) => RequestScopedMessage {
                 is_done: true,
                 request_id: envelope.request_id.clone(),
+                message: InferenceMessage::Error(envelope),
             },
             InferenceMessage::Notification(Notification::ClusterInferenceMode(inference_mode)) => {
                 self.cluster_inference_mode_broadcaster
-                    .publish(*inference_mode);
+                    .publish(inference_mode);
 
                 return;
             }
-            InferenceMessage::Response(envelope) => RequestScopedMessage {
-                is_done: response_is_terminal(&envelope.response),
-                request_id: envelope.request_id.clone(),
+            InferenceMessage::Response(ResponseEnvelope {
+                generated_by,
+                request_id,
+                response,
+            }) => match response.into_step() {
+                ResultStep::Final(final_response) => RequestScopedMessage::of_response(
+                    true,
+                    ResponseEnvelope {
+                        generated_by,
+                        request_id,
+                        response: final_response,
+                    },
+                ),
+                ResultStep::Partial(partial_response) => RequestScopedMessage::of_response(
+                    false,
+                    ResponseEnvelope {
+                        generated_by,
+                        request_id,
+                        response: partial_response,
+                    },
+                ),
             },
         };
 
         if !self.pending.deliver(
             &request_scoped_message.request_id,
-            message,
+            request_scoped_message.message,
             request_scoped_message.is_done,
         ) {
             warn!(

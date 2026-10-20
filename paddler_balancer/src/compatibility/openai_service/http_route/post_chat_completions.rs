@@ -8,6 +8,7 @@ use paddler_openai_translation::chat_completion_delivery::ChatCompletionDelivery
 use paddler_openai_translation::chat_completion_request::ChatCompletionRequest;
 use paddler_openai_translation::translated_chat_completion_request::TranslatedChatCompletionRequest;
 
+use crate::compatibility::agent_relay_events::agent_relay_events;
 use crate::compatibility::compatibility_app_data::CompatibilityAppData;
 use crate::compatibility::openai_service::chat_completions_sse_response::chat_completions_sse_response;
 use crate::compatibility::openai_service::openai_api_path::OpenAIApiPath;
@@ -27,14 +28,17 @@ async fn respond(
             conversation_history_params,
             delivery,
         }) => {
-            let generated_tokens = app_data.agent_result_stream(conversation_history_params);
+            let agent_relay = app_data.agent_relay(conversation_history_params);
 
             match delivery {
                 ChatCompletionDelivery::Buffered(chat_completion_header) => {
-                    openai_http_response(&chat_completion_header, generated_tokens).await
+                    openai_http_response(&chat_completion_header, agent_relay).await
                 }
                 ChatCompletionDelivery::Streamed(chat_completion_stream) => {
-                    chat_completions_sse_response(chat_completion_stream, generated_tokens)
+                    chat_completions_sse_response(
+                        chat_completion_stream,
+                        agent_relay_events(agent_relay),
+                    )
                 }
             }
         }

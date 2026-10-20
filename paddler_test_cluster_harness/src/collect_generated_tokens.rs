@@ -6,6 +6,7 @@ use paddler_client::inference_message_stream::InferenceMessageStream;
 use paddler_messaging::inference_client::message::Message as InferenceMessage;
 use paddler_messaging::inference_client::response::Response as InferenceResponse;
 use paddler_messaging::jsonrpc::response_envelope::ResponseEnvelope;
+use paddler_messaging::result_step::ResultStep;
 use paddler_messaging::streamable_result::StreamableResult as _;
 
 use crate::cluster_harness_error::ClusterHarnessError;
@@ -29,15 +30,21 @@ pub async fn collect_generated_tokens(
                     text.push_str(token_text);
                 }
 
-                let is_done = token_result.is_done();
+                match token_result.into_step() {
+                    ResultStep::Final(final_result) => {
+                        token_results.push(TokenResultWithProducer {
+                            token_result: final_result.into(),
+                            generated_by,
+                        });
 
-                token_results.push(TokenResultWithProducer {
-                    token_result,
-                    generated_by,
-                });
-
-                if is_done {
-                    break;
+                        break;
+                    }
+                    ResultStep::Partial(partial_result) => {
+                        token_results.push(TokenResultWithProducer {
+                            token_result: partial_result.into(),
+                            generated_by,
+                        });
+                    }
                 }
             }
             InferenceMessage::Error(error_envelope) => {

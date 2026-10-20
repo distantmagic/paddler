@@ -9,8 +9,9 @@ use crate::content_part_event::ContentPartEvent;
 use crate::function_call_arguments_delta_event::FunctionCallArgumentsDeltaEvent;
 use crate::function_call_arguments_done_event::FunctionCallArgumentsDoneEvent;
 use crate::generated_output_part::GeneratedOutputPart;
-use crate::generation_event::GenerationEvent;
 use crate::generation_failure::GenerationFailure;
+use crate::generation_outcome::GenerationOutcome;
+use crate::generation_progress::GenerationProgress;
 use crate::open_item::OpenItem;
 use crate::output_item_event::OutputItemEvent;
 use crate::response_snapshot_event::ResponseSnapshotEvent;
@@ -44,33 +45,46 @@ impl ResponsesStream {
         }
     }
 
-    pub fn advance(&mut self, generation_event: GenerationEvent) -> Vec<ResponsesStreamEvent> {
+    pub fn advance(
+        &mut self,
+        generation_progress: GenerationProgress,
+    ) -> Vec<ResponsesStreamEvent> {
         let mut events: Vec<ResponsesStreamEvent> = Vec::new();
 
-        match generation_event {
-            GenerationEvent::Produced(GeneratedOutputPart::Content(text)) => {
+        match generation_progress {
+            GenerationProgress::Produced(GeneratedOutputPart::Content(text)) => {
                 self.ensure_preamble(&mut events);
                 self.handle_content(&mut events, &text);
             }
-            GenerationEvent::Produced(GeneratedOutputPart::Reasoning(text)) => {
+            GenerationProgress::Produced(GeneratedOutputPart::Reasoning(text)) => {
                 self.ensure_preamble(&mut events);
                 self.handle_reasoning(&mut events, &text);
             }
-            GenerationEvent::Produced(GeneratedOutputPart::ToolCalls(parsed_calls)) => {
+            GenerationProgress::Produced(GeneratedOutputPart::ToolCalls(parsed_calls)) => {
                 self.ensure_preamble(&mut events);
                 self.handle_tool_calls(&mut events, &parsed_calls);
             }
-            GenerationEvent::ToolCallTokenProduced => {}
-            GenerationEvent::Finished(generation_summary) => {
-                self.ensure_preamble(&mut events);
-                self.handle_done(&mut events, &generation_summary);
-            }
-            GenerationEvent::Failed(GenerationFailure { message, .. }) => {
+            GenerationProgress::ToolCallTokenProduced => {}
+            GenerationProgress::Failed(GenerationFailure { message, .. }) => {
                 return self.fail(message);
             }
         }
 
         events
+    }
+
+    pub fn conclude(&mut self, generation_outcome: GenerationOutcome) -> Vec<ResponsesStreamEvent> {
+        match generation_outcome {
+            GenerationOutcome::Failed(GenerationFailure { message, .. }) => self.fail(message),
+            GenerationOutcome::Finished(generation_summary) => {
+                let mut events: Vec<ResponsesStreamEvent> = Vec::new();
+
+                self.ensure_preamble(&mut events);
+                self.handle_done(&mut events, &generation_summary);
+
+                events
+            }
+        }
     }
 
     pub fn fail(&mut self, error_message: String) -> Vec<ResponsesStreamEvent> {
@@ -345,9 +359,10 @@ mod tests {
 
     use super::ResponsesStream;
     use crate::generated_output_part::GeneratedOutputPart;
-    use crate::generation_event::GenerationEvent;
     use crate::generation_failure::GenerationFailure;
     use crate::generation_failure_cause::GenerationFailureCause;
+    use crate::generation_outcome::GenerationOutcome;
+    use crate::generation_progress::GenerationProgress;
     use crate::responses_response_header::ResponsesResponseHeader;
     use crate::responses_stream_event::ResponsesStreamEvent;
 
@@ -362,12 +377,12 @@ mod tests {
         })
     }
 
-    fn content(text: &str) -> GenerationEvent {
-        GenerationEvent::Produced(GeneratedOutputPart::Content(text.to_owned()))
+    fn content(text: &str) -> GenerationProgress {
+        GenerationProgress::Produced(GeneratedOutputPart::Content(text.to_owned()))
     }
 
-    fn finished(finish: GenerationFinish) -> GenerationEvent {
-        GenerationEvent::Finished(GenerationSummary {
+    fn finished(finish: GenerationFinish) -> GenerationOutcome {
+        GenerationOutcome::Finished(GenerationSummary {
             finish,
             usage: TokenUsage {
                 prompt_tokens: 7,
@@ -431,7 +446,7 @@ mod tests {
     fn tool_call_tokens_do_not_start_the_response() {
         assert!(
             responses_stream()
-                .advance(GenerationEvent::ToolCallTokenProduced)
+                .advance(GenerationProgress::ToolCallTokenProduced)
                 .is_empty()
         );
     }
@@ -442,7 +457,7 @@ mod tests {
 
         responses_stream.advance(content("hello"));
 
-        let events = responses_stream.advance(finished(GenerationFinish::EndOfGeneration));
+        let events = responses_stream.conclude(finished(GenerationFinish::EndOfGeneration));
 
         assert_eq!(
             names(&events),
@@ -471,7 +486,7 @@ mod tests {
 
     #[test]
     fn finishing_at_a_length_limit_reports_an_incomplete_response() {
-        let events = responses_stream().advance(finished(GenerationFinish::MaxTokens));
+        let events = responses_stream().conclude(finished(GenerationFinish::MaxTokens));
 
         assert_eq!(
             names(&events),
@@ -491,9 +506,9 @@ mod tests {
     fn reasoning_then_content_closes_the_reasoning_item_first() {
         let mut responses_stream = responses_stream();
 
-        responses_stream.advance(GenerationEvent::Produced(GeneratedOutputPart::Reasoning(
-            "think".to_owned(),
-        )));
+        responses_stream.advance(GenerationProgress::Produced(
+            GeneratedOutputPart::Reasoning("think".to_owned()),
+        ));
 
         let events = responses_stream.advance(content("answer"));
 
@@ -514,7 +529,7 @@ mod tests {
 
     #[test]
     fn tool_calls_emit_function_call_argument_events_without_a_content_index() {
-        let events = responses_stream().advance(GenerationEvent::Produced(
+        let events = responses_stream().advance(GenerationProgress::Produced(
             GeneratedOutputPart::ToolCalls(vec![weather_call()]),
         ));
 
@@ -540,25 +555,30 @@ mod tests {
 
     #[test]
     fn a_generation_failure_emits_the_preamble_then_response_failed() {
-        let events = responses_stream().advance(GenerationEvent::Failed(GenerationFailure {
+        let generation_failure = || GenerationFailure {
             cause: GenerationFailureCause::AgentFailed,
             message: "boom".to_owned(),
-        }));
+        };
 
-        assert_eq!(
-            names(&events),
-            vec![
-                "response.created",
-                "response.in_progress",
-                "response.failed"
-            ]
-        );
+        for events in [
+            responses_stream().advance(GenerationProgress::Failed(generation_failure())),
+            responses_stream().conclude(GenerationOutcome::Failed(generation_failure())),
+        ] {
+            assert_eq!(
+                names(&events),
+                vec![
+                    "response.created",
+                    "response.in_progress",
+                    "response.failed"
+                ]
+            );
 
-        let failed = serialized(&events[2]);
+            let failed = serialized(&events[2]);
 
-        assert_eq!(failed["response"]["status"], "failed");
-        assert_eq!(failed["response"]["error"]["code"], "server_error");
-        assert_eq!(failed["response"]["error"]["message"], "boom");
+            assert_eq!(failed["response"]["status"], "failed");
+            assert_eq!(failed["response"]["error"]["code"], "server_error");
+            assert_eq!(failed["response"]["error"]["message"], "boom");
+        }
     }
 
     #[test]
@@ -567,14 +587,15 @@ mod tests {
         let mut completed_stream = responses_stream();
         let mut emitted: Vec<ResponsesStreamEvent> = Vec::new();
 
-        for generation_event in [
-            GenerationEvent::Produced(GeneratedOutputPart::Reasoning("ponder".to_owned())),
+        for generation_progress in [
+            GenerationProgress::Produced(GeneratedOutputPart::Reasoning("ponder".to_owned())),
             content("hello"),
-            GenerationEvent::Produced(GeneratedOutputPart::ToolCalls(vec![weather_call()])),
-            finished(GenerationFinish::EndOfGeneration),
+            GenerationProgress::Produced(GeneratedOutputPart::ToolCalls(vec![weather_call()])),
         ] {
-            emitted.extend(completed_stream.advance(generation_event));
+            emitted.extend(completed_stream.advance(generation_progress));
         }
+
+        emitted.extend(completed_stream.conclude(finished(GenerationFinish::EndOfGeneration)));
 
         emitted.extend(responses_stream().fail("boom".to_owned()));
 

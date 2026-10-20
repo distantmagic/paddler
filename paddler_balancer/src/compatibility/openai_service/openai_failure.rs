@@ -1,7 +1,6 @@
 use actix_web::HttpResponse;
 use actix_web::http::StatusCode;
 
-use paddler_messaging::jsonrpc::error::Error as JsonRpcError;
 use paddler_openai_translation::generation_failure::GenerationFailure;
 use paddler_openai_translation::generation_failure_cause::GenerationFailureCause;
 use paddler_openai_translation::openai_translation_error::OpenAITranslationError;
@@ -9,12 +8,12 @@ use paddler_openai_translation::openai_translation_error::OpenAITranslationError
 use crate::compatibility::openai_service::openai_error_body::OpenAIErrorBody;
 use crate::compatibility::openai_service::openai_error_type::OpenAIErrorType;
 use crate::compatibility::upstream_failure::UpstreamFailure;
+use crate::relay_failure::RelayFailure;
 
 pub enum OpenAIFailure {
     Generation(GenerationFailure),
+    Relay(RelayFailure),
     RequestUntranslatable(OpenAITranslationError),
-    Unfinished,
-    Wire(JsonRpcError),
 }
 
 impl OpenAIFailure {
@@ -43,9 +42,8 @@ impl OpenAIFailure {
     fn into_message(self) -> String {
         match self {
             Self::Generation(GenerationFailure { message, .. }) => message,
+            Self::Relay(relay_failure) => relay_failure.description(),
             Self::RequestUntranslatable(translation_error) => translation_error.to_string(),
-            Self::Unfinished => "the agent stopped before it finished the generation".to_owned(),
-            Self::Wire(JsonRpcError { description, .. }) => description,
         }
     }
 
@@ -69,8 +67,7 @@ impl OpenAIFailure {
             Self::RequestUntranslatable(OpenAITranslationError::ClockBeforeUnixEpoch(_)) => {
                 StatusCode::INTERNAL_SERVER_ERROR
             }
-            Self::Unfinished => UpstreamFailure::RelayFailed.status_code(),
-            Self::Wire(wire_error) => UpstreamFailure::from(wire_error).status_code(),
+            Self::Relay(relay_failure) => UpstreamFailure::from(relay_failure).status_code(),
         }
     }
 }
@@ -86,13 +83,13 @@ mod tests {
     use serde_json::from_slice;
     use serde_json::json;
 
-    use paddler_messaging::jsonrpc::error::Error as JsonRpcError;
     use paddler_messaging::request_params_validation_error::RequestParamsValidationError;
     use paddler_openai_translation::generation_failure::GenerationFailure;
     use paddler_openai_translation::generation_failure_cause::GenerationFailureCause;
     use paddler_openai_translation::openai_translation_error::OpenAITranslationError;
 
     use super::OpenAIFailure;
+    use crate::relay_failure::RelayFailure;
 
     fn error_body(message: &str, error_type: &str) -> Value {
         json!({
@@ -157,20 +154,9 @@ mod tests {
                 ),
             ),
             (
-                OpenAIFailure::Unfinished,
-                StatusCode::BAD_GATEWAY,
-                error_body(
-                    "the agent stopped before it finished the generation",
-                    "server_error",
-                ),
-            ),
-            (
-                OpenAIFailure::Wire(JsonRpcError {
-                    code: 504,
-                    description: "timed out".to_owned(),
-                }),
+                OpenAIFailure::Relay(RelayFailure::BufferedRequestTimedOut),
                 StatusCode::GATEWAY_TIMEOUT,
-                error_body("timed out", "server_error"),
+                error_body("Waiting for available slot timed out", "server_error"),
             ),
         ] {
             let response = openai_failure.into_http_response();

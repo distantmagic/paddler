@@ -30,11 +30,7 @@ async fn respond(
         Ok(TranslatedSystemOneRequest {
             decide_params,
             response_layout,
-        }) => {
-            let decision_results = app_data.agent_result_stream(decide_params);
-
-            system_one_http_response(&response_layout, decision_results).await
-        }
+        }) => system_one_http_response(&response_layout, app_data.agent_relay(decide_params)).await,
         Err(translation_error) => TypeSafeErrorBody {
             detail: translation_error.to_string(),
         }
