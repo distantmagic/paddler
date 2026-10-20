@@ -9,6 +9,7 @@ use paddler_inference_parameters::batch_size::BatchSize;
 use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
 use paddler_messaging::embedding_input_document::EmbeddingInputDocument;
 use paddler_messaging::embedding_normalization_method::EmbeddingNormalizationMethod;
+use paddler_messaging::embedding_result::EmbeddingResult;
 use paddler_messaging::request_params::generate_embedding_batch_params::GenerateEmbeddingBatchParams;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_test_cluster_harness::embedding_cluster_params::EmbeddingClusterParams;
@@ -54,7 +55,7 @@ async fn agent_embeds_every_document_with_a_small_batch_and_context() {
 
     assert_eq!(collected.embeddings.len(), 4);
     assert!(collected.saw_done);
-    assert!(collected.failures.is_empty());
+    assert_eq!(collected.failures, Vec::<EmbeddingResult>::new());
 
     let returned_ids: BTreeSet<String> = collected
         .embeddings

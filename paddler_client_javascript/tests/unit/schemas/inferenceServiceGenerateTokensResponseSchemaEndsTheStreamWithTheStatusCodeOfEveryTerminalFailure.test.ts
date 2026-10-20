@@ -22,6 +22,7 @@ const terminalErrorCodes = [
   { code: 400, variant: "MultimodalTokenizationFailed" },
   { code: 503, variant: "NoSequenceSlotAvailable" },
   { code: 400, variant: "PromptTokenizationFailed" },
+  { code: 400, variant: "PromptTokenizedToNothing" },
   { code: 500, variant: "SamplerChainCreationFailed" },
   { code: 500, variant: "SamplerError" },
   { code: 500, variant: "SamplingCandidatesExhausted" },

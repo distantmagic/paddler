@@ -9,7 +9,6 @@ use nanoid::nanoid;
 use serde_json::Error as SerdeJsonError;
 
 use paddler_messaging::generated_token_final_result::GeneratedTokenFinalResult;
-use paddler_messaging::generated_token_partial_result::GeneratedTokenPartialResult;
 use paddler_openai_translation::chat_completion_stream::ChatCompletionStream;
 use paddler_openai_translation::generation_outcome::GenerationOutcome;
 use paddler_openai_translation::generation_progress::GenerationProgress;
@@ -25,7 +24,7 @@ fn openai_failure_data(openai_failure: OpenAIFailure) -> Vec<Result<sse::Data, S
 fn chat_completion_sse_data(
     chat_completion_stream: &mut ChatCompletionStream,
     request_id: &str,
-    agent_relay_event: AgentRelayEvent<GeneratedTokenPartialResult, GeneratedTokenFinalResult>,
+    agent_relay_event: AgentRelayEvent<GenerationProgress, GeneratedTokenFinalResult>,
 ) -> Vec<Result<sse::Data, SerdeJsonError>> {
     let chat_completion_chunks = match agent_relay_event {
         AgentRelayEvent::Failed(relay_failure) => {
@@ -34,8 +33,8 @@ fn chat_completion_sse_data(
         AgentRelayEvent::Final(final_result) => {
             chat_completion_stream.conclude(request_id, GenerationOutcome::from(final_result))
         }
-        AgentRelayEvent::Partial(partial_result) => {
-            chat_completion_stream.advance(request_id, GenerationProgress::from(partial_result))
+        AgentRelayEvent::Partial(generation_progress) => {
+            chat_completion_stream.advance(request_id, generation_progress)
         }
     };
 
@@ -55,8 +54,8 @@ pub fn chat_completions_sse_response<TAgentRelayEvents>(
     agent_relay_events: TAgentRelayEvents,
 ) -> HttpResponse
 where
-    TAgentRelayEvents: Stream<Item = AgentRelayEvent<GeneratedTokenPartialResult, GeneratedTokenFinalResult>>
-        + 'static,
+    TAgentRelayEvents:
+        Stream<Item = AgentRelayEvent<GenerationProgress, GeneratedTokenFinalResult>> + 'static,
 {
     let request_id: String = nanoid!();
 

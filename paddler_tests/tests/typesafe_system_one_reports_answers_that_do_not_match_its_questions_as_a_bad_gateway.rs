@@ -1,8 +1,6 @@
 use reqwest::StatusCode;
 use serde_json::json;
-use serde_json::to_string;
 use tokio::spawn;
-use tokio_tungstenite::tungstenite::Message;
 
 use paddler_messaging::agent_runtime_status::AgentRuntimeStatus;
 use paddler_messaging::agent_status::AgentStatus;
@@ -10,11 +8,7 @@ use paddler_messaging::decision_answer::DecisionAnswer;
 use paddler_messaging::decision_result::DecisionResult;
 use paddler_messaging::decision_summary::DecisionSummary;
 use paddler_messaging::inference_mode::InferenceMode;
-use paddler_messaging::jsonrpc::response_envelope::ResponseEnvelope;
 use paddler_messaging::management_socket::agent::response::Response as AgentJsonRpcResponse;
-use paddler_messaging::management_socket::balancer::message::Message as ManagementJsonRpcMessage;
-use paddler_messaging::management_socket::balancer::notification::Notification as ManagementJsonRpcNotification;
-use paddler_messaging::management_socket::balancer::notification_params::register_agent_params::RegisterAgentParams;
 use paddler_messaging::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 use paddler_test_cluster_harness::noul_system_one_request::noul_system_one_request;
 use paddler_test_cluster_harness::untrusted_agent_socket_client::UntrustedAgentSocketClient;
@@ -31,33 +25,23 @@ async fn typesafe_system_one_reports_answers_that_do_not_match_its_questions_as_
     ))
     .await
     .expect("a decision balancer without agents must start");
-    let mut untruthful_agent =
-        UntrustedAgentSocketClient::connect(cluster.balancer.addresses.management, "untruthful")
-            .await
-            .expect("the untruthful agent must reach the agent socket");
-    let agent_message = |message: ManagementJsonRpcMessage| {
-        Message::text(to_string(&message).expect("the agent message must serialize"))
-    };
-
-    untruthful_agent
-        .send(agent_message(ManagementJsonRpcMessage::Notification(
-            ManagementJsonRpcNotification::RegisterAgent(RegisterAgentParams {
-                name: Some("untruthful".to_owned()),
-                slot_aggregated_status_snapshot: SlotAggregatedStatusSnapshot {
-                    status: AgentStatus {
-                        desired_slots_total: DECISION_SLOTS,
-                        runtime: AgentRuntimeStatus::Serving {
-                            inference_mode: InferenceMode::TextGenerationEmbeddingsAndDecisions,
-                            slots_total: u64::from(DECISION_SLOTS),
-                        },
-                        ..AgentStatus::default()
-                    },
-                    version: 1,
+    let mut untruthful_agent = UntrustedAgentSocketClient::connect_registered(
+        cluster.balancer.addresses.management,
+        "untruthful",
+        SlotAggregatedStatusSnapshot {
+            status: AgentStatus {
+                desired_slots_total: DECISION_SLOTS,
+                runtime: AgentRuntimeStatus::Serving {
+                    inference_mode: InferenceMode::TextGenerationEmbeddingsAndDecisions,
+                    slots_total: u64::from(DECISION_SLOTS),
                 },
-            }),
-        )))
-        .await
-        .expect("the registration must be sent");
+                ..AgentStatus::default()
+            },
+            version: 1,
+        },
+    )
+    .await
+    .expect("the untruthful agent must register");
 
     let typesafe_response =
         spawn(cluster.typesafe_system_one("mismatched-answers", &noul_system_one_request()));
@@ -78,13 +62,10 @@ async fn typesafe_system_one_reports_answers_that_do_not_match_its_questions_as_
         }),
     ] {
         untruthful_agent
-            .send(agent_message(ManagementJsonRpcMessage::Response(
-                ResponseEnvelope {
-                    generated_by: None,
-                    request_id: decision_request_id.clone(),
-                    response: AgentJsonRpcResponse::Decision(decision_result),
-                },
-            )))
+            .respond(
+                decision_request_id.clone(),
+                AgentJsonRpcResponse::Decision(decision_result),
+            )
             .await
             .expect("the decision result must be sent");
     }

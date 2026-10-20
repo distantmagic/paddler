@@ -43,7 +43,6 @@ mod tests {
 
     use super::get_balancer_applicable_state;
     use crate::agent_controller_pool::AgentControllerPool;
-    use crate::agent_response_senders::AgentResponseSenders;
     use crate::balancer_desired_state_store::BalancerDesiredStateStore;
     use crate::buffered_request_manager::BufferedRequestManager;
     use crate::management_service::app_data::AppData;
@@ -71,7 +70,6 @@ mod tests {
                         Duration::from_secs(1),
                         10,
                     )),
-                    agent_response_senders: AgentResponseSenders::default(),
                     shutdown: CancellationToken::new(),
                     statsd_prefix: "paddler".to_owned(),
                 }))

@@ -62,11 +62,10 @@ impl BufferedRequestManager {
             return BufferedRequestAgentWaitResult::Found(dispatched_agent);
         }
 
-        let waiting_line_place = self
+        let Some(waiting_line_place) = self
             .agent_controller_pool
-            .join_waiting_line(dispatch_requirement);
-
-        let Some(_buffered_request_count_guard) = self.buffered_request_counter.try_admit() else {
+            .join_waiting_line_when_admitted(dispatch_requirement, &self.buffered_request_counter)
+        else {
             return BufferedRequestAgentWaitResult::BufferOverflow;
         };
 
@@ -113,6 +112,8 @@ mod tests {
     use std::thread::scope;
     use std::time::Duration;
 
+    use futures::FutureExt as _;
+    use tokio::pin;
     use tokio::runtime::Builder;
     use tokio::select;
     use tokio::sync::mpsc;
@@ -126,6 +127,7 @@ mod tests {
     use crate::agent_controller_pool::AgentControllerPool;
     use crate::agent_streaming_request::AgentStreamingRequest as _;
     use crate::buffered_request_agent_wait_result::BufferedRequestAgentWaitResult;
+    use crate::dispatch_requirement::DispatchRequirement;
 
     const BUFFER_CAPACITY: u64 = 1;
     const RACE_ROUNDS: usize = 64;
@@ -135,18 +137,22 @@ mod tests {
         overflowed_callers: usize,
     }
 
+    fn raw_prompt_requirement() -> DispatchRequirement {
+        ContinueFromRawPromptParams {
+            grammar: None,
+            max_tokens: NonZeroU32::MIN,
+            raw_prompt: "hello".to_owned(),
+        }
+        .dispatch_requirement()
+    }
+
     fn race_callers_for_one_buffered_place(racing_callers: usize) -> RaceOutcome {
         let buffered_request_manager = BufferedRequestManager::new(
             Arc::new(AgentControllerPool::default()),
             Duration::MAX,
             BUFFER_CAPACITY,
         );
-        let raw_prompt_requirement = ContinueFromRawPromptParams {
-            grammar: None,
-            max_tokens: NonZeroU32::MIN,
-            raw_prompt: "hello".to_owned(),
-        }
-        .dispatch_requirement();
+        let raw_prompt_requirement = raw_prompt_requirement();
         let start_line = AtomicValue::<AtomicBool>::new(false);
         let admitted_callers_release = CancellationToken::new();
         let (overflow_tx, mut overflow_rx) = mpsc::unbounded_channel();
@@ -246,5 +252,26 @@ mod tests {
             assert_eq!(admitted_callers, BUFFER_CAPACITY);
             assert_eq!(overflowed_callers, racing_callers - 1);
         }
+    }
+
+    #[tokio::test]
+    async fn a_request_the_full_buffer_refuses_wakes_no_waiting_request() {
+        let agent_controller_pool = Arc::new(AgentControllerPool::default());
+        let buffered_request_manager =
+            BufferedRequestManager::new(agent_controller_pool.clone(), Duration::MAX, 0);
+        let agent_availability_changed = agent_controller_pool.agent_availability_changed();
+
+        pin!(agent_availability_changed);
+        agent_availability_changed.as_mut().enable();
+
+        let wait_result = buffered_request_manager
+            .wait_for_available_agent(raw_prompt_requirement())
+            .await;
+
+        assert_eq!(
+            discriminant(&wait_result),
+            discriminant(&BufferedRequestAgentWaitResult::BufferOverflow)
+        );
+        assert_eq!(agent_availability_changed.now_or_never(), None);
     }
 }

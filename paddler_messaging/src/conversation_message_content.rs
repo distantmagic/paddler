@@ -78,7 +78,7 @@ mod tests {
     fn image_urls_from_text_variant_is_empty() {
         let content = ConversationMessageContent::Text("hello".to_owned());
 
-        assert!(content.image_urls().is_empty());
+        assert_eq!(content.image_urls(), Vec::<&ImageUrl>::new());
     }
 
     #[test]

@@ -12,6 +12,8 @@ use paddler_test_cluster_harness::cluster_params::ClusterParams;
 use paddler_test_cluster_harness::model_card::qwen3_0_6b::qwen3_0_6b;
 use paddler_tests::post_openai_chat_completion::post_openai_chat_completion;
 use paddler_tests::start_cluster::start_cluster;
+use paddler_tests::weather_tool_parameters_with_an_integer_location::weather_tool_parameters_with_an_integer_location;
+use paddler_tests::weather_tool_question::WEATHER_TOOL_QUESTION;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn openai_chat_completion_reports_a_tool_call_violating_its_schema_as_a_server_error() {
@@ -33,7 +35,7 @@ async fn openai_chat_completion_reports_a_tool_call_violating_its_schema_as_a_se
             "model": "qwen3-test",
             "messages": [{
                 "role": "user",
-                "content": "What is the weather in Paris? Use the get_weather tool to find out."
+                "content": WEATHER_TOOL_QUESTION
             }],
             "max_completion_tokens": 400,
             "tools": [{
@@ -41,14 +43,7 @@ async fn openai_chat_completion_reports_a_tool_call_violating_its_schema_as_a_se
                 "function": {
                     "name": "get_weather",
                     "description": "Get the current weather for a location",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "location": {"type": "integer", "description": "The city name"}
-                        },
-                        "required": ["location"],
-                        "additionalProperties": false
-                    }
+                    "parameters": weather_tool_parameters_with_an_integer_location()
                 }
             }]
         }),

@@ -16,6 +16,7 @@ use paddler_agent::serving_replacement::ServingReplacement;
 use paddler_agent_text_generation::text_generation_request::TextGenerationRequest;
 use paddler_inference_parameters::pooling_type::PoolingType;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
+use paddler_tests::llama_runtime::LlamaRuntime;
 use paddler_tests::raw_prompt_generation::RawPromptGeneration;
 
 use crate::kev_model_serving_without_decisions::KevModelServingWithoutDecisions;
@@ -23,10 +24,18 @@ use crate::kev_model_serving_without_decisions::KevModelServingWithoutDecisions;
 #[tokio::test(flavor = "multi_thread")]
 async fn a_restart_cancelled_while_starting_a_capability_shuts_down_the_capabilities_it_kept() {
     let KevModelServingWithoutDecisions {
-        llama_runtime,
+        llama_runtime:
+            LlamaRuntime {
+                inference_runtime_context,
+                loaded_llama_model: kev_model_loaded_for_serving,
+                ..
+            },
         model_serving_settings,
         served_model,
     } = KevModelServingWithoutDecisions::start(&CancellationToken::new()).await;
+
+    drop(kev_model_loaded_for_serving);
+
     let kept_text_generation_request_preparer = served_model
         .capabilities
         .text_generation
@@ -52,10 +61,7 @@ async fn a_restart_cancelled_while_starting_a_capability_shuts_down_the_capabili
             prepared_decisions: PreparedDecisions::Disabled,
         },
     }
-    .replace(
-        cancelled_restart,
-        llama_runtime.inference_runtime_context.clone(),
-    )
+    .replace(cancelled_restart, inference_runtime_context.clone())
     .await;
 
     assert_eq!(
@@ -65,16 +71,7 @@ async fn a_restart_cancelled_while_starting_a_capability_shuts_down_the_capabili
         })
     );
     assert!(
-        llama_runtime
-            .inference_runtime_context
-            .vram_residencies
-            .model_weights
-            .try_occupy()
-            .is_err()
-    );
-    assert!(
-        llama_runtime
-            .inference_runtime_context
+        inference_runtime_context
             .vram_residencies
             .text_generation_context
             .try_occupy()
@@ -87,10 +84,7 @@ async fn a_restart_cancelled_while_starting_a_capability_shuts_down_the_capabili
         mut generated_tokens_rx,
     } = RawPromptGeneration::new(
         "The capital of France is",
-        llama_runtime
-            .inference_runtime_context
-            .slot_aggregated_status
-            .clone(),
+        inference_runtime_context.slot_aggregated_status.clone(),
     );
 
     kept_text_generation_request_preparer
@@ -102,4 +96,14 @@ async fn a_restart_cancelled_while_starting_a_capability_shuts_down_the_capabili
             "agent: the scheduler is no longer accepting requests".to_owned()
         ))
     );
+
+    drop(kept_text_generation_request_preparer);
+
+    let model_weights = &inference_runtime_context.vram_residencies.model_weights;
+
+    assert!(model_weights.try_occupy().is_err());
+
+    drop(restart_outcome);
+
+    assert!(model_weights.try_occupy().is_ok());
 }

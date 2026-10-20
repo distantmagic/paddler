@@ -35,6 +35,7 @@ pub enum GeneratedTokenResult {
     NoSequenceSlotAvailable(String),
     PromptExceedsContextSize(OversizedPromptDetails),
     PromptTokenizationFailed(String),
+    PromptTokenizedToNothing(String),
     ReasoningToken(String),
     SamplerChainCreationFailed(String),
     SamplerError(String),
@@ -141,6 +142,9 @@ impl From<GeneratedTokenFinalResult> for GeneratedTokenResult {
             }
             GeneratedTokenFinalResult::PromptTokenizationFailed(detail) => {
                 Self::PromptTokenizationFailed(detail)
+            }
+            GeneratedTokenFinalResult::PromptTokenizedToNothing(detail) => {
+                Self::PromptTokenizedToNothing(detail)
             }
             GeneratedTokenFinalResult::SamplerChainCreationFailed(detail) => {
                 Self::SamplerChainCreationFailed(detail)
@@ -252,6 +256,9 @@ impl StreamableResult for GeneratedTokenResult {
             Self::PromptTokenizationFailed(detail) => {
                 ResultStep::Final(GeneratedTokenFinalResult::PromptTokenizationFailed(detail))
             }
+            Self::PromptTokenizedToNothing(detail) => {
+                ResultStep::Final(GeneratedTokenFinalResult::PromptTokenizedToNothing(detail))
+            }
             Self::ReasoningToken(text) => {
                 ResultStep::Partial(GeneratedTokenPartialResult::ReasoningToken(text))
             }
@@ -355,6 +362,7 @@ mod tests {
                 sequence_context_size: 8192,
             }),
             GeneratedTokenResult::PromptTokenizationFailed("failure".to_owned()),
+            GeneratedTokenResult::PromptTokenizedToNothing("failure".to_owned()),
             GeneratedTokenResult::SamplerChainCreationFailed("failure".to_owned()),
             GeneratedTokenResult::SamplerError("failure".to_owned()),
             GeneratedTokenResult::SamplingCandidatesExhausted("failure".to_owned()),

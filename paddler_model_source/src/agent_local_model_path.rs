@@ -3,8 +3,6 @@ use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 
-use percent_encoding::AsciiSet;
-use percent_encoding::CONTROLS;
 use percent_encoding::percent_encode;
 use url::Url;
 
@@ -14,20 +12,7 @@ use paddler_messaging::agent_issue_params::agent_model_uri_not_canonical_params:
 use paddler_messaging::agent_issue_params::model_path::ModelPath;
 
 use crate::model_source_error::ModelSourceError;
-
-const FILE_URL_PATH_SEGMENT_ENCODE_SET: &AsciiSet = &CONTROLS
-    .add(b' ')
-    .add(b'"')
-    .add(b'#')
-    .add(b'%')
-    .add(b'/')
-    .add(b'<')
-    .add(b'>')
-    .add(b'?')
-    .add(b'\\')
-    .add(b'`')
-    .add(b'{')
-    .add(b'}');
+use crate::url_path_segment_encode_set::URL_PATH_SEGMENT_ENCODE_SET;
 
 fn canonical_agent_uri(normalized_absolute_path: &Path) -> String {
     let mut encoded_path = String::new();
@@ -36,7 +21,7 @@ fn canonical_agent_uri(normalized_absolute_path: &Path) -> String {
         encoded_path.push('/');
         encoded_path.extend(percent_encode(
             component.as_os_str().as_bytes(),
-            FILE_URL_PATH_SEGMENT_ENCODE_SET,
+            URL_PATH_SEGMENT_ENCODE_SET,
         ));
     }
 

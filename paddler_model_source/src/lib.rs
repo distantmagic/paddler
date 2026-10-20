@@ -11,3 +11,4 @@ pub mod resolve_desired_model;
 pub mod resolves_model_source;
 pub mod url_download_progress;
 pub mod url_model_source;
+pub mod url_path_segment_encode_set;

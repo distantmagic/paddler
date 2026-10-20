@@ -126,24 +126,20 @@ impl ActiveDecisionRequest {
         agent_name: Option<&str>,
         outcome: TOutcome,
     ) {
-        match self.release_sequences(decoder) {
-            Ok(()) => outcome.report(agent_name, &self.decision_result_tx),
-            Err(release_error) => release_error.report(agent_name, &self.decision_result_tx),
+        self.state_sequence
+            .sequence_id()
+            .release_kv_cache_in(decoder.llama_context, agent_name);
+
+        if let QuestionLane::Reserved(lane) = &self.question_lane {
+            lane.sequence_id()
+                .release_kv_cache_in(decoder.llama_context, agent_name);
         }
+
+        outcome.report(agent_name, &self.decision_result_tx);
     }
 
     pub fn is_stop_requested(&mut self) -> bool {
         self.decision_stop_rx.is_stop_requested()
-    }
-
-    fn release_sequences(&self, decoder: &mut DecisionDecoder) -> Result<(), DecisionError> {
-        decoder.remove_sequence(self.state_sequence.sequence_id())?;
-
-        if let QuestionLane::Reserved(lane) = &self.question_lane {
-            decoder.remove_sequence(lane.sequence_id())?;
-        }
-
-        Ok(())
     }
 
     #[must_use]

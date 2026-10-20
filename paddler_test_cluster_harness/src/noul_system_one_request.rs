@@ -1,7 +1,9 @@
 use serde_json::Value;
 use serde_json::json;
 
+use crate::noul_system_one_request_about::noul_system_one_request_about;
+
 #[must_use]
 pub fn noul_system_one_request() -> Value {
-    json!({"state": "state", "questions": {"paid": {"type": "noul"}}})
+    noul_system_one_request_about(&json!("state"))
 }

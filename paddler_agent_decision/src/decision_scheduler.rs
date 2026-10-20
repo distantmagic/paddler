@@ -77,11 +77,27 @@ impl DecisionScheduler<'_> {
                 continue;
             }
 
-            let Some(admission) = self.capacity_ledger.admit(request.slot_guard.slots()) else {
+            let Some(admission) = self
+                .capacity_ledger
+                .admit(request.layout.question_lane_demand())
+            else {
                 self.pending_requests.push_front(request);
 
                 break;
             };
+
+            if let Err(clear_error) = admission
+                .state_sequence
+                .sequence_id()
+                .clear_kv_cache_in(&mut self.llama_context)
+            {
+                DecisionError::KvCacheRemovalFailed(clear_error).report(
+                    self.scheduler_context.agent_name.as_deref(),
+                    &request.decision_result_tx,
+                );
+
+                continue;
+            }
 
             self.active_requests
                 .push_back(ActiveDecisionRequest::new(request, admission));

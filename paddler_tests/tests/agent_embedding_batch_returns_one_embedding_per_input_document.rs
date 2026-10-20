@@ -6,6 +6,7 @@ use tokio_util::sync::CancellationToken;
 
 use paddler_messaging::embedding_input_document::EmbeddingInputDocument;
 use paddler_messaging::embedding_normalization_method::EmbeddingNormalizationMethod;
+use paddler_messaging::embedding_result::EmbeddingResult;
 use paddler_messaging::request_params::generate_embedding_batch_params::GenerateEmbeddingBatchParams;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_test_cluster_harness::embedding_cluster_params::EmbeddingClusterParams;
@@ -44,7 +45,7 @@ async fn agent_embedding_batch_returns_one_embedding_per_input_document() {
 
     assert_eq!(collected.embeddings.len(), 2);
     assert!(collected.saw_done);
-    assert!(collected.failures.is_empty());
+    assert_eq!(collected.failures, Vec::<EmbeddingResult>::new());
 
     let returned_ids: BTreeSet<String> = collected
         .embeddings

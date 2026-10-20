@@ -114,7 +114,7 @@ impl CapabilityStarter<'_> {
             model_serving_settings,
         }: LoadedModelServingPlan,
         prepared_decisions: PreparedDecisions,
-    ) -> Result<ServedModel, ServingInterruption> {
+    ) -> Result<ServedModel, Box<ServingInterruption>> {
         let decisions = match self
             .establish_decisions(
                 &loaded_llama_model,
@@ -129,10 +129,10 @@ impl CapabilityStarter<'_> {
                 embeddings_plan.shut_down().await;
                 text_generation_plan.shut_down().await;
 
-                return Err(ServingInterruption {
+                return Err(Box::new(ServingInterruption {
                     interruption,
                     loaded_llama_model,
-                });
+                }));
             }
         };
         let embeddings = match self
@@ -148,10 +148,10 @@ impl CapabilityStarter<'_> {
                 decisions.shut_down().await;
                 text_generation_plan.shut_down().await;
 
-                return Err(ServingInterruption {
+                return Err(Box::new(ServingInterruption {
                     interruption,
                     loaded_llama_model,
-                });
+                }));
             }
         };
         let text_generation = match self
@@ -167,10 +167,10 @@ impl CapabilityStarter<'_> {
                 decisions.shut_down().await;
                 embeddings.shut_down().await;
 
-                return Err(ServingInterruption {
+                return Err(Box::new(ServingInterruption {
                     interruption,
                     loaded_llama_model,
-                });
+                }));
             }
         };
 

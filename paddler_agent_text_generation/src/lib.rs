@@ -18,6 +18,7 @@ pub mod generation_request_preparer;
 pub mod grammar_sampling;
 pub mod image_input;
 pub mod json_tools_serializer;
+pub mod leading_bos_ingestion;
 pub mod llama_cpp_media_marker;
 pub mod model_bos_token;
 pub mod multimodal_ingestion_progress;

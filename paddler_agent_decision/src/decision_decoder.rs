@@ -113,8 +113,8 @@ impl DecisionDecoder<'_, '_> {
     }
 
     pub fn remove_sequence(&mut self, sequence_id: SequenceId) -> Result<(), DecisionError> {
-        self.llama_context
-            .clear_kv_cache_seq(Some(sequence_id.kv_cache_sequence_id()), None, None)
+        sequence_id
+            .clear_kv_cache_in(self.llama_context)
             .map_err(DecisionError::KvCacheRemovalFailed)
     }
 }

@@ -1,14 +1,9 @@
 use reqwest::Client;
 use reqwest::StatusCode;
-use serde_json::to_string;
 use tokio::spawn;
-use tokio_tungstenite::tungstenite::Message;
 
 use paddler_messaging::agent_status::AgentStatus;
 use paddler_messaging::api_path::ApiPath;
-use paddler_messaging::management_socket::balancer::message::Message as ManagementJsonRpcMessage;
-use paddler_messaging::management_socket::balancer::notification::Notification as ManagementJsonRpcNotification;
-use paddler_messaging::management_socket::balancer::notification_params::register_agent_params::RegisterAgentParams;
 use paddler_messaging::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
 use paddler_test_cluster_harness::untrusted_agent_socket_client::UntrustedAgentSocketClient;
@@ -25,26 +20,16 @@ async fn management_api_reports_an_agent_hanging_up_before_it_answers_as_a_bad_g
     })
     .await
     .expect("a cluster without agents must start");
-    let mut hanging_up_agent =
-        UntrustedAgentSocketClient::connect(cluster.balancer.addresses.management, AGENT_ID)
-            .await
-            .expect("the agent must reach the agent socket");
-
-    hanging_up_agent
-        .send(Message::text(
-            to_string(&ManagementJsonRpcMessage::Notification(
-                ManagementJsonRpcNotification::RegisterAgent(RegisterAgentParams {
-                    name: Some(AGENT_ID.to_owned()),
-                    slot_aggregated_status_snapshot: SlotAggregatedStatusSnapshot {
-                        status: AgentStatus::default(),
-                        version: 1,
-                    },
-                }),
-            ))
-            .expect("the registration must serialize"),
-        ))
-        .await
-        .expect("the registration must be sent");
+    let mut hanging_up_agent = UntrustedAgentSocketClient::connect_registered(
+        cluster.balancer.addresses.management,
+        AGENT_ID,
+        SlotAggregatedStatusSnapshot {
+            status: AgentStatus::default(),
+            version: 1,
+        },
+    )
+    .await
+    .expect("the agent must register");
     cluster
         .wait_for_agent_count(1)
         .await

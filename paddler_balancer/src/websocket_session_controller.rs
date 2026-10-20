@@ -1,3 +1,5 @@
+use std::future::Future;
+use std::future::ready;
 use std::marker::PhantomData;
 
 use anyhow::Result;
@@ -28,17 +30,21 @@ where
             _marker: PhantomData,
         }
     }
+
+    fn send_text_frame(&self, message: &TResponse) -> Result<()> {
+        self.outbound_tx
+            .send(WebSocketOutboundFrame::Text(to_string(message)?))?;
+
+        Ok(())
+    }
 }
 
 impl<TResponse> ControlsSession<TResponse> for WebSocketSessionController<TResponse>
 where
     TResponse: RpcMessage + Sync + 'static,
 {
-    async fn send_response(&mut self, message: TResponse) -> Result<()> {
-        self.outbound_tx
-            .send(WebSocketOutboundFrame::Text(to_string(&message)?))?;
-
-        Ok(())
+    fn send_response(&mut self, message: TResponse) -> impl Future<Output = Result<()>> + Send {
+        ready(self.send_text_frame(&message))
     }
 }
 

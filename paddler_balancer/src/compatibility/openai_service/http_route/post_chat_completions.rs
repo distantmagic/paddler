@@ -8,9 +8,9 @@ use paddler_openai_translation::chat_completion_delivery::ChatCompletionDelivery
 use paddler_openai_translation::chat_completion_request::ChatCompletionRequest;
 use paddler_openai_translation::translated_chat_completion_request::TranslatedChatCompletionRequest;
 
-use crate::compatibility::agent_relay_events::agent_relay_events;
 use crate::compatibility::compatibility_app_data::CompatibilityAppData;
 use crate::compatibility::openai_service::chat_completions_sse_response::chat_completions_sse_response;
+use crate::compatibility::openai_service::generation_progress_events::generation_progress_events;
 use crate::compatibility::openai_service::openai_api_path::OpenAIApiPath;
 use crate::compatibility::openai_service::openai_failure::OpenAIFailure;
 use crate::compatibility::openai_service::openai_http_response::openai_http_response;
@@ -37,7 +37,7 @@ async fn respond(
                 ChatCompletionDelivery::Streamed(chat_completion_stream) => {
                     chat_completions_sse_response(
                         chat_completion_stream,
-                        agent_relay_events(agent_relay),
+                        generation_progress_events(agent_relay),
                     )
                 }
             }
@@ -88,7 +88,10 @@ mod tests {
     use crate::resolved_socket_addr::ResolvedSocketAddr;
 
     fn app_data_without_agents(max_buffered_requests: u64) -> CompatibilityAppData {
+        let agent_controller_pool = Arc::new(AgentControllerPool::default());
+
         CompatibilityAppData {
+            agent_controller_pool: agent_controller_pool.clone(),
             balancer_applicable_state_holder: Arc::new(BalancerApplicableStateHolder::new(
                 watch::channel(Arc::new(BalancerApplicableState::from(
                     BalancerDesiredState::default(),
@@ -96,7 +99,7 @@ mod tests {
                 .1,
             )),
             buffered_request_manager: Arc::new(BufferedRequestManager::new(
-                Arc::new(AgentControllerPool::default()),
+                agent_controller_pool,
                 Duration::ZERO,
                 max_buffered_requests,
             )),

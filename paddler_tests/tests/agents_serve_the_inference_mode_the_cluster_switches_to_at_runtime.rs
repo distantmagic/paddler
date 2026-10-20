@@ -65,7 +65,7 @@ async fn agents_serve_the_inference_mode_the_cluster_switches_to_at_runtime() {
         .await
         .expect("the switched cluster must generate tokens");
 
-    assert!(!generated.text.is_empty());
+    assert_ne!(generated.text, "");
     generated
         .summary()
         .expect("the generation must finish with a summary");

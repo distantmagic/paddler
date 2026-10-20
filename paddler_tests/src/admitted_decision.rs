@@ -29,7 +29,7 @@ impl AdmittedDecision {
             prepared_decision_request,
         } = PreparedDecision::new(slot_aggregated_status, layout);
         capacity_ledger
-            .admit(prepared_decision_request.slot_guard.slots())
+            .admit(prepared_decision_request.layout.question_lane_demand())
             .map(|admission| Self {
                 active_decision_request: ActiveDecisionRequest::new(
                     prepared_decision_request,

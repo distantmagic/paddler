@@ -2,6 +2,7 @@
 
 use serde_json::json;
 
+use paddler_test_cluster_harness::system_one_request::system_one_request;
 use paddler_test_cluster_harness::typesafe_api_response::TypeSafeApiResponse;
 use paddler_tests::decision_cluster_params::DecisionClusterParams;
 use paddler_tests::start_decision_cluster::start_decision_cluster;
@@ -15,14 +16,13 @@ pub async fn typesafe_tone_and_payment_decision() -> TypeSafeApiResponse {
     let typesafe_decision = cluster
         .typesafe_system_one(
             TYPESAFE_TONE_AND_PAYMENT_REQUEST_ID,
-            &json!({
-                "model": "kev-latest",
-                "state": "The invoice was paid on time.",
-                "questions": {
+            &system_one_request(
+                &json!("The invoice was paid on time."),
+                &json!({
                     "tone": {"type": "choice", "criteria": {"calm": null, "angry": "Shouting"}},
                     "paid": {"type": "noul", "instructions": "Was it paid?"},
-                },
-            }),
+                }),
+            ),
         )
         .await
         .expect("the System One request must be answered");

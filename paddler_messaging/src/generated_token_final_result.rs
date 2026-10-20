@@ -24,6 +24,7 @@ pub enum GeneratedTokenFinalResult {
     NoSequenceSlotAvailable(String),
     PromptExceedsContextSize(OversizedPromptDetails),
     PromptTokenizationFailed(String),
+    PromptTokenizedToNothing(String),
     SamplerChainCreationFailed(String),
     SamplerError(String),
     SamplingCandidatesExhausted(String),

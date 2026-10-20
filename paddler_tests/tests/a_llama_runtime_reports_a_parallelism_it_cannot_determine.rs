@@ -14,6 +14,9 @@ fn a_llama_runtime_reports_a_parallelism_it_cannot_determine() {
         .err()
         .as_ref()
         .map(ToString::to_string),
-        Some("unable to determine how many threads this machine runs in parallel".to_owned())
+        Some(
+            "unable to determine how many threads this machine runs in parallel: the machine hides how many threads it runs in parallel"
+                .to_owned()
+        )
     );
 }

@@ -4,6 +4,7 @@ use reqwest::StatusCode;
 use serde_json::Value;
 use serde_json::json;
 
+use paddler_test_cluster_harness::system_one_request::system_one_request;
 use paddler_tests::decision_cluster_params::DecisionClusterParams;
 use paddler_tests::start_decision_cluster::start_decision_cluster;
 
@@ -18,10 +19,9 @@ async fn typesafe_system_one_answers_with_the_decision_model() {
     let response = cluster
         .typesafe_system_one(
             "model-request",
-            &json!({
-                "model": "kev-latest",
-                "state": {"customer": "Ada", "message": "I was charged twice. Please help."},
-                "questions": {
+            &system_one_request(
+                &json!({"customer": "Ada", "message": "I was charged twice. Please help."}),
+                &json!({
                     "billing": {"type": "noul", "instructions": "Is this about billing?"},
                     "tone": {
                         "type": "choice",
@@ -32,8 +32,8 @@ async fn typesafe_system_one_answers_with_the_decision_model() {
                         "type": "score",
                         "criteria": ["Can wait", "Needs attention today"],
                     },
-                },
-            }),
+                }),
+            ),
         )
         .await
         .expect("the System One request must be answered");

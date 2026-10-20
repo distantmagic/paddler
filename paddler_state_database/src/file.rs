@@ -52,12 +52,13 @@ impl File {
                 source,
             })?;
 
-        if from_value::<StateDatabaseSchemaVersion>(version.clone()).is_err() {
-            return Err(StateDatabaseError::SchemaVersionUnsupported {
+        from_value::<StateDatabaseSchemaVersion>(version.clone()).map_err(|source| {
+            StateDatabaseError::SchemaVersionUnsupported {
                 found: version.to_string(),
                 path: self.path.clone(),
-            });
-        }
+                source,
+            }
+        })?;
 
         from_str(content).map_err(|source| StateDatabaseError::FileContentsInvalid {
             path: self.path.clone(),
@@ -141,6 +142,7 @@ impl StateDatabase for File {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error as _;
     use std::io::ErrorKind;
     #[cfg(target_os = "linux")]
     use std::os::unix::fs::symlink;
@@ -385,13 +387,30 @@ mod tests {
                 .err()
                 .as_ref()
                 .map(ToString::to_string),
-            Some(
-                StateDatabaseError::SchemaVersionUnsupported {
-                    found: r#""1""#.to_owned(),
-                    path,
-                }
-                .to_string()
-            )
+            Some(format!(
+                r#"The state database file '{}' uses schema version "1", but this version of Paddler only reads version 2. Start from a new state database file."#,
+                path.display()
+            ))
+        );
+    }
+
+    #[tokio::test]
+    async fn reading_a_file_of_an_older_schema_version_keeps_why_the_version_was_refused() {
+        let temp_file = NamedTempFile::new().unwrap();
+        let path = temp_file.path().to_path_buf();
+
+        write(&path, br#"{"balancer_desired_state": {}, "version": "1"}"#)
+            .await
+            .unwrap();
+
+        let refusal = File::new(path)
+            .read_balancer_desired_state()
+            .await
+            .unwrap_err();
+
+        assert_eq!(
+            refusal.source().map(ToString::to_string),
+            Some("unknown variant `1`, expected `2`".to_owned())
         );
     }
 }

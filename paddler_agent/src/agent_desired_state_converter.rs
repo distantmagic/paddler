@@ -58,18 +58,18 @@ impl AgentDesiredStateConverter {
         else {
             return Ok(AgentDesiredStateConversion::Cancelled);
         };
-        let ControlFlow::Continue(multimodal_projection_path) = self
-            .resolve_model_file(projection, AgentIssue::MultimodalProjectionCannotBeLoaded)
-            .await?
-        else {
-            return Ok(AgentDesiredStateConversion::Cancelled);
-        };
         let Some(model_path) = model_path else {
             return Ok(AgentDesiredStateConversion::Converted(
                 AgentApplicableState::WithoutModel {
                     chat_template_source: chat_template_source.clone(),
                 },
             ));
+        };
+        let ControlFlow::Continue(multimodal_projection_path) = self
+            .resolve_model_file(projection, AgentIssue::MultimodalProjectionCannotBeLoaded)
+            .await?
+        else {
+            return Ok(AgentDesiredStateConversion::Cancelled);
         };
         let applicable_decisions = match self.resolve_decisions(decisions).await? {
             ControlFlow::Continue(applicable_decisions) => applicable_decisions,
@@ -342,11 +342,15 @@ mod tests {
     async fn local_missing_multimodal_projection_registers_multimodal_projection_cannot_be_loaded_and_errs()
      {
         let status = fresh_status();
+        let model_file = NamedTempFile::new().unwrap();
         let MissingLocalModel {
             _dir_guard,
             path: missing_path,
         } = nonexistent_path_in_temp_dir("projection");
-        let desired = desired_state(AgentDesiredModel::None, local_model_at(&missing_path));
+        let desired = desired_state(
+            local_model_at(model_file.path()),
+            local_model_at(&missing_path),
+        );
         let converter = AgentDesiredStateConverter {
             cache_dir: CacheDir::from_process_env(),
             cancellation_token: CancellationToken::new(),
@@ -413,10 +417,15 @@ mod tests {
 
     #[tokio::test]
     async fn cancelling_while_the_multimodal_projection_resolves_cancels_the_conversion() {
+        let model_file = NamedTempFile::new().unwrap();
+
         assert_eq!(
             conversion(
                 cancelled_token(),
-                &desired_state(AgentDesiredModel::None, uncached_hugging_face_model()),
+                &desired_state(
+                    local_model_at(model_file.path()),
+                    uncached_hugging_face_model()
+                ),
             )
             .await,
             AgentDesiredStateConversion::Cancelled
@@ -476,6 +485,25 @@ mod tests {
             .await,
             AgentDesiredStateConversion::Converted(AgentApplicableState::WithoutModel {
                 chat_template_source: ChatTemplateSource::Override(chat_template),
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn a_state_without_a_model_does_not_resolve_its_multimodal_projection() {
+        let MissingLocalModel {
+            _dir_guard,
+            path: missing_path,
+        } = nonexistent_path_in_temp_dir("projection");
+
+        assert_eq!(
+            converted(&desired_state(
+                AgentDesiredModel::None,
+                local_model_at(&missing_path)
+            ))
+            .await,
+            AgentDesiredStateConversion::Converted(AgentApplicableState::WithoutModel {
+                chat_template_source: ChatTemplateSource::EmbeddedInModel,
             })
         );
     }

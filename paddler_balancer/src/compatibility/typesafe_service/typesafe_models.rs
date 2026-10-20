@@ -1,6 +1,6 @@
-use serde::Serialize;
+use std::collections::BTreeSet;
 
-use paddler_messaging::agent_desired_model::AgentDesiredModel;
+use serde::Serialize;
 
 use crate::compatibility::typesafe_service::typesafe_model::TypeSafeModel;
 
@@ -9,13 +9,13 @@ pub struct TypeSafeModels {
     pub models: Vec<TypeSafeModel>,
 }
 
-impl From<AgentDesiredModel> for TypeSafeModels {
-    fn from(model: AgentDesiredModel) -> Self {
+impl From<BTreeSet<String>> for TypeSafeModels {
+    fn from(served_model_paths: BTreeSet<String>) -> Self {
         Self {
-            models: match model {
-                AgentDesiredModel::None => Vec::new(),
-                AgentDesiredModel::Uri(uri) => vec![TypeSafeModel::named(uri)],
-            },
+            models: served_model_paths
+                .into_iter()
+                .map(TypeSafeModel::named)
+                .collect(),
         }
     }
 }

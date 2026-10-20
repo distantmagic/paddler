@@ -4,6 +4,7 @@ use reqwest::StatusCode;
 use serde_json::json;
 
 use paddler_messaging::decision_slots_minimum::DECISION_SLOTS_MINIMUM;
+use paddler_test_cluster_harness::noul_system_one_request_about::noul_system_one_request_about;
 use paddler_tests::oversized_text::oversized_text;
 use paddler_tests::start_decision_cluster::start_decision_cluster;
 
@@ -21,7 +22,7 @@ async fn typesafe_system_one_reports_a_decision_exceeding_the_context_as_unproce
     let response = cluster
         .typesafe_system_one(
             "oversized-decision",
-            &json!({"state": oversized_text(), "questions": {"paid": {"type": "noul"}}}),
+            &noul_system_one_request_about(&json!(oversized_text())),
         )
         .await
         .expect("the request must be answered");

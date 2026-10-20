@@ -16,7 +16,6 @@ use paddler_messaging::inference_capability::InferenceCapability;
 use paddler_messaging::model_metadata::ModelMetadata;
 
 use crate::agent_runtime_error::AgentRuntimeError;
-use crate::describe_error_with_causes::describe_error_with_causes;
 use crate::inference_runtime_context::InferenceRuntimeContext;
 use crate::inference_thread_count::inference_thread_count;
 use crate::llama_context_settings::LlamaContextSettings;
@@ -156,7 +155,7 @@ impl LoadedLlamaModel {
             })
             .map_err(|source| {
                 let context_creation_failure = AgentRuntimeError::ContextCreationFailed(source);
-                let error = describe_error_with_causes(&context_creation_failure);
+                let error = context_creation_failure.to_string();
 
                 for slot_index in 0..n_seq_max {
                     inference_runtime_context

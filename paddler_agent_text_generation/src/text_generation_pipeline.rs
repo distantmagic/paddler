@@ -224,11 +224,7 @@ impl<TMediaMarker: ProvidesMediaMarker> TextGenerationPipeline<TMediaMarker> {
 
         Ok(ConversationSupport::Available(Box::new(
             ConversationPromptSupport {
-                image_input: self.image_input(
-                    llama_context,
-                    prompt_tokenizer,
-                    &chat_prompt_renderer,
-                )?,
+                image_input: self.image_input(llama_context, prompt_tokenizer)?,
                 chat_prompt_renderer,
             },
         )))
@@ -297,7 +293,6 @@ impl<TMediaMarker: ProvidesMediaMarker> TextGenerationPipeline<TMediaMarker> {
         &self,
         llama_context: &LlamaContext<'_>,
         prompt_tokenizer: &PromptTokenizer,
-        chat_prompt_renderer: &ChatPromptRenderer,
     ) -> Result<ImageInput, TextGenerationError> {
         let MultimodalProjection::File(multimodal_projection_path) =
             &self.text_generation_settings.multimodal_projection
@@ -329,8 +324,7 @@ impl<TMediaMarker: ProvidesMediaMarker> TextGenerationPipeline<TMediaMarker> {
                 );
 
                 Ok(ImageInput::Supported(MultimodalPromptSupport {
-                    add_special_tokens: !prompt_tokenizer
-                        .template_renders_its_own_bos_token(chat_prompt_renderer)?,
+                    model_bos_token: prompt_tokenizer.model_bos_token,
                     micro_batch_tokens: micro_batch_tokens(
                         llama_context,
                         self.model_runtime_parameters.n_batch.tokens(),

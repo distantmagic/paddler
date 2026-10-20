@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use tokio_util::sync::CancellationToken;
 use trzcina::Service;
 
+use crate::agent_controller_pool::AgentControllerPool;
 use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::buffered_request_manager::BufferedRequestManager;
 use crate::compatibility::attach_request_id::attach_request_id;
@@ -21,6 +22,7 @@ use crate::run_http_service::run_http_service;
 use crate::run_http_service_parameters::RunHttpServiceParameters;
 
 pub struct CompatibilityService<TCompatibilityLayer> {
+    pub agent_controller_pool: Arc<AgentControllerPool>,
     pub balancer_applicable_state_holder: Arc<BalancerApplicableStateHolder>,
     pub buffered_request_manager: Arc<BufferedRequestManager>,
     pub compatibility_layer: TCompatibilityLayer,
@@ -44,6 +46,7 @@ impl<TCompatibilityLayer: ServesCompatibilityLayer> Service
                 .clone(),
         );
         let app_data = Data::new(CompatibilityAppData {
+            agent_controller_pool: self.agent_controller_pool.clone(),
             balancer_applicable_state_holder: self.balancer_applicable_state_holder.clone(),
             buffered_request_manager: self.buffered_request_manager.clone(),
             inference_service_configuration: self.inference_service_configuration.clone(),

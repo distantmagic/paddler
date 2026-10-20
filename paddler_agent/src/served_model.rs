@@ -47,21 +47,32 @@ impl ServedModel {
         }
     }
 
+    #[must_use]
+    pub fn keeps_decisions_of(&self, desired_settings: &ModelServingSettings) -> bool {
+        self.serves_the_model_of(desired_settings)
+            && self.runs_the_runtime_parameters_of(desired_settings)
+            && self.model_serving_settings.capabilities.decisions
+                == desired_settings.capabilities.decisions
+    }
+
     pub async fn retain_for(self, desired_settings: ModelServingSettings) -> RetainedServing {
+        let serves_the_desired_model = self.serves_the_model_of(&desired_settings);
+        let runs_the_desired_runtime_parameters =
+            self.runs_the_runtime_parameters_of(&desired_settings);
         let Self {
             capabilities,
             loaded_llama_model,
             model_serving_settings: served_settings,
         } = self;
 
-        if loaded_llama_model.llama_model_settings != desired_settings.llama_model_settings() {
+        if !serves_the_desired_model {
             capabilities.shut_down().await;
             loaded_llama_model.release().await;
 
             return RetainedServing::ModelToLoad(desired_settings);
         }
 
-        if served_settings.model_runtime_parameters != desired_settings.model_runtime_parameters {
+        if !runs_the_desired_runtime_parameters {
             capabilities.shut_down().await;
 
             return RetainedServing::LoadedModel(
@@ -102,6 +113,15 @@ impl ServedModel {
             loaded_llama_model,
             model_serving_settings: desired_settings,
         })
+    }
+
+    fn serves_the_model_of(&self, desired_settings: &ModelServingSettings) -> bool {
+        self.loaded_llama_model.llama_model_settings == desired_settings.llama_model_settings()
+    }
+
+    fn runs_the_runtime_parameters_of(&self, desired_settings: &ModelServingSettings) -> bool {
+        self.model_serving_settings.model_runtime_parameters
+            == desired_settings.model_runtime_parameters
     }
 
     #[must_use]

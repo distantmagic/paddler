@@ -10,4 +10,6 @@ mod an_answer_whose_probabilities_do_not_match_its_options_is_refused;
 mod refusal_of_a_lone_answer_to_two_noul_questions;
 #[cfg(test)]
 mod system_one_request_with_question;
+#[cfg(test)]
+mod system_one_request_with_questions;
 mod translation_matches_the_kev_typesafe_reference;

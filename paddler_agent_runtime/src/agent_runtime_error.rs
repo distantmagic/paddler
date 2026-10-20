@@ -11,13 +11,13 @@ use paddler_messaging::inference_capability::InferenceCapability;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AgentRuntimeError {
-    #[error("unable to determine how many threads this machine runs in parallel")]
+    #[error("unable to determine how many threads this machine runs in parallel: {0}")]
     AvailableParallelismUnknown(#[source] io::Error),
 
-    #[error("unable to initialize the llama.cpp backend")]
+    #[error("unable to initialize the llama.cpp backend: {0}")]
     BackendInitializationFailed(#[source] LlamaCppError),
 
-    #[error("unable to create the llama.cpp context")]
+    #[error("unable to create the llama.cpp context: {0}")]
     ContextCreationFailed(#[source] LlamaContextLoadError),
 
     #[error("a {inference_capability:?} context is already resident in VRAM")]
@@ -25,14 +25,14 @@ pub enum AgentRuntimeError {
         inference_capability: InferenceCapability,
     },
 
-    #[error("unable to load the model from {model_path}")]
+    #[error("unable to load the model from {model_path}: {source}")]
     ModelLoadFailed {
         model_path: PathBuf,
         #[source]
         source: LlamaModelLoadError,
     },
 
-    #[error("unable to read the metadata of the loaded model")]
+    #[error("unable to read the metadata of the loaded model: {0}")]
     ModelMetadataUnreadable(#[source] MetaValError),
 
     #[error("model weights are already resident in VRAM")]
@@ -41,6 +41,6 @@ pub enum AgentRuntimeError {
     #[error("a multimodal projection is already resident in VRAM")]
     MultimodalProjectionAlreadyResident,
 
-    #[error("the machine runs more threads in parallel than llama.cpp can address")]
+    #[error("the machine runs more threads in parallel than llama.cpp can address: {0}")]
     ThreadCountOutOfRange(#[source] TryFromIntError),
 }

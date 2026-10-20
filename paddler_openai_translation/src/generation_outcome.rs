@@ -64,6 +64,7 @@ impl From<GeneratedTokenFinalResult> for GenerationOutcome {
             | GeneratedTokenFinalResult::MultimodalNotSupported(description)
             | GeneratedTokenFinalResult::MultimodalTokenizationFailed(description)
             | GeneratedTokenFinalResult::PromptTokenizationFailed(description)
+            | GeneratedTokenFinalResult::PromptTokenizedToNothing(description)
             | GeneratedTokenFinalResult::ToolSchemaInvalid(description) => {
                 Self::failed(GenerationFailureCause::InvalidRequest, description)
             }
@@ -178,6 +179,12 @@ mod tests {
                 ),
                 (
                     GeneratedTokenFinalResult::PromptTokenizationFailed(
+                        "client mistake".to_owned(),
+                    ),
+                    "client mistake",
+                ),
+                (
+                    GeneratedTokenFinalResult::PromptTokenizedToNothing(
                         "client mistake".to_owned(),
                     ),
                     "client mistake",

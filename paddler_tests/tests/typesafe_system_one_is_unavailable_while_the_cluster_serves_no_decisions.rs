@@ -2,6 +2,7 @@ use reqwest::StatusCode;
 use serde_json::json;
 
 use paddler_messaging::inference_mode::InferenceMode;
+use paddler_test_cluster_harness::noul_system_one_request::noul_system_one_request;
 use paddler_tests::cluster_without_agents_serving::cluster_without_agents_serving;
 use paddler_tests::start_cluster::start_cluster;
 
@@ -16,7 +17,7 @@ async fn typesafe_system_one_is_unavailable_while_the_cluster_serves_no_decision
     let response = cluster
         .typesafe_system_one(
             "text-generation-cluster-request",
-            &json!({"state": "state", "questions": {"paid": {"type": "noul"}}}),
+            &noul_system_one_request(),
         )
         .await
         .expect("the System One request must be answered");

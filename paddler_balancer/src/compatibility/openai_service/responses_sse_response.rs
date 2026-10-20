@@ -8,7 +8,6 @@ use serde_json::Error as SerdeJsonError;
 use serde_json::to_string;
 
 use paddler_messaging::generated_token_final_result::GeneratedTokenFinalResult;
-use paddler_messaging::generated_token_partial_result::GeneratedTokenPartialResult;
 use paddler_openai_translation::generation_outcome::GenerationOutcome;
 use paddler_openai_translation::generation_progress::GenerationProgress;
 use paddler_openai_translation::responses_stream::ResponsesStream;
@@ -19,7 +18,7 @@ use crate::compatibility::openai_service::openai_sse_http_response::openai_sse_h
 
 fn responses_stream_events(
     responses_stream: &mut ResponsesStream,
-    agent_relay_event: AgentRelayEvent<GeneratedTokenPartialResult, GeneratedTokenFinalResult>,
+    agent_relay_event: AgentRelayEvent<GenerationProgress, GeneratedTokenFinalResult>,
 ) -> Vec<ResponsesStreamEvent> {
     match agent_relay_event {
         AgentRelayEvent::Failed(relay_failure) => {
@@ -28,8 +27,8 @@ fn responses_stream_events(
         AgentRelayEvent::Final(final_result) => {
             responses_stream.conclude(GenerationOutcome::from(final_result))
         }
-        AgentRelayEvent::Partial(partial_result) => {
-            responses_stream.advance(GenerationProgress::from(partial_result))
+        AgentRelayEvent::Partial(generation_progress) => {
+            responses_stream.advance(generation_progress)
         }
     }
 }
@@ -44,8 +43,8 @@ pub fn responses_sse_response<TAgentRelayEvents>(
     agent_relay_events: TAgentRelayEvents,
 ) -> HttpResponse
 where
-    TAgentRelayEvents: Stream<Item = AgentRelayEvent<GeneratedTokenPartialResult, GeneratedTokenFinalResult>>
-        + 'static,
+    TAgentRelayEvents:
+        Stream<Item = AgentRelayEvent<GenerationProgress, GeneratedTokenFinalResult>> + 'static,
 {
     openai_sse_http_response(
         agent_relay_events

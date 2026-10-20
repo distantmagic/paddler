@@ -51,7 +51,7 @@ impl AtomicValue<AtomicU64> {
 
     pub fn increment_below(&self, limit: u64) -> bool {
         self.value
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
                 (current < limit).then_some(current + 1)
             })
             .is_ok()

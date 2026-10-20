@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use tokio_util::sync::CancellationToken;
 
+use crate::agent_controller_pool::AgentControllerPool;
 use crate::agent_relay::AgentRelay;
 use crate::agent_streaming_request::AgentStreamingRequest;
 use crate::awaiting_agent_relay::AwaitingAgentRelay;
@@ -11,6 +12,7 @@ use crate::dispatchable_request::DispatchableRequest;
 use crate::inference_service::configuration::Configuration;
 
 pub struct CompatibilityAppData {
+    pub agent_controller_pool: Arc<AgentControllerPool>,
     pub balancer_applicable_state_holder: Arc<BalancerApplicableStateHolder>,
     pub buffered_request_manager: Arc<BufferedRequestManager>,
     pub inference_service_configuration: Configuration,

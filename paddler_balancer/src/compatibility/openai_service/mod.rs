@@ -1,4 +1,5 @@
 pub mod chat_completions_sse_response;
+pub mod generation_progress_events;
 pub mod http_route;
 pub mod openai_api_path;
 pub mod openai_compatibility_layer;

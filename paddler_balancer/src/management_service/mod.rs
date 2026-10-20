@@ -13,7 +13,6 @@ use tokio_util::sync::CancellationToken;
 use trzcina::Service;
 
 use crate::agent_controller_pool::AgentControllerPool;
-use crate::agent_response_senders::AgentResponseSenders;
 use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use crate::balancer_desired_state_store::BalancerDesiredStateStore;
 use crate::buffered_request_manager::BufferedRequestManager;
@@ -42,7 +41,6 @@ pub struct ManagementService {
     pub balancer_applicable_state_holder: Arc<BalancerApplicableStateHolder>,
     pub balancer_desired_state_store: Arc<BalancerDesiredStateStore>,
     pub buffered_request_manager: Arc<BufferedRequestManager>,
-    pub agent_response_senders: AgentResponseSenders,
     pub configuration: ManagementServiceConfiguration,
     pub http_listener: HttpListener,
     pub statsd_prefix: String,
@@ -67,7 +65,6 @@ impl Service for ManagementService {
             balancer_applicable_state_holder: self.balancer_applicable_state_holder.clone(),
             balancer_desired_state_store: self.balancer_desired_state_store.clone(),
             buffered_request_manager: self.buffered_request_manager.clone(),
-            agent_response_senders: self.agent_response_senders.clone(),
             shutdown: shutdown.clone(),
             statsd_prefix: self.statsd_prefix.clone(),
         });

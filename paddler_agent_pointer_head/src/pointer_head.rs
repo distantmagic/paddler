@@ -202,6 +202,6 @@ mod tests {
 
     #[test]
     fn a_question_without_outputs_has_no_probabilities() {
-        assert!(pointer_head().option_probabilities(&[]).is_empty());
+        assert_eq!(pointer_head().option_probabilities(&[]), Vec::<f32>::new());
     }
 }

@@ -5,7 +5,6 @@ use llama_cpp_bindings::error::MetaValError;
 use tempfile::TempDir;
 
 use paddler_agent_runtime::agent_runtime_error::AgentRuntimeError;
-use paddler_agent_runtime::describe_error_with_causes::describe_error_with_causes;
 use paddler_test_cluster_harness::model_card::qwen3_0_6b::qwen3_0_6b;
 use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
 use paddler_tests::llama_runtime::LlamaRuntime;
@@ -34,12 +33,13 @@ fn a_model_with_a_metadata_key_that_is_not_utf8_reports_unreadable_metadata() {
         LlamaRuntime::load(&model_path, agent_inference_runtime_context(1))
             .err()
             .as_ref()
-            .map(|load_error| describe_error_with_causes(load_error)),
-        Some(describe_error_with_causes(
-            &AgentRuntimeError::ModelMetadataUnreadable(MetaValError::FromUtf8Error(
+            .map(ToString::to_string),
+        Some(
+            AgentRuntimeError::ModelMetadataUnreadable(MetaValError::FromUtf8Error(
                 String::from_utf8(b"general.\xff".to_vec())
                     .expect_err("the bytes must not be UTF-8")
             ))
-        ))
+            .to_string()
+        )
     );
 }

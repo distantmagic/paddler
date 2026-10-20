@@ -2,6 +2,7 @@
 
 use tokio_util::sync::CancellationToken;
 
+use paddler_messaging::decision_answer::DecisionAnswer;
 use paddler_messaging::decision_result::DecisionResult;
 use paddler_messaging::oversized_decision_details::OversizedDecisionDetails;
 use paddler_messaging::request_params::decide_params::raw_decide_params::RawDecideParams;
@@ -33,7 +34,7 @@ async fn decision_exceeding_the_context_is_rejected() {
         .await
         .expect("the oversized decision must be answered with a rejection");
 
-    assert!(collected.answers.is_empty());
+    assert_eq!(collected.answers, Vec::<DecisionAnswer>::new());
     assert_eq!(
         collected.terminal_result,
         DecisionResult::RequestExceedsContext(OversizedDecisionDetails {

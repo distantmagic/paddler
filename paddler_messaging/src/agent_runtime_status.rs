@@ -25,13 +25,19 @@ impl AgentRuntimeStatus {
     }
 
     #[must_use]
-    pub const fn slots_serving(&self, inference_capability: InferenceCapability) -> u64 {
+    pub const fn serves(&self, inference_capability: InferenceCapability) -> bool {
         match self {
-            Self::Serving {
-                inference_mode,
-                slots_total,
-            } if inference_mode.serves(inference_capability) => *slots_total,
-            Self::Idle | Self::Serving { .. } => 0,
+            Self::Idle => false,
+            Self::Serving { inference_mode, .. } => inference_mode.serves(inference_capability),
+        }
+    }
+
+    #[must_use]
+    pub const fn slots_serving(&self, inference_capability: InferenceCapability) -> u64 {
+        if self.serves(inference_capability) {
+            self.slots_total()
+        } else {
+            0
         }
     }
 }

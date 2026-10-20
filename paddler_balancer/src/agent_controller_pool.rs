@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -8,6 +9,7 @@ use tokio::sync::watch;
 
 use paddler_messaging::agent_controller_pool_snapshot::AgentControllerPoolSnapshot;
 use paddler_messaging::agent_desired_state::AgentDesiredState;
+use paddler_messaging::inference_capability::InferenceCapability;
 use paddler_messaging::produces_snapshot::ProducesSnapshot;
 use paddler_messaging::subscribes_to_updates::SubscribesToUpdates;
 
@@ -16,6 +18,8 @@ use super::agent_controller_pool_total_slots::AgentControllerPoolTotalSlots;
 use crate::agent_controller_pool_updates::AgentControllerPoolUpdates;
 use crate::agent_controller_registration::AgentControllerRegistration;
 use crate::agent_controller_slot_guard::AgentControllerSlotGuard;
+use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
+use crate::buffered_request_counter::BufferedRequestCounter;
 use crate::dispatch_candidate::DispatchCandidate;
 use crate::dispatch_position::DispatchPosition;
 use crate::dispatch_requirement::DispatchRequirement;
@@ -97,14 +101,13 @@ impl AgentControllerPool {
     }
 
     #[must_use]
-    pub fn join_waiting_line(
+    pub fn join_waiting_line_when_admitted(
         &self,
         dispatch_requirement: DispatchRequirement,
-    ) -> WaitingLinePlace<'_> {
-        WaitingLinePlace {
-            dispatch_waiting_line: &self.dispatch_waiting_line,
-            ticket: self.dispatch_waiting_line.join(dispatch_requirement),
-        }
+        buffered_request_counter: &Arc<BufferedRequestCounter>,
+    ) -> Option<WaitingLinePlace<'_>> {
+        self.dispatch_waiting_line
+            .join_when_admitted(dispatch_requirement, buffered_request_counter)
     }
 
     pub async fn next_available_agent<'pool>(
@@ -149,11 +152,14 @@ impl AgentControllerPool {
     pub fn register_agent_controller(
         self: &Arc<Self>,
         agent_controller: Arc<AgentController>,
+        balancer_applicable_state_holder: &BalancerApplicableStateHolder,
     ) -> AgentControllerRegistration {
         match self.agents.entry(agent_controller.id.clone()) {
             Entry::Occupied(_registered_agent) => AgentControllerRegistration::DuplicateAgentId,
             Entry::Vacant(vacant_agent_slot) => {
-                vacant_agent_slot.insert(agent_controller.clone());
+                vacant_agent_slot
+                    .insert(agent_controller.clone())
+                    .set_desired_state(balancer_applicable_state_holder.get_agent_desired_state());
                 self.updates.signal();
 
                 AgentControllerRegistration::Registered(RegisteredAgentControllerGuard {
@@ -173,6 +179,26 @@ impl AgentControllerPool {
         for agent in &self.agents {
             agent.value().set_desired_state(desired_state.clone());
         }
+    }
+
+    #[must_use]
+    pub fn model_paths_serving(
+        &self,
+        inference_capability: InferenceCapability,
+    ) -> BTreeSet<String> {
+        self.agents
+            .iter()
+            .filter_map(|agent| {
+                let reported_status = agent.value().reported_status.read();
+
+                reported_status
+                    .status
+                    .runtime
+                    .serves(inference_capability)
+                    .then(|| reported_status.status.model_path.clone())
+                    .flatten()
+            })
+            .collect()
     }
 
     #[must_use]
@@ -232,5 +258,69 @@ impl ProducesSnapshot for AgentControllerPool {
                 .map(|entry| entry.value().make_snapshot())
                 .collect(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+    use std::sync::atomic::AtomicU64;
+
+    use futures::FutureExt as _;
+    use parking_lot::RwLock;
+    use serde_json::to_value;
+    use tokio::sync::watch;
+    use tokio_util::sync::CancellationToken;
+
+    use paddler_messaging::agent_desired_model::AgentDesiredModel;
+    use paddler_messaging::agent_desired_state::AgentDesiredState;
+    use paddler_messaging::atomic_value::AtomicValue;
+    use paddler_messaging::balancer_desired_state::BalancerDesiredState;
+    use paddler_messaging::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
+    use paddler_outbox::outbox::Outbox;
+
+    use super::AgentControllerPool;
+    use crate::agent_controller::AgentController;
+    use crate::agent_desired_state_notification::agent_desired_state_notification;
+    use crate::agent_response_senders::AgentResponseSenders;
+    use crate::balancer_applicable_state::BalancerApplicableState;
+    use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
+
+    #[test]
+    fn registering_an_agent_sends_it_the_current_desired_state_before_anything_else() {
+        let current_desired_state = BalancerDesiredState {
+            model: AgentDesiredModel::Uri("agent:///current/model.gguf".to_owned()),
+            ..BalancerDesiredState::default()
+        };
+        let (_applicable_state_tx, applicable_state_rx) = watch::channel(Arc::new(
+            BalancerApplicableState::from(current_desired_state.clone()),
+        ));
+        let agent_controller = Arc::new(AgentController {
+            agent_outbox: Outbox::default(),
+            agent_response_senders: AgentResponseSenders::default(),
+            connection_close: CancellationToken::new(),
+            id: "registering".to_owned(),
+            name: None,
+            reported_status: RwLock::new(SlotAggregatedStatusSnapshot::default()),
+            slots_processing: AtomicValue::<AtomicU64>::new(0),
+        });
+        let _registration = Arc::new(AgentControllerPool::default()).register_agent_controller(
+            agent_controller.clone(),
+            &BalancerApplicableStateHolder::new(applicable_state_rx),
+        );
+
+        assert_eq!(
+            agent_controller
+                .agent_outbox
+                .next()
+                .now_or_never()
+                .map(|first_message| to_value(first_message).unwrap()),
+            Some(
+                to_value(agent_desired_state_notification(AgentDesiredState::from(
+                    current_desired_state
+                )))
+                .unwrap()
+            )
+        );
     }
 }

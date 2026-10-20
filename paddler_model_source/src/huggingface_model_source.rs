@@ -156,9 +156,15 @@ mod tests {
     use super::HuggingFaceModelSource;
     use crate::desired_model_resolution::DesiredModelResolution;
     use crate::huggingface_model_reference::HuggingFaceModelReference;
+    use crate::model_source::ModelSource;
     use crate::resolves_model_source::ResolvesModelSource as _;
 
-    fn cache_model_file_at_revision(cache: &Cache, revision: &str, commit_hash: &str) -> PathBuf {
+    fn cache_model_file_at_revision(
+        cache: &Cache,
+        revision: &str,
+        commit_hash: &str,
+        filename: &str,
+    ) -> PathBuf {
         let repo = Repo::with_revision(
             "owner/repo".to_owned(),
             RepoType::Model,
@@ -175,7 +181,7 @@ mod tests {
 
         create_dir_all(&snapshot_dir).unwrap();
 
-        let model_file = snapshot_dir.join("model.gguf");
+        let model_file = snapshot_dir.join(filename);
 
         File::create(&model_file).unwrap();
 
@@ -187,9 +193,10 @@ mod tests {
         let cache_dir = tempdir().unwrap();
         let cache = Cache::new(cache_dir.path().to_path_buf());
 
-        cache_model_file_at_revision(&cache, "main", "main-commit");
+        cache_model_file_at_revision(&cache, "main", "main-commit", "model.gguf");
 
-        let requested_revision_file = cache_model_file_at_revision(&cache, "v2", "v2-commit");
+        let requested_revision_file =
+            cache_model_file_at_revision(&cache, "v2", "v2-commit", "model.gguf");
         let resolution = HuggingFaceModelSource {
             cache,
             reference: HuggingFaceModelReference {
@@ -209,5 +216,37 @@ mod tests {
             resolution,
             DesiredModelResolution::Resolved(resolved_file) if resolved_file == requested_revision_file
         ));
+    }
+
+    #[tokio::test]
+    async fn resolves_a_cached_file_from_a_uri_that_percent_encodes_its_name() {
+        let cache_dir = tempdir().unwrap();
+        let cache = Cache::new(cache_dir.path().to_path_buf());
+        let cached_file =
+            cache_model_file_at_revision(&cache, "main", "main-commit", "my modèle.gguf");
+        let reference = HuggingFaceModelReference {
+            filename: "my modèle.gguf".to_owned(),
+            repo_id: "owner/repo".to_owned(),
+            revision: "main".to_owned(),
+        };
+
+        assert_eq!(
+            ModelSource::parse(
+                "https://huggingface.co/owner/repo/resolve/main/my%20mod%C3%A8le.gguf",
+                &SlotAggregatedStatus::new(1),
+            )
+            .unwrap(),
+            ModelSource::HuggingFace(reference.clone())
+        );
+        assert_eq!(
+            HuggingFaceModelSource { cache, reference }
+                .resolve(
+                    &CancellationToken::new(),
+                    Arc::new(SlotAggregatedStatus::new(1)),
+                )
+                .await
+                .unwrap(),
+            DesiredModelResolution::Resolved(cached_file)
+        );
     }
 }

@@ -15,8 +15,10 @@ async fn respond(app_data: web::Data<CompatibilityAppData>) -> HttpResponse {
         .balancer_applicable_state_holder
         .require_inference_capability(DecideParams::INFERENCE_CAPABILITY)
     {
-        Ok(balancer_applicable_state) => HttpResponse::Ok().json(TypeSafeModels::from(
-            balancer_applicable_state.agent_desired_state.model.clone(),
+        Ok(_balancer_applicable_state) => HttpResponse::Ok().json(TypeSafeModels::from(
+            app_data
+                .agent_controller_pool
+                .model_paths_serving(DecideParams::INFERENCE_CAPABILITY),
         )),
         Err(cluster_does_not_serve_inference_capability) => {
             inference_mode_refusal_http_response(cluster_does_not_serve_inference_capability)

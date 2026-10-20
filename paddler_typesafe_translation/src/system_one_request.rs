@@ -17,10 +17,6 @@ use crate::translated_system_one_question::TranslatedSystemOneQuestion;
 use crate::translated_system_one_request::TranslatedSystemOneRequest;
 use crate::typesafe_translation_error::TypeSafeTranslationError;
 
-fn default_model() -> String {
-    "kev-latest".to_owned()
-}
-
 fn option_text(name: &str, description: Option<&Value>) -> String {
     match description {
         None | Some(Value::Null) => name.to_owned(),
@@ -114,7 +110,6 @@ fn translate_question(
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct SystemOneRequest {
-    #[serde(default = "default_model")]
     pub model: String,
     pub questions: Map<String, Value>,
     pub state: Value,

@@ -43,7 +43,7 @@ async fn openai_chat_completion_non_streaming_usage_adds_up_with_tool_calls() {
         .pointer("/choices/0/message/tool_calls")
         .and_then(Value::as_array)
         .unwrap_or_else(|| panic!("response missing message.tool_calls: {response}"));
-    assert!(!tool_calls.is_empty());
+    assert_ne!(tool_calls, &Vec::<Value>::new());
 
     let usage = response
         .get("usage")

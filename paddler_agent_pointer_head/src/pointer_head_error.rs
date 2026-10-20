@@ -5,21 +5,21 @@ use llama_cpp_bindings::gguf_context_error::GgufContextError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PointerHeadError {
-    #[error("unable to read the pointer head file {path}")]
+    #[error("unable to read the pointer head file {path}: {source}")]
     FileUnreadable {
         path: PathBuf,
         #[source]
         source: GgufContextError,
     },
 
-    #[error("the pointer head dimension {head_dim} does not fit sixteen bits")]
+    #[error("the pointer head dimension {head_dim} does not fit sixteen bits: {source}")]
     HeadDimensionOutOfRange {
         head_dim: i64,
         #[source]
         source: TryFromIntError,
     },
 
-    #[error("unable to read the pointer head key {key}")]
+    #[error("unable to read the pointer head key {key}: {source}")]
     KeyUnreadable {
         key: String,
         #[source]
@@ -36,7 +36,7 @@ pub enum PointerHeadError {
         actual: [i64; 4],
     },
 
-    #[error("unable to read the pointer head tensor {tensor}")]
+    #[error("unable to read the pointer head tensor {tensor}: {source}")]
     TensorUnreadable {
         tensor: String,
         #[source]

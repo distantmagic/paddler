@@ -8,7 +8,6 @@ use tokio::sync::mpsc;
 use paddler_agent_runtime::agent_request::AgentRequest;
 use paddler_agent_runtime::prepares_scheduler_command::PreparesSchedulerCommand as _;
 use paddler_agent_status::slot_guard::SlotGuard;
-use paddler_agent_text_generation::chat_template_renderer::ChatTemplateRenderer;
 use paddler_agent_text_generation::text_generation_request::TextGenerationRequest;
 use paddler_messaging::conversation_history::ConversationHistory;
 use paddler_messaging::conversation_message::ConversationMessage;
@@ -16,11 +15,9 @@ use paddler_messaging::conversation_message_content::ConversationMessageContent;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_messaging::request_params::continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
 use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
-use paddler_tests::first_message_content_chat_template::first_message_content_chat_template;
 use paddler_tests::get_weather_tool::get_weather_tool;
 use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::llama_runtime::LlamaRuntime;
-use paddler_tests::text_only_generation_parts::TextOnlyGenerationParts;
 use paddler_tests::tools_serializer_that_fails::ToolsSerializerThatFails;
 
 #[test]
@@ -31,17 +28,11 @@ fn tools_that_cannot_be_serialized_refuse_the_generation() {
     )
     .expect("the kev model must load");
     let preparer = runtime.text_only_generation_request_preparer(
-        TextOnlyGenerationParts {
-            chat_template_renderer:
-                ChatTemplateRenderer::new(first_message_content_chat_template())
-                    .expect("the chat template must compile"),
-            sequence_context_size: runtime.model_runtime_parameters.context_size.get(),
-            streaming_markers: runtime
-                .loaded_llama_model
-                .model
-                .streaming_markers()
-                .expect("the streaming markers must be detected"),
-        },
+        runtime
+            .first_message_content_generation_parts(
+                runtime.model_runtime_parameters.context_size.get(),
+            )
+            .expect("the generation parts must be built"),
         runtime.sampler_chain_factory(),
         ToolsSerializerThatFails,
     );

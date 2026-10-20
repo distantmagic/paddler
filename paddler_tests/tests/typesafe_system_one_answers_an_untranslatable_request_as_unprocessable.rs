@@ -3,6 +3,7 @@ use serde_json::json;
 
 use paddler_messaging::inference_mode::InferenceMode;
 use paddler_messaging::request_params_validation_error::RequestParamsValidationError;
+use paddler_test_cluster_harness::system_one_request::system_one_request;
 use paddler_tests::cluster_without_agents_serving::cluster_without_agents_serving;
 use paddler_tests::start_cluster::start_cluster;
 use paddler_typesafe_translation::typesafe_translation_error::TypeSafeTranslationError;
@@ -18,7 +19,7 @@ async fn typesafe_system_one_answers_an_untranslatable_request_as_unprocessable(
     let without_questions = cluster
         .typesafe_system_one(
             "untranslatable-request",
-            &json!({"state": "state", "questions": {}}),
+            &system_one_request(&json!("state"), &json!({})),
         )
         .await
         .expect("the request must be answered");

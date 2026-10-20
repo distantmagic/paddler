@@ -53,7 +53,10 @@ mod tests {
                 .err()
                 .as_ref()
                 .map(ToString::to_string),
-            Some("the machine runs more threads in parallel than llama.cpp can address".to_owned())
+            Some(
+                "the machine runs more threads in parallel than llama.cpp can address: number too large to fit in target type"
+                    .to_owned()
+            )
         );
     }
 }

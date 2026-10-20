@@ -1,7 +1,9 @@
 use async_stream::stream;
 use futures::stream::Stream;
 
-use paddler_messaging::streamable_result::StreamableResult;
+use paddler_messaging::generated_token_final_result::GeneratedTokenFinalResult;
+use paddler_messaging::generated_token_result::GeneratedTokenResult;
+use paddler_openai_translation::generation_progress::GenerationProgress;
 
 use crate::agent_relay::AgentRelay;
 use crate::agent_relay_conclusion::AgentRelayConclusion;
@@ -9,16 +11,11 @@ use crate::agent_relay_event::AgentRelayEvent;
 use crate::agent_relay_step::AgentRelayStep;
 use crate::agent_streaming_request::AgentStreamingRequest;
 
-pub fn agent_relay_events<TParams>(
+pub fn generation_progress_events<TParams>(
     agent_relay: AgentRelay<TParams>,
-) -> impl Stream<
-    Item = AgentRelayEvent<
-        <TParams::Response as StreamableResult>::Partial,
-        <TParams::Response as StreamableResult>::Final,
-    >,
->
+) -> impl Stream<Item = AgentRelayEvent<GenerationProgress, GeneratedTokenFinalResult>>
 where
-    TParams: AgentStreamingRequest,
+    TParams: AgentStreamingRequest<Response = GeneratedTokenResult>,
 {
     stream! {
         let settlement = agent_relay.settlement();
@@ -45,11 +42,20 @@ where
                     partial_result,
                     relay,
                     ..
-                } => {
-                    yield AgentRelayEvent::Partial(partial_result);
+                } => match GenerationProgress::from(partial_result) {
+                    failed_generation @ GenerationProgress::Failed(_) => {
+                        yield AgentRelayEvent::Partial(failed_generation);
+                        drop(relay);
+                        settlement.cancelled().await;
 
-                    agent_relay = relay;
-                }
+                        break;
+                    }
+                    generation_progress => {
+                        yield AgentRelayEvent::Partial(generation_progress);
+
+                        agent_relay = relay;
+                    }
+                },
             }
         }
     }

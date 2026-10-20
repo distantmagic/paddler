@@ -58,7 +58,7 @@ impl ConcurrentConnectionBudget {
 
     pub fn reserve(&self) -> Result<ConnectionReservation, ClusterHarnessError> {
         self.held_connections
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |held_connections| {
+            .try_update(Ordering::AcqRel, Ordering::Acquire, |held_connections| {
                 (held_connections < PORTABLE_LISTEN_BACKLOG).then_some(held_connections + 1)
             })
             .map_err(|held_connections| {

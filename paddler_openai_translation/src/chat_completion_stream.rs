@@ -200,11 +200,11 @@ mod tests {
             GenerationProgress::Produced(GeneratedOutputPart::Reasoning("thought".to_owned())),
             GenerationProgress::ToolCallTokenProduced,
         ] {
-            assert!(
+            assert_eq!(
                 serialized_chunks(
                     chat_completion_stream.advance("test-request", generation_progress)
-                )
-                .is_empty()
+                ),
+                Vec::<String>::new()
             );
         }
     }
@@ -237,12 +237,12 @@ mod tests {
     fn emits_nothing_for_empty_parsed_tool_calls() {
         let mut chat_completion_stream = chat_completion_stream(false);
 
-        assert!(
+        assert_eq!(
             serialized_chunks(chat_completion_stream.advance(
                 "test-request",
                 GenerationProgress::Produced(GeneratedOutputPart::ToolCalls(Vec::new())),
-            ))
-            .is_empty()
+            )),
+            Vec::<String>::new()
         );
         assert_eq!(
             serialized_chunks(

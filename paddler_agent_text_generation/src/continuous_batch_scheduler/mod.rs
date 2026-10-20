@@ -30,7 +30,6 @@ use tokio_util::sync::CancellationToken;
 use paddler_agent_runtime::receives_stop_request::ReceivesStopRequest as _;
 use paddler_agent_runtime::resident_llama_context::ResidentLlamaContext;
 use paddler_agent_runtime::scheduler_inbox::SchedulerInbox;
-use paddler_agent_runtime::sequence_id::SequenceId;
 use paddler_agent_runtime::sequence_id_guard::SequenceIdGuard;
 use paddler_agent_runtime::sequence_id_pool::SequenceIdPool;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
@@ -205,7 +204,10 @@ impl<'model> ContinuousBatchScheduler<'model> {
         let mut token_classifier =
             self.build_token_classifier_for_active_request(token_classification);
 
-        self.clear_kv_cache_for_sequence(sequence_id_guard.sequence_id())?;
+        sequence_id_guard
+            .sequence_id()
+            .clear_kv_cache_in(&mut self.llama_context)
+            .map_err(TextGenerationError::KvCacheClearFailed)?;
 
         let mut state = ContinuousBatchRequestState {
             current_token_position: 0,
@@ -252,7 +254,8 @@ impl<'model> ContinuousBatchScheduler<'model> {
 
             match ingestion.ingest_next_chunk(
                 &mut active_request.token_classifier,
-                &self.llama_context,
+                &mut self.llama_context,
+                &mut self.batch,
                 active_request.sequence_id_guard.sequence_id(),
                 active_request.state.current_token_position,
             ) {
@@ -278,10 +281,9 @@ impl<'model> ContinuousBatchScheduler<'model> {
                 }
                 Err(ingestion_error) => {
                     active_request.complete_with_outcome(
-                        TextGenerationError::MultimodalIngestionFailed(ingestion_error)
-                            .into_generated_token_result(
-                                self.scheduler_context.agent_name.as_deref(),
-                            ),
+                        ingestion_error.into_generated_token_result(
+                            self.scheduler_context.agent_name.as_deref(),
+                        ),
                     );
                 }
             }
@@ -399,27 +401,16 @@ impl<'model> ContinuousBatchScheduler<'model> {
         }
     }
 
-    fn clear_kv_cache_for_sequence(
-        &mut self,
-        sequence_id: SequenceId,
-    ) -> Result<(), TextGenerationError> {
-        self.llama_context
-            .clear_kv_cache_seq(Some(sequence_id.kv_cache_sequence_id()), None, None)
-            .map_err(TextGenerationError::KvCacheClearFailed)
-    }
-
     fn cleanup_completed_request(&mut self, index: usize) {
         let removed_request = self.active_requests.remove(index);
         let sequence_id = removed_request.sequence_id_guard.sequence_id();
         let usage = *removed_request.token_classifier.usage();
         let terminal_delivery = removed_request.into_terminal_delivery();
 
-        if let Err(rejection) = self.clear_kv_cache_for_sequence(sequence_id) {
-            error!(
-                "{:?}: {rejection}; the next request admitted to sequence {sequence_id:?} clears it again",
-                self.scheduler_context.agent_name
-            );
-        }
+        sequence_id.release_kv_cache_in(
+            &mut self.llama_context,
+            self.scheduler_context.agent_name.as_deref(),
+        );
 
         debug!(
             "{:?}: cleaned up sequence {sequence_id:?} ({} completion tokens generated)",

@@ -15,6 +15,9 @@ fn a_llama_runtime_reports_a_model_file_it_cannot_load() {
         .err()
         .as_ref()
         .map(ToString::to_string),
-        Some("unable to load the model from /paddler/definitely/missing/model.gguf".to_owned())
+        Some(
+            "unable to load the model from /paddler/definitely/missing/model.gguf: model file not found: /paddler/definitely/missing/model.gguf"
+                .to_owned()
+        )
     );
 }

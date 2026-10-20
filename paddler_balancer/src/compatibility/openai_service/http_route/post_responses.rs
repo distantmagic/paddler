@@ -8,8 +8,8 @@ use paddler_openai_translation::responses_delivery::ResponsesDelivery;
 use paddler_openai_translation::responses_request::ResponsesRequest;
 use paddler_openai_translation::translated_responses_request::TranslatedResponsesRequest;
 
-use crate::compatibility::agent_relay_events::agent_relay_events;
 use crate::compatibility::compatibility_app_data::CompatibilityAppData;
+use crate::compatibility::openai_service::generation_progress_events::generation_progress_events;
 use crate::compatibility::openai_service::openai_api_path::OpenAIApiPath;
 use crate::compatibility::openai_service::openai_failure::OpenAIFailure;
 use crate::compatibility::openai_service::openai_http_response::openai_http_response;
@@ -41,9 +41,10 @@ async fn respond(
                 ResponsesDelivery::Buffered(responses_response_header) => {
                     openai_http_response(&responses_response_header, agent_relay).await
                 }
-                ResponsesDelivery::Streamed(responses_stream) => {
-                    responses_sse_response(responses_stream, agent_relay_events(agent_relay))
-                }
+                ResponsesDelivery::Streamed(responses_stream) => responses_sse_response(
+                    responses_stream,
+                    generation_progress_events(agent_relay),
+                ),
             }
         }
         Err(translation_error) => {

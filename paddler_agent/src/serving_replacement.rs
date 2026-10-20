@@ -97,18 +97,20 @@ impl ServingReplacement {
             .await
         {
             Ok(served_model) => ReplacementOutcome::Serving(Box::new(served_model)),
-            Err(ServingInterruption {
-                interruption: CapabilityStartupInterruption::Cancelled,
-                loaded_llama_model,
-            }) => ReplacementOutcome::Cancelled {
-                held: ModelServing::Holding(loaded_llama_model),
-            },
-            Err(ServingInterruption {
-                interruption: CapabilityStartupInterruption::Failed(error),
-                loaded_llama_model,
-            }) => ReplacementOutcome::Failed {
-                error,
-                held: ModelServing::Holding(loaded_llama_model),
+            Err(serving_interruption) => match *serving_interruption {
+                ServingInterruption {
+                    interruption: CapabilityStartupInterruption::Cancelled,
+                    loaded_llama_model,
+                } => ReplacementOutcome::Cancelled {
+                    held: ModelServing::Holding(loaded_llama_model),
+                },
+                ServingInterruption {
+                    interruption: CapabilityStartupInterruption::Failed(error),
+                    loaded_llama_model,
+                } => ReplacementOutcome::Failed {
+                    error,
+                    held: ModelServing::Holding(loaded_llama_model),
+                },
             },
         }
     }

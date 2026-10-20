@@ -13,6 +13,6 @@ fn paddler_without_a_subcommand_prints_help_and_exits_with_a_usage_error() {
         .expect("paddler without arguments must run");
 
     assert_eq!(bare_output.status.code(), Some(CLAP_USAGE_ERROR_EXIT_CODE));
-    assert!(bare_output.stdout.is_empty());
+    assert_eq!(bare_output.stdout, Vec::<u8>::new());
     assert_eq!(bare_output.stderr, help_output.stdout);
 }

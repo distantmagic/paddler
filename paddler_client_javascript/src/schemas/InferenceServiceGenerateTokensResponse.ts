@@ -69,6 +69,7 @@ const GeneratedTokenResultSchema = z.union([
   z.object({ MultimodalTokenizationFailed: z.string() }),
   z.object({ NoSequenceSlotAvailable: z.string() }),
   z.object({ PromptTokenizationFailed: z.string() }),
+  z.object({ PromptTokenizedToNothing: z.string() }),
   z.object({ SamplerChainCreationFailed: z.string() }),
   z.object({ SamplingCandidatesExhausted: z.string() }),
   z.object({ SchedulerUnavailable: z.string() }),
@@ -430,6 +431,15 @@ export const InferenceServiceGenerateTokensResponseSchema = z
         generated_by,
         400,
         variant.PromptTokenizationFailed,
+      );
+    }
+
+    if ("PromptTokenizedToNothing" in variant) {
+      return terminalError(
+        request_id,
+        generated_by,
+        400,
+        variant.PromptTokenizedToNothing,
       );
     }
 

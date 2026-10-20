@@ -38,14 +38,7 @@ async fn a_put_desired_state_is_answered_once_its_own_version_is_applied() {
 
     assert_eq!(
         (response.status, response.body),
-        (
-            StatusCode::OK,
-            json!({"models": [{
-                "description": format!("Decision model {DECISION_MODEL_URI} served by Paddler"),
-                "name": DECISION_MODEL_URI,
-                "release_date": "unknown",
-            }]})
-        )
+        (StatusCode::OK, json!({"models": []}))
     );
 
     cluster

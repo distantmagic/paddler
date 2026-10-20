@@ -89,7 +89,7 @@ mod tests {
         let mut embedding: Vec<f32> = Vec::new();
         rms_norm(&mut embedding, 0.0).unwrap();
 
-        assert!(embedding.is_empty());
+        assert_eq!(embedding, Vec::<f32>::new());
     }
 
     #[test]

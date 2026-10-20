@@ -14,5 +14,5 @@ fn paddler_agent_rejects_more_slots_than_llama_cpp_can_serve() {
         .expect("paddler agent must run");
 
     assert_eq!(agent_output.status.code(), Some(CLAP_USAGE_ERROR_EXIT_CODE));
-    assert!(agent_output.stdout.is_empty());
+    assert_eq!(agent_output.stdout, Vec::<u8>::new());
 }

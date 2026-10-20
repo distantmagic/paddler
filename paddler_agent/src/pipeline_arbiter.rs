@@ -17,6 +17,7 @@ use crate::preparation_outcome::PreparationOutcome;
 use crate::prepared_serving::PreparedServing;
 use crate::replacement_outcome::ReplacementOutcome;
 use crate::retry_delay::RetryDelay;
+use crate::served_model::ServedModel;
 use crate::serving_preparation::ServingPreparation;
 use crate::serving_replacement::ServingReplacement;
 use crate::serving_startup::ServingStartup;
@@ -100,6 +101,10 @@ impl PipelineArbiter {
     }
 
     fn conclude_preparation(&mut self, preparation_outcome: PreparationOutcome) {
+        if let PreparationOutcome::Failed { error, .. } = &preparation_outcome {
+            error!("Failed to prepare the reconciled state: {error}");
+        }
+
         if let SupersedingState::SupersededBy(superseding_applicable_state) =
             mem::replace(&mut self.superseding_state, SupersedingState::NotSuperseded)
         {
@@ -112,10 +117,8 @@ impl PipelineArbiter {
             PreparationOutcome::Cancelled => {}
             PreparationOutcome::Failed {
                 agent_applicable_state,
-                error,
+                ..
             } => {
-                error!("Failed to prepare the reconciled state: {error}");
-
                 self.inference_runtime_context
                     .slot_aggregated_status
                     .retry_pipeline();
@@ -132,6 +135,10 @@ impl PipelineArbiter {
             outcome,
         }: FinishedServingStartup,
     ) {
+        if let ReplacementOutcome::Failed { error, .. } = &outcome {
+            error!("Failed to serve the reconciled state: {error}");
+        }
+
         if let SupersedingState::SupersededBy(superseding_applicable_state) =
             mem::replace(&mut self.superseding_state, SupersedingState::NotSuperseded)
         {
@@ -147,12 +154,16 @@ impl PipelineArbiter {
 
     fn prepare(&mut self, agent_applicable_state: AgentApplicableState, retry_delay: RetryDelay) {
         let cancellation_token = self.agent_shutdown.child_token();
+        let decisions_to_prepare = self
+            .model_serving
+            .decisions_to_prepare(&agent_applicable_state);
 
         self.serving_startup = ServingStartup::Preparing(StartupPhase {
             cancellation_token: cancellation_token.clone(),
             outcome: Box::pin(
                 ServingPreparation {
                     agent_applicable_state,
+                    decisions_to_prepare,
                     retry_delay,
                 }
                 .prepare(cancellation_token, self.inference_runtime_context.clone()),
@@ -166,18 +177,7 @@ impl PipelineArbiter {
                 &prepared_serving.agent_applicable_state
             && served_model.model_serving_settings == *desired_settings
         {
-            self.inference_runtime_context
-                .slot_aggregated_status
-                .start_serving(
-                    served_model.serving_report(
-                        prepared_serving
-                            .agent_applicable_state
-                            .chat_template_override()
-                            .is_some(),
-                    ),
-                );
-            self.served_applicable_state_holder
-                .set_agent_applicable_state(prepared_serving.agent_applicable_state);
+            self.resume_serving(served_model, prepared_serving.agent_applicable_state);
 
             return;
         }
@@ -197,18 +197,32 @@ impl PipelineArbiter {
         });
     }
 
+    fn resume_serving(
+        &self,
+        served_model: &ServedModel,
+        agent_applicable_state: AgentApplicableState,
+    ) {
+        self.inference_runtime_context
+            .slot_aggregated_status
+            .start_serving(
+                served_model
+                    .serving_report(agent_applicable_state.chat_template_override().is_some()),
+            );
+        self.inference_runtime_context
+            .model_metadata_holder
+            .set_model_metadata(served_model.loaded_llama_model.model_metadata.clone());
+        self.served_applicable_state_holder
+            .set_agent_applicable_state(agent_applicable_state);
+    }
+
     fn settle_replacement(
         &mut self,
         agent_applicable_state: AgentApplicableState,
         outcome: &ReplacementOutcome,
     ) {
-        let uses_chat_template_override = agent_applicable_state.chat_template_override().is_some();
-
         match outcome {
             ReplacementOutcome::Cancelled { .. } => {}
-            ReplacementOutcome::Failed { error, .. } => {
-                error!("Failed to serve the reconciled state: {error}");
-
+            ReplacementOutcome::Failed { .. } => {
                 self.inference_runtime_context
                     .slot_aggregated_status
                     .retry_pipeline();
@@ -217,19 +231,12 @@ impl PipelineArbiter {
             ReplacementOutcome::NothingToServe => {
                 self.inference_runtime_context
                     .slot_aggregated_status
-                    .serve_nothing(uses_chat_template_override);
+                    .serve_nothing(agent_applicable_state.chat_template_override().is_some());
                 self.served_applicable_state_holder
                     .set_agent_applicable_state(agent_applicable_state);
             }
             ReplacementOutcome::Serving(served_model) => {
-                self.inference_runtime_context
-                    .slot_aggregated_status
-                    .start_serving(served_model.serving_report(uses_chat_template_override));
-                self.inference_runtime_context
-                    .model_metadata_holder
-                    .set_model_metadata(served_model.loaded_llama_model.model_metadata.clone());
-                self.served_applicable_state_holder
-                    .set_agent_applicable_state(agent_applicable_state);
+                self.resume_serving(served_model, agent_applicable_state);
             }
         }
     }

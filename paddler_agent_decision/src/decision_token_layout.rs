@@ -4,6 +4,7 @@ use llama_cpp_bindings::token::LlamaToken;
 
 use crate::decision_delimiter_tokens::DecisionDelimiterTokens;
 use crate::decision_question_row::DecisionQuestionRow;
+use crate::question_lane_demand::QuestionLaneDemand;
 use crate::tokenized_decision_question::TokenizedDecisionQuestion;
 
 fn question_row(
@@ -76,6 +77,15 @@ impl DecisionTokenLayout {
             first_question,
             remaining_questions,
             state: state_tokens,
+        }
+    }
+
+    #[must_use]
+    pub fn question_lane_demand(&self) -> QuestionLaneDemand {
+        if self.remaining_questions.is_empty() {
+            QuestionLaneDemand::NotNeeded
+        } else {
+            QuestionLaneDemand::Needed
         }
     }
 

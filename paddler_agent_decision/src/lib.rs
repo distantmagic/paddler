@@ -22,6 +22,7 @@ pub mod llama_context_question_lane_release;
 pub mod loaded_pointer_head;
 pub mod prepared_decision_request;
 pub mod question_lane;
+pub mod question_lane_demand;
 pub mod reads_model_architecture;
 pub mod releases_question_lane;
 pub mod reports_decision_outcome;

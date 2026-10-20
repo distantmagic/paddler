@@ -6,7 +6,6 @@ use trzcina::Service;
 use trzcina::ServiceBundle;
 
 use paddler_balancer::agent_controller_pool::AgentControllerPool;
-use paddler_balancer::agent_response_senders::AgentResponseSenders;
 use paddler_balancer::balancer_addresses::BalancerAddresses;
 use paddler_balancer::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 use paddler_balancer::balancer_desired_state_store::BalancerDesiredStateStore;
@@ -188,7 +187,6 @@ impl BalancerServiceBundle {
         let management_service = ManagementService {
             agent_controller_pool: agent_controller_pool.clone(),
             balancer_applicable_state_holder: balancer_applicable_state_holder.clone(),
-            agent_response_senders: AgentResponseSenders::default(),
             buffered_request_manager: buffered_request_manager.clone(),
             configuration: management_service_configuration,
             balancer_desired_state_store,
@@ -203,6 +201,7 @@ impl BalancerServiceBundle {
         };
 
         let openai_service = openai_http_listener.map(|http_listener| CompatibilityService {
+            agent_controller_pool: agent_controller_pool.clone(),
             balancer_applicable_state_holder: balancer_applicable_state_holder.clone(),
             buffered_request_manager: buffered_request_manager.clone(),
             compatibility_layer: OpenAICompatibilityLayer,
@@ -211,6 +210,7 @@ impl BalancerServiceBundle {
         });
 
         let typesafe_service = typesafe_http_listener.map(|http_listener| CompatibilityService {
+            agent_controller_pool: agent_controller_pool.clone(),
             balancer_applicable_state_holder: balancer_applicable_state_holder.clone(),
             buffered_request_manager: buffered_request_manager.clone(),
             compatibility_layer: TypeSafeCompatibilityLayer,

@@ -9,6 +9,7 @@ use paddler_balancer::compatibility::typesafe_service::typesafe_api_path::TypeSa
 use paddler_messaging::decision_slots_minimum::DECISION_SLOTS_MINIMUM;
 use paddler_test_cluster_harness::half_closed_client::HalfClosedClient;
 use paddler_test_cluster_harness::noul_system_one_request::noul_system_one_request;
+use paddler_test_cluster_harness::system_one_request::system_one_request;
 use paddler_tests::decision_cluster_params::DecisionClusterParams;
 use paddler_tests::questions_outlasting_a_disconnect::QUESTIONS_OUTLASTING_A_DISCONNECT;
 use paddler_tests::sample_decision::sample_decision;
@@ -33,7 +34,7 @@ async fn typesafe_system_one_client_disconnecting_mid_decision_releases_its_sequ
             .compat_typesafe_addr()
             .expect("the cluster must serve the TypeSafe API"),
         TypeSafeApiPath::SYSTEM_ONE,
-        &json!({"state": sample_decision().state, "questions": questions}),
+        &system_one_request(&json!(sample_decision().state), &json!(questions)),
     )
     .await
     .expect("the System One request must be sent");

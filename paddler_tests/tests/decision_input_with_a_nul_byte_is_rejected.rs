@@ -7,6 +7,7 @@ use tokio_util::sync::CancellationToken;
 
 use paddler_agent_decision::decision_error::DecisionError;
 use paddler_agent_runtime::rejection_description::rejection_description;
+use paddler_messaging::decision_answer::DecisionAnswer;
 use paddler_messaging::decision_result::DecisionResult;
 use paddler_messaging::request_params::decide_params::raw_decide_params::RawDecideParams;
 use paddler_tests::decision_cluster_params::DecisionClusterParams;
@@ -74,7 +75,7 @@ async fn decision_input_with_a_nul_byte_is_rejected() {
         let nul_error =
             CString::new(text_with_nul_byte).expect_err("the text must contain a nul byte");
 
-        assert!(collected.answers.is_empty());
+        assert_eq!(collected.answers, Vec::<DecisionAnswer>::new());
         assert_eq!(
             collected.terminal_result,
             DecisionResult::InputTokenizationFailed(rejection_description(

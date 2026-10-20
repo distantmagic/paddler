@@ -41,10 +41,14 @@ pub enum ClusterHarnessError {
     AgentHungUpBeforeServing,
     #[error("Agent {agent_id} left the balancer's pool while it was being observed")]
     AgentLeftThePool { agent_id: String },
+    #[error("The untrusted agent socket client could not connect to the balancer")]
+    AgentSocketConnectFailed(#[source] WebSocketError),
     #[error("The untrusted agent socket client ended without a close frame")]
     AgentSocketEndedWithoutClosing,
     #[error("The untrusted agent socket client ended before the balancer sent it a request")]
     AgentSocketEndedWithoutRequest,
+    #[error("The untrusted agent socket client could not serialize a message")]
+    AgentSocketMessageUnserializable(#[source] SerdeJsonError),
     #[error("The untrusted agent socket client could not receive a frame")]
     AgentSocketReceiveFailed(#[source] WebSocketError),
     #[error("The untrusted agent socket client could not send a frame")]

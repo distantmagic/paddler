@@ -6,13 +6,13 @@ use crate::agent_applicable_state::AgentApplicableState;
 use crate::applicable_decisions::ApplicableDecisions;
 use crate::capability_starter::CapabilityStarter;
 use crate::capability_startup_interruption::CapabilityStartupInterruption;
-use crate::model_serving_settings::ModelServingSettings;
 use crate::preparation_outcome::PreparationOutcome;
 use crate::prepared_serving::PreparedServing;
 use crate::retry_delay::RetryDelay;
 
 pub struct ServingPreparation {
     pub agent_applicable_state: AgentApplicableState,
+    pub decisions_to_prepare: ApplicableDecisions,
     pub retry_delay: RetryDelay,
 }
 
@@ -24,6 +24,7 @@ impl ServingPreparation {
     ) -> PreparationOutcome {
         let Self {
             agent_applicable_state,
+            decisions_to_prepare,
             retry_delay,
         } = self;
 
@@ -33,20 +34,11 @@ impl ServingPreparation {
             return PreparationOutcome::Cancelled;
         }
 
-        let applicable_decisions = match &agent_applicable_state {
-            AgentApplicableState::NotConfigured | AgentApplicableState::WithoutModel { .. } => {
-                &ApplicableDecisions::Disabled
-            }
-            AgentApplicableState::WithModel(ModelServingSettings { capabilities, .. }) => {
-                &capabilities.decisions
-            }
-        };
-
         match (CapabilityStarter {
             cancellation_token: &cancellation_token,
             inference_runtime_context: &inference_runtime_context,
         })
-        .prepare_decisions(applicable_decisions)
+        .prepare_decisions(&decisions_to_prepare)
         .await
         {
             Ok(prepared_decisions) => PreparationOutcome::Prepared(PreparedServing {

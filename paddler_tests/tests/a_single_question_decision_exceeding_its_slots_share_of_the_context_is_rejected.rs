@@ -2,6 +2,7 @@
 
 use tokio_util::sync::CancellationToken;
 
+use paddler_messaging::decision_answer::DecisionAnswer;
 use paddler_messaging::decision_result::DecisionResult;
 use paddler_messaging::decision_slots_minimum::DECISION_SLOTS_MINIMUM;
 use paddler_messaging::oversized_decision_details::OversizedDecisionDetails;
@@ -33,7 +34,7 @@ async fn a_single_question_decision_exceeding_its_slots_share_of_the_context_is_
         .await
         .expect("the oversized decision must be answered with a rejection");
 
-    assert!(collected.answers.is_empty());
+    assert_eq!(collected.answers, Vec::<DecisionAnswer>::new());
     assert_eq!(
         collected.terminal_result,
         DecisionResult::RequestExceedsContext(OversizedDecisionDetails {

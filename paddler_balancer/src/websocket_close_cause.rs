@@ -16,6 +16,7 @@ pub enum WebSocketCloseCause {
     AgentAlreadyRegistered,
     AgentDeregistered,
     AgentMessageUndeserializable,
+    AgentResponseBeforeRegistration,
     AgentStatusBeforeRegistration,
     ConnectionCloseRequested,
     IncomingMessageTooBig,
@@ -42,6 +43,10 @@ impl WebSocketCloseCause {
             Self::AgentMessageUndeserializable => Some(described_close_reason(
                 CloseCode::Invalid,
                 "Agent message could not be deserialized".to_owned(),
+            )),
+            Self::AgentResponseBeforeRegistration => Some(described_close_reason(
+                CloseCode::Policy,
+                "Agent sent a response before registering".to_owned(),
             )),
             Self::AgentStatusBeforeRegistration => Some(described_close_reason(
                 CloseCode::Policy,

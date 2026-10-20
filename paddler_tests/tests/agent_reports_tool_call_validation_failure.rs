@@ -22,6 +22,7 @@ use paddler_test_cluster_harness::cluster_params::ClusterParams;
 use paddler_test_cluster_harness::model_card::qwen3_0_6b::qwen3_0_6b;
 use paddler_tests::start_cluster::start_cluster;
 use paddler_test_cluster_harness::cluster_desired_state::ClusterDesiredState;
+use paddler_tests::weather_tool_question::WEATHER_TOOL_QUESTION;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn agent_reports_tool_call_validation_failure() {
@@ -49,10 +50,7 @@ async fn agent_reports_tool_call_validation_failure() {
             &ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
                 conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Text(
-                        "What is the weather in Paris? Use the get_weather tool to find out."
-                            .to_owned(),
-                    ),
+                    content: ConversationMessageContent::Text(WEATHER_TOOL_QUESTION.to_owned()),
                     role: "user".to_owned(),
                 }]),
                 enable_thinking: false,
