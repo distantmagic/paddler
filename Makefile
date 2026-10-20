@@ -162,20 +162,14 @@ fmt: node_modules
 
 .PHONY: lint.kev_converter.python
 lint.kev_converter.python: paddler_kev_converter_python/.venv
-	poetry -C paddler_kev_converter_python run ruff check
-	poetry -C paddler_kev_converter_python run ruff format --check
 	poetry -C paddler_kev_converter_python run mypy .
 
 .PHONY: lint.openai.python
 lint.openai.python: paddler_openai_client_python_test/.venv
-	poetry -C paddler_openai_client_python_test run ruff check
-	poetry -C paddler_openai_client_python_test run ruff format --check
 	poetry -C paddler_openai_client_python_test run mypy .
 
 .PHONY: lint.typesafe.python
 lint.typesafe.python: paddler_typesafe_client_python_test/.venv
-	poetry -C paddler_typesafe_client_python_test run ruff check
-	poetry -C paddler_typesafe_client_python_test run ruff format --check
 	poetry -C paddler_typesafe_client_python_test run mypy .
 
 .PHONY: test

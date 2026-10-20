@@ -54,8 +54,6 @@ Copy this checklist and tick each item as the suite completes:
 
 Run them in this order. Cheap suites (1, 3, 7) surface bugs quickly; the GPU-bound suites (2, 4, 5, 6, 8, 9) load models.
 
-On NixOS the pinned `ruff` wheel is dynamically linked, so suite 3 needs `nix-ld`.
-
 ## Step 3: rules during the run
 
 - **Serialize GPU suites.** When `$DEVICE` is `cuda` or `metal`, run test suites sequentially to avoid device contention.

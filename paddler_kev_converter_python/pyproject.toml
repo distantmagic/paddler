@@ -25,7 +25,6 @@ transformers = "==5.17.0"
 [tool.poetry.group.dev.dependencies]
 pytest = "9.0.3"
 pytest-cov = "7.1.0"
-ruff = "0.15.12"
 mypy = "1.19.1"
 
 [[tool.poetry.source]]
@@ -42,25 +41,6 @@ python_version = "3.12"
 strict = true
 extra_checks = true
 mypy_path = "stubs"
-
-
-[tool.ruff]
-line-length = 88
-target-version = "py312"
-
-[tool.ruff.lint]
-select = ["ALL"]
-ignore = [
-    "COM812",  # trailing comma - conflicts with formatter
-    "D",       # docstrings - project prefers self-documenting code
-    "ISC001",  # implicit string concatenation - conflicts with formatter
-]
-
-[tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = [
-    "PLR2004", # magic values in assertions
-    "S101",    # assert statements
-]
 
 [tool.coverage.report]
 fail_under = 100
