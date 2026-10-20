@@ -435,7 +435,7 @@ impl Cluster {
         let agent_id = self
             .agent_ids
             .first()
-            .context("the cluster must have a registered agent")?
+            .ok_or(ClusterHarnessError::ClusterHasNoRegisteredAgent)?
             .clone();
 
         Ok(self

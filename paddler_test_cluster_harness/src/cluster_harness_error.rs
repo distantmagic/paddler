@@ -76,6 +76,8 @@ pub enum ClusterHarnessError {
         #[source]
         source: ParseError,
     },
+    #[error("The cluster has no registered agent to wait for")]
+    ClusterHasNoRegisteredAgent,
     #[error("The balancer does not serve the OpenAI compatibility service")]
     CompatOpenAIServiceNotServed,
     #[error("The balancer does not serve the TypeSafe compatibility service")]
