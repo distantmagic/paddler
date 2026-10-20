@@ -47,12 +47,8 @@ async fn an_untrusted_agent_waiting_for_a_request_skips_the_pong_answering_its_p
         .await
         .expect("the balancer must register the pinging agent after answering its ping");
 
-    let client_management = cluster.client_management.clone();
-    let model_metadata_answer = spawn(async move {
-        client_management
-            .get_model_metadata(CancellationToken::new(), PINGING_AGENT_ID)
-            .await
-    });
+    let model_metadata_answer =
+        spawn(cluster.get_model_metadata(CancellationToken::new(), PINGING_AGENT_ID));
     let model_metadata_request = pinging_agent
         .next_request()
         .await

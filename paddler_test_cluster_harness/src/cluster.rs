@@ -20,6 +20,7 @@ use paddler_messaging::agent_issue::AgentIssue;
 use paddler_messaging::agent_runtime_status::AgentRuntimeStatus;
 use paddler_messaging::buffered_request_manager_snapshot::BufferedRequestManagerSnapshot;
 use paddler_messaging::inference_mode::InferenceMode;
+use paddler_messaging::model_metadata::ModelMetadata;
 use paddler_messaging::request_params::continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
 use paddler_messaging::request_params::continue_from_conversation_history_params::tool::tool_params::function_call::parameters_schema::validated_parameters_schema::ValidatedParametersSchema;
 use paddler_messaging::request_params::continue_from_raw_prompt_params::ContinueFromRawPromptParams;
@@ -201,6 +202,23 @@ impl Cluster {
                     .await?,
             )
             .await
+        })
+    }
+
+    pub fn get_model_metadata(
+        &self,
+        cancellation_token: CancellationToken,
+        agent_id: &str,
+    ) -> impl Future<Output = Result<Option<ModelMetadata>, ClusterHarnessError>> + Send + use<>
+    {
+        let client_management = self.client_management.clone();
+        let agent_id = agent_id.to_owned();
+
+        self.connection_budget.hold_during(async move {
+            client_management
+                .get_model_metadata(cancellation_token, &agent_id)
+                .await
+                .map_err(ClusterHarnessError::ModelMetadataRequestFailed)
         })
     }
 

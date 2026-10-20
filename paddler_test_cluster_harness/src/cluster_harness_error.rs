@@ -123,6 +123,8 @@ pub enum ClusterHarnessError {
     InferenceSocketRequestUnserializable(#[source] SerdeJsonError),
     #[error("The raw inference socket could not send a frame")]
     InferenceSocketSendFailed(#[source] WebSocketError),
+    #[error("The model metadata request failed")]
+    ModelMetadataRequestFailed(#[source] ClientError),
     #[error("The OpenAI compatibility request failed")]
     OpenAIRequestFailed(#[source] OpenAIError),
     #[error("Unable to list the open file descriptors of the current process")]
