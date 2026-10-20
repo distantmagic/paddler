@@ -24,8 +24,15 @@ impl OccupiedBlockingThread {
         }
     }
 
-    pub async fn release(self) -> Result<(), JoinError> {
+    pub async fn release(mut self) -> Result<(), JoinError> {
         self.release.notify_one();
-        self.occupant.await
+
+        (&mut self.occupant).await
+    }
+}
+
+impl Drop for OccupiedBlockingThread {
+    fn drop(&mut self) {
+        self.release.notify_one();
     }
 }
