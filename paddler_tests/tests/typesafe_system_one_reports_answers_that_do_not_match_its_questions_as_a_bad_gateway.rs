@@ -41,12 +41,12 @@ async fn typesafe_system_one_reports_answers_that_do_not_match_its_questions_as_
             version: 1,
         },
     )
-    .await;
+    .await
+    .expect("the untruthful agent must register");
 
     let typesafe_response =
         spawn(cluster.typesafe_system_one("mismatched-answers", &noul_system_one_request()));
     let decision_request_id = untruthful_agent
-        .socket_client
         .next_request()
         .await
         .expect("the balancer must dispatch the decision")
@@ -67,7 +67,8 @@ async fn typesafe_system_one_reports_answers_that_do_not_match_its_questions_as_
                 decision_request_id.clone(),
                 AgentJsonRpcResponse::Decision(decision_result),
             )
-            .await;
+            .await
+            .expect("the decision result must be sent");
     }
 
     let response = typesafe_response

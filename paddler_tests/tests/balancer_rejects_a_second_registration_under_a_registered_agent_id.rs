@@ -25,21 +25,23 @@ async fn balancer_rejects_a_second_registration_under_a_registered_agent_id() {
         .first()
         .expect("the cluster must have a registered agent")
         .clone();
-    let mut impostor_socket = UntrustedManagementAgent::connect(
+    let mut impostor_agent = UntrustedManagementAgent::connect(
         cluster.balancer.addresses.management,
         &registered_agent_id,
     )
-    .await;
+    .await
+    .expect("the impostor must reach the agent socket");
 
-    impostor_socket
+    impostor_agent
         .register(RegisterAgentParams {
             name: Some("impostor".to_owned()),
             slot_aggregated_status_snapshot: SlotAggregatedStatusSnapshot::default(),
         })
-        .await;
+        .await
+        .expect("the impostor registration must be sent");
 
     assert_eq!(
-        impostor_socket
+        impostor_agent
             .socket_client
             .next_close_frame()
             .await
@@ -47,13 +49,13 @@ async fn balancer_rejects_a_second_registration_under_a_registered_agent_id() {
             .map(|close_frame| close_frame.code),
         Some(CloseCode::Policy)
     );
-    assert!(
+    assert_eq!(
         cluster
             .client_management
             .get_model_metadata(CancellationToken::new(), &registered_agent_id)
             .await
-            .is_ok(),
-        "the registered agent must keep serving requests"
+            .expect("the registered agent must keep serving requests"),
+        None
     );
 
     cluster

@@ -23,18 +23,21 @@ async fn balancer_keeps_an_agent_that_repeats_its_status_registered() {
         },
         version,
     };
-    let mut repeating_agent_socket = UntrustedManagementAgent::connect_registered(
+    let mut repeating_agent = UntrustedManagementAgent::connect_registered(
         cluster.balancer.addresses.management,
         REPEATING_AGENT_ID,
         status_report(1, 1),
     )
-    .await;
-    repeating_agent_socket
+    .await
+    .expect("the repeating agent must register");
+    repeating_agent
         .report_status(status_report(1, 2))
-        .await;
-    repeating_agent_socket
+        .await
+        .expect("the repeated status must be sent");
+    repeating_agent
         .report_status(status_report(2, 3))
-        .await;
+        .await
+        .expect("the changed status must be sent");
 
     cluster
         .agents_watcher

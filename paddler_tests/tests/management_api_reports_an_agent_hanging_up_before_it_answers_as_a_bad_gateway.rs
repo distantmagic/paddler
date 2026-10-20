@@ -29,7 +29,8 @@ async fn management_api_reports_an_agent_hanging_up_before_it_answers_as_a_bad_g
             version: 1,
         },
     )
-    .await;
+    .await
+    .expect("the agent must register");
     cluster
         .wait_for_agent_count(1)
         .await
@@ -49,7 +50,6 @@ async fn management_api_reports_an_agent_hanging_up_before_it_answers_as_a_bad_g
     );
 
     hanging_up_agent
-        .socket_client
         .next_request()
         .await
         .expect("the balancer must ask the agent for its model metadata");

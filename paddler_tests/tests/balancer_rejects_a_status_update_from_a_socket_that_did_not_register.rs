@@ -25,13 +25,14 @@ async fn balancer_rejects_a_status_update_from_a_socket_that_did_not_register() 
         .first()
         .expect("the cluster must have a registered agent")
         .clone();
-    let mut impostor_socket = UntrustedManagementAgent::connect(
+    let mut impostor_agent = UntrustedManagementAgent::connect(
         cluster.balancer.addresses.management,
         &registered_agent_id,
     )
-    .await;
+    .await
+    .expect("the impostor must reach the agent socket");
 
-    impostor_socket
+    impostor_agent
         .report_status(SlotAggregatedStatusSnapshot {
             status: AgentStatus {
                 desired_slots_total: 99,
@@ -39,10 +40,11 @@ async fn balancer_rejects_a_status_update_from_a_socket_that_did_not_register() 
             },
             version: u64::MAX,
         })
-        .await;
+        .await
+        .expect("the impostor status update must be sent");
 
     assert_eq!(
-        impostor_socket
+        impostor_agent
             .socket_client
             .next_close_frame()
             .await

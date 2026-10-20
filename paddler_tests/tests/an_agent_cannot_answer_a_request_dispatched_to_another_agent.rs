@@ -37,13 +37,15 @@ async fn an_agent_cannot_answer_a_request_dispatched_to_another_agent() {
         ANSWERING_AGENT_ID,
         SlotAggregatedStatusSnapshot::default(),
     )
-    .await;
+    .await
+    .expect("the answering agent must register");
     let mut injecting_agent = UntrustedManagementAgent::connect_registered(
         management_addr,
         INJECTING_AGENT_ID,
         SlotAggregatedStatusSnapshot::default(),
     )
-    .await;
+    .await
+    .expect("the injecting agent must register");
 
     cluster
         .wait_for_agent_count(2)
@@ -57,7 +59,6 @@ async fn an_agent_cannot_answer_a_request_dispatched_to_another_agent() {
             .await
     });
     let model_metadata_request_id = answering_agent
-        .socket_client
         .next_request()
         .await
         .expect("the balancer must ask the answering agent for its model metadata")
@@ -68,7 +69,8 @@ async fn an_agent_cannot_answer_a_request_dispatched_to_another_agent() {
             model_metadata_request_id.clone(),
             AgentJsonRpcResponse::ModelMetadata(Some(model_metadata_named("injected"))),
         )
-        .await;
+        .await
+        .expect("the injected response must be sent");
     injecting_agent
         .report_status(SlotAggregatedStatusSnapshot {
             status: AgentStatus {
@@ -77,7 +79,8 @@ async fn an_agent_cannot_answer_a_request_dispatched_to_another_agent() {
             },
             version: 1,
         })
-        .await;
+        .await
+        .expect("the status report following the injection must be sent");
     cluster
         .agents_watcher
         .until_agent(INJECTING_AGENT_ID, |snapshot| {
@@ -94,7 +97,8 @@ async fn an_agent_cannot_answer_a_request_dispatched_to_another_agent() {
             model_metadata_request_id,
             AgentJsonRpcResponse::ModelMetadata(Some(model_metadata_named("answered"))),
         )
-        .await;
+        .await
+        .expect("the genuine response must be sent");
 
     assert_eq!(
         model_metadata_answer

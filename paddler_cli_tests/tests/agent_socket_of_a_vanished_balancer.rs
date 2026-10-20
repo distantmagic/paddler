@@ -1,0 +1,48 @@
+use paddler_cli_tests::start_signalled_subprocess_cluster::start_signalled_subprocess_cluster;
+use paddler_cli_tests::subprocess_cluster::SubprocessCluster;
+use paddler_test_cluster_harness::cluster::Cluster;
+use paddler_test_cluster_harness::cluster_params::ClusterParams;
+use paddler_test_cluster_harness::untrusted_agent_socket_client::UntrustedAgentSocketClient;
+
+pub struct AgentSocketOfAVanishedBalancer {
+    pub agent_socket: UntrustedAgentSocketClient,
+    pub cluster: Cluster,
+}
+
+impl AgentSocketOfAVanishedBalancer {
+    pub async fn connect(agent_id: &str) -> Self {
+        let SubprocessCluster {
+            balancer_signals,
+            cluster,
+        } = start_signalled_subprocess_cluster(
+            env!("CARGO_BIN_EXE_paddler_cluster_node"),
+            ClusterParams {
+                agents: Vec::new(),
+                wait_for_slots_ready: false,
+                ..ClusterParams::default()
+            },
+        )
+        .await
+        .expect("a cluster without agents must start");
+        let agent_socket =
+            UntrustedAgentSocketClient::connect(cluster.balancer.addresses.management, agent_id)
+                .await
+                .expect("the agent socket must reach the balancer");
+
+        balancer_signals
+            .kill()
+            .expect("the balancer must be killed");
+
+        Self {
+            agent_socket,
+            cluster,
+        }
+    }
+
+    pub async fn shut_down(self) {
+        self.cluster
+            .shutdown()
+            .await
+            .expect("the cluster must shut down after its balancer was killed");
+    }
+}

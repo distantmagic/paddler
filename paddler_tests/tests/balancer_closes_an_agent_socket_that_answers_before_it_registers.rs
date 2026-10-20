@@ -17,14 +17,16 @@ async fn balancer_closes_an_agent_socket_that_answers_before_it_registers() {
     .expect("a cluster without agents must start");
     let mut unregistered_agent =
         UntrustedManagementAgent::connect(cluster.balancer.addresses.management, "unregistered")
-            .await;
+            .await
+            .expect("the agent must reach the agent socket");
 
     unregistered_agent
         .respond(
             "never-dispatched".to_owned(),
             AgentJsonRpcResponse::ModelMetadata(None),
         )
-        .await;
+        .await
+        .expect("the response must be sent");
 
     assert_eq!(
         unregistered_agent

@@ -10,6 +10,7 @@ use reqwest::Error as ReqwestError;
 use serde_json::Error as SerdeJsonError;
 use thiserror::Error;
 use tokio_tungstenite::tungstenite::Error as WebSocketError;
+use tokio_tungstenite::tungstenite::protocol::CloseFrame;
 use url::ParseError;
 
 use paddler_client::error::Error as ClientError;
@@ -41,10 +42,14 @@ pub enum ClusterHarnessError {
     AgentHungUpBeforeServing,
     #[error("Agent {agent_id} left the balancer's pool while it was being observed")]
     AgentLeftThePool { agent_id: String },
+    #[error(
+        "The balancer closed the untrusted agent socket before sending it text: {close_frame:?}"
+    )]
+    AgentSocketClosedBeforeText { close_frame: Option<CloseFrame> },
     #[error("The untrusted agent socket client ended without a close frame")]
     AgentSocketEndedWithoutClosing,
-    #[error("The untrusted agent socket client ended before the balancer sent it a request")]
-    AgentSocketEndedWithoutRequest,
+    #[error("The untrusted agent socket client ended before the balancer sent it text")]
+    AgentSocketEndedWithoutText,
     #[error("The untrusted agent socket client could not receive a frame")]
     AgentSocketReceiveFailed(#[source] WebSocketError),
     #[error("The untrusted agent socket client could not send a frame")]

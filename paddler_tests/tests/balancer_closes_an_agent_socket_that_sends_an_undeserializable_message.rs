@@ -2,8 +2,9 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
-use paddler_test_cluster_harness::untrusted_agent_socket_client::UntrustedAgentSocketClient;
 use paddler_tests::start_cluster::start_cluster;
+
+use crate::untrusted_management_agent::UntrustedManagementAgent;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn balancer_closes_an_agent_socket_that_sends_an_undeserializable_message() {
@@ -14,20 +15,22 @@ async fn balancer_closes_an_agent_socket_that_sends_an_undeserializable_message(
     })
     .await
     .expect("the cluster must start");
-    let mut agent_socket = UntrustedAgentSocketClient::connect(
+    let mut undeserializable_agent = UntrustedManagementAgent::connect(
         cluster.balancer.addresses.management,
         "undeserializable-agent",
     )
     .await
     .expect("the connection must be established");
 
-    agent_socket
+    undeserializable_agent
+        .socket_client
         .send(Message::text("not json"))
         .await
         .expect("the message must be sent");
 
     assert_eq!(
-        agent_socket
+        undeserializable_agent
+            .socket_client
             .next_close_frame()
             .await
             .expect("the balancer must close the socket")
