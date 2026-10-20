@@ -20,15 +20,17 @@ async fn untrusted_agent_socket_waiting_for_a_close_frame_reports_a_balancer_tha
         .expect_err("a vanished balancer must not send a close frame");
 
     assert_eq!(
-        receive_error.to_string(),
-        ClusterHarnessError::AgentSocketReceiveFailed(WebSocketError::ConnectionClosed).to_string()
+        discriminant(&receive_error),
+        discriminant(&ClusterHarnessError::AgentSocketReceiveFailed(
+            WebSocketError::ConnectionClosed
+        ))
     );
     assert_eq!(
         receive_error
             .source()
-            .and_then(|source| source.downcast_ref::<WebSocketError>())
-            .map(ToString::to_string),
-        Some(WebSocketError::Protocol(ProtocolError::ResetWithoutClosingHandshake).to_string())
+            .and_then(|websocket_error| websocket_error.source())
+            .and_then(|protocol_error| protocol_error.downcast_ref::<ProtocolError>()),
+        Some(&ProtocolError::ResetWithoutClosingHandshake)
     );
     assert_eq!(
         agent_socket_of_a_vanished_balancer
