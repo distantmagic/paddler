@@ -1,11 +1,8 @@
 use std::sync::Arc;
-use std::sync::mpsc::channel;
 
 use tempfile::TempDir;
-use tokio::runtime::Builder;
 use tokio::spawn;
 use tokio::sync::watch;
-use tokio::task::spawn_blocking;
 use tokio_util::sync::CancellationToken;
 use trzcina::Service as _;
 
@@ -21,7 +18,8 @@ use paddler_messaging::agent_desired_state::AgentDesiredState;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_messaging::subscribes_to_updates::SubscribesToUpdates as _;
 
-const ONLY_BLOCKING_THREAD: usize = 1;
+use crate::occupied_blocking_thread::OccupiedBlockingThread;
+use crate::single_blocking_thread_runtime::single_blocking_thread_runtime;
 
 pub struct ReconciliationAfterReplacement {
     pub agent_applicable_state_holder: Arc<AgentApplicableStateHolder>,
@@ -34,12 +32,7 @@ pub struct ReconciliationReplacedBeforeItsWorkerRuns {
 
 impl ReconciliationReplacedBeforeItsWorkerRuns {
     pub fn run(self) -> ReconciliationAfterReplacement {
-        Builder::new_current_thread()
-            .max_blocking_threads(ONLY_BLOCKING_THREAD)
-            .enable_all()
-            .build()
-            .expect("the test runtime must build")
-            .block_on(self.run_on_one_blocking_thread())
+        single_blocking_thread_runtime().block_on(self.run_on_one_blocking_thread())
     }
 
     async fn run_on_one_blocking_thread(self) -> ReconciliationAfterReplacement {
@@ -47,8 +40,7 @@ impl ReconciliationReplacedBeforeItsWorkerRuns {
         let stalled_model_server = LocalHttpFixture::start(FixtureResponse::StallBeforeHeaders)
             .await
             .expect("the stalled model server must start");
-        let (release_blocking_thread_tx, release_blocking_thread_rx) = channel::<()>();
-        let blocking_thread_occupant = spawn_blocking(move || release_blocking_thread_rx.recv());
+        let occupied_blocking_thread = OccupiedBlockingThread::occupy();
         let agent_applicable_state_holder = Arc::new(AgentApplicableStateHolder::default());
         let slot_aggregated_status = Arc::new(SlotAggregatedStatus::new(1));
         let mut status_updates = slot_aggregated_status.subscribe_to_updates();
@@ -81,13 +73,7 @@ impl ReconciliationReplacedBeforeItsWorkerRuns {
             model: AgentDesiredModel::Uri(stalled_model_server.url("/model.gguf")),
             ..AgentDesiredState::from(BalancerDesiredState::default())
         });
-        release_blocking_thread_tx
-            .send(())
-            .expect("the blocking thread occupant must be waiting");
-        blocking_thread_occupant
-            .await
-            .expect("the blocking thread occupant must not panic")
-            .expect("the blocking thread occupant must be released");
+        occupied_blocking_thread.release().await;
         stalled_model_server
             .wait_for_requests(1)
             .await

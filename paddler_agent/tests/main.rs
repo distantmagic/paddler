@@ -7,15 +7,23 @@ mod a_replacement_whose_model_cannot_load_reports_nothing_as_served;
 mod a_startup_cancelled_by_the_agent_shutting_down_changes_nothing;
 mod a_state_superseded_while_it_is_prepared_yields_to_its_replacement;
 mod a_state_superseded_while_its_model_loads_yields_to_its_replacement;
+mod a_state_superseding_a_decisions_preparation_that_fails_leaves_no_issue_behind;
+mod a_state_superseding_a_model_load_that_fails_leaves_no_issue_behind;
 mod a_state_without_a_model_serves_nothing_and_forgets_the_previous_model;
 mod an_identical_state_is_not_applied_again;
 #[cfg(test)]
 mod arbiter_under_test;
 #[cfg(test)]
+mod occupied_blocking_thread;
+#[cfg(test)]
 mod reconciliation_replaced_before_its_worker_runs;
 #[cfg(test)]
 mod settings_whose_model_cannot_load;
 mod shutting_down_waits_for_a_decisions_preparation_that_fails;
+#[cfg(test)]
+mod single_blocking_thread_runtime;
+#[cfg(test)]
+mod state_enabling_decisions;
 #[cfg(test)]
 mod state_overriding_the_chat_template;
 #[cfg(test)]

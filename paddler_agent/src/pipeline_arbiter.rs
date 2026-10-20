@@ -54,13 +54,12 @@ impl PipelineArbiter {
     }
 
     pub fn apply(&mut self, agent_applicable_state: AgentApplicableState) {
-        self.inference_runtime_context
-            .slot_aggregated_status
-            .begin_pipeline();
-
         match self.serving_startup {
-            ServingStartup::Idle => self.prepare(agent_applicable_state, RetryDelay::Immediately),
+            ServingStartup::Idle => self.start_pipeline(agent_applicable_state),
             ServingStartup::Preparing(_) | ServingStartup::Replacing(_) => {
+                self.inference_runtime_context
+                    .slot_aggregated_status
+                    .begin_pipeline();
                 self.serving_startup.cancel();
                 self.superseding_state = SupersedingState::SupersededBy(agent_applicable_state);
             }
@@ -108,7 +107,7 @@ impl PipelineArbiter {
         if let SupersedingState::SupersededBy(superseding_applicable_state) =
             mem::replace(&mut self.superseding_state, SupersedingState::NotSuperseded)
         {
-            self.prepare(superseding_applicable_state, RetryDelay::Immediately);
+            self.start_pipeline(superseding_applicable_state);
 
             return;
         }
@@ -143,7 +142,7 @@ impl PipelineArbiter {
             mem::replace(&mut self.superseding_state, SupersedingState::NotSuperseded)
         {
             self.model_serving = outcome.into_model_serving();
-            self.prepare(superseding_applicable_state, RetryDelay::Immediately);
+            self.start_pipeline(superseding_applicable_state);
 
             return;
         }
@@ -239,6 +238,13 @@ impl PipelineArbiter {
                 self.resume_serving(served_model, agent_applicable_state);
             }
         }
+    }
+
+    fn start_pipeline(&mut self, agent_applicable_state: AgentApplicableState) {
+        self.inference_runtime_context
+            .slot_aggregated_status
+            .begin_pipeline();
+        self.prepare(agent_applicable_state, RetryDelay::Immediately);
     }
 
     fn withdraw_serving(&mut self) -> ModelServing {
