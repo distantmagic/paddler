@@ -30,6 +30,7 @@ where
         dispatched_agent: DispatchedAgent,
         params: TParams,
         inference_item_timeout: Duration,
+        settlement: CancellationToken,
         shutdown: CancellationToken,
     ) -> Self
     where
@@ -49,6 +50,7 @@ where
                 inference_item_timeout,
                 relay_abandonment: relay_abandonment.clone(),
                 response_receiver,
+                settlement_guard: settlement.drop_guard(),
                 shutdown,
             }
             .forward(),

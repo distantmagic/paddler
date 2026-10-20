@@ -34,7 +34,6 @@ use crate::chunk_forwarding_session_controller::transform_result::TransformResul
 use crate::chunk_forwarding_session_controller::transforms_outgoing_message::TransformsOutgoingMessage;
 use crate::controls_session::ControlsSession as _;
 use crate::dispatchable_request::DispatchableRequest;
-use crate::dispatched_agent_relay::DispatchedAgentRelay;
 use crate::distinct_embedding_documents::DistinctEmbeddingDocuments;
 use crate::embedding_chunk_dispatch::EmbeddingChunkDispatch;
 use crate::embedding_document_duplicates::EmbeddingDocumentDuplicates;
@@ -103,14 +102,14 @@ async fn respond(
             EmbeddingChunkDispatch::Claimed {
                 batch,
                 dispatched_agent,
-            } => AgentRelay::Dispatched(DispatchedAgentRelay::start(
+            } => AgentRelay::dispatched(
                 dispatched_agent,
                 batch,
                 inference_item_timeout,
                 app_data.shutdown.clone(),
-            )),
+            ),
             EmbeddingChunkDispatch::Buffered(dispatchable_batch) => {
-                AgentRelay::Awaiting(AwaitingAgentRelay {
+                AgentRelay::awaiting(AwaitingAgentRelay {
                     buffered_request_manager: app_data.buffered_request_manager.clone(),
                     dispatchable_request: dispatchable_batch,
                     inference_item_timeout,

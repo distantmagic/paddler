@@ -22,7 +22,7 @@ impl CompatibilityAppData {
     where
         TParams: AgentStreamingRequest,
     {
-        AgentRelay::Awaiting(AwaitingAgentRelay {
+        AgentRelay::awaiting(AwaitingAgentRelay {
             buffered_request_manager: self.buffered_request_manager.clone(),
             dispatchable_request: DispatchableRequest::from(request_params),
             inference_item_timeout: self.inference_service_configuration.inference_item_timeout,

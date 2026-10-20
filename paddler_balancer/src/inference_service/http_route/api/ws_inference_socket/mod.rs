@@ -87,7 +87,7 @@ async fn handle_inference_request<TParams>(
         let _request_registration = request_registration;
 
         forward_agent_relay(
-            AgentRelay::Awaiting(AwaitingAgentRelay {
+            AgentRelay::awaiting(AwaitingAgentRelay {
                 buffered_request_manager: context.buffered_request_manager.clone(),
                 dispatchable_request: DispatchableRequest::from(params),
                 inference_item_timeout: context

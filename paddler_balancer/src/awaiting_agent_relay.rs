@@ -4,6 +4,7 @@ use std::time::Duration;
 use log::warn;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
+use tokio_util::sync::DropGuard;
 
 use crate::agent_streaming_request::AgentStreamingRequest;
 use crate::buffered_request_agent_wait_result::BufferedRequestAgentWaitResult;
@@ -23,7 +24,10 @@ impl<TParams> AwaitingAgentRelay<TParams>
 where
     TParams: AgentStreamingRequest,
 {
-    pub async fn dispatch(self) -> Result<DispatchedAgentRelay<TParams::Response>, RelayFailure> {
+    pub async fn dispatch(
+        self,
+        settlement_guard: DropGuard,
+    ) -> Result<DispatchedAgentRelay<TParams::Response>, RelayFailure> {
         let Self {
             buffered_request_manager,
             dispatchable_request:
@@ -50,6 +54,7 @@ where
                     dispatched_agent,
                     params,
                     inference_item_timeout,
+                    settlement_guard.disarm(),
                     shutdown,
                 ))
             }

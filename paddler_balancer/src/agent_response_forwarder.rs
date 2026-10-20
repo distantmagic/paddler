@@ -6,6 +6,7 @@ use tokio::select;
 use tokio::time::Instant;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
+use tokio_util::sync::DropGuard;
 
 use paddler_messaging::streamable_result::StreamableResult;
 use paddler_outbox::outbox::Outbox;
@@ -27,6 +28,7 @@ where
     pub inference_item_timeout: Duration,
     pub relay_abandonment: CancellationToken,
     pub response_receiver: AgentResponseReceiver<TResponse>,
+    pub settlement_guard: DropGuard,
     pub shutdown: CancellationToken,
 }
 
@@ -45,6 +47,7 @@ where
                     request_registration,
                     mut response_rx,
                 },
+            settlement_guard: _settlement_guard,
             shutdown,
         } = self;
         let agent_controller = &dispatched_agent.agent_controller;

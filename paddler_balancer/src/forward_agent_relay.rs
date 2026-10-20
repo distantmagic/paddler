@@ -38,10 +38,14 @@ pub async fn forward_agent_relay<TParams, TReceiver>(
     TParams: AgentStreamingRequest,
     TReceiver: ReceivesAgentRelay<TParams::Response>,
 {
+    let settlement = agent_relay.settlement();
+
     select! {
         biased;
 
         () = connection_close.cancelled() => {}
         () = relay_to_receiver(agent_relay, receiver) => {}
     }
+
+    settlement.cancelled().await;
 }

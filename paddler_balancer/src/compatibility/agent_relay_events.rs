@@ -21,6 +21,7 @@ where
     TParams: AgentStreamingRequest,
 {
     stream! {
+        let settlement = agent_relay.settlement();
         let mut agent_relay = agent_relay;
 
         loop {
@@ -30,11 +31,13 @@ where
                     ..
                 }) => {
                     yield AgentRelayEvent::Final(final_result);
+                    settlement.cancelled().await;
 
                     break;
                 }
                 AgentRelayStep::Concluded(AgentRelayConclusion::Failed(relay_failure)) => {
                     yield AgentRelayEvent::Failed(relay_failure);
+                    settlement.cancelled().await;
 
                     break;
                 }

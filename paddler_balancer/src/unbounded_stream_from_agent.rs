@@ -33,7 +33,7 @@ where
     let (chunk_tx, chunk_rx) = mpsc::unbounded_channel();
 
     rt::spawn(forward_agent_relay(
-        AgentRelay::Awaiting(AwaitingAgentRelay {
+        AgentRelay::awaiting(AwaitingAgentRelay {
             buffered_request_manager,
             dispatchable_request: DispatchableRequest::from(request_params),
             inference_item_timeout: inference_service_configuration.inference_item_timeout,
