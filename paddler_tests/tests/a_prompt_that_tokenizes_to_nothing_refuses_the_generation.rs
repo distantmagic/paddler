@@ -9,7 +9,7 @@ use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::llama_runtime::LlamaRuntime;
 use paddler_tests::raw_prompt_generation::RawPromptGeneration;
 
-use crate::first_message_content_generation_parts::first_message_content_generation_parts;
+use crate::first_message_content_request_preparer::FirstMessageContentRequestPreparer;
 
 #[test]
 fn a_prompt_that_tokenizes_to_nothing_refuses_the_generation() {
@@ -18,14 +18,11 @@ fn a_prompt_that_tokenizes_to_nothing_refuses_the_generation() {
         agent_inference_runtime_context(1),
     )
     .expect("the kev model must load");
-    let preparer = runtime.text_only_generation_request_preparer(
-        first_message_content_generation_parts(
-            &runtime,
-            runtime.model_runtime_parameters.context_size.get(),
-        ),
-        runtime.sampler_chain_factory(),
-        JsonToolsSerializer,
-    );
+    let preparer = FirstMessageContentRequestPreparer {
+        llama_runtime: &runtime,
+        sequence_context_size: runtime.model_runtime_parameters.context_size.get(),
+    }
+    .into_generation_request_preparer(runtime.sampler_chain_factory(), JsonToolsSerializer);
     let RawPromptGeneration {
         agent_request,
         generate_tokens_stop_tx: _generate_tokens_stop_tx,

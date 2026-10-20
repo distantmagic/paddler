@@ -82,7 +82,6 @@ pub mod start_embedding_cluster;
 pub mod start_single_agent_cluster_with_desired_state;
 pub mod test_cluster_preset;
 pub mod text_generation_pipeline_parts;
-pub mod text_only_generation_parts;
 pub mod tokenizer_reference_entry;
 pub mod tools_serializer_that_fails;
 pub mod two_option_question;

@@ -9,23 +9,12 @@ use paddler_agent_runtime::llama_context_settings::LlamaContextSettings;
 use paddler_agent_runtime::llama_model_settings::LlamaModelSettings;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
 use paddler_agent_runtime::resident_llama_context::ResidentLlamaContext;
-use paddler_agent_text_generation::chat_prompt_renderer::ChatPromptRenderer;
-use paddler_agent_text_generation::conversation_prompt_support::ConversationPromptSupport;
-use paddler_agent_text_generation::conversation_support::ConversationSupport;
-use paddler_agent_text_generation::generation_request_preparer::GenerationRequestPreparer;
-use paddler_agent_text_generation::image_input::ImageInput;
-use paddler_agent_text_generation::model_bos_token::ModelBosToken;
-use paddler_agent_text_generation::prompt_tokenizer::PromptTokenizer;
 use paddler_agent_text_generation::sampler_chain_factory::SamplerChainFactory;
 use paddler_inference_parameters::all_gpu_layers::ALL_GPU_LAYERS;
 use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
 use paddler_inference_parameters::pooling_type::PoolingType;
 use paddler_inference_parameters::sampling_parameters::SamplingParameters;
 use paddler_messaging::inference_capability::InferenceCapability;
-use paddler_messaging::media_marker::MediaMarker;
-use paddler_messaging::multimodal_settings::MultimodalSettings;
-
-use crate::text_only_generation_parts::TextOnlyGenerationParts;
 
 pub struct LlamaRuntime {
     pub inference_runtime_context: InferenceRuntimeContext,
@@ -96,45 +85,6 @@ impl LlamaRuntime {
         SamplerChainFactory {
             sampling_parameters: SamplingParameters::default(),
             n_vocab: self.loaded_llama_model.model.n_vocab(),
-        }
-    }
-
-    #[must_use]
-    pub fn text_only_generation_request_preparer<TSamplerChainFactory, TToolsSerializer>(
-        &self,
-        TextOnlyGenerationParts {
-            chat_template_renderer,
-            sequence_context_size,
-            streaming_markers,
-        }: TextOnlyGenerationParts,
-        sampler_chain_factory: TSamplerChainFactory,
-        tools_serializer: TToolsSerializer,
-    ) -> GenerationRequestPreparer<TSamplerChainFactory, TToolsSerializer> {
-        let model = &self.loaded_llama_model.model;
-
-        GenerationRequestPreparer {
-            conversation_support: ConversationSupport::Available(Box::new(
-                ConversationPromptSupport {
-                    chat_prompt_renderer: ChatPromptRenderer {
-                        chat_template_renderer,
-                        media_marker: MediaMarker::new("<media>".to_owned()),
-                        token_bos_str: String::new(),
-                        token_eos_str: String::new(),
-                        token_nl_str: String::new(),
-                    },
-                    image_input: ImageInput::Unsupported,
-                },
-            )),
-            image_resize_to_fit: MultimodalSettings::default().image_resize_to_fit,
-            loaded_llama_model: self.loaded_llama_model.clone(),
-            prompt_tokenizer: PromptTokenizer {
-                model: model.clone(),
-                model_bos_token: ModelBosToken::of(model),
-                sequence_context_size,
-            },
-            sampler_chain_factory,
-            streaming_markers,
-            tools_serializer,
         }
     }
 

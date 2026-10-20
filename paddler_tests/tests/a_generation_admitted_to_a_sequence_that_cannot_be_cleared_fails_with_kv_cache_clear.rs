@@ -17,7 +17,7 @@ use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::llama_runtime::LlamaRuntime;
 use paddler_tests::raw_prompt_generation::RawPromptGeneration;
 
-use crate::first_message_content_generation_parts::first_message_content_generation_parts;
+use crate::first_message_content_request_preparer::FirstMessageContentRequestPreparer;
 
 const SEQUENCES_THE_CONTEXT_HOLDS: u32 = 1;
 const SEQUENCES_THE_SCHEDULER_HANDS_OUT: u16 = 2;
@@ -33,11 +33,11 @@ fn a_generation_admitted_to_a_sequence_that_cannot_be_cleared_fails_with_kv_cach
         .create_text_generation_llama_context(SEQUENCES_THE_CONTEXT_HOLDS)
         .expect("the context must be created");
     let sequence_context_size = llama_context.n_ctx_seq();
-    let request_preparer = runtime.text_only_generation_request_preparer(
-        first_message_content_generation_parts(&runtime, sequence_context_size),
-        runtime.sampler_chain_factory(),
-        JsonToolsSerializer,
-    );
+    let request_preparer = FirstMessageContentRequestPreparer {
+        llama_runtime: &runtime,
+        sequence_context_size,
+    }
+    .into_generation_request_preparer(runtime.sampler_chain_factory(), JsonToolsSerializer);
     let raw_prompt_generation = || {
         RawPromptGeneration::new(
             "Paddler",

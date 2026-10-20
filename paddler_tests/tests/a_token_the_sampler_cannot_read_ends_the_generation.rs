@@ -27,7 +27,7 @@ use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::llama_runtime::LlamaRuntime;
 use paddler_tests::raw_prompt_generation::RawPromptGeneration;
 
-use crate::first_message_content_generation_parts::first_message_content_generation_parts;
+use crate::first_message_content_request_preparer::FirstMessageContentRequestPreparer;
 
 #[test]
 fn a_token_the_sampler_cannot_read_ends_the_generation() {
@@ -66,14 +66,13 @@ fn a_token_the_sampler_cannot_read_ends_the_generation() {
         token_sampling,
         tool_call_handling,
         ..
-    } = runtime
-        .text_only_generation_request_preparer(
-            first_message_content_generation_parts(&runtime, sequence_context_size),
-            runtime.sampler_chain_factory(),
-            JsonToolsSerializer,
-        )
-        .prepare_raw_prompt(agent_request)
-        .expect("the generation must be prepared");
+    } = FirstMessageContentRequestPreparer {
+        llama_runtime: &runtime,
+        sequence_context_size,
+    }
+    .into_generation_request_preparer(runtime.sampler_chain_factory(), JsonToolsSerializer)
+    .prepare_raw_prompt(agent_request)
+    .expect("the generation must be prepared");
     let token_classifier =
         SampledTokenClassifier::new(classifier_model, streaming_markers, bare_json_tool_calls);
     let mut active_request = ContinuousBatchActiveRequest {

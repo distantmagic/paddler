@@ -270,7 +270,7 @@ mod embedding_documents_fixture;
 mod enabling_decisions_reuses_the_loaded_model;
 mod enabling_decisions_with_too_few_slots_keeps_serving_the_loaded_model;
 #[cfg(test)]
-mod first_message_content_generation_parts;
+mod first_message_content_request_preparer;
 mod gemma4_internal_endpoint_emits_reasoning_tokens;
 mod gemma4_internal_endpoint_emits_reasoning_tokens_for_image_request;
 mod gemma4_internal_endpoint_emits_tool_call_parsed_event;

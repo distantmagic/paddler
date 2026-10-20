@@ -20,7 +20,7 @@ use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::llama_runtime::LlamaRuntime;
 use paddler_tests::raw_prompt_generation::RawPromptGeneration;
 
-use crate::first_message_content_generation_parts::first_message_content_generation_parts;
+use crate::first_message_content_request_preparer::FirstMessageContentRequestPreparer;
 
 const TOKENS_THE_BATCH_HOLDS: NonZeroU16 = NonZeroU16::MIN;
 
@@ -46,14 +46,13 @@ fn a_generation_overflowing_its_batch_fails_as_batch_assembly() {
             .slot_aggregated_status
             .clone(),
     );
-    let request = runtime
-        .text_only_generation_request_preparer(
-            first_message_content_generation_parts(&runtime, sequence_context_size),
-            runtime.sampler_chain_factory(),
-            JsonToolsSerializer,
-        )
-        .prepare_raw_prompt(agent_request)
-        .expect("the generation must be prepared");
+    let request = FirstMessageContentRequestPreparer {
+        llama_runtime: &runtime,
+        sequence_context_size,
+    }
+    .into_generation_request_preparer(runtime.sampler_chain_factory(), JsonToolsSerializer)
+    .prepare_raw_prompt(agent_request)
+    .expect("the generation must be prepared");
     let (scheduler_message_tx, scheduler_message_rx) = unbounded_channel();
 
     scheduler_message_tx

@@ -16,7 +16,7 @@ use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::llama_runtime::LlamaRuntime;
 use paddler_tests::raw_prompt_generation::RawPromptGeneration;
 
-use crate::first_message_content_generation_parts::first_message_content_generation_parts;
+use crate::first_message_content_request_preparer::FirstMessageContentRequestPreparer;
 
 #[test]
 fn a_generation_arriving_while_every_sequence_is_taken_is_refused() {
@@ -29,11 +29,11 @@ fn a_generation_arriving_while_every_sequence_is_taken_is_refused() {
         .create_text_generation_llama_context(1)
         .expect("the context must be created");
     let sequence_context_size = llama_context.n_ctx_seq();
-    let request_preparer = runtime.text_only_generation_request_preparer(
-        first_message_content_generation_parts(&runtime, sequence_context_size),
-        runtime.sampler_chain_factory(),
-        JsonToolsSerializer,
-    );
+    let request_preparer = FirstMessageContentRequestPreparer {
+        llama_runtime: &runtime,
+        sequence_context_size,
+    }
+    .into_generation_request_preparer(runtime.sampler_chain_factory(), JsonToolsSerializer);
     let RawPromptGeneration {
         agent_request: generation_taking_the_only_sequence,
         generate_tokens_stop_tx: _first_generate_tokens_stop_tx,
