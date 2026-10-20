@@ -1,5 +1,7 @@
 #![cfg(feature = "tests_that_use_llms")]
 
+use std::mem::discriminant;
+
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent::agent_applicable_state::AgentApplicableState;
@@ -56,12 +58,20 @@ async fn a_restart_cancelled_while_starting_a_capability_shuts_down_the_capabili
     )
     .await;
 
-    assert!(matches!(
-        restart_outcome,
-        ReplacementOutcome::Cancelled {
-            held: ModelServing::Holding(_)
-        }
-    ));
+    assert_eq!(
+        discriminant(&restart_outcome),
+        discriminant(&ReplacementOutcome::Cancelled {
+            held: ModelServing::Idle
+        })
+    );
+    assert!(
+        llama_runtime
+            .inference_runtime_context
+            .vram_residencies
+            .model_weights
+            .try_occupy()
+            .is_err()
+    );
     assert!(
         llama_runtime
             .inference_runtime_context
