@@ -42,6 +42,7 @@ tokio-util = { workspace = true }
 
 [dev-dependencies]
 paddler_agent_decision = { workspace = true }
+paddler_bootstrap = { workspace = true }
 paddler_client = { workspace = true }
 paddler_openai_response_format_validator = { workspace = true }
 paddler_tests = { workspace = true }

@@ -3441,6 +3441,7 @@ dependencies = [
  "nix",
  "paddler_agent_decision",
  "paddler_balancer",
+ "paddler_bootstrap",
  "paddler_cli",
  "paddler_client",
  "paddler_inference_parameters",
