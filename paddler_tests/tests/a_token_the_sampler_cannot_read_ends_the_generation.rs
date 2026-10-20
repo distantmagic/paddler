@@ -27,6 +27,8 @@ use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::llama_runtime::LlamaRuntime;
 use paddler_tests::raw_prompt_generation::RawPromptGeneration;
 
+use crate::first_message_content_generation_parts::first_message_content_generation_parts;
+
 #[test]
 fn a_token_the_sampler_cannot_read_ends_the_generation() {
     let runtime = LlamaRuntime::load(
@@ -66,9 +68,7 @@ fn a_token_the_sampler_cannot_read_ends_the_generation() {
         ..
     } = runtime
         .text_only_generation_request_preparer(
-            runtime
-                .first_message_content_generation_parts(sequence_context_size)
-                .expect("the generation parts must be built"),
+            first_message_content_generation_parts(&runtime, sequence_context_size),
             runtime.sampler_chain_factory(),
             JsonToolsSerializer,
         )

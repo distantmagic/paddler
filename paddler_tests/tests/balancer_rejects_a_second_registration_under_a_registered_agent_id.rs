@@ -6,8 +6,9 @@ use paddler_messaging::slot_aggregated_status_snapshot::SlotAggregatedStatusSnap
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_test_cluster_harness::cluster_desired_state::ClusterDesiredState;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
-use paddler_test_cluster_harness::untrusted_agent_socket_client::UntrustedAgentSocketClient;
 use paddler_tests::start_cluster::start_cluster;
+
+use crate::untrusted_management_agent::UntrustedManagementAgent;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn balancer_rejects_a_second_registration_under_a_registered_agent_id() {
@@ -24,23 +25,22 @@ async fn balancer_rejects_a_second_registration_under_a_registered_agent_id() {
         .first()
         .expect("the cluster must have a registered agent")
         .clone();
-    let mut impostor_socket = UntrustedAgentSocketClient::connect(
+    let mut impostor_socket = UntrustedManagementAgent::connect(
         cluster.balancer.addresses.management,
         &registered_agent_id,
     )
-    .await
-    .expect("the impostor must reach the agent socket");
+    .await;
 
     impostor_socket
         .register(RegisterAgentParams {
             name: Some("impostor".to_owned()),
             slot_aggregated_status_snapshot: SlotAggregatedStatusSnapshot::default(),
         })
-        .await
-        .expect("the impostor registration must be sent");
+        .await;
 
     assert_eq!(
         impostor_socket
+            .socket_client
             .next_close_frame()
             .await
             .expect("the balancer must close the impostor socket")

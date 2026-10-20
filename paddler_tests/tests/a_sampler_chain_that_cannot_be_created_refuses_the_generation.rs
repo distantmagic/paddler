@@ -10,6 +10,8 @@ use paddler_tests::llama_runtime::LlamaRuntime;
 use paddler_tests::raw_prompt_generation::RawPromptGeneration;
 use paddler_tests::sampler_chain_factory_that_fails::SamplerChainFactoryThatFails;
 
+use crate::first_message_content_generation_parts::first_message_content_generation_parts;
+
 #[test]
 fn a_sampler_chain_that_cannot_be_created_refuses_the_generation() {
     let runtime = LlamaRuntime::load(
@@ -18,11 +20,10 @@ fn a_sampler_chain_that_cannot_be_created_refuses_the_generation() {
     )
     .expect("the kev model must load");
     let preparer = runtime.text_only_generation_request_preparer(
-        runtime
-            .first_message_content_generation_parts(
-                runtime.model_runtime_parameters.context_size.get(),
-            )
-            .expect("the generation parts must be built"),
+        first_message_content_generation_parts(
+            &runtime,
+            runtime.model_runtime_parameters.context_size.get(),
+        ),
         SamplerChainFactoryThatFails,
         JsonToolsSerializer,
     );

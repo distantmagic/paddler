@@ -11,10 +11,11 @@ use paddler_messaging::inference_mode::InferenceMode;
 use paddler_messaging::management_socket::agent::response::Response as AgentJsonRpcResponse;
 use paddler_messaging::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 use paddler_test_cluster_harness::noul_system_one_request::noul_system_one_request;
-use paddler_test_cluster_harness::untrusted_agent_socket_client::UntrustedAgentSocketClient;
 use paddler_tests::cluster_without_agents_serving::cluster_without_agents_serving;
 use paddler_tests::start_cluster::start_cluster;
 use paddler_typesafe_translation::typesafe_translation_error::TypeSafeTranslationError;
+
+use crate::untrusted_management_agent::UntrustedManagementAgent;
 
 const DECISION_SLOTS: u16 = 2;
 
@@ -25,7 +26,7 @@ async fn typesafe_system_one_reports_answers_that_do_not_match_its_questions_as_
     ))
     .await
     .expect("a decision balancer without agents must start");
-    let mut untruthful_agent = UntrustedAgentSocketClient::connect_registered(
+    let mut untruthful_agent = UntrustedManagementAgent::connect_registered(
         cluster.balancer.addresses.management,
         "untruthful",
         SlotAggregatedStatusSnapshot {
@@ -40,12 +41,12 @@ async fn typesafe_system_one_reports_answers_that_do_not_match_its_questions_as_
             version: 1,
         },
     )
-    .await
-    .expect("the untruthful agent must register");
+    .await;
 
     let typesafe_response =
         spawn(cluster.typesafe_system_one("mismatched-answers", &noul_system_one_request()));
     let decision_request_id = untruthful_agent
+        .socket_client
         .next_request()
         .await
         .expect("the balancer must dispatch the decision")
@@ -66,8 +67,7 @@ async fn typesafe_system_one_reports_answers_that_do_not_match_its_questions_as_
                 decision_request_id.clone(),
                 AgentJsonRpcResponse::Decision(decision_result),
             )
-            .await
-            .expect("the decision result must be sent");
+            .await;
     }
 
     let response = typesafe_response

@@ -20,6 +20,8 @@ use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::llama_runtime::LlamaRuntime;
 use paddler_tests::tools_serializer_that_fails::ToolsSerializerThatFails;
 
+use crate::first_message_content_generation_parts::first_message_content_generation_parts;
+
 #[test]
 fn tools_that_cannot_be_serialized_refuse_the_generation() {
     let runtime = LlamaRuntime::load(
@@ -28,11 +30,10 @@ fn tools_that_cannot_be_serialized_refuse_the_generation() {
     )
     .expect("the kev model must load");
     let preparer = runtime.text_only_generation_request_preparer(
-        runtime
-            .first_message_content_generation_parts(
-                runtime.model_runtime_parameters.context_size.get(),
-            )
-            .expect("the generation parts must be built"),
+        first_message_content_generation_parts(
+            &runtime,
+            runtime.model_runtime_parameters.context_size.get(),
+        ),
         runtime.sampler_chain_factory(),
         ToolsSerializerThatFails,
     );

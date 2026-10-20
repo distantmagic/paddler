@@ -20,6 +20,8 @@ use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::llama_runtime::LlamaRuntime;
 use paddler_tests::raw_prompt_generation::RawPromptGeneration;
 
+use crate::first_message_content_generation_parts::first_message_content_generation_parts;
+
 const TOKENS_THE_BATCH_HOLDS: NonZeroU16 = NonZeroU16::MIN;
 
 #[test]
@@ -46,9 +48,7 @@ fn a_generation_overflowing_its_batch_fails_as_batch_assembly() {
     );
     let request = runtime
         .text_only_generation_request_preparer(
-            runtime
-                .first_message_content_generation_parts(sequence_context_size)
-                .expect("the generation parts must be built"),
+            first_message_content_generation_parts(&runtime, sequence_context_size),
             runtime.sampler_chain_factory(),
             JsonToolsSerializer,
         )

@@ -269,6 +269,8 @@ mod deepseek_r1_distill_llama_8b_internal_endpoint_emits_reasoning_tokens;
 mod embedding_documents_fixture;
 mod enabling_decisions_reuses_the_loaded_model;
 mod enabling_decisions_with_too_few_slots_keeps_serving_the_loaded_model;
+#[cfg(test)]
+mod first_message_content_generation_parts;
 mod gemma4_internal_endpoint_emits_reasoning_tokens;
 mod gemma4_internal_endpoint_emits_reasoning_tokens_for_image_request;
 mod gemma4_internal_endpoint_emits_tool_call_parsed_event;
@@ -433,6 +435,8 @@ mod typesafe_system_one_reports_answers_that_do_not_match_its_questions_as_a_bad
 mod typesafe_system_one_reports_that_a_decision_produces_no_output_tokens;
 #[cfg(test)]
 mod typesafe_tone_and_payment_decision;
+#[cfg(test)]
+mod untrusted_management_agent;
 #[cfg(test)]
 mod vocabulary_only_llama_model;
 #[cfg(test)]

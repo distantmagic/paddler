@@ -6,8 +6,9 @@ use paddler_messaging::agent_status::AgentStatus;
 use paddler_messaging::api_path::ApiPath;
 use paddler_messaging::slot_aggregated_status_snapshot::SlotAggregatedStatusSnapshot;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
-use paddler_test_cluster_harness::untrusted_agent_socket_client::UntrustedAgentSocketClient;
 use paddler_tests::start_cluster::start_cluster;
+
+use crate::untrusted_management_agent::UntrustedManagementAgent;
 
 const AGENT_ID: &str = "hanging-up";
 
@@ -20,7 +21,7 @@ async fn management_api_reports_an_agent_hanging_up_before_it_answers_as_a_bad_g
     })
     .await
     .expect("a cluster without agents must start");
-    let mut hanging_up_agent = UntrustedAgentSocketClient::connect_registered(
+    let mut hanging_up_agent = UntrustedManagementAgent::connect_registered(
         cluster.balancer.addresses.management,
         AGENT_ID,
         SlotAggregatedStatusSnapshot {
@@ -28,8 +29,7 @@ async fn management_api_reports_an_agent_hanging_up_before_it_answers_as_a_bad_g
             version: 1,
         },
     )
-    .await
-    .expect("the agent must register");
+    .await;
     cluster
         .wait_for_agent_count(1)
         .await
@@ -49,6 +49,7 @@ async fn management_api_reports_an_agent_hanging_up_before_it_answers_as_a_bad_g
     );
 
     hanging_up_agent
+        .socket_client
         .next_request()
         .await
         .expect("the balancer must ask the agent for its model metadata");

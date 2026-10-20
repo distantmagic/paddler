@@ -1,7 +1,5 @@
 use std::path::Path;
 
-use anyhow::Result as AnyhowResult;
-
 use paddler_agent_decision::decision_error::DecisionError;
 use paddler_agent_decision::decision_llama_context_settings::DecisionLlamaContextSettings;
 use paddler_agent_embeddings::embedding_llama_context_settings::EmbeddingLlamaContextSettings;
@@ -12,7 +10,6 @@ use paddler_agent_runtime::llama_model_settings::LlamaModelSettings;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
 use paddler_agent_runtime::resident_llama_context::ResidentLlamaContext;
 use paddler_agent_text_generation::chat_prompt_renderer::ChatPromptRenderer;
-use paddler_agent_text_generation::chat_template_renderer::ChatTemplateRenderer;
 use paddler_agent_text_generation::conversation_prompt_support::ConversationPromptSupport;
 use paddler_agent_text_generation::conversation_support::ConversationSupport;
 use paddler_agent_text_generation::generation_request_preparer::GenerationRequestPreparer;
@@ -28,7 +25,6 @@ use paddler_messaging::inference_capability::InferenceCapability;
 use paddler_messaging::media_marker::MediaMarker;
 use paddler_messaging::multimodal_settings::MultimodalSettings;
 
-use crate::first_message_content_chat_template::first_message_content_chat_template;
 use crate::text_only_generation_parts::TextOnlyGenerationParts;
 
 pub struct LlamaRuntime {
@@ -58,21 +54,6 @@ impl LlamaRuntime {
             inference_runtime_context,
             loaded_llama_model,
             model_runtime_parameters,
-        })
-    }
-
-    pub fn first_message_content_generation_parts(
-        &self,
-        sequence_context_size: u32,
-    ) -> AnyhowResult<TextOnlyGenerationParts> {
-        let chat_template_renderer =
-            ChatTemplateRenderer::new(first_message_content_chat_template())?;
-        let streaming_markers = self.loaded_llama_model.model.streaming_markers()?;
-
-        Ok(TextOnlyGenerationParts {
-            chat_template_renderer,
-            sequence_context_size,
-            streaming_markers,
         })
     }
 

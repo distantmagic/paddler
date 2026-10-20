@@ -26,6 +26,8 @@ use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_cont
 use paddler_tests::llama_runtime::LlamaRuntime;
 use paddler_tests::raw_prompt_generation::RawPromptGeneration;
 
+use crate::first_message_content_generation_parts::first_message_content_generation_parts;
+
 #[test]
 fn a_multimodal_prompt_that_cannot_be_ingested_ends_the_generation() {
     let first_result_of_a_multimodal_prompt =
@@ -83,9 +85,7 @@ fn a_multimodal_prompt_that_cannot_be_ingested_ends_the_generation() {
             );
             let request = runtime
                 .text_only_generation_request_preparer(
-                    runtime
-                        .first_message_content_generation_parts(sequence_context_size)
-                        .expect("the generation parts must be built"),
+                    first_message_content_generation_parts(&runtime, sequence_context_size),
                     runtime.sampler_chain_factory(),
                     JsonToolsSerializer,
                 )
