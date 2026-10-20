@@ -1,16 +1,13 @@
-use anyhow::Result;
-
 use paddler_messaging::agent_desired_model::AgentDesiredModel;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_messaging::inference_mode::InferenceMode;
 use paddler_test_cluster_harness::cluster_desired_state::ClusterDesiredState;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
 use paddler_test_cluster_harness::typesafe_api_response::TypeSafeApiResponse;
+use paddler_tests::cluster_without_agents_serving::cluster_without_agents_serving;
+use paddler_tests::start_cluster::start_cluster;
 
-use crate::cluster_without_agents_serving::cluster_without_agents_serving;
-use crate::start_cluster::start_cluster;
-
-pub async fn typesafe_models_listed_for(model: AgentDesiredModel) -> Result<TypeSafeApiResponse> {
+pub async fn typesafe_models_listed_for(model: AgentDesiredModel) -> TypeSafeApiResponse {
     let cluster = start_cluster(ClusterParams {
         desired_state: ClusterDesiredState::Apply(Box::new(BalancerDesiredState {
             model,
@@ -19,10 +16,17 @@ pub async fn typesafe_models_listed_for(model: AgentDesiredModel) -> Result<Type
         })),
         ..cluster_without_agents_serving(InferenceMode::TextGenerationEmbeddingsAndDecisions)
     })
-    .await?;
-    let typesafe_models = cluster.typesafe_models().await?;
+    .await
+    .expect("the cluster must start");
+    let typesafe_models = cluster
+        .typesafe_models()
+        .await
+        .expect("the models request must be answered");
 
-    cluster.shutdown().await?;
+    cluster
+        .shutdown()
+        .await
+        .expect("the cluster must shut down cleanly");
 
-    Ok(typesafe_models)
+    typesafe_models
 }

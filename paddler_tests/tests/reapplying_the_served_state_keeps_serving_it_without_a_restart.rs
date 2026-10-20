@@ -1,8 +1,10 @@
 #![cfg(feature = "tests_that_use_llms")]
 
-use paddler_agent::desired_state_reconciliation::DesiredStateReconciliation;
+use std::mem::discriminant;
+
 use paddler_messaging::produces_snapshot::ProducesSnapshot as _;
 use paddler_test_cluster_harness::model_card::qwen3_0_6b::qwen3_0_6b;
+use paddler_tests::desired_state_reconciled_discriminant::desired_state_reconciled_discriminant;
 use paddler_tests::serving_pipeline_arbiter::ServingPipelineArbiter;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -18,10 +20,10 @@ async fn reapplying_the_served_state_keeps_serving_it_without_a_restart() {
         .make_snapshot()
         .status;
 
-    assert!(matches!(
-        serving_pipeline_arbiter.apply(desired_state).await,
-        DesiredStateReconciliation::Reconciled(_)
-    ));
+    assert_eq!(
+        discriminant(&serving_pipeline_arbiter.apply(desired_state).await),
+        desired_state_reconciled_discriminant()
+    );
 
     serving_pipeline_arbiter.conclude_next_progress().await;
 

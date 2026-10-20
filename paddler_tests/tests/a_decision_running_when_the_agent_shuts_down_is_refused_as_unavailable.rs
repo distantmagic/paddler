@@ -40,15 +40,13 @@ fn a_decision_running_when_the_agent_shuts_down_is_refused_as_unavailable() {
 
     agent_shutdown.cancel();
 
-    kev_decision_model
-        .run_scheduler(DecisionSchedulerRun {
-            active_requests: VecDeque::from([active_decision_request]),
-            agent_shutdown,
-            capacity_ledger,
-            scheduler_inbox: SchedulerInbox::new(scheduler_message_rx),
-            sequences: DECISION_SEQUENCES,
-        })
-        .expect("the decision context must be created");
+    kev_decision_model.run_scheduler(DecisionSchedulerRun {
+        active_requests: VecDeque::from([active_decision_request]),
+        agent_shutdown,
+        capacity_ledger,
+        scheduler_inbox: SchedulerInbox::new(scheduler_message_rx),
+        sequences: DECISION_SEQUENCES,
+    });
 
     assert_eq!(
         decision_result_rx.try_recv(),

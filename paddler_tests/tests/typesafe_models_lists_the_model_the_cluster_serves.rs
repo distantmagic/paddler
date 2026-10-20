@@ -3,15 +3,15 @@ use serde_json::json;
 
 use paddler_balancer::compatibility::typesafe_service::typesafe_header::TypeSafeHeader;
 use paddler_messaging::agent_desired_model::AgentDesiredModel;
-use paddler_tests::typesafe_models_listed_for::typesafe_models_listed_for;
+
+use crate::typesafe_models_listed_for::typesafe_models_listed_for;
 
 const KEV_MODEL_URI: &str = "https://huggingface.co/intentee/kev/blob/main/kev-0.8b.gguf";
 
 #[tokio::test(flavor = "multi_thread")]
 async fn typesafe_models_lists_the_model_the_cluster_serves() {
-    let response = typesafe_models_listed_for(AgentDesiredModel::Uri(KEV_MODEL_URI.to_owned()))
-        .await
-        .expect("the models request must be answered");
+    let response =
+        typesafe_models_listed_for(AgentDesiredModel::Uri(KEV_MODEL_URI.to_owned())).await;
 
     assert_eq!(response.status, StatusCode::OK);
     assert!(

@@ -1,8 +1,8 @@
 #![cfg(feature = "tests_that_use_llms")]
 
 use std::collections::BTreeSet;
+use std::mem::discriminant;
 
-use paddler_agent::desired_state_reconciliation::DesiredStateReconciliation;
 use paddler_inference_parameters::embedding_parameters::EmbeddingParameters;
 use paddler_inference_parameters::pooling_type::PoolingType;
 use paddler_messaging::agent_runtime_status::AgentRuntimeStatus;
@@ -19,6 +19,7 @@ use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::serving_pipeline_arbiter::ServingPipelineArbiter;
 
 use crate::swappable_model_file::SwappableModelFile;
+use paddler_tests::desired_state_reconciled_discriminant::desired_state_reconciled_discriminant;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_reconfiguration_replaced_before_it_starts_yields_to_its_replacement() {
@@ -36,27 +37,31 @@ async fn a_reconfiguration_replaced_before_it_starts_yields_to_its_replacement()
 
     swappable_model_file.replace_with_an_unloadable_file();
 
-    assert!(matches!(
-        serving_pipeline_arbiter
-            .apply(BalancerDesiredState {
-                embeddings: EmbeddingParameters {
-                    pooling_type: PoolingType::Mean,
-                    ..served_desired_state.embeddings.clone()
-                },
-                ..served_desired_state.clone()
-            })
-            .await,
-        DesiredStateReconciliation::Reconciled(_)
-    ));
-    assert!(matches!(
-        serving_pipeline_arbiter
-            .apply(desired_state_with_chat_template_override(
-                served_desired_state,
-                first_message_content_chat_template(),
-            ))
-            .await,
-        DesiredStateReconciliation::Reconciled(_)
-    ));
+    assert_eq!(
+        discriminant(
+            &serving_pipeline_arbiter
+                .apply(BalancerDesiredState {
+                    embeddings: EmbeddingParameters {
+                        pooling_type: PoolingType::Mean,
+                        ..served_desired_state.embeddings.clone()
+                    },
+                    ..served_desired_state.clone()
+                })
+                .await
+        ),
+        desired_state_reconciled_discriminant()
+    );
+    assert_eq!(
+        discriminant(
+            &serving_pipeline_arbiter
+                .apply(desired_state_with_chat_template_override(
+                    served_desired_state,
+                    first_message_content_chat_template(),
+                ))
+                .await
+        ),
+        desired_state_reconciled_discriminant()
+    );
     serving_pipeline_arbiter.conclude_next_progress().await;
     serving_pipeline_arbiter.conclude_next_progress().await;
     serving_pipeline_arbiter.conclude_next_progress().await;

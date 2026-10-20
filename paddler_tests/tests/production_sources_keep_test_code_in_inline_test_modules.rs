@@ -23,15 +23,17 @@ fn production_sources_keep_test_code_in_inline_test_modules() {
     let mut rust_sources = Vec::new();
 
     while let Some(source_directory) = source_directories.pop() {
-        for entry in read_dir(source_directory).expect("a source directory must be listable") {
-            let path = entry.expect("a source entry must be readable").path();
+        let source_entries: Vec<PathBuf> = read_dir(source_directory)
+            .expect("a source directory must be listable")
+            .map(|entry| entry.expect("a source entry must be readable").path())
+            .collect();
 
-            if path.is_dir() {
-                source_directories.push(path);
-            } else if path.extension().is_some_and(|extension| extension == "rs") {
-                rust_sources.push(path);
-            }
-        }
+        source_directories.extend(source_entries.iter().filter(|path| path.is_dir()).cloned());
+        rust_sources.extend(
+            source_entries
+                .into_iter()
+                .filter(|path| path.extension().is_some_and(|extension| extension == "rs")),
+        );
     }
 
     let sources_with_test_only_code_outside_inline_test_modules: Vec<PathBuf> = rust_sources

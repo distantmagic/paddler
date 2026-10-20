@@ -2,13 +2,11 @@
 
 use reqwest::StatusCode;
 
-use paddler_tests::typesafe_tone_and_payment_decision::typesafe_tone_and_payment_decision;
+use crate::typesafe_tone_and_payment_decision::typesafe_tone_and_payment_decision;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn typesafe_system_one_answers_questions_in_their_order() {
-    let response = typesafe_tone_and_payment_decision()
-        .await
-        .expect("the System One request must be answered");
+    let response = typesafe_tone_and_payment_decision().await;
 
     assert_eq!(response.status, StatusCode::OK);
 

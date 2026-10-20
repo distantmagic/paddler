@@ -1,3 +1,4 @@
+use std::mem::discriminant;
 use std::num::NonZeroU16;
 use std::sync::Arc;
 
@@ -15,6 +16,7 @@ use paddler_messaging::agent_desired_state::AgentDesiredState;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 
 use crate::agent_inference_runtime_context::agent_inference_runtime_context;
+use crate::desired_state_reconciled_discriminant::desired_state_reconciled_discriminant;
 
 pub struct ServingPipelineArbiter {
     pub desired_state_reconciler: DesiredStateReconciler,
@@ -44,10 +46,10 @@ impl ServingPipelineArbiter {
     pub async fn serve(&mut self, desired_state: BalancerDesiredState) {
         let desired_state_reconciliation = self.apply(desired_state).await;
 
-        assert!(matches!(
-            desired_state_reconciliation,
-            DesiredStateReconciliation::Reconciled(_)
-        ));
+        assert_eq!(
+            discriminant(&desired_state_reconciliation),
+            desired_state_reconciled_discriminant()
+        );
 
         self.conclude_next_progress().await;
         self.conclude_next_progress().await;

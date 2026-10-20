@@ -28,15 +28,15 @@ impl AdmittedDecision {
             decision_stop_tx,
             prepared_decision_request,
         } = PreparedDecision::new(slot_aggregated_status, layout);
-        let admission = capacity_ledger.admit(prepared_decision_request.slot_guard.slots())?;
-
-        Some(Self {
-            active_decision_request: ActiveDecisionRequest::new(
-                prepared_decision_request,
-                admission,
-            ),
-            decision_result_rx,
-            decision_stop_tx,
-        })
+        capacity_ledger
+            .admit(prepared_decision_request.slot_guard.slots())
+            .map(|admission| Self {
+                active_decision_request: ActiveDecisionRequest::new(
+                    prepared_decision_request,
+                    admission,
+                ),
+                decision_result_rx,
+                decision_stop_tx,
+            })
     }
 }

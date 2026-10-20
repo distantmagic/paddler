@@ -1,11 +1,13 @@
 #![cfg(feature = "tests_that_use_llms")]
 
-use paddler_agent::desired_state_reconciliation::DesiredStateReconciliation;
+use std::mem::discriminant;
+
 use paddler_agent_runtime::agent_vram_residencies::AgentVramResidencies;
 use paddler_inference_parameters::embedding_parameters::EmbeddingParameters;
 use paddler_inference_parameters::pooling_type::PoolingType;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_messaging::inference_mode::InferenceMode;
+use paddler_tests::desired_state_reconciled_discriminant::desired_state_reconciled_discriminant;
 use paddler_tests::kev_0_8b_desired_state::kev_0_8b_desired_state;
 use paddler_tests::serving_pipeline_arbiter::ServingPipelineArbiter;
 
@@ -27,25 +29,29 @@ async fn a_superseded_startup_releases_everything_it_held_when_the_agent_shuts_d
         .vram_residencies
         .clone();
 
-    assert!(matches!(
-        serving_pipeline_arbiter
-            .apply(superseded_desired_state.clone())
-            .await,
-        DesiredStateReconciliation::Reconciled(_)
-    ));
+    assert_eq!(
+        discriminant(
+            &serving_pipeline_arbiter
+                .apply(superseded_desired_state.clone())
+                .await
+        ),
+        desired_state_reconciled_discriminant()
+    );
     serving_pipeline_arbiter.conclude_next_progress().await;
-    assert!(matches!(
-        serving_pipeline_arbiter
-            .apply(BalancerDesiredState {
-                embeddings: EmbeddingParameters {
-                    pooling_type: PoolingType::Mean,
-                    ..superseded_desired_state.embeddings.clone()
-                },
-                ..superseded_desired_state
-            })
-            .await,
-        DesiredStateReconciliation::Reconciled(_)
-    ));
+    assert_eq!(
+        discriminant(
+            &serving_pipeline_arbiter
+                .apply(BalancerDesiredState {
+                    embeddings: EmbeddingParameters {
+                        pooling_type: PoolingType::Mean,
+                        ..superseded_desired_state.embeddings.clone()
+                    },
+                    ..superseded_desired_state
+                })
+                .await
+        ),
+        desired_state_reconciled_discriminant()
+    );
     serving_pipeline_arbiter.conclude_next_progress().await;
     serving_pipeline_arbiter.conclude_next_progress().await;
     serving_pipeline_arbiter.conclude_next_progress().await;

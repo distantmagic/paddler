@@ -6,7 +6,6 @@ use llama_cpp_bindings::llama_batch::LlamaBatch;
 use llama_cpp_bindings::token::LlamaToken;
 
 use paddler_agent_decision::decision_delimiter_tokens::DecisionDelimiterTokens;
-use paddler_agent_decision::decision_error::DecisionError;
 use paddler_agent_decision::decision_scheduler::DecisionScheduler;
 use paddler_agent_decision::decision_scheduler_context::DecisionSchedulerContext;
 use paddler_agent_decision::decision_token_layout::DecisionTokenLayout;
@@ -65,7 +64,7 @@ impl KevDecisionModel {
             scheduler_inbox,
             sequences,
         }: DecisionSchedulerRun,
-    ) -> Result<(), DecisionError> {
+    ) {
         let Self {
             pointer_head,
             runtime,
@@ -77,7 +76,9 @@ impl KevDecisionModel {
             agent_shutdown,
             batch: LlamaBatch::new(runtime.model_runtime_parameters.n_batch.capacity(), 1),
             capacity_ledger,
-            llama_context: runtime.create_decision_llama_context(u32::from(sequences))?,
+            llama_context: runtime
+                .create_decision_llama_context(u32::from(sequences))
+                .expect("the decision context must be created"),
             pending_requests: VecDeque::new(),
             scheduler_context: DecisionSchedulerContext {
                 agent_name: None,
@@ -87,7 +88,5 @@ impl KevDecisionModel {
             scheduler_inbox,
         }
         .run();
-
-        Ok(())
     }
 }

@@ -1,15 +1,17 @@
-use anyhow::Result;
+#![cfg(feature = "tests_that_use_llms")]
+
 use serde_json::json;
 
 use paddler_test_cluster_harness::typesafe_api_response::TypeSafeApiResponse;
-
-use crate::decision_cluster_params::DecisionClusterParams;
-use crate::start_decision_cluster::start_decision_cluster;
+use paddler_tests::decision_cluster_params::DecisionClusterParams;
+use paddler_tests::start_decision_cluster::start_decision_cluster;
 
 pub const TYPESAFE_TONE_AND_PAYMENT_REQUEST_ID: &str = "typesafe-request";
 
-pub async fn typesafe_tone_and_payment_decision() -> Result<TypeSafeApiResponse> {
-    let cluster = start_decision_cluster(DecisionClusterParams::default()).await?;
+pub async fn typesafe_tone_and_payment_decision() -> TypeSafeApiResponse {
+    let cluster = start_decision_cluster(DecisionClusterParams::default())
+        .await
+        .expect("the cluster must start");
     let typesafe_decision = cluster
         .typesafe_system_one(
             TYPESAFE_TONE_AND_PAYMENT_REQUEST_ID,
@@ -22,9 +24,13 @@ pub async fn typesafe_tone_and_payment_decision() -> Result<TypeSafeApiResponse>
                 },
             }),
         )
-        .await?;
+        .await
+        .expect("the System One request must be answered");
 
-    cluster.shutdown().await?;
+    cluster
+        .shutdown()
+        .await
+        .expect("the cluster must shut down cleanly");
 
-    Ok(typesafe_decision)
+    typesafe_decision
 }

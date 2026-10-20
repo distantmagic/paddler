@@ -1,8 +1,8 @@
 #![cfg(feature = "tests_that_use_llms")]
 
 use std::collections::BTreeSet;
+use std::mem::discriminant;
 
-use paddler_agent::desired_state_reconciliation::DesiredStateReconciliation;
 use paddler_messaging::agent_issue::AgentIssue;
 use paddler_messaging::agent_issue_params::slots_insufficient_for_decisions_params::SlotsInsufficientForDecisionsParams;
 use paddler_messaging::agent_runtime_status::AgentRuntimeStatus;
@@ -13,6 +13,7 @@ use paddler_messaging::decision_slots_minimum::DECISION_SLOTS_MINIMUM;
 use paddler_messaging::inference_mode::InferenceMode;
 use paddler_messaging::model_download_status::ModelDownloadStatus;
 use paddler_messaging::produces_snapshot::ProducesSnapshot as _;
+use paddler_tests::desired_state_reconciled_discriminant::desired_state_reconciled_discriminant;
 use paddler_tests::kev_0_8b_desired_state::kev_0_8b_desired_state;
 use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::serving_pipeline_arbiter::ServingPipelineArbiter;
@@ -29,14 +30,17 @@ async fn enabling_decisions_with_too_few_slots_keeps_serving_the_loaded_model() 
             ..kev_0_8b_desired_state().expect("the kev desired state must name absolute paths")
         })
         .await;
-    assert!(matches!(
-        serving_pipeline_arbiter
-            .apply(
-                kev_0_8b_desired_state().expect("the kev desired state must name absolute paths")
-            )
-            .await,
-        DesiredStateReconciliation::Reconciled(_)
-    ));
+    assert_eq!(
+        discriminant(
+            &serving_pipeline_arbiter
+                .apply(
+                    kev_0_8b_desired_state()
+                        .expect("the kev desired state must name absolute paths")
+                )
+                .await
+        ),
+        desired_state_reconciled_discriminant()
+    );
     serving_pipeline_arbiter.conclude_next_progress().await;
     assert_eq!(
         serving_pipeline_arbiter

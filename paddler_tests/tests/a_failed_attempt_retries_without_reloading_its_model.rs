@@ -1,8 +1,8 @@
 #![cfg(feature = "tests_that_use_llms")]
 
 use std::collections::BTreeSet;
+use std::mem::discriminant;
 
-use paddler_agent::desired_state_reconciliation::DesiredStateReconciliation;
 use paddler_messaging::agent_issue::AgentIssue;
 use paddler_messaging::agent_issue_params::chat_template_does_not_compile_params::ChatTemplateDoesNotCompileParams;
 use paddler_messaging::agent_issue_params::model_path::ModelPath;
@@ -17,26 +17,29 @@ use paddler_tests::uncompilable_chat_template::UNCOMPILABLE_CHAT_TEMPLATE_CONTEN
 use paddler_tests::uncompilable_chat_template::uncompilable_chat_template;
 
 use crate::swappable_model_file::SwappableModelFile;
+use paddler_tests::desired_state_reconciled_discriminant::desired_state_reconciled_discriminant;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_failed_attempt_retries_without_reloading_its_model() {
     let swappable_model_file = SwappableModelFile::link_to(&kev_0_8b_target_path("model.gguf"));
     let mut serving_pipeline_arbiter = ServingPipelineArbiter::new(1);
 
-    assert!(matches!(
-        serving_pipeline_arbiter
-            .apply(desired_state_with_chat_template_override(
-                BalancerDesiredState {
-                    inference_mode: InferenceMode::TextGenerationAndEmbeddings,
-                    model: swappable_model_file.agent_desired_model(),
-                    ..kev_0_8b_desired_state()
-                        .expect("the kev desired state must name absolute paths")
-                },
-                uncompilable_chat_template(),
-            ))
-            .await,
-        DesiredStateReconciliation::Reconciled(_)
-    ));
+    assert_eq!(
+        discriminant(
+            &serving_pipeline_arbiter
+                .apply(desired_state_with_chat_template_override(
+                    BalancerDesiredState {
+                        inference_mode: InferenceMode::TextGenerationAndEmbeddings,
+                        model: swappable_model_file.agent_desired_model(),
+                        ..kev_0_8b_desired_state()
+                            .expect("the kev desired state must name absolute paths")
+                    },
+                    uncompilable_chat_template(),
+                ))
+                .await
+        ),
+        desired_state_reconciled_discriminant()
+    );
 
     serving_pipeline_arbiter.conclude_next_progress().await;
 

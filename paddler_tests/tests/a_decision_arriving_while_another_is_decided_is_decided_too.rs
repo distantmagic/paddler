@@ -48,15 +48,13 @@ fn a_decision_arriving_while_another_is_decided_is_decided_too() {
 
     drop(scheduler_message_tx);
 
-    kev_decision_model
-        .run_scheduler(DecisionSchedulerRun {
-            active_requests: VecDeque::new(),
-            agent_shutdown: CancellationToken::new(),
-            capacity_ledger: DecisionCapacityLedger::new(CONCURRENT_DECISIONS),
-            scheduler_inbox: SchedulerInbox::new(scheduler_message_rx),
-            sequences: CONCURRENT_DECISIONS,
-        })
-        .expect("the decision context must be created");
+    kev_decision_model.run_scheduler(DecisionSchedulerRun {
+        active_requests: VecDeque::new(),
+        agent_shutdown: CancellationToken::new(),
+        capacity_ledger: DecisionCapacityLedger::new(CONCURRENT_DECISIONS),
+        scheduler_inbox: SchedulerInbox::new(scheduler_message_rx),
+        sequences: CONCURRENT_DECISIONS,
+    });
 
     let assert_decided =
         |question_id: &str, mut decision_result_rx: UnboundedReceiver<DecisionResult>| {

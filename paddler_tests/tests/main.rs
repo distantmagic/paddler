@@ -403,6 +403,8 @@ mod the_test_only_code_detector_counts_only_test_code_outside_inline_test_module
 mod tools_that_cannot_be_serialized_refuse_the_generation;
 mod typesafe_health_returns_ok;
 mod typesafe_models_is_unavailable_while_the_cluster_serves_no_decisions;
+#[cfg(test)]
+mod typesafe_models_listed_for;
 mod typesafe_models_lists_nothing_while_no_model_is_served;
 mod typesafe_models_lists_the_model_the_cluster_serves;
 mod typesafe_service_lets_browsers_send_and_read_typesafe_headers;
@@ -420,6 +422,8 @@ mod typesafe_system_one_reports_a_full_buffer_as_service_unavailable;
 mod typesafe_system_one_reports_a_state_with_a_nul_byte_as_unprocessable;
 mod typesafe_system_one_reports_answers_that_do_not_match_its_questions_as_a_bad_gateway;
 mod typesafe_system_one_reports_that_a_decision_produces_no_output_tokens;
+#[cfg(test)]
+mod typesafe_tone_and_payment_decision;
 #[cfg(test)]
 mod vocabulary_only_llama_model;
 #[cfg(test)]

@@ -3,13 +3,12 @@ use serde_json::json;
 
 use paddler_balancer::compatibility::typesafe_service::typesafe_header::TypeSafeHeader;
 use paddler_messaging::agent_desired_model::AgentDesiredModel;
-use paddler_tests::typesafe_models_listed_for::typesafe_models_listed_for;
+
+use crate::typesafe_models_listed_for::typesafe_models_listed_for;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn typesafe_models_lists_nothing_while_no_model_is_served() {
-    let response = typesafe_models_listed_for(AgentDesiredModel::None)
-        .await
-        .expect("the models request must be answered");
+    let response = typesafe_models_listed_for(AgentDesiredModel::None).await;
 
     assert_eq!(response.status, StatusCode::OK);
     assert!(
