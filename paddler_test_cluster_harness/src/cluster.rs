@@ -34,6 +34,7 @@ use crate::agent_spawner::AgentSpawner;
 use crate::buffered_request_count_is::buffered_request_count_is;
 use crate::cluster_desired_state::ClusterDesiredState;
 use crate::cluster_harness_error::ClusterHarnessError;
+use crate::cluster_snapshots_watchers::ClusterSnapshotsWatchers;
 use crate::collect_decision_results::collect_decision_results;
 use crate::collect_embedding_results::collect_embedding_results;
 use crate::collect_generated_tokens::collect_generated_tokens;
@@ -69,13 +70,10 @@ impl Cluster {
         agent_spawner: Box<dyn AgentSpawner>,
         desired_state: &ClusterDesiredState,
     ) -> Result<Self> {
-        let management_base_url = balancer.management_base_url()?;
-        let inference_base_url = balancer.inference_base_url()?;
-
-        let client_management = ClientManagement::new(management_base_url);
+        let client_management = ClientManagement::new(balancer.management_base_url.clone());
         let client_inference = ClientInference::new(ClientInferenceParams {
             inference_socket_pool_size: INFERENCE_SOCKET_POOL_SIZE,
-            url: inference_base_url,
+            url: balancer.inference_base_url.clone(),
         });
 
         client_management
@@ -90,32 +88,24 @@ impl Cluster {
                 .context("failed to PUT balancer desired state")?;
         }
 
-        let agents_watcher = SnapshotsWatcher::of_agents(
-            client_management
-                .get_agents_stream(cancellation_token.clone())
-                .await
-                .context("failed to open the agents stream")?,
-        )
-        .await?;
-        let buffered_requests_watcher = SnapshotsWatcher::of_buffered_requests(
-            client_management
-                .get_buffered_requests_stream(cancellation_token)
-                .await
-                .context("failed to open the buffered requests stream")?,
-        )
-        .await?;
-
-        Ok(Self {
-            agent_ids: Vec::new(),
-            agents: Vec::new(),
-            agents_watcher,
-            balancer,
-            buffered_requests_watcher,
-            client_inference,
-            client_management,
-            agent_spawner,
-            connection_budget: ConcurrentConnectionBudget::default(),
-        })
+        ClusterSnapshotsWatchers::open(&client_management, cancellation_token)
+            .await
+            .map(
+                |ClusterSnapshotsWatchers {
+                     agents_watcher,
+                     buffered_requests_watcher,
+                 }| Self {
+                    agent_ids: Vec::new(),
+                    agents: Vec::new(),
+                    agents_watcher,
+                    balancer,
+                    buffered_requests_watcher,
+                    client_inference,
+                    client_management,
+                    agent_spawner,
+                    connection_budget: ConcurrentConnectionBudget::default(),
+                },
+            )
     }
 
     pub fn continue_from_raw_prompt(

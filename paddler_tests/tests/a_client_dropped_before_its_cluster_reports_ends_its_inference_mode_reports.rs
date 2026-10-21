@@ -18,10 +18,7 @@ async fn a_client_dropped_before_its_cluster_reports_ends_its_inference_mode_rep
     .expect("a balancer serving text generation and embeddings must start");
     let client_inference = ClientInference::new(ClientInferenceParams {
         inference_socket_pool_size: NonZeroUsize::MIN,
-        url: cluster
-            .balancer
-            .inference_base_url()
-            .expect("the balancer must expose its inference address"),
+        url: cluster.balancer.inference_base_url.clone(),
     });
     let mut cluster_inference_mode_rx = client_inference.subscribe_to_cluster_inference_mode();
 

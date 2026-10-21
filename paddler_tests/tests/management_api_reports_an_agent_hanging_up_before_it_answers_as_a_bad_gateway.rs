@@ -37,8 +37,7 @@ async fn management_api_reports_an_agent_hanging_up_before_it_answers_as_a_bad_g
             .get(
                 cluster
                     .balancer
-                    .management_base_url()
-                    .expect("the balancer must serve the management API")
+                    .management_base_url
                     .join(&ApiPath::agent_model_metadata(AGENT_ID))
                     .expect("the model metadata path must form a URL"),
             )

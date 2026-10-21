@@ -49,22 +49,28 @@ pub struct LocalHttpFixture {
 
 impl LocalHttpFixture {
     pub async fn start(response: FixtureResponse) -> io::Result<Self> {
-        let listener = TcpListener::bind(SocketAddr::from((Ipv4Addr::LOCALHOST, 0))).await?;
-        let addr = listener.local_addr()?;
-        let observed_requests = Arc::new(ObservedRequests::new());
-        let (stop_serving, serving_stopped) = oneshot::channel();
-        let serving_task = spawn(serve_sequentially_until_stopped(
-            listener,
-            response,
-            observed_requests.clone(),
-            serving_stopped,
-        ));
+        TcpListener::bind(SocketAddr::from((Ipv4Addr::LOCALHOST, 0)))
+            .await
+            .and_then(|listener| Self::serving_on(listener, response))
+    }
 
-        Ok(Self {
-            addr,
-            observed_requests,
-            serving_task,
-            stop_serving,
+    fn serving_on(listener: TcpListener, response: FixtureResponse) -> io::Result<Self> {
+        listener.local_addr().map(|addr| {
+            let observed_requests = Arc::new(ObservedRequests::new());
+            let (stop_serving, serving_stopped) = oneshot::channel();
+            let serving_task = spawn(serve_sequentially_until_stopped(
+                listener,
+                response,
+                observed_requests.clone(),
+                serving_stopped,
+            ));
+
+            Self {
+                addr,
+                observed_requests,
+                serving_task,
+                stop_serving,
+            }
         })
     }
 

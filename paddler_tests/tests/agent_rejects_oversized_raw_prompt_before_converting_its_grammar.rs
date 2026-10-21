@@ -11,7 +11,7 @@ use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_tests::oversized_text::oversized_text;
 use paddler_tests::start_cluster_with_qwen3_and_context_size::start_cluster_with_qwen3_and_context_size;
 
-const SEQUENCE_CONTEXT_SIZE: u32 = 256;
+const SEQUENCE_CONTEXT_SIZE: NonZeroU32 = NonZeroU32::new(256).unwrap();
 
 #[tokio::test(flavor = "multi_thread")]
 async fn agent_rejects_oversized_raw_prompt_before_converting_its_grammar() {
@@ -44,7 +44,7 @@ async fn agent_rejects_oversized_raw_prompt_before_converting_its_grammar() {
             .collect::<Vec<_>>()
             .as_slice(),
         [GeneratedTokenResult::PromptExceedsContextSize(details)]
-            if details.sequence_context_size == SEQUENCE_CONTEXT_SIZE
+            if details.sequence_context_size == SEQUENCE_CONTEXT_SIZE.get()
     ));
 
     cluster

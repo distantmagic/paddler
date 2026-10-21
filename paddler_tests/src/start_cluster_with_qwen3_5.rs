@@ -13,7 +13,7 @@ pub async fn start_cluster_with_qwen3_5(
     start_cluster_with_qwen3_5_and_context_size(
         agents,
         with_mmproj,
-        ModelRuntimeParameters::default().context_size.get(),
+        ModelRuntimeParameters::default().context_size,
     )
     .await
 }

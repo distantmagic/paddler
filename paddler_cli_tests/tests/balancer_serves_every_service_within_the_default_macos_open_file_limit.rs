@@ -52,12 +52,8 @@ async fn balancer_serves_every_service_within_the_default_macos_open_file_limit(
         .expect("the balancer must serve the web admin panel");
 
     let health_base_urls = [
-        running_balancer
-            .inference_base_url()
-            .expect("the inference address must form a base URL"),
-        running_balancer
-            .management_base_url()
-            .expect("the management address must form a base URL"),
+        running_balancer.inference_base_url.clone(),
+        running_balancer.management_base_url.clone(),
         running_balancer
             .compat_openai_base_url()
             .expect("the OpenAI compatibility address must form a base URL"),

@@ -15,9 +15,8 @@ use crate::start_cluster::start_cluster;
 
 pub async fn start_cluster_with_smolvlm2_and_context_size(
     agents: Vec<AgentConfig>,
-    context_size: u32,
+    context_size: NonZeroU32,
 ) -> Result<Cluster> {
-    let context_size = NonZeroU32::try_from(context_size)?;
     let desired_state = smolvlm2_desired_state();
 
     start_cluster(ClusterParams {

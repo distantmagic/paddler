@@ -14,7 +14,7 @@ use crate::start_cluster::start_cluster;
 
 pub async fn start_cluster_with_gemma_3_and_mmproj_and_n_batch(
     agents: Vec<AgentConfig>,
-    n_batch: u32,
+    n_batch: BatchSize,
 ) -> Result<Cluster> {
     let base_desired_state =
         gemma_3_4b_it().into_desired_state_with_multimodal_projection(gemma_3_4b_it_mmproj());
@@ -23,7 +23,7 @@ pub async fn start_cluster_with_gemma_3_and_mmproj_and_n_batch(
         agents,
         desired_state: ClusterDesiredState::Apply(Box::new(BalancerDesiredState {
             model_runtime_parameters: ModelRuntimeParameters {
-                n_batch: BatchSize::try_from(n_batch)?,
+                n_batch,
                 ..base_desired_state.model_runtime_parameters
             },
             ..base_desired_state

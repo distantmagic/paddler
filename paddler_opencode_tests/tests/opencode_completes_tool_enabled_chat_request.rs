@@ -1,12 +1,14 @@
 #![cfg(all(feature = "tests_that_use_llms", feature = "tests_that_use_opencode"))]
 
+use std::num::NonZeroU32;
+
 use paddler_opencode_tests::opencode_binary_path::opencode_binary_path;
 use paddler_opencode_tests::opencode_test_project::OpenCodeTestProject;
 use paddler_opencode_tests::run_opencode::run_opencode;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_tests::start_cluster_with_qwen3_5_and_context_size::start_cluster_with_qwen3_5_and_context_size;
 
-const OPENCODE_CONTEXT_SIZE: u32 = 16384;
+const OPENCODE_CONTEXT_SIZE: NonZeroU32 = NonZeroU32::new(16384).unwrap();
 
 #[tokio::test(flavor = "multi_thread")]
 async fn opencode_completes_tool_enabled_chat_request() {

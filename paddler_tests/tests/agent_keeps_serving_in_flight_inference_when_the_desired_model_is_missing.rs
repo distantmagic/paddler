@@ -1,5 +1,6 @@
 #![cfg(feature = "tests_that_use_llms")]
 
+use std::num::NonZeroU32;
 use std::path::Path;
 
 use futures_util::StreamExt as _;
@@ -16,7 +17,7 @@ use paddler_test_cluster_harness::is_unending_generation_text::is_unending_gener
 use paddler_test_cluster_harness::unending_generation::unending_generation;
 use paddler_tests::start_cluster_with_qwen3_and_context_size::start_cluster_with_qwen3_and_context_size;
 
-const CONTEXT_SIZE_THAT_ENDS_THE_IN_FLIGHT_GENERATION: u32 = 256;
+const CONTEXT_SIZE_THAT_ENDS_THE_IN_FLIGHT_GENERATION: NonZeroU32 = NonZeroU32::new(256).unwrap();
 
 #[tokio::test(flavor = "multi_thread")]
 async fn agent_keeps_serving_in_flight_inference_when_the_desired_model_is_missing() {

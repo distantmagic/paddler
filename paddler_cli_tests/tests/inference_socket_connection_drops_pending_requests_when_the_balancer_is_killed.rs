@@ -27,10 +27,7 @@ async fn inference_socket_connection_drops_pending_requests_when_the_balancer_is
     .await
     .expect("a balancer without agents must start");
     let connection = Connection::connect(
-        cluster
-            .balancer
-            .inference_base_url()
-            .expect("the balancer must expose its inference address"),
+        cluster.balancer.inference_base_url.clone(),
         Arc::new(ClusterInferenceModeBroadcaster::default()),
     )
     .await

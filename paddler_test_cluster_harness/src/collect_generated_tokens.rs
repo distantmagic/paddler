@@ -1,4 +1,3 @@
-use anyhow::Context as _;
 use anyhow::Result;
 use futures_util::StreamExt as _;
 
@@ -20,7 +19,7 @@ pub async fn collect_generated_tokens(
     let mut token_results: Vec<TokenResultWithProducer> = Vec::new();
 
     while let Some(item) = stream.next().await {
-        match item.context("inference stream yielded an error")? {
+        match item.map_err(ClusterHarnessError::TokenStreamFailed)? {
             InferenceMessage::Response(ResponseEnvelope {
                 generated_by,
                 response: InferenceResponse::GeneratedToken(token_result),
@@ -72,6 +71,7 @@ pub async fn collect_generated_tokens(
 mod tests {
     use futures_util::stream::iter;
 
+    use paddler_client::error::Error as ClientError;
     use paddler_messaging::embedding_result::EmbeddingResult;
     use paddler_messaging::inference_client::message::Message as InferenceMessage;
     use paddler_messaging::inference_client::response::Response as InferenceResponse;
@@ -105,5 +105,23 @@ mod tests {
                 .to_string()
             )
         );
+    }
+
+    #[tokio::test]
+    async fn a_token_stream_yielding_an_error_is_an_error() {
+        let collection_error =
+            collect_generated_tokens(Box::pin(iter([Err(ClientError::ConnectionDropped {
+                request_id: "request-1".to_owned(),
+            })])))
+            .await
+            .err()
+            .expect("a stream yielding an error must not be collected");
+
+        assert!(matches!(
+            collection_error.downcast_ref::<ClusterHarnessError>(),
+            Some(ClusterHarnessError::TokenStreamFailed(ClientError::ConnectionDropped {
+                request_id
+            })) if request_id == "request-1"
+        ));
     }
 }

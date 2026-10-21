@@ -17,13 +17,13 @@ fn attributes_of(
         .map(|attribute_result| {
             let attribute =
                 attribute_result.map_err(ClusterHarnessError::DashboardAttributeMalformed)?;
-            let name = from_utf8(attribute.key.as_ref())
-                .map_err(ClusterHarnessError::DashboardAttributeNameNotUtf8)?;
             let value = attribute
                 .unescape_value()
                 .map_err(ClusterHarnessError::DashboardAttributeValueUnreadable)?;
 
-            Ok((name.to_owned(), value.into_owned()))
+            from_utf8(attribute.key.as_ref())
+                .map(|name| (name.to_owned(), value.into_owned()))
+                .map_err(ClusterHarnessError::DashboardAttributeNameNotUtf8)
         })
         .collect()
 }
@@ -56,10 +56,60 @@ pub fn dashboard_attributes(page: &str) -> Result<BTreeMap<String, String>, Clus
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
     use std::mem::discriminant;
+
+    use quick_xml::errors::Error as XmlError;
+    use quick_xml::errors::SyntaxError;
+    use quick_xml::escape::EscapeError;
+    use quick_xml::events::attributes::AttrError;
 
     use super::dashboard_attributes;
     use crate::cluster_harness_error::ClusterHarnessError;
+
+    #[test]
+    fn a_self_closing_dashboard_element_carries_its_attributes() {
+        assert_eq!(
+            dashboard_attributes(
+                r#"<html><body><div id="paddler-dashboard" data-buffered-requests="7"/></body></html>"#
+            )
+            .unwrap(),
+            BTreeMap::from([
+                ("data-buffered-requests".to_owned(), "7".to_owned()),
+                ("id".to_owned(), "paddler-dashboard".to_owned()),
+            ])
+        );
+    }
+
+    #[test]
+    fn markup_ending_inside_a_tag_is_unreadable() {
+        assert!(matches!(
+            dashboard_attributes(r#"<html><body><div id="paddler-dashboard""#),
+            Err(ClusterHarnessError::DashboardMarkupUnreadable(
+                XmlError::Syntax(SyntaxError::UnclosedTag)
+            ))
+        ));
+    }
+
+    #[test]
+    fn a_repeated_attribute_is_malformed() {
+        assert!(matches!(
+            dashboard_attributes(r#"<div id="paddler-dashboard" id="another-dashboard">"#),
+            Err(ClusterHarnessError::DashboardAttributeMalformed(
+                AttrError::Duplicated(_, _)
+            ))
+        ));
+    }
+
+    #[test]
+    fn an_attribute_referencing_an_unknown_entity_is_unreadable() {
+        assert!(matches!(
+            dashboard_attributes(r#"<div id="paddler-dashboard" data-version="&unknown;">"#),
+            Err(ClusterHarnessError::DashboardAttributeValueUnreadable(XmlError::Escape(
+                EscapeError::UnrecognizedEntity(_, entity)
+            ))) if entity == "unknown"
+        ));
+    }
 
     #[test]
     fn a_page_without_the_dashboard_reports_it_missing() {

@@ -7,7 +7,5 @@ fn main() -> Result<()> {
     let forwarded_arguments: Vec<String> = args().skip(1).collect();
     let mut output = stdout().lock();
 
-    writeln!(output, "{}", forwarded_arguments.join(" "))?;
-
-    output.flush()
+    writeln!(output, "{}", forwarded_arguments.join(" ")).and_then(|()| output.flush())
 }

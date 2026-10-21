@@ -2,6 +2,7 @@
 
 use std::mem::discriminant;
 
+use serde_json::to_value;
 use tokio_util::sync::CancellationToken;
 
 use paddler_inference_parameters::batch_size::BatchSize;
@@ -34,12 +35,13 @@ async fn half_closed_decision_client_releases_its_sequences() {
     let mut half_closed_client = HalfClosedClient::post_json_then_half_close(
         cluster.balancer.addresses.inference,
         ApiPath::DECIDE,
-        &RawDecideParams {
+        &to_value(RawDecideParams {
             state: sample_decision()
                 .state
                 .repeat(STATE_REPETITIONS_SPANNING_MANY_DECODES),
             ..sample_decision()
-        },
+        })
+        .expect("the decision parameters must serialize"),
     )
     .await
     .expect("the half-closed decision must be sent");

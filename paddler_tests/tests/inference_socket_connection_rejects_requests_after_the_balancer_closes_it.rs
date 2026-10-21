@@ -15,10 +15,7 @@ async fn inference_socket_connection_rejects_requests_after_the_balancer_closes_
         .await
         .expect("a cluster without agents must start");
     let connection = Connection::connect(
-        cluster
-            .balancer
-            .inference_base_url()
-            .expect("the inference service must have a base URL"),
+        cluster.balancer.inference_base_url.clone(),
         Arc::new(ClusterInferenceModeBroadcaster::default()),
     )
     .await

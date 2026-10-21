@@ -1,6 +1,5 @@
 use std::collections::BTreeSet;
 
-use anyhow::Context as _;
 use anyhow::Result;
 use futures_util::StreamExt as _;
 
@@ -28,7 +27,7 @@ pub async fn collect_embedding_results(
     let mut wire_errors = Vec::new();
 
     while let Some(item) = stream.next().await {
-        match item.context("embedding stream yielded an error")? {
+        match item.map_err(ClusterHarnessError::EmbeddingStreamFailed)? {
             InferenceMessage::Response(ResponseEnvelope {
                 generated_by,
                 request_id,
@@ -98,6 +97,7 @@ pub async fn collect_embedding_results(
 mod tests {
     use futures_util::stream::iter;
 
+    use paddler_client::error::Error as ClientError;
     use paddler_messaging::generated_token_result::GeneratedTokenResult;
     use paddler_messaging::inference_client::message::Message as InferenceMessage;
     use paddler_messaging::inference_client::response::Response as InferenceResponse;
@@ -134,5 +134,23 @@ mod tests {
                 .to_string()
             )
         );
+    }
+
+    #[tokio::test]
+    async fn an_embedding_stream_yielding_an_error_is_an_error() {
+        let collection_error =
+            collect_embedding_results(Box::pin(iter([Err(ClientError::ConnectionDropped {
+                request_id: "request-1".to_owned(),
+            })])))
+            .await
+            .err()
+            .expect("a stream yielding an error must not be collected");
+
+        assert!(matches!(
+            collection_error.downcast_ref::<ClusterHarnessError>(),
+            Some(ClusterHarnessError::EmbeddingStreamFailed(ClientError::ConnectionDropped {
+                request_id
+            })) if request_id == "request-1"
+        ));
     }
 }

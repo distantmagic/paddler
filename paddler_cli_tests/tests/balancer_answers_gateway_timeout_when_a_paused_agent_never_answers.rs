@@ -29,8 +29,7 @@ async fn balancer_answers_gateway_timeout_when_a_paused_agent_never_answers() {
 
     let model_metadata_url = cluster
         .balancer
-        .management_base_url()
-        .expect("the balancer must expose its management address")
+        .management_base_url
         .join(&ApiPath::agent_model_metadata(&pausable_agent.id))
         .expect("the model metadata path must extend the management address");
     let metadata_result = cluster

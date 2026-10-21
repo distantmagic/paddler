@@ -1,4 +1,3 @@
-use anyhow::Context as _;
 use anyhow::Result;
 use futures_util::StreamExt as _;
 
@@ -17,7 +16,7 @@ pub async fn collect_decision_results(
     let mut answers = Vec::new();
 
     while let Some(item) = stream.next().await {
-        match item.context("decision stream yielded an error")? {
+        match item.map_err(ClusterHarnessError::DecisionStreamFailed)? {
             InferenceMessage::Response(ResponseEnvelope {
                 response: InferenceResponse::Decision(DecisionResult::QuestionAnswered(answer)),
                 ..
@@ -109,15 +108,11 @@ mod tests {
             .await
             .expect_err("a stream yielding an error must not be collected");
 
-        assert_eq!(
-            collection_error.to_string(),
-            "decision stream yielded an error"
-        );
-        assert_eq!(
-            collection_error
-                .downcast_ref::<ClientError>()
-                .map(ToString::to_string),
-            Some("Request request-1 failed: connection dropped".to_owned())
-        );
+        assert!(matches!(
+            collection_error.downcast_ref::<ClusterHarnessError>(),
+            Some(ClusterHarnessError::DecisionStreamFailed(ClientError::ConnectionDropped {
+                request_id
+            })) if request_id == "request-1"
+        ));
     }
 }

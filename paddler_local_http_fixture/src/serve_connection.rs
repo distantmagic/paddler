@@ -44,8 +44,7 @@ async fn trickle_until_the_client_stops_receiving(
 }
 
 async fn write_complete_body(stream: &mut TcpStream, head: &str, body: &[u8]) -> io::Result<()> {
-    stream.write_all(head.as_bytes()).await?;
-    stream.write_all(body).await?;
+    stream.write_all(&[head.as_bytes(), body].concat()).await?;
     stream.shutdown().await
 }
 
@@ -57,10 +56,14 @@ async fn write_body_prefix(
 ) -> io::Result<()> {
     stream
         .write_all(
-            status_line_and_headers(status, sent_body.len() + withheld_byte_count, "").as_bytes(),
+            &[
+                status_line_and_headers(status, sent_body.len() + withheld_byte_count, "")
+                    .as_bytes(),
+                sent_body,
+            ]
+            .concat(),
         )
-        .await?;
-    stream.write_all(sent_body).await
+        .await
 }
 
 pub async fn serve_connection(
@@ -107,7 +110,6 @@ pub async fn serve_connection(
             withheld_byte_count,
         } => {
             write_body_prefix(&mut stream, StatusCode::OK, sent_body, *withheld_byte_count).await?;
-            stream.flush().await?;
 
             pending().await
         }

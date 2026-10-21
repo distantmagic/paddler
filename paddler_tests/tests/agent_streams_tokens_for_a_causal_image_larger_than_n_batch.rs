@@ -4,6 +4,7 @@ use std::num::NonZeroU32;
 
 use tokio_util::sync::CancellationToken;
 
+use paddler_inference_parameters::batch_size::BatchSize;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_tests::jpeg_and_webp_image_fixtures::JPEG_AND_WEBP_IMAGE_FIXTURES;
 use paddler_tests::single_image_question::SingleImageQuestion;
@@ -16,7 +17,8 @@ const N_BATCH_SMALLER_THAN_ONE_IMAGE: u32 = 32;
 async fn agent_streams_tokens_for_a_causal_image_larger_than_n_batch() {
     let cluster = start_cluster_with_smolvlm2_and_n_batch(
         vec![AgentConfig::single(1)],
-        N_BATCH_SMALLER_THAN_ONE_IMAGE,
+        BatchSize::try_from(N_BATCH_SMALLER_THAN_ONE_IMAGE)
+            .expect("the batch size must be within the supported range"),
     )
     .await
     .expect("the cluster must start");

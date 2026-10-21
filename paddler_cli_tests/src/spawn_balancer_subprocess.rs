@@ -3,6 +3,8 @@ use std::process::Stdio;
 
 use anyhow::Context as _;
 use anyhow::Result;
+use futures_util::TryFutureExt as _;
+use futures_util::future::ready;
 use tokio::process::Child;
 
 use paddler_test_cluster_harness::running_balancer::RunningBalancer;
@@ -30,11 +32,15 @@ where
         .stderr(Stdio::inherit())
         .spawn()
         .context("failed to spawn paddler balancer subprocess")?;
-    let balancer_stdout = balancer_subprocess
-        .stdout
-        .take()
-        .ok_or(SubprocessClusterError::StdoutNotPiped)?;
-    let Some(addresses) = read_balancer_addresses(balancer_stdout).await? else {
+    let Some(addresses) = ready(
+        balancer_subprocess
+            .stdout
+            .take()
+            .ok_or(SubprocessClusterError::StdoutNotPiped),
+    )
+    .and_then(read_balancer_addresses)
+    .await?
+    else {
         let exit_status = balancer_subprocess
             .wait()
             .await
@@ -47,8 +53,10 @@ where
         signals,
     } = signal_subprocess(balancer_subprocess)?;
 
-    Ok(SpawnedBalancerSubprocess {
-        running_balancer: RunningBalancer::new(addresses, Box::new(balancer_process)),
-        signals,
-    })
+    RunningBalancer::new(addresses, Box::new(balancer_process))
+        .map(|running_balancer| SpawnedBalancerSubprocess {
+            running_balancer,
+            signals,
+        })
+        .context("failed to address the balancer subprocess")
 }

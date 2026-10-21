@@ -18,8 +18,7 @@ async fn decision_without_questions_is_rejected_with_bad_request() {
 
     let decide_url = cluster
         .balancer
-        .inference_base_url()
-        .expect("the balancer must expose its inference address")
+        .inference_base_url
         .join(ApiPath::DECIDE)
         .expect("the decide path must extend the inference address");
     let rejection = cluster

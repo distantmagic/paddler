@@ -29,8 +29,7 @@ async fn balancer_keeps_an_agent_connected_after_it_answers_a_request_that_timed
 
     let model_metadata_url = cluster
         .balancer
-        .management_base_url()
-        .expect("the balancer must expose its management address")
+        .management_base_url
         .join(&ApiPath::agent_model_metadata(&pausable_agent.id))
         .expect("the model metadata path must extend the management address");
 

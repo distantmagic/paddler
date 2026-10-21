@@ -35,10 +35,7 @@ async fn client_inference_reconnects_after_the_balancer_closes_its_socket() {
     .expect("a cluster without agents must start");
     let client_inference = ClientInference::new(ClientInferenceParams {
         inference_socket_pool_size: NonZeroUsize::MIN,
-        url: cluster
-            .balancer
-            .inference_base_url()
-            .expect("the inference service must have a base URL"),
+        url: cluster.balancer.inference_base_url.clone(),
     });
 
     let oversized_request_outcome = client_inference

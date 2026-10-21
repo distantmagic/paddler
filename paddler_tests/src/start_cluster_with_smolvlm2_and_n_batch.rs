@@ -13,7 +13,7 @@ use crate::start_cluster::start_cluster;
 
 pub async fn start_cluster_with_smolvlm2_and_n_batch(
     agents: Vec<AgentConfig>,
-    n_batch: u32,
+    n_batch: BatchSize,
 ) -> Result<Cluster> {
     let desired_state = smolvlm2_desired_state();
 
@@ -21,7 +21,7 @@ pub async fn start_cluster_with_smolvlm2_and_n_batch(
         agents,
         desired_state: ClusterDesiredState::Apply(Box::new(BalancerDesiredState {
             model_runtime_parameters: ModelRuntimeParameters {
-                n_batch: BatchSize::try_from(n_batch)?,
+                n_batch,
                 ..desired_state.model_runtime_parameters
             },
             ..desired_state

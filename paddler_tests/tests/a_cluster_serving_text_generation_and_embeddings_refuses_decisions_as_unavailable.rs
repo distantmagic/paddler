@@ -18,8 +18,7 @@ async fn a_cluster_serving_text_generation_and_embeddings_refuses_decisions_as_u
 
     let decide_url = cluster
         .balancer
-        .inference_base_url()
-        .expect("the balancer must expose its inference address")
+        .inference_base_url
         .join(ApiPath::DECIDE)
         .expect("the decide path must extend the inference address");
     let decision_rejection = cluster

@@ -32,10 +32,7 @@ async fn inference_socket_pool_rejects_a_second_request_under_an_in_flight_id() 
         .await
         .expect("a cluster without agents must start");
     let pool = Pool::new(
-        cluster
-            .balancer
-            .inference_base_url()
-            .expect("the inference service must have a base URL"),
+        cluster.balancer.inference_base_url.clone(),
         NonZeroUsize::MIN,
     );
 

@@ -13,12 +13,7 @@ async fn http_client_reports_a_body_that_is_not_json_as_undecodable() {
     let cluster = start_cluster(ClusterParams::without_agents())
         .await
         .expect("a balancer without agents must start");
-    let http_client = HttpClient::new(
-        cluster
-            .balancer
-            .management_base_url()
-            .expect("the balancer must expose its management address"),
-    );
+    let http_client = HttpClient::new(cluster.balancer.management_base_url.clone());
     let health_body_decoding_error = Response::from(HttpResponse::new("OK"))
         .json::<String>()
         .await

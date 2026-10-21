@@ -16,7 +16,7 @@ use paddler_test_cluster_harness::unending_grammar::unending_grammar;
 use paddler_tests::desired_state_with_chat_template_override::desired_state_with_chat_template_override;
 use paddler_tests::start_cluster_with_qwen3_and_context_size::start_cluster_with_qwen3_and_context_size;
 
-const CONTEXT_SIZE_THAT_ENDS_THE_IN_FLIGHT_GENERATION: u32 = 256;
+const CONTEXT_SIZE_THAT_ENDS_THE_IN_FLIGHT_GENERATION: NonZeroU32 = NonZeroU32::new(256).unwrap();
 
 #[tokio::test(flavor = "multi_thread")]
 async fn chat_template_drains_in_flight_inference_before_swap() {

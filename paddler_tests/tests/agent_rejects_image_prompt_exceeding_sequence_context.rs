@@ -15,7 +15,7 @@ use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_test_cluster_harness::load_test_image_data_uri::load_test_image_data_uri;
 use paddler_tests::start_cluster_with_smolvlm2_and_context_size::start_cluster_with_smolvlm2_and_context_size;
 
-const SMALLEST_PADDED_SEQUENCE_CONTEXT_SIZE: u32 = 256;
+const SMALLEST_PADDED_SEQUENCE_CONTEXT_SIZE: NonZeroU32 = NonZeroU32::new(256).unwrap();
 
 #[tokio::test(flavor = "multi_thread")]
 async fn agent_rejects_image_prompt_exceeding_sequence_context() {
@@ -59,8 +59,8 @@ async fn agent_rejects_image_prompt_exceeding_sequence_context() {
     assert!(collected.token_results.iter().any(|result| matches!(
         &result.token_result,
         GeneratedTokenResult::PromptExceedsContextSize(details)
-            if details.sequence_context_size == SMALLEST_PADDED_SEQUENCE_CONTEXT_SIZE
-                && details.prompt_tokens > SMALLEST_PADDED_SEQUENCE_CONTEXT_SIZE as usize
+            if details.sequence_context_size == SMALLEST_PADDED_SEQUENCE_CONTEXT_SIZE.get()
+                && details.prompt_tokens > SMALLEST_PADDED_SEQUENCE_CONTEXT_SIZE.get() as usize
     )));
 
     cluster

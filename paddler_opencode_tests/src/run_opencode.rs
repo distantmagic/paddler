@@ -34,14 +34,13 @@ pub async fn run_opencode(
             source,
         })?;
 
-    let output = child
+    child
         .wait_with_output()
         .await
-        .map_err(|source| OpenCodeTestError::ProcessWaitFailed { source })?;
-
-    Ok(OpenCodeRunOutcome {
-        exit_success: output.status.success(),
-        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
-        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
-    })
+        .map(|output| OpenCodeRunOutcome {
+            exit_success: output.status.success(),
+            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+            stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+        })
+        .map_err(OpenCodeTestError::ProcessWaitFailed)
 }

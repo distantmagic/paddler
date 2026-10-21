@@ -1,3 +1,5 @@
+use serde_json::to_value;
+
 use paddler_messaging::api_path::ApiPath;
 use paddler_messaging::embedding_input_document::EmbeddingInputDocument;
 use paddler_messaging::embedding_normalization_method::EmbeddingNormalizationMethod;
@@ -17,13 +19,14 @@ async fn half_closed_embedding_batch_client_releases_the_buffered_request() {
     let mut client = HalfClosedClient::post_json_then_half_close(
         cluster.balancer.addresses.inference,
         ApiPath::GENERATE_EMBEDDING_BATCH,
-        &GenerateEmbeddingBatchParams {
+        &to_value(GenerateEmbeddingBatchParams {
             input_batch: vec![EmbeddingInputDocument {
                 content: "Hello world".to_owned(),
                 id: "doc-1".to_owned(),
             }],
             normalization_method: EmbeddingNormalizationMethod::None,
-        },
+        })
+        .expect("the embedding batch parameters must serialize"),
     )
     .await
     .expect("the half-closed embedding batch request must be sent");

@@ -15,15 +15,10 @@ async fn http_client_reports_a_server_sent_event_of_another_shape_as_undecodable
     let cluster = start_cluster(ClusterParams::without_agents())
         .await
         .expect("a balancer without agents must start");
-    let mut events = HttpClient::new(
-        cluster
-            .balancer
-            .management_base_url()
-            .expect("the balancer must expose its management address"),
-    )
-    .get_sse_json::<String>(CancellationToken::new(), ApiPath::AGENTS_STREAM)
-    .await
-    .expect("the agents event stream must open");
+    let mut events = HttpClient::new(cluster.balancer.management_base_url.clone())
+        .get_sse_json::<String>(CancellationToken::new(), ApiPath::AGENTS_STREAM)
+        .await
+        .expect("the agents event stream must open");
     let empty_pool_snapshot = to_string(&AgentControllerPoolSnapshot { agents: Vec::new() })
         .expect("an empty agents snapshot must serialize");
 

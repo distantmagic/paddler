@@ -1,5 +1,7 @@
 use std::num::NonZeroU32;
 
+use serde_json::to_value;
+
 use paddler_messaging::api_path::ApiPath;
 use paddler_messaging::conversation_history::ConversationHistory;
 use paddler_messaging::conversation_message::ConversationMessage;
@@ -33,7 +35,7 @@ async fn half_closed_http_client_releases_the_buffered_request() {
     let mut client = HalfClosedClient::post_json_then_half_close(
         inference_addr,
         ApiPath::CONTINUE_FROM_CONVERSATION_HISTORY,
-        &params,
+        &to_value(&params).expect("the request parameters must serialize"),
     )
     .await
     .expect("the half-closed request must be sent");

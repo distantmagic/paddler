@@ -17,9 +17,8 @@ use crate::start_cluster::start_cluster;
 pub async fn start_cluster_with_qwen3_5_and_context_size(
     agents: Vec<AgentConfig>,
     with_mmproj: bool,
-    context_size: u32,
+    context_size: NonZeroU32,
 ) -> Result<Cluster> {
-    let context_size = NonZeroU32::try_from(context_size)?;
     let base_desired_state = if with_mmproj {
         qwen3_5_0_8b().into_desired_state_with_multimodal_projection(qwen3_5_0_8b_mmproj())
     } else {

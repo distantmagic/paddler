@@ -41,7 +41,7 @@ pub async fn start_cluster(
 
     let state_database_type = StateDatabaseType::from_str(&state_database_url)
         .context("failed to parse state_database_url")?;
-    let balancer_runner = BalancerRunner::start(BalancerRunnerParams {
+    let running_balancer = BalancerRunner::start(BalancerRunnerParams {
         bootstrap_config: BalancerBootstrapConfig {
             buffered_request_timeout,
             inference_service_configuration: InferenceServiceConfiguration {
@@ -70,13 +70,15 @@ pub async fn start_cluster(
         shutdown_options: unexpiring_shutdown_options(),
     })
     .await
-    .context("failed to start in-process BalancerRunner")?;
-
-    let management_address = balancer_runner.addresses.management.to_string();
-    let running_balancer = RunningBalancer::new(
-        balancer_runner.addresses,
-        Box::new(InProcessBalancer::new(balancer_runner)),
-    );
+    .context("failed to start in-process BalancerRunner")
+    .and_then(|balancer_runner| {
+        RunningBalancer::new(
+            balancer_runner.addresses,
+            Box::new(InProcessBalancer::new(balancer_runner)),
+        )
+        .context("failed to address the in-process balancer")
+    })?;
+    let management_address = running_balancer.addresses.management.to_string();
 
     let mut cluster = Cluster::connect(
         CancellationToken::new(),

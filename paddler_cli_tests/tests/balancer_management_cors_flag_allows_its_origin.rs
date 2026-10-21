@@ -17,8 +17,7 @@ async fn balancer_management_cors_flag_allows_its_origin() {
     .expect("a balancer subprocess without agents must start");
     let health_url = cluster
         .balancer
-        .management_base_url()
-        .expect("the management service must have a base URL")
+        .management_base_url
         .join("health")
         .expect("the health path must join onto the base URL");
 

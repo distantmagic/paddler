@@ -4,7 +4,6 @@ use std::path::Path;
 use serde_json::Map;
 use serde_json::Value;
 use serde_json::json;
-use serde_json::to_string_pretty;
 use tempfile::TempDir;
 use tempfile::tempdir;
 use url::Url;
@@ -47,20 +46,20 @@ pub struct OpenCodeTestProject {
 
 impl OpenCodeTestProject {
     pub fn create(api_base_url: &Url, marker_contents: String) -> Result<Self, OpenCodeTestError> {
-        let directory =
-            tempdir().map_err(|source| OpenCodeTestError::ProjectSetupFailed { source })?;
-        let config_contents = to_string_pretty(&provider_config(api_base_url))
-            .map_err(|source| OpenCodeTestError::ConfigSerializationFailed { source })?;
-
-        fs::write(directory.path().join(CONFIG_FILE_NAME), config_contents)
-            .map_err(|source| OpenCodeTestError::ProjectSetupFailed { source })?;
-        fs::write(directory.path().join(MARKER_FILE_NAME), &marker_contents)
-            .map_err(|source| OpenCodeTestError::ProjectSetupFailed { source })?;
-
-        Ok(Self {
-            directory,
-            marker_contents,
-        })
+        tempdir()
+            .and_then(|directory| {
+                fs::write(
+                    directory.path().join(CONFIG_FILE_NAME),
+                    format!("{:#}", provider_config(api_base_url)),
+                )
+                .and_then(|()| fs::write(directory.path().join(MARKER_FILE_NAME), &marker_contents))
+                .map(|()| directory)
+            })
+            .map(|directory| Self {
+                directory,
+                marker_contents,
+            })
+            .map_err(OpenCodeTestError::ProjectSetupFailed)
     }
 
     #[must_use]

@@ -6,8 +6,7 @@ use crate::unreachable_api_opencode_test_project::unreachable_api_opencode_test_
 
 #[tokio::test]
 async fn run_opencode_captures_output_of_a_finished_process() {
-    let project = unreachable_api_opencode_test_project()
-        .expect("an OpenCode test project must be creatable");
+    let project = unreachable_api_opencode_test_project();
     let outcome = run_opencode(
         Path::new(env!("CARGO_BIN_EXE_opencode_stub")),
         &project,

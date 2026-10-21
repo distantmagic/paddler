@@ -26,12 +26,18 @@ use crate::snapshots_stream::SnapshotsStream;
 pub enum ClusterHarnessError {
     #[error("The decision stream ended before it reported its outcome")]
     DecisionStreamEndedWithoutTerminalResult,
+    #[error("The decision stream yielded an error")]
+    DecisionStreamFailed(#[source] ClientError),
     #[error("The decision stream carried a message that is not a decision result: {message:?}")]
     DecisionStreamMessageUnexpected { message: Box<InferenceMessage> },
     #[error("The embedding stream carried a message that is not an embedding result: {message:?}")]
     EmbeddingStreamMessageUnexpected { message: Box<InferenceMessage> },
+    #[error("The embedding stream yielded an error")]
+    EmbeddingStreamFailed(#[source] ClientError),
     #[error("The token generation stream returned JSON-RPC error code {} ({})", error.code, error.description)]
     TokenStreamReturnedError { error: JsonRpcError },
+    #[error("The token generation stream yielded an error")]
+    TokenStreamFailed(#[source] ClientError),
     #[error(
         "The token generation stream carried a message that is not a generated token: {message:?}"
     )]
@@ -70,18 +76,16 @@ pub enum ClusterHarnessError {
     BalancerSocketHandshakeFailed(#[source] WebSocketError),
     #[error("The untrusted balancer socket could not send a frame")]
     BalancerSocketSendFailed(#[source] WebSocketError),
-    #[error("Unable to build a base URL for {addr}")]
-    BaseUrlInvalid {
-        addr: SocketAddr,
-        #[source]
-        source: ParseError,
-    },
     #[error("The cluster has no registered agent to wait for")]
     ClusterHasNoRegisteredAgent,
     #[error("The balancer does not serve the OpenAI compatibility service")]
     CompatOpenAIServiceNotServed,
+    #[error("Unable to build the base URL of the OpenAI compatibility service")]
+    CompatOpenAIBaseUrlInvalid(#[source] ParseError),
     #[error("The balancer does not serve the TypeSafe compatibility service")]
     CompatTypeSafeServiceNotServed,
+    #[error("Unable to build the base URL of the typesafe compatibility service")]
+    CompatTypeSafeBaseUrlInvalid(#[source] ParseError),
     #[error("The web admin panel page carries a malformed attribute")]
     DashboardAttributeMalformed(#[source] AttrError),
     #[error("The web admin panel page carries an attribute whose name is not UTF-8")]
@@ -111,6 +115,8 @@ pub enum ClusterHarnessError {
     },
     #[error("The inference request failed")]
     InferenceRequestFailed(#[source] ClientError),
+    #[error("Unable to build the base URL of the inference service")]
+    InferenceBaseUrlInvalid(#[source] ParseError),
     #[error("The raw inference socket closed before answering request {request_id}")]
     InferenceSocketClosedBeforeAnswer { request_id: String },
     #[error("The raw inference socket closed before answering any request")]
@@ -125,6 +131,8 @@ pub enum ClusterHarnessError {
     InferenceSocketRequestUnserializable(#[source] SerdeJsonError),
     #[error("The raw inference socket could not send a frame")]
     InferenceSocketSendFailed(#[source] WebSocketError),
+    #[error("Unable to build the base URL of the management service")]
+    ManagementBaseUrlInvalid(#[source] ParseError),
     #[error("The OpenAI compatibility request failed")]
     OpenAIRequestFailed(#[source] OpenAIError),
     #[error("Unable to list the open file descriptors of the current process")]
