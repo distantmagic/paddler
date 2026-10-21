@@ -132,7 +132,12 @@ export function ChangeModelForm() {
           </dd>
           <dt>Local File</dt>
           <dd>
-            <p>File path is relative to the agent's working directory.</p>
+            <p>
+              The file path must be absolute and spelled canonically: percent
+              encode spaces and special characters, and leave out relative
+              segments, repeated slashes, queries, and fragments. An agent
+              reports the canonical spelling when the one you enter differs.
+            </p>
             <p>
               If you want all the agents to use the same model, you need to
               ensure that the file is present in the same path on all agents.
