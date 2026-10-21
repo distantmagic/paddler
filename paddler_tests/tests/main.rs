@@ -406,6 +406,7 @@ mod reading_a_missing_state_file_changes_nothing;
 mod reapplying_the_served_state_keeps_serving_it_without_a_restart;
 #[cfg(test)]
 mod release_half_closed_openai_request;
+mod retaining_a_served_model_restarts_its_changed_capabilities_at_once;
 mod run_with_test_cluster_exports_the_url_of_every_service;
 mod run_with_test_cluster_fails_when_its_program_fails;
 mod run_with_test_cluster_fails_without_a_temporary_directory_for_agent_models;
@@ -417,6 +418,7 @@ mod sampling_with_a_smaller_vocabulary_grammar;
 mod serving_decision_agent;
 #[cfg(test)]
 mod shutdown_during_state_transition;
+mod shutting_down_a_served_model_closes_every_capability_at_once;
 mod shutting_down_a_served_model_stops_its_schedulers_and_frees_their_contexts;
 #[cfg(test)]
 mod slot_held_by_an_unending_generation;

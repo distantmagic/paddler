@@ -1,3 +1,5 @@
+use tokio::join;
+
 use paddler_agent_runtime::shuts_down::ShutsDown;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -21,8 +23,10 @@ where
             text_generation,
         } = self;
 
-        decisions.shut_down().await;
-        embeddings.shut_down().await;
-        text_generation.shut_down().await;
+        join!(
+            decisions.shut_down(),
+            embeddings.shut_down(),
+            text_generation.shut_down()
+        );
     }
 }

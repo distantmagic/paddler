@@ -1,3 +1,5 @@
+use tokio::join;
+
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
 use paddler_agent_runtime::shuts_down::ShutsDown;
 use paddler_agent_status::serving_report::ServingReport;
@@ -89,26 +91,29 @@ impl ServedModel {
             text_generation,
         } = capabilities;
 
+        let (decisions_plan, embeddings_plan, text_generation_plan) = join!(
+            CapabilityPlan::retaining(
+                decisions,
+                &served_settings.capabilities.decisions,
+                &desired_settings.capabilities.decisions,
+            ),
+            CapabilityPlan::retaining(
+                embeddings,
+                &served_settings.capabilities.embeddings,
+                &desired_settings.capabilities.embeddings,
+            ),
+            CapabilityPlan::retaining(
+                text_generation,
+                &served_settings.capabilities.text_generation,
+                &desired_settings.capabilities.text_generation,
+            ),
+        );
+
         RetainedServing::LoadedModel(LoadedModelServingPlan {
             capability_plans: InferenceCapabilities {
-                decisions: CapabilityPlan::retaining(
-                    decisions,
-                    &served_settings.capabilities.decisions,
-                    &desired_settings.capabilities.decisions,
-                )
-                .await,
-                embeddings: CapabilityPlan::retaining(
-                    embeddings,
-                    &served_settings.capabilities.embeddings,
-                    &desired_settings.capabilities.embeddings,
-                )
-                .await,
-                text_generation: CapabilityPlan::retaining(
-                    text_generation,
-                    &served_settings.capabilities.text_generation,
-                    &desired_settings.capabilities.text_generation,
-                )
-                .await,
+                decisions: decisions_plan,
+                embeddings: embeddings_plan,
+                text_generation: text_generation_plan,
             },
             loaded_llama_model,
             model_serving_settings: desired_settings,
