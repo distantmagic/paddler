@@ -36,7 +36,6 @@ pub mod sequence_id_guard;
 pub mod sequence_id_pool;
 pub mod shared_llama_backend;
 pub mod shuts_down;
-pub mod spawn_blocking_resuming_panic;
 pub mod start_scheduler_thread;
 pub mod startup_outcome;
 pub mod startup_signal_delivery;

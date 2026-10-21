@@ -3218,6 +3218,7 @@ dependencies = [
  "paddler_model_source",
  "paddler_outbox",
  "paddler_request_registry",
+ "paddler_spawn_resuming_panic",
  "serde",
  "serde_json",
  "tempfile",
@@ -3278,6 +3279,7 @@ dependencies = [
  "paddler_agent_status",
  "paddler_inference_parameters",
  "paddler_messaging",
+ "paddler_spawn_resuming_panic",
  "parking_lot",
  "thiserror",
  "tokio",
@@ -3341,6 +3343,7 @@ dependencies = [
  "log",
  "mime_guess",
  "nanoid",
+ "paddler_blocking_thread_fixture",
  "paddler_frame_writer",
  "paddler_inference_parameters",
  "paddler_messaging",
@@ -3348,6 +3351,7 @@ dependencies = [
  "paddler_openai_translation",
  "paddler_outbox",
  "paddler_request_registry",
+ "paddler_spawn_resuming_panic",
  "paddler_state_database",
  "paddler_typesafe_translation",
  "parking_lot",
@@ -3636,11 +3640,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "paddler_spawn_resuming_panic"
+version = "5.0.0"
+dependencies = [
+ "tokio",
+]
+
+[[package]]
 name = "paddler_state_database"
 version = "5.0.0"
 dependencies = [
  "async-trait",
  "paddler_messaging",
+ "paddler_spawn_resuming_panic",
  "parking_lot",
  "serde",
  "serde_json",

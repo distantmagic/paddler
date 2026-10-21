@@ -8,11 +8,11 @@ use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_runtime::llama_model_settings::LlamaModelSettings;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
 use paddler_agent_runtime::shuts_down::ShutsDown as _;
-use paddler_agent_runtime::spawn_blocking_resuming_panic::spawn_blocking_resuming_panic;
 use paddler_agent_runtime::startup_outcome::StartupOutcome;
 use paddler_agent_text_generation::llama_cpp_media_marker::LlamaCppMediaMarker;
 use paddler_agent_text_generation::text_generation_pipeline::TextGenerationPipeline;
 use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
+use paddler_spawn_resuming_panic::spawn_blocking_resuming_panic::spawn_blocking_resuming_panic;
 
 use crate::agent_error::AgentError;
 use crate::applicable_decisions::ApplicableDecisions;

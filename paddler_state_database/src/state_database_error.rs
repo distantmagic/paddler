@@ -13,12 +13,8 @@ pub enum StateDatabaseError {
         #[source]
         source: SerdeJsonError,
     },
-    #[error("Unable to create the state database file '{path_display}'", path_display = path.display())]
-    FileCreationFailed {
-        path: PathBuf,
-        #[source]
-        source: io::Error,
-    },
+    #[error("The state database file '{path_display}' has no directory to create its replacement in", path_display = path.display())]
+    FileHasNoParentDirectory { path: PathBuf },
     #[error("State database file path cannot be empty")]
     FilePathEmpty,
     #[error("To avoid ambiguity, needing to guess the full file path (and to stay safe overall), Paddler requires absolute paths.\nThe path you wanted is *probably* '{suggested_path_display}'. If that is so, pass it as '--state-database file://{suggested_path_display}'.", suggested_path_display = suggested_path.display())]
@@ -31,9 +27,21 @@ pub enum StateDatabaseError {
         #[source]
         source: io::Error,
     },
+    #[error("Unable to read the access mode of the state database file '{path_display}'", path_display = path.display())]
+    FilePermissionsUnreadable {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
     #[error("Unable to read the state database file '{path_display}'", path_display = path.display())]
     FileReadFailed {
         path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+    #[error("Unable to create a replacement of the state database file in '{directory_display}'", directory_display = directory.display())]
+    FileReplacementCreationFailed {
+        directory: PathBuf,
         #[source]
         source: io::Error,
     },

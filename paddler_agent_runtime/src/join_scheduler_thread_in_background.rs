@@ -1,7 +1,8 @@
 use std::thread::JoinHandle;
 
+use paddler_spawn_resuming_panic::spawn_blocking_resuming_panic::spawn_blocking_resuming_panic;
+
 use crate::join_scheduler_thread::join_scheduler_thread;
-use crate::spawn_blocking_resuming_panic::spawn_blocking_resuming_panic;
 
 pub async fn join_scheduler_thread_in_background<TReleasedFirst>(
     released_first: TReleasedFirst,

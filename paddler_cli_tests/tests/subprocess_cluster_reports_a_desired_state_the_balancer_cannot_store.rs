@@ -50,8 +50,8 @@ async fn subprocess_cluster_reports_a_desired_state_the_balancer_cannot_store() 
             if *status == StatusCode::INTERNAL_SERVER_ERROR
                 && *message
                     == format!(
-                        "Unable to create the state database file '{}'",
-                        state_directory.path().join("state.json.next").display()
+                        "Unable to create a replacement of the state database file in '{}'",
+                        state_directory.path().display()
                     )
                 && Url::parse(url).is_ok_and(|desired_state_url| {
                     desired_state_url.path() == ApiPath::BALANCER_DESIRED_STATE

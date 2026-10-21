@@ -4,6 +4,7 @@ use tokio::sync::Mutex;
 use tokio::sync::watch;
 
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
+use paddler_spawn_resuming_panic::spawn_resuming_panic::spawn_resuming_panic;
 use paddler_state_database::state_database::StateDatabase;
 use paddler_state_database::state_database_error::StateDatabaseError;
 use paddler_state_database::stored_balancer_desired_state::StoredBalancerDesiredState;
@@ -13,7 +14,7 @@ use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 
 pub struct BalancerDesiredStateStore {
     balancer_applicable_state_tx: watch::Sender<Arc<BalancerApplicableState>>,
-    replacement_lock: Mutex<()>,
+    replacement_lock: Arc<Mutex<()>>,
     state_database: Arc<dyn StateDatabase>,
 }
 
@@ -29,7 +30,7 @@ impl BalancerDesiredStateStore {
 
         Ok(Self {
             balancer_applicable_state_tx,
-            replacement_lock: Mutex::new(()),
+            replacement_lock: Arc::new(Mutex::new(())),
             state_database,
         })
     }
@@ -43,30 +44,31 @@ impl BalancerDesiredStateStore {
         &self,
         balancer_desired_state: BalancerDesiredState,
     ) -> Result<(), StateDatabaseError> {
-        let _replacement_guard = self.replacement_lock.lock().await;
+        let replacement_guard = self.replacement_lock.clone().lock_owned().await;
+        let balancer_applicable_state_tx = self.balancer_applicable_state_tx.clone();
+        let state_database = self.state_database.clone();
 
-        if self
-            .balancer_applicable_state_tx
-            .borrow()
-            .balancer_desired_state
-            == balancer_desired_state
-        {
-            return Ok(());
-        }
+        spawn_resuming_panic(async move {
+            if balancer_applicable_state_tx.borrow().balancer_desired_state
+                == balancer_desired_state
+            {
+                return Ok(());
+            }
 
-        self.state_database
-            .store_balancer_desired_state(&balancer_desired_state)
-            .await?;
+            state_database
+                .store_balancer_desired_state(&balancer_desired_state)
+                .await?;
 
-        let superseding_applicable_state = self
-            .balancer_applicable_state_tx
-            .borrow()
-            .superseded_by(balancer_desired_state);
+            let superseding_applicable_state = balancer_applicable_state_tx
+                .borrow()
+                .superseded_by(balancer_desired_state);
 
-        self.balancer_applicable_state_tx
-            .send_replace(Arc::new(superseding_applicable_state));
+            balancer_applicable_state_tx.send_replace(Arc::new(superseding_applicable_state));
+            drop(replacement_guard);
 
-        Ok(())
+            Ok(())
+        })
+        .await
     }
 }
 
@@ -74,7 +76,11 @@ impl BalancerDesiredStateStore {
 mod tests {
     use std::sync::Arc;
 
+    use futures_util::FutureExt as _;
     use tempfile::TempDir;
+
+    use paddler_blocking_thread_fixture::occupied_blocking_thread::OccupiedBlockingThread;
+    use paddler_blocking_thread_fixture::single_blocking_thread_runtime::single_blocking_thread_runtime;
 
     use paddler_messaging::agent_desired_model::AgentDesiredModel;
     use paddler_messaging::balancer_desired_state::BalancerDesiredState;
@@ -163,6 +169,46 @@ mod tests {
             StoredBalancerDesiredState::NothingStored
         );
         assert!(!applicable_state_rx.has_changed().unwrap());
+    }
+
+    #[test]
+    fn a_replacement_its_caller_abandons_is_applied_before_the_next_one() {
+        single_blocking_thread_runtime().unwrap().block_on(async {
+            let temp_dir = TempDir::new().unwrap();
+            let state_path = temp_dir.path().join("state.json");
+            let store = BalancerDesiredStateStore::load(Arc::new(File::new(state_path.clone())))
+                .await
+                .unwrap();
+            let occupied_blocking_thread = OccupiedBlockingThread::occupy();
+
+            assert!(
+                store
+                    .replace(state_with_model("abandoned_model_uri"))
+                    .now_or_never()
+                    .is_none()
+            );
+
+            occupied_blocking_thread.release().await.unwrap();
+            store
+                .replace(state_with_model("next_model_uri"))
+                .await
+                .unwrap();
+
+            assert_eq!(
+                store
+                    .applicable_state_holder()
+                    .get_balancer_applicable_state()
+                    .version,
+                2
+            );
+            assert_eq!(
+                File::new(state_path)
+                    .read_balancer_desired_state()
+                    .await
+                    .unwrap(),
+                StoredBalancerDesiredState::Stored(state_with_model("next_model_uri"))
+            );
+        });
     }
 
     #[tokio::test]

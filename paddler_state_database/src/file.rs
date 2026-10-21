@@ -1,18 +1,24 @@
-use std::ffi::OsString;
+use std::fs::File as StdFile;
+use std::fs::Permissions;
+use std::fs::metadata;
 use std::io::ErrorKind;
+use std::io::Write as _;
+use std::os::unix::fs::PermissionsExt as _;
+use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde_json::from_str;
 use serde_json::from_value;
 use serde_json::to_string_pretty;
-use tokio::fs::File as TokioFile;
+use tempfile::NamedTempFile;
+use tempfile::PersistError;
 use tokio::fs::read_to_string;
-use tokio::fs::rename;
-use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
+use paddler_spawn_resuming_panic::spawn_blocking_resuming_panic::spawn_blocking_resuming_panic;
 
 use crate::schema::Schema;
 use crate::schema_version_header::SchemaVersionHeader;
@@ -21,11 +27,86 @@ use crate::state_database_error::StateDatabaseError;
 use crate::state_database_schema_version::StateDatabaseSchemaVersion;
 use crate::stored_balancer_desired_state::StoredBalancerDesiredState;
 
-const REPLACEMENT_SUFFIX: &str = ".next";
+const NEW_STATE_FILE_ACCESS_MODE: u32 = 0o600;
+
+fn replacement_permissions(state_path: &Path) -> Result<Permissions, StateDatabaseError> {
+    match metadata(state_path) {
+        Ok(state_metadata) => Ok(state_metadata.permissions()),
+        Err(missing_state) if missing_state.kind() == ErrorKind::NotFound => {
+            Ok(Permissions::from_mode(NEW_STATE_FILE_ACCESS_MODE))
+        }
+        Err(source) => Err(StateDatabaseError::FilePermissionsUnreadable {
+            path: state_path.to_path_buf(),
+            source,
+        }),
+    }
+}
+
+fn write_replacement(
+    replacement: &mut StdFile,
+    replacement_path: &Path,
+    serialized_schema: &[u8],
+) -> Result<(), StateDatabaseError> {
+    replacement.write_all(serialized_schema).map_err(|source| {
+        StateDatabaseError::FileWriteFailed {
+            path: replacement_path.to_path_buf(),
+            source,
+        }
+    })?;
+
+    replacement
+        .sync_all()
+        .map_err(|source| StateDatabaseError::FileSyncFailed {
+            path: replacement_path.to_path_buf(),
+            source,
+        })
+}
+
+fn replace_state_file(
+    state_path: &Path,
+    serialized_schema: &str,
+) -> Result<(), StateDatabaseError> {
+    let state_directory =
+        state_path
+            .parent()
+            .ok_or_else(|| StateDatabaseError::FileHasNoParentDirectory {
+                path: state_path.to_path_buf(),
+            })?;
+    let permissions = replacement_permissions(state_path)?;
+    let mut replacement = NamedTempFile::new_in(state_directory)
+        .and_then(|replacement| {
+            replacement
+                .as_file()
+                .set_permissions(permissions)
+                .map(|()| replacement)
+        })
+        .map_err(|source| StateDatabaseError::FileReplacementCreationFailed {
+            directory: state_directory.to_path_buf(),
+            source,
+        })?;
+    let replacement_path = replacement.path().to_path_buf();
+
+    write_replacement(
+        replacement.as_file_mut(),
+        &replacement_path,
+        serialized_schema.as_bytes(),
+    )?;
+
+    replacement
+        .persist(state_path)
+        .map(drop)
+        .map_err(
+            |PersistError { error, .. }| StateDatabaseError::FileReplaceFailed {
+                path: state_path.to_path_buf(),
+                replacement_path,
+                source: error,
+            },
+        )
+}
 
 pub struct File {
     path: PathBuf,
-    store_lock: Mutex<()>,
+    store_lock: Arc<Mutex<()>>,
 }
 
 impl File {
@@ -33,16 +114,8 @@ impl File {
     pub fn new(path: PathBuf) -> Self {
         Self {
             path,
-            store_lock: Mutex::new(()),
+            store_lock: Arc::new(Mutex::new(())),
         }
-    }
-
-    fn replacement_path(&self) -> PathBuf {
-        let mut replacement_path = OsString::from(self.path.as_os_str());
-
-        replacement_path.push(REPLACEMENT_SUFFIX);
-
-        PathBuf::from(replacement_path)
     }
 
     fn parse_schema(&self, content: &str) -> Result<Schema, StateDatabaseError> {
@@ -64,35 +137,6 @@ impl File {
             path: self.path.clone(),
             source,
         })
-    }
-
-    async fn write_replacement(
-        &self,
-        replacement_path: &PathBuf,
-        serialized_schema: &str,
-    ) -> Result<(), StateDatabaseError> {
-        let mut replacement = TokioFile::create(replacement_path)
-            .await
-            .map_err(|source| StateDatabaseError::FileCreationFailed {
-                path: replacement_path.clone(),
-                source,
-            })?;
-
-        replacement
-            .write_all(serialized_schema.as_bytes())
-            .await
-            .map_err(|source| StateDatabaseError::FileWriteFailed {
-                path: replacement_path.clone(),
-                source,
-            })?;
-
-        replacement
-            .sync_all()
-            .await
-            .map_err(|source| StateDatabaseError::FileSyncFailed {
-                path: replacement_path.clone(),
-                source,
-            })
     }
 }
 
@@ -124,34 +168,40 @@ impl StateDatabase for File {
             version: StateDatabaseSchemaVersion::default(),
         })
         .map_err(StateDatabaseError::SchemaUnserializable)?;
-        let replacement_path = self.replacement_path();
-        let _store_guard = self.store_lock.lock().await;
+        let store_guard = self.store_lock.clone().lock_owned().await;
+        let state_path = self.path.clone();
 
-        self.write_replacement(&replacement_path, &serialized_schema)
-            .await?;
+        spawn_blocking_resuming_panic(move || {
+            let replacement_outcome = replace_state_file(&state_path, &serialized_schema);
 
-        rename(&replacement_path, &self.path)
-            .await
-            .map_err(|source| StateDatabaseError::FileReplaceFailed {
-                path: self.path.clone(),
-                replacement_path,
-                source,
-            })
+            drop(store_guard);
+
+            replacement_outcome
+        })
+        .await
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::error::Error as _;
+    #[cfg(target_os = "linux")]
+    use std::fs::File as StdFile;
+    #[cfg(target_os = "linux")]
+    use std::fs::OpenOptions;
+    use std::fs::Permissions;
     use std::io::ErrorKind;
+    use std::os::unix::fs::PermissionsExt as _;
     #[cfg(target_os = "linux")]
     use std::os::unix::fs::symlink;
+    use std::path::Path;
+    use std::path::PathBuf;
 
     use tempfile::NamedTempFile;
     use tempfile::TempDir;
-    use tokio::fs::create_dir;
     use tokio::fs::metadata;
     use tokio::fs::read_to_string;
+    use tokio::fs::set_permissions;
     use tokio::fs::write;
 
     use paddler_messaging::agent_desired_model::AgentDesiredModel;
@@ -163,6 +213,8 @@ mod tests {
     use paddler_messaging::inference_mode::InferenceMode;
 
     use super::File;
+    #[cfg(target_os = "linux")]
+    use super::write_replacement;
     use crate::state_database::StateDatabase;
     use crate::state_database_error::StateDatabaseError;
     use crate::stored_balancer_desired_state::StoredBalancerDesiredState;
@@ -251,15 +303,39 @@ mod tests {
     #[tokio::test]
     async fn storing_fails_when_the_parent_directory_is_missing() {
         let temp_dir = TempDir::new().unwrap();
-        let database = File::new(temp_dir.path().join("missing_directory").join("state.json"));
-        let replacement_path = database.replacement_path();
+        let missing_directory = temp_dir.path().join("missing_directory");
+        let database = File::new(missing_directory.join("state.json"));
 
         assert!(matches!(
             database
                 .store_balancer_desired_state(&BalancerDesiredState::default())
                 .await,
-            Err(StateDatabaseError::FileCreationFailed { path, source })
-                if path == replacement_path && source.kind() == ErrorKind::NotFound
+            Err(StateDatabaseError::FileReplacementCreationFailed { directory, source })
+                if directory == missing_directory && source.kind() == ErrorKind::NotFound
+        ));
+    }
+
+    #[tokio::test]
+    async fn storing_at_the_filesystem_root_has_no_directory_for_its_replacement() {
+        assert!(matches!(
+            File::new(PathBuf::from("/"))
+                .store_balancer_desired_state(&BalancerDesiredState::default())
+                .await,
+            Err(StateDatabaseError::FileHasNoParentDirectory { path }) if path == Path::new("/")
+        ));
+    }
+
+    #[tokio::test]
+    async fn storing_under_a_regular_file_cannot_read_the_access_mode_of_its_state() {
+        let regular_file = NamedTempFile::new().unwrap();
+        let path = regular_file.path().join("state.json");
+
+        assert!(matches!(
+            File::new(path.clone())
+                .store_balancer_desired_state(&BalancerDesiredState::default())
+                .await,
+            Err(StateDatabaseError::FilePermissionsUnreadable { path: unreadable_path, source })
+                if unreadable_path == path && source.kind() == ErrorKind::NotADirectory
         ));
     }
 
@@ -286,59 +362,113 @@ mod tests {
             .store_balancer_desired_state(&previous_state)
             .await
             .unwrap();
-        create_dir(database.replacement_path()).await.unwrap();
+        set_permissions(temp_dir.path(), Permissions::from_mode(0o500))
+            .await
+            .unwrap();
 
-        assert!(
-            database
-                .store_balancer_desired_state(&state_with_model("next_model_uri"))
-                .await
-                .is_err()
-        );
+        let failed_store = database
+            .store_balancer_desired_state(&state_with_model("next_model_uri"))
+            .await;
+        let state_after_the_failed_store = database.read_balancer_desired_state().await.unwrap();
+
+        set_permissions(temp_dir.path(), Permissions::from_mode(0o700))
+            .await
+            .unwrap();
+
+        assert!(matches!(
+            failed_store,
+            Err(StateDatabaseError::FileReplacementCreationFailed { source, .. })
+                if source.kind() == ErrorKind::PermissionDenied
+        ));
         assert_eq!(
-            database.read_balancer_desired_state().await.unwrap(),
+            state_after_the_failed_store,
             StoredBalancerDesiredState::Stored(previous_state)
         );
     }
 
     #[cfg(target_os = "linux")]
-    fn database_replacing_through_dev_full(temp_dir: &TempDir) -> File {
-        let database = File::new(temp_dir.path().join("state.json"));
+    fn full_device() -> StdFile {
+        OpenOptions::new().write(true).open("/dev/full").unwrap()
+    }
 
-        symlink("/dev/full", database.replacement_path()).unwrap();
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_replacement_on_a_device_that_refuses_to_sync_fails_to_sync() {
+        assert!(matches!(
+            write_replacement(&mut full_device(), Path::new("/dev/full"), b""),
+            Err(StateDatabaseError::FileSyncFailed { path, source })
+                if path == Path::new("/dev/full") && source.kind() == ErrorKind::InvalidInput
+        ));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_replacement_on_a_full_device_fails_to_write_its_schema() {
+        assert!(matches!(
+            write_replacement(&mut full_device(), Path::new("/dev/full"), b"{}"),
+            Err(StateDatabaseError::FileWriteFailed { path, source })
+                if path == Path::new("/dev/full") && source.kind() == ErrorKind::StorageFull
+        ));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn storing_never_writes_through_a_link_planted_at_the_old_replacement_path() {
+        let temp_dir = TempDir::new().unwrap();
+        let unrelated_file = temp_dir.path().join("unrelated.txt");
+
+        write(&unrelated_file, "unrelated contents").await.unwrap();
+        symlink(&unrelated_file, temp_dir.path().join("state.json.next")).unwrap();
+
+        File::new(temp_dir.path().join("state.json"))
+            .store_balancer_desired_state(&state_with_model("stored_model_uri"))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            read_to_string(&unrelated_file).await.unwrap(),
+            "unrelated contents"
+        );
+    }
+
+    #[tokio::test]
+    async fn storing_keeps_the_access_mode_of_the_replaced_state_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("state.json");
+        let database = File::new(path.clone());
 
         database
+            .store_balancer_desired_state(&state_with_model("previous_model_uri"))
+            .await
+            .unwrap();
+        set_permissions(&path, Permissions::from_mode(0o640))
+            .await
+            .unwrap();
+        database
+            .store_balancer_desired_state(&state_with_model("next_model_uri"))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            metadata(&path).await.unwrap().permissions().mode() & 0o777,
+            0o640
+        );
     }
 
-    #[cfg(target_os = "linux")]
     #[tokio::test]
-    async fn storing_a_small_schema_through_a_character_device_fails_to_sync() {
+    async fn a_new_state_file_is_readable_only_by_its_owner() {
         let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("state.json");
 
-        assert!(matches!(
-            database_replacing_through_dev_full(&temp_dir)
-                .store_balancer_desired_state(&BalancerDesiredState::default())
-                .await,
-            Err(StateDatabaseError::FileSyncFailed { source, .. })
-                if source.kind() == ErrorKind::InvalidInput
-        ));
-    }
+        File::new(path.clone())
+            .store_balancer_desired_state(&state_with_model("stored_model_uri"))
+            .await
+            .unwrap();
 
-    #[cfg(target_os = "linux")]
-    #[tokio::test]
-    async fn storing_a_large_schema_surfaces_the_write_error_during_write_all() {
-        const TOKIO_FILE_BUFFER_BYTES: usize = 2 * 1024 * 1024;
-
-        let temp_dir = TempDir::new().unwrap();
-
-        assert!(matches!(
-            database_replacing_through_dev_full(&temp_dir)
-                .store_balancer_desired_state(&state_with_model(
-                    &"x".repeat(TOKIO_FILE_BUFFER_BYTES * 2)
-                ))
-                .await,
-            Err(StateDatabaseError::FileWriteFailed { source, .. })
-                if source.kind() == ErrorKind::StorageFull
-        ));
+        assert_eq!(
+            metadata(&path).await.unwrap().permissions().mode() & 0o777,
+            0o600
+        );
     }
 
     #[tokio::test]

@@ -34,6 +34,7 @@ jarmuz({
     "paddler_opencode_tests",
     "paddler_outbox",
     "paddler_request_registry",
+    "paddler_spawn_resuming_panic",
     "paddler_state_database",
     "paddler_tcp_buffer_limits",
     "paddler_test_cluster_harness",

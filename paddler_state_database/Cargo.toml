@@ -14,13 +14,12 @@ parking_lot = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 shellexpand = { workspace = true }
+tempfile = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 url = { workspace = true }
 paddler_messaging = { workspace = true }
-
-[dev-dependencies]
-tempfile = { workspace = true }
+paddler_spawn_resuming_panic = { workspace = true }
 
 [lints]
 workspace = true

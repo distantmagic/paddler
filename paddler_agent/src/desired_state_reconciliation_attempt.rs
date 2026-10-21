@@ -6,8 +6,8 @@ use log::error;
 use tokio::runtime::Builder;
 use tokio_util::sync::CancellationToken;
 
-use paddler_agent_runtime::spawn_blocking_resuming_panic::spawn_blocking_resuming_panic;
 use paddler_messaging::agent_desired_state::AgentDesiredState;
+use paddler_spawn_resuming_panic::spawn_blocking_resuming_panic::spawn_blocking_resuming_panic;
 
 use crate::desired_state_reconciler::DesiredStateReconciler;
 use crate::desired_state_reconciliation::DesiredStateReconciliation;

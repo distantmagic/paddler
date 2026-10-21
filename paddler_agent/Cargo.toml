@@ -37,6 +37,7 @@ paddler_messaging = { workspace = true }
 paddler_model_source = { workspace = true }
 paddler_outbox = { workspace = true }
 paddler_request_registry = { workspace = true }
+paddler_spawn_resuming_panic = { workspace = true }
 
 [features]
 default = []

@@ -14,6 +14,7 @@ use paddler_messaging::agent_issue::AgentIssue;
 use paddler_messaging::agent_issue_params::slot_cannot_start_params::SlotCannotStartParams;
 use paddler_messaging::inference_capability::InferenceCapability;
 use paddler_messaging::model_metadata::ModelMetadata;
+use paddler_spawn_resuming_panic::spawn_blocking_resuming_panic::spawn_blocking_resuming_panic;
 
 use crate::agent_runtime_error::AgentRuntimeError;
 use crate::inference_runtime_context::InferenceRuntimeContext;
@@ -22,7 +23,6 @@ use crate::llama_context_settings::LlamaContextSettings;
 use crate::llama_model_settings::LlamaModelSettings;
 use crate::resident_llama_context::ResidentLlamaContext;
 use crate::resident_llama_model::ResidentLlamaModel;
-use crate::spawn_blocking_resuming_panic::spawn_blocking_resuming_panic;
 use crate::startup_outcome::StartupOutcome;
 use crate::vram_occupancy::VramOccupancy;
 
