@@ -40,10 +40,12 @@ async fn agent_reports_chat_template_error_when_rendering_fails() {
             CancellationToken::new(),
             &ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
-                conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Text("Hello".to_owned()),
-                    role: "user".to_owned(),
-                }]),
+                conversation_history: ConversationHistory::new(vec![
+                    ConversationMessage::Message {
+                        content: ConversationMessageContent::Text("Hello".to_owned()),
+                        role: "user".to_owned(),
+                    },
+                ]),
                 enable_thinking: false,
                 grammar: None,
                 max_tokens: NonZeroU32::new(4).unwrap(),

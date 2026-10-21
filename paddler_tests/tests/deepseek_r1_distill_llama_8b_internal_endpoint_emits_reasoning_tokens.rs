@@ -23,12 +23,14 @@ async fn deepseek_r1_distill_llama_8b_internal_endpoint_emits_reasoning_tokens()
             CancellationToken::new(),
             &ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
-                conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Text(
-                        "What is two plus two? Think step by step.".to_owned(),
-                    ),
-                    role: "user".to_owned(),
-                }]),
+                conversation_history: ConversationHistory::new(vec![
+                    ConversationMessage::Message {
+                        content: ConversationMessageContent::Text(
+                            "What is two plus two? Think step by step.".to_owned(),
+                        ),
+                        role: "user".to_owned(),
+                    },
+                ]),
                 enable_thinking: true,
                 grammar: None,
                 max_tokens: NonZeroU32::new(400).unwrap(),

@@ -50,10 +50,14 @@ async fn agent_generates_with_a_model_that_declares_no_bos_token() {
             CancellationToken::new(),
             &ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
-                conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Text("Name a primary color.".to_owned()),
-                    role: "user".to_owned(),
-                }]),
+                conversation_history: ConversationHistory::new(vec![
+                    ConversationMessage::Message {
+                        content: ConversationMessageContent::Text(
+                            "Name a primary color.".to_owned(),
+                        ),
+                        role: "user".to_owned(),
+                    },
+                ]),
                 enable_thinking: false,
                 grammar: None,
                 max_tokens: NonZeroU32::MIN,

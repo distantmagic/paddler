@@ -20,13 +20,13 @@ async fn qwen35_with_system_message_completes_with_thinking_enabled() {
         .expect("the cluster must start");
 
     let conversation_history = ConversationHistory::new(vec![
-        ConversationMessage {
+        ConversationMessage::Message {
             content: ConversationMessageContent::Text(
                 "You are a focused web crawler assistant. Your only job is to decide which links to follow to discover more relevant pages. Respond with JSON only.".to_owned(),
             ),
             role: "system".to_owned(),
         },
-        ConversationMessage {
+        ConversationMessage::Message {
             content: ConversationMessageContent::Text(
                 "Goal: \"find all PDF reports\"\n\nPage: https://example.com/reports\n\nFollowable links:\n[0] [Navigation] \"Home\" → /home\n[1] [PrimaryListing] \"Annual Report 2024\" → /reports/annual-2024.pdf\n[2] [PrimaryListing] \"Q3 Financial Summary\" → /reports/q3-summary.pdf\n[3] [Navigation] \"Next Page\" → /reports?page=2".to_owned(),
             ),

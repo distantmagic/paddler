@@ -3733,6 +3733,7 @@ dependencies = [
  "paddler_messaging",
  "paddler_model_source",
  "paddler_openai_response_format_validator",
+ "paddler_openai_translation",
  "paddler_state_database",
  "paddler_tcp_buffer_limits",
  "paddler_test_cluster_harness",

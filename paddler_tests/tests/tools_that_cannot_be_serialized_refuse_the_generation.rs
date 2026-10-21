@@ -42,10 +42,12 @@ fn tools_that_cannot_be_serialized_refuse_the_generation() {
         TextGenerationRequest::ContinueFromConversationHistory(AgentRequest {
             params: ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
-                conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Text("Hello".to_owned()),
-                    role: "user".to_owned(),
-                }]),
+                conversation_history: ConversationHistory::new(vec![
+                    ConversationMessage::Message {
+                        content: ConversationMessageContent::Text("Hello".to_owned()),
+                        role: "user".to_owned(),
+                    },
+                ]),
                 enable_thinking: false,
                 grammar: None,
                 max_tokens: NonZeroU32::MIN,

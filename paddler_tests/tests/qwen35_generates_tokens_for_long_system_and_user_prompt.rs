@@ -64,11 +64,11 @@ async fn qwen35_generates_tokens_for_long_system_and_user_prompt() {
     );
 
     let conversation_history = ConversationHistory::new(vec![
-        ConversationMessage {
+        ConversationMessage::Message {
             content: ConversationMessageContent::Text(system_prompt.to_owned()),
             role: "system".to_owned(),
         },
-        ConversationMessage {
+        ConversationMessage::Message {
             content: ConversationMessageContent::Text(user_prompt),
             role: "user".to_owned(),
         },

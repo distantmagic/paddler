@@ -53,9 +53,13 @@ impl OpenAIFailure {
                 cause: GenerationFailureCause::InvalidRequest,
                 ..
             })
-            | Self::RequestUntranslatable(OpenAITranslationError::ToolRejected(_)) => {
-                StatusCode::BAD_REQUEST
-            }
+            | Self::RequestUntranslatable(
+                OpenAITranslationError::MessageWithoutContent { .. }
+                | OpenAITranslationError::ToolCallArgumentsAreNotAJsonObject { .. }
+                | OpenAITranslationError::ToolCallsOnNonAssistantMessage { .. }
+                | OpenAITranslationError::ToolRejected(_)
+                | OpenAITranslationError::ToolResultWithoutToolCallId,
+            ) => StatusCode::BAD_REQUEST,
             Self::Generation(GenerationFailure {
                 cause: GenerationFailureCause::Unavailable,
                 ..
@@ -79,8 +83,10 @@ mod tests {
 
     use actix_web::body::to_bytes;
     use actix_web::http::StatusCode;
+    use serde_json::Map;
     use serde_json::Value;
     use serde_json::from_slice;
+    use serde_json::from_str;
     use serde_json::json;
 
     use paddler_messaging::request_params_validation_error::RequestParamsValidationError;
@@ -140,6 +146,53 @@ mod tests {
                 StatusCode::BAD_REQUEST,
                 error_body(
                     "Required field 'absent' not found in properties",
+                    "invalid_request_error",
+                ),
+            ),
+            (
+                OpenAIFailure::RequestUntranslatable(
+                    OpenAITranslationError::MessageWithoutContent {
+                        role: "user".to_owned(),
+                    },
+                ),
+                StatusCode::BAD_REQUEST,
+                error_body(
+                    "a 'user' message must have content",
+                    "invalid_request_error",
+                ),
+            ),
+            (
+                OpenAIFailure::RequestUntranslatable(
+                    OpenAITranslationError::ToolCallArgumentsAreNotAJsonObject {
+                        tool_call_id: "call_0".to_owned(),
+                        source: from_str::<Map<String, Value>>("[]").unwrap_err(),
+                    },
+                ),
+                StatusCode::BAD_REQUEST,
+                error_body(
+                    "the arguments of the tool call 'call_0' are not a JSON object",
+                    "invalid_request_error",
+                ),
+            ),
+            (
+                OpenAIFailure::RequestUntranslatable(
+                    OpenAITranslationError::ToolCallsOnNonAssistantMessage {
+                        role: "user".to_owned(),
+                    },
+                ),
+                StatusCode::BAD_REQUEST,
+                error_body(
+                    "only an assistant message can request tool calls, not a 'user' message",
+                    "invalid_request_error",
+                ),
+            ),
+            (
+                OpenAIFailure::RequestUntranslatable(
+                    OpenAITranslationError::ToolResultWithoutToolCallId,
+                ),
+                StatusCode::BAD_REQUEST,
+                error_body(
+                    "a tool message must name the tool call it answers in 'tool_call_id'",
                     "invalid_request_error",
                 ),
             ),

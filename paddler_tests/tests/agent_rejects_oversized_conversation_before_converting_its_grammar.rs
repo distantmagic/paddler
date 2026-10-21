@@ -30,10 +30,12 @@ async fn agent_rejects_oversized_conversation_before_converting_its_grammar() {
             CancellationToken::new(),
             &ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
-                conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Text(oversized_text()),
-                    role: "user".to_owned(),
-                }]),
+                conversation_history: ConversationHistory::new(vec![
+                    ConversationMessage::Message {
+                        content: ConversationMessageContent::Text(oversized_text()),
+                        role: "user".to_owned(),
+                    },
+                ]),
                 enable_thinking: false,
                 grammar: Some(GrammarConstraint::JsonSchema {
                     schema: "not a json schema".to_owned(),

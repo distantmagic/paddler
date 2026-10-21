@@ -75,7 +75,7 @@ mod tests {
     }
 
     fn image_then_text_conversation(renderer: &ChatPromptRenderer) -> ChatTemplateConversation {
-        ConversationHistory::new(vec![ConversationMessage {
+        ConversationHistory::new(vec![ConversationMessage::Message {
             content: ConversationMessageContent::Parts(vec![
                 ConversationMessageContentPart::ImageUrl {
                     image_url: ImageUrl {

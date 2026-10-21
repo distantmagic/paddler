@@ -27,10 +27,12 @@ async fn agent_reports_independent_usage_for_concurrent_requests() {
             CancellationToken::new(),
             &ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
-                conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Text("Count.".to_owned()),
-                    role: "user".to_owned(),
-                }]),
+                conversation_history: ConversationHistory::new(vec![
+                    ConversationMessage::Message {
+                        content: ConversationMessageContent::Text("Count.".to_owned()),
+                        role: "user".to_owned(),
+                    },
+                ]),
                 enable_thinking: false,
                 grammar: Some(gbnf_literal(forced_reply)),
                 max_tokens: NonZeroU32::new(30).unwrap(),

@@ -38,7 +38,7 @@ async fn half_closed_client_stops_conversation_history_generation_before_max_tok
     let params: ContinueFromConversationHistoryParams<RawParametersSchema> =
         ContinueFromConversationHistoryParams {
             add_generation_prompt: true,
-            conversation_history: ConversationHistory::new(vec![ConversationMessage {
+            conversation_history: ConversationHistory::new(vec![ConversationMessage::Message {
                 content: ConversationMessageContent::Text(
                     "Write a very long story about a dragon".to_owned(),
                 ),

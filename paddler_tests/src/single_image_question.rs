@@ -27,7 +27,7 @@ impl SingleImageQuestion {
 
         ContinueFromConversationHistoryParams {
             add_generation_prompt: true,
-            conversation_history: ConversationHistory::new(vec![ConversationMessage {
+            conversation_history: ConversationHistory::new(vec![ConversationMessage::Message {
                 content: ConversationMessageContent::Parts(vec![
                     ConversationMessageContentPart::ImageUrl {
                         image_url: ImageUrl {

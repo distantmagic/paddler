@@ -2,7 +2,8 @@ use llama_cpp_bindings_types::ParsedToolCall;
 use serde::Serialize;
 use serde::Serializer;
 
-use crate::assistant_role::ASSISTANT_ROLE;
+use paddler_messaging::assistant_role::ASSISTANT_ROLE;
+
 use crate::chat_completion_tool_call::ChatCompletionToolCall;
 
 #[derive(Serialize)]

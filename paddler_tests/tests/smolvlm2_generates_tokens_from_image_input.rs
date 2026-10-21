@@ -24,7 +24,7 @@ async fn smolvlm2_generates_tokens_from_image_input() {
 
     let image_data_uri = load_test_image_data_uri().expect("the test image must load");
 
-    let conversation_history = ConversationHistory::new(vec![ConversationMessage {
+    let conversation_history = ConversationHistory::new(vec![ConversationMessage::Message {
         content: ConversationMessageContent::Parts(vec![
             ConversationMessageContentPart::ImageUrl {
                 image_url: ImageUrl {

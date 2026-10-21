@@ -36,20 +36,22 @@ async fn agent_rejects_gemma_3_image_exceeding_the_micro_batch() {
             CancellationToken::new(),
             &ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
-                conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Parts(vec![
-                        ConversationMessageContentPart::ImageUrl {
-                            image_url: ImageUrl {
-                                url: load_fixture_data_uri("sarnow.jpeg", "image/jpeg")
-                                    .expect("the test fixture must load"),
+                conversation_history: ConversationHistory::new(vec![
+                    ConversationMessage::Message {
+                        content: ConversationMessageContent::Parts(vec![
+                            ConversationMessageContentPart::ImageUrl {
+                                image_url: ImageUrl {
+                                    url: load_fixture_data_uri("sarnow.jpeg", "image/jpeg")
+                                        .expect("the test fixture must load"),
+                                },
                             },
-                        },
-                        ConversationMessageContentPart::Text {
-                            text: "Describe this image.".to_owned(),
-                        },
-                    ]),
-                    role: "user".to_owned(),
-                }]),
+                            ConversationMessageContentPart::Text {
+                                text: "Describe this image.".to_owned(),
+                            },
+                        ]),
+                        role: "user".to_owned(),
+                    },
+                ]),
                 enable_thinking: false,
                 grammar: None,
                 max_tokens: MAX_TOKENS,

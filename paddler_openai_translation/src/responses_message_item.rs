@@ -21,7 +21,7 @@ pub struct ResponsesMessageItem {
 impl ResponsesMessageItem {
     #[must_use]
     pub fn into_conversation_message(self) -> ConversationMessage {
-        ConversationMessage {
+        ConversationMessage::Message {
             content: self.content.into_conversation_content(),
             role: normalize_role(self.role),
         }

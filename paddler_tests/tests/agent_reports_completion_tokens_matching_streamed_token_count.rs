@@ -25,10 +25,14 @@ async fn agent_reports_completion_tokens_matching_streamed_token_count() {
             CancellationToken::new(),
             &ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
-                conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Text("Tell me a long story.".to_owned()),
-                    role: "user".to_owned(),
-                }]),
+                conversation_history: ConversationHistory::new(vec![
+                    ConversationMessage::Message {
+                        content: ConversationMessageContent::Text(
+                            "Tell me a long story.".to_owned(),
+                        ),
+                        role: "user".to_owned(),
+                    },
+                ]),
                 enable_thinking: false,
                 grammar: Some(unending_grammar()),
                 max_tokens: MAX_TOKENS,

@@ -34,18 +34,20 @@ async fn agent_rejects_image_prompt_exceeding_sequence_context() {
             CancellationToken::new(),
             &ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
-                conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Parts(vec![
-                        ConversationMessageContentPart::ImageUrl {
-                            image_url: image_url.clone(),
-                        },
-                        ConversationMessageContentPart::ImageUrl { image_url },
-                        ConversationMessageContentPart::Text {
-                            text: "Compare these images.".to_owned(),
-                        },
-                    ]),
-                    role: "user".to_owned(),
-                }]),
+                conversation_history: ConversationHistory::new(vec![
+                    ConversationMessage::Message {
+                        content: ConversationMessageContent::Parts(vec![
+                            ConversationMessageContentPart::ImageUrl {
+                                image_url: image_url.clone(),
+                            },
+                            ConversationMessageContentPart::ImageUrl { image_url },
+                            ConversationMessageContentPart::Text {
+                                text: "Compare these images.".to_owned(),
+                            },
+                        ]),
+                        role: "user".to_owned(),
+                    },
+                ]),
                 enable_thinking: false,
                 grammar: None,
                 max_tokens: NonZeroU32::new(20).unwrap(),

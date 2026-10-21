@@ -23,10 +23,12 @@ async fn agent_reports_only_content_tokens_in_usage_for_plain_content() {
             CancellationToken::new(),
             &ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
-                conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Text("Say hello.".to_owned()),
-                    role: "user".to_owned(),
-                }]),
+                conversation_history: ConversationHistory::new(vec![
+                    ConversationMessage::Message {
+                        content: ConversationMessageContent::Text("Say hello.".to_owned()),
+                        role: "user".to_owned(),
+                    },
+                ]),
                 enable_thinking: false,
                 grammar: Some(gbnf_literal("Hello there, nice to meet you.")),
                 max_tokens: NonZeroU32::new(60).unwrap(),

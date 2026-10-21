@@ -15,7 +15,7 @@ use paddler_test_cluster_harness::token_result_with_producer::TokenResultWithPro
 use paddler_tests::start_cluster_with_qwen3::start_cluster_with_qwen3;
 
 fn user_message(text: &str) -> ConversationMessage {
-    ConversationMessage {
+    ConversationMessage::Message {
         content: ConversationMessageContent::Text(text.to_owned()),
         role: "user".to_owned(),
     }

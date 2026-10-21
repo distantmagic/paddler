@@ -20,19 +20,19 @@ async fn qwen35_thinking_multi_turn_conversation_stops_cleanly() {
         .expect("the cluster must start");
 
     let conversation_history = ConversationHistory::new(vec![
-        ConversationMessage {
+        ConversationMessage::Message {
             content: ConversationMessageContent::Text(
                 "You are a helpful assistant. Give engaging, short, precise answers. Be friendly, supportive, use emojis.".to_owned(),
             ),
             role: "system".to_owned(),
         },
-        ConversationMessage {
+        ConversationMessage::Message {
             content: ConversationMessageContent::Text(
                 "Hello! How can I help you today?".to_owned(),
             ),
             role: "assistant".to_owned(),
         },
-        ConversationMessage {
+        ConversationMessage::Message {
             content: ConversationMessageContent::Text("hi".to_owned()),
             role: "user".to_owned(),
         },

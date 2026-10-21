@@ -24,10 +24,12 @@ async fn qwen35_thinking_mode_stops_cleanly_before_max_tokens() {
             CancellationToken::new(),
             &ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
-                conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Text("What is 2+2?".to_owned()),
-                    role: "user".to_owned(),
-                }]),
+                conversation_history: ConversationHistory::new(vec![
+                    ConversationMessage::Message {
+                        content: ConversationMessageContent::Text("What is 2+2?".to_owned()),
+                        role: "user".to_owned(),
+                    },
+                ]),
                 enable_thinking: true,
                 grammar: None,
                 max_tokens: NonZeroU32::new(2000).unwrap(),

@@ -1,9 +1,10 @@
 use serde::Deserialize;
 
-use paddler_messaging::conversation_message::ConversationMessage;
+use paddler_messaging::conversation_tool_call::ConversationToolCall;
 
 use crate::chat_completion_requested_function::ChatCompletionRequestedFunction;
-use crate::tool_call_conversation_message::tool_call_conversation_message;
+use crate::conversation_tool_call_from_arguments::conversation_tool_call_from_arguments;
+use crate::openai_translation_error::OpenAITranslationError;
 
 #[derive(Deserialize)]
 pub struct ChatCompletionRequestedToolCall {
@@ -12,8 +13,14 @@ pub struct ChatCompletionRequestedToolCall {
 }
 
 impl ChatCompletionRequestedToolCall {
-    #[must_use]
-    pub fn into_conversation_message(self) -> ConversationMessage {
-        tool_call_conversation_message(&self.id, &self.function.name, &self.function.arguments)
+    pub fn into_conversation_tool_call(
+        self,
+    ) -> Result<ConversationToolCall, OpenAITranslationError> {
+        let Self {
+            function: ChatCompletionRequestedFunction { arguments, name },
+            id,
+        } = self;
+
+        conversation_tool_call_from_arguments(id, name, &arguments)
     }
 }

@@ -27,12 +27,14 @@ async fn balancer_serves_a_conversation_over_websocket() {
                 CancellationToken::new(),
                 ContinueFromConversationHistoryParams {
                     add_generation_prompt: true,
-                    conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                        content: ConversationMessageContent::Text(
-                            "What is the capital of France?".to_owned(),
-                        ),
-                        role: "user".to_owned(),
-                    }]),
+                    conversation_history: ConversationHistory::new(vec![
+                        ConversationMessage::Message {
+                            content: ConversationMessageContent::Text(
+                                "What is the capital of France?".to_owned(),
+                            ),
+                            role: "user".to_owned(),
+                        },
+                    ]),
                     enable_thinking: false,
                     grammar: None,
                     max_tokens: NonZeroU32::new(MAX_TOKENS).expect("the token budget is non-zero"),

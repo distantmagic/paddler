@@ -25,8 +25,8 @@ export function usePrompt({
         body: {
           add_generation_prompt: true,
           conversation_history: [
-            { role: "assistant", content: systemPrompt },
-            { role: "user", content: prompt },
+            { Message: { role: "assistant", content: systemPrompt } },
+            { Message: { role: "user", content: prompt } },
           ],
           enable_thinking: false,
           max_tokens: 300,

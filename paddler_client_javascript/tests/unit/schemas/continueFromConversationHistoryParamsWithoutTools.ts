@@ -3,7 +3,7 @@ import type { ContinueFromConversationHistoryParams } from "../../../src/schemas
 export const continueFromConversationHistoryParamsWithoutTools: ContinueFromConversationHistoryParams =
   {
     add_generation_prompt: true,
-    conversation_history: [{ content: "Hello!", role: "user" }],
+    conversation_history: [{ Message: { content: "Hello!", role: "user" } }],
     enable_thinking: false,
     max_tokens: 100,
     parse_tool_calls: true,

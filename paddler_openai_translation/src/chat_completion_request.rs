@@ -65,6 +65,10 @@ impl ChatCompletionRequest {
             .map(ChatCompletionTool::into_tool)
             .map(Validates::validate)
             .collect::<Result<Vec<_>, _>>()?;
+        let conversation_messages = messages
+            .into_iter()
+            .map(ChatCompletionMessage::into_conversation_message)
+            .collect::<Result<Vec<_>, _>>()?;
         let header = ChatCompletionHeader {
             created: timestamp_from(now)?,
             model,
@@ -73,12 +77,7 @@ impl ChatCompletionRequest {
         Ok(TranslatedChatCompletionRequest {
             conversation_history_params: ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
-                conversation_history: ConversationHistory::new(
-                    messages
-                        .into_iter()
-                        .flat_map(ChatCompletionMessage::into_conversation_messages)
-                        .collect(),
-                ),
+                conversation_history: ConversationHistory::new(conversation_messages),
                 enable_thinking,
                 grammar: None,
                 max_tokens,
@@ -111,6 +110,9 @@ mod tests {
     use serde_json::json;
 
     use paddler_messaging::conversation_message::ConversationMessage;
+    use paddler_messaging::conversation_message_content::ConversationMessageContent;
+    use paddler_messaging::conversation_message_content_part::ConversationMessageContentPart;
+    use paddler_messaging::image_url::ImageUrl;
 
     use super::ChatCompletionRequest;
     use crate::chat_completion_message::ChatCompletionMessage;
@@ -119,8 +121,9 @@ mod tests {
         request
             .messages
             .into_iter()
-            .flat_map(ChatCompletionMessage::into_conversation_messages)
-            .collect()
+            .map(ChatCompletionMessage::into_conversation_message)
+            .collect::<Result<_, _>>()
+            .unwrap()
     }
 
     fn request_with_token_limits(token_limits: &Value) -> ChatCompletionRequest {
@@ -171,12 +174,13 @@ mod tests {
         let params: ChatCompletionRequest = from_value(input).unwrap();
 
         assert_eq!(params.model, "test-model");
-
-        let conversation_messages = conversation_messages_of(params);
-
-        assert_eq!(conversation_messages.len(), 1);
-        assert_eq!(conversation_messages[0].role, "user");
-        assert_eq!(conversation_messages[0].content.text_content(), "hello");
+        assert_eq!(
+            conversation_messages_of(params),
+            vec![ConversationMessage::Message {
+                content: ConversationMessageContent::Text("hello".to_owned()),
+                role: "user".to_owned(),
+            }]
+        );
     }
 
     #[test]
@@ -223,19 +227,22 @@ mod tests {
             ]
         });
 
-        let conversation_messages =
-            conversation_messages_of(from_value::<ChatCompletionRequest>(input).unwrap());
-
-        assert_eq!(conversation_messages.len(), 1);
         assert_eq!(
-            conversation_messages[0].content.text_content(),
-            "describe this image"
+            conversation_messages_of(from_value::<ChatCompletionRequest>(input).unwrap()),
+            vec![ConversationMessage::Message {
+                content: ConversationMessageContent::Parts(vec![
+                    ConversationMessageContentPart::Text {
+                        text: "describe this image".to_owned(),
+                    },
+                    ConversationMessageContentPart::ImageUrl {
+                        image_url: ImageUrl {
+                            url: "data:image/jpeg;base64,/9j/4AAQ".to_owned(),
+                        },
+                    },
+                ]),
+                role: "user".to_owned(),
+            }]
         );
-
-        let image_urls = conversation_messages[0].content.image_urls();
-
-        assert_eq!(image_urls.len(), 1);
-        assert_eq!(image_urls[0].url, "data:image/jpeg;base64,/9j/4AAQ");
     }
 
     #[test]

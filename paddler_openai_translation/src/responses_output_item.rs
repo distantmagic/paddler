@@ -1,7 +1,8 @@
 use llama_cpp_bindings_types::ParsedToolCall;
 use serde::Serialize;
 
-use crate::assistant_role::ASSISTANT_ROLE;
+use paddler_messaging::assistant_role::ASSISTANT_ROLE;
+
 use crate::responses_content_part::ResponsesContentPart;
 use crate::responses_item_status::ResponsesItemStatus;
 use crate::responses_reasoning_part::ResponsesReasoningPart;

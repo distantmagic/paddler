@@ -1,8 +1,13 @@
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::chat_template_message_content::ChatTemplateMessageContent;
+use crate::chat_template_message_content_part::ChatTemplateMessageContentPart;
 use crate::conversation_message_content_part::ConversationMessageContentPart;
 use crate::image_url::ImageUrl;
+use crate::media_marker::MediaMarker;
+
+const TEXT_CONTENT_PART_TYPE: &str = "text";
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
@@ -12,6 +17,32 @@ pub enum ConversationMessageContent {
 }
 
 impl ConversationMessageContent {
+    pub fn into_chat_template_content(
+        self,
+        media_marker: &MediaMarker,
+        image_urls: &mut Vec<ImageUrl>,
+    ) -> ChatTemplateMessageContent {
+        match self {
+            Self::Text(text) => ChatTemplateMessageContent::Text(text),
+            Self::Parts(parts) => ChatTemplateMessageContent::Parts(
+                parts
+                    .into_iter()
+                    .map(|part| ChatTemplateMessageContentPart {
+                        content_type: TEXT_CONTENT_PART_TYPE,
+                        text: match part {
+                            ConversationMessageContentPart::Text { text } => text,
+                            ConversationMessageContentPart::ImageUrl { image_url } => {
+                                image_urls.push(image_url);
+
+                                media_marker.marker.clone()
+                            }
+                        },
+                    })
+                    .collect(),
+            ),
+        }
+    }
+
     #[must_use]
     pub fn text_content(&self) -> String {
         match self {

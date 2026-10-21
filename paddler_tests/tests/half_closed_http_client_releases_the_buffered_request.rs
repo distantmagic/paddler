@@ -22,7 +22,7 @@ async fn half_closed_http_client_releases_the_buffered_request() {
     let params: ContinueFromConversationHistoryParams<RawParametersSchema> =
         ContinueFromConversationHistoryParams {
             add_generation_prompt: true,
-            conversation_history: ConversationHistory::new(vec![ConversationMessage {
+            conversation_history: ConversationHistory::new(vec![ConversationMessage::Message {
                 content: ConversationMessageContent::Text("hi".to_owned()),
                 role: "user".to_owned(),
             }]),

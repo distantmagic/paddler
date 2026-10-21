@@ -24,12 +24,14 @@ async fn capital_of_france(cluster: &Cluster) -> Result<()> {
             CancellationToken::new(),
             &ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
-                conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Text(
-                        "The capital of France is".to_owned(),
-                    ),
-                    role: "user".to_owned(),
-                }]),
+                conversation_history: ConversationHistory::new(vec![
+                    ConversationMessage::Message {
+                        content: ConversationMessageContent::Text(
+                            "The capital of France is".to_owned(),
+                        ),
+                        role: "user".to_owned(),
+                    },
+                ]),
                 enable_thinking: false,
                 grammar: None,
                 max_tokens: CAPITAL_OF_FRANCE_MAX_TOKENS,

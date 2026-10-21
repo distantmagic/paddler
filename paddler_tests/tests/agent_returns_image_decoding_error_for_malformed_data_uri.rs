@@ -25,19 +25,21 @@ async fn agent_returns_image_decoding_error_for_malformed_data_uri() {
             CancellationToken::new(),
             &ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
-                conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Parts(vec![
-                        ConversationMessageContentPart::ImageUrl {
-                            image_url: ImageUrl {
-                                url: "data:image/jpegbase64,abc123".to_owned(),
+                conversation_history: ConversationHistory::new(vec![
+                    ConversationMessage::Message {
+                        content: ConversationMessageContent::Parts(vec![
+                            ConversationMessageContentPart::ImageUrl {
+                                image_url: ImageUrl {
+                                    url: "data:image/jpegbase64,abc123".to_owned(),
+                                },
                             },
-                        },
-                        ConversationMessageContentPart::Text {
-                            text: "Describe this image".to_owned(),
-                        },
-                    ]),
-                    role: "user".to_owned(),
-                }]),
+                            ConversationMessageContentPart::Text {
+                                text: "Describe this image".to_owned(),
+                            },
+                        ]),
+                        role: "user".to_owned(),
+                    },
+                ]),
                 enable_thinking: false,
                 grammar: None,
                 max_tokens: NonZeroU32::new(20).unwrap(),
