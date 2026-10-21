@@ -1,6 +1,6 @@
-use std::mem::discriminant;
-
 use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::tungstenite::protocol::CloseFrame;
+use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 
 use paddler_test_cluster_harness::cluster_harness_error::ClusterHarnessError;
 use paddler_test_cluster_harness::cluster_params::ClusterParams;
@@ -26,17 +26,15 @@ async fn an_untrusted_agent_waiting_for_a_request_reports_the_balancer_closing_i
         .await
         .expect("the undeserializable message must be sent");
 
-    assert_eq!(
-        closed_agent
-            .next_request()
-            .await
-            .err()
-            .as_ref()
-            .map(discriminant),
-        Some(discriminant(
-            &ClusterHarnessError::AgentSocketClosedBeforeText { close_frame: None }
-        ))
-    );
+    assert!(matches!(
+        closed_agent.next_request().await.err(),
+        Some(ClusterHarnessError::AgentSocketClosedBeforeText {
+            close_frame: Some(CloseFrame {
+                code: CloseCode::Invalid,
+                ..
+            })
+        })
+    ));
 
     cluster
         .shutdown()

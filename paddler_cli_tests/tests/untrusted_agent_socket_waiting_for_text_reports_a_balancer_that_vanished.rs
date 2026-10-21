@@ -1,6 +1,7 @@
 use std::mem::discriminant;
 
 use tokio_tungstenite::tungstenite::Error as WebSocketError;
+use tokio_tungstenite::tungstenite::error::ProtocolError;
 
 use paddler_test_cluster_harness::cluster_harness_error::ClusterHarnessError;
 
@@ -10,18 +11,16 @@ use crate::agent_socket_of_a_vanished_balancer::AgentSocketOfAVanishedBalancer;
 async fn untrusted_agent_socket_waiting_for_text_reports_a_balancer_that_vanished() {
     let mut agent_socket_of_a_vanished_balancer = AgentSocketOfAVanishedBalancer::connect().await;
 
-    assert_eq!(
+    assert!(matches!(
         agent_socket_of_a_vanished_balancer
             .agent_socket
             .next_text()
             .await
-            .err()
-            .as_ref()
-            .map(discriminant),
-        Some(discriminant(
-            &ClusterHarnessError::AgentSocketReceiveFailed(WebSocketError::ConnectionClosed)
+            .err(),
+        Some(ClusterHarnessError::AgentSocketReceiveFailed(
+            WebSocketError::Protocol(ProtocolError::ResetWithoutClosingHandshake)
         ))
-    );
+    ));
     assert_eq!(
         agent_socket_of_a_vanished_balancer
             .agent_socket

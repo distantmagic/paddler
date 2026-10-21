@@ -1,5 +1,3 @@
-use std::mem::discriminant;
-
 use paddler_messaging::inference_mode::InferenceMode;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_test_cluster_harness::cluster_desired_state::ClusterDesiredState;
@@ -17,6 +15,11 @@ async fn cluster_harness_waiting_for_its_first_agent_to_serve_reports_that_the_a
     })
     .await
     .expect("a single-agent cluster must start");
+    let awaited_agent_id = cluster
+        .agent_ids
+        .first()
+        .expect("the cluster must have a registered agent")
+        .clone();
 
     cluster
         .agents
@@ -26,17 +29,13 @@ async fn cluster_harness_waiting_for_its_first_agent_to_serve_reports_that_the_a
         .await
         .expect("the agent must leave the pool cleanly");
 
-    assert_eq!(
+    assert!(matches!(
         cluster
             .wait_for_first_agent_to_serve(InferenceMode::TextGenerationAndEmbeddings)
             .await
-            .err()
-            .as_ref()
-            .map(discriminant),
-        Some(discriminant(&ClusterHarnessError::AgentLeftThePool {
-            agent_id: String::new()
-        }))
-    );
+            .err(),
+        Some(ClusterHarnessError::AgentLeftThePool { agent_id }) if agent_id == awaited_agent_id
+    ));
 
     cluster
         .shutdown()

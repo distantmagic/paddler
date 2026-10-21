@@ -52,6 +52,10 @@ impl Connection {
         })
     }
 
+    pub async fn disconnected(&self) {
+        self.pending.closed().await;
+    }
+
     #[must_use]
     pub fn is_disconnected(&self) -> bool {
         self.pending.is_closed()

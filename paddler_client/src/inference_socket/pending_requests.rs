@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::mem;
+use std::pin::pin;
 
 use log::debug;
 use parking_lot::Mutex;
+use tokio::sync::Notify;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedReceiver;
 
@@ -14,12 +16,15 @@ use crate::error::Result;
 use crate::inference_socket::pending_requests_state::PendingRequestsState;
 
 pub struct PendingRequests {
+    closing: Notify,
     state: Mutex<PendingRequestsState>,
 }
 
 impl PendingRequests {
     pub fn close(&self) {
         let previous_state = mem::replace(&mut *self.state.lock(), PendingRequestsState::Closed);
+
+        self.closing.notify_waiters();
 
         if let PendingRequestsState::Open(requests) = previous_state {
             for (request_id, response_tx) in requests {
@@ -32,6 +37,16 @@ impl PendingRequests {
                     debug!("Receiver already dropped for request: {request_id}");
                 }
             }
+        }
+    }
+
+    pub async fn closed(&self) {
+        let mut closing = pin!(self.closing.notified());
+
+        closing.as_mut().enable();
+
+        if !self.is_closed() {
+            closing.await;
         }
     }
 
@@ -101,6 +116,7 @@ impl PendingRequests {
 impl Default for PendingRequests {
     fn default() -> Self {
         Self {
+            closing: Notify::new(),
             state: Mutex::new(PendingRequestsState::Open(HashMap::new())),
         }
     }
@@ -108,6 +124,8 @@ impl Default for PendingRequests {
 
 #[cfg(test)]
 mod tests {
+    use futures_util::FutureExt as _;
+
     use super::PendingRequests;
     use crate::error::Error;
 
@@ -128,6 +146,15 @@ mod tests {
             awaited_request.try_recv(),
             Ok(Err(Error::ConnectionDropped { request_id })) if request_id == "awaited"
         ));
+    }
+
+    #[test]
+    fn waiting_for_an_already_closed_registry_resolves_at_once() {
+        let pending_requests = PendingRequests::default();
+
+        pending_requests.close();
+
+        assert_eq!(pending_requests.closed().now_or_never(), Some(()));
     }
 
     #[test]

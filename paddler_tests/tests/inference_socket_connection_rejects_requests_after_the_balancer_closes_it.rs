@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use tokio::task::yield_now;
+use tokio::join;
 
 use paddler_client::error::Error;
 use paddler_client::inference_socket::cluster_inference_mode_broadcaster::ClusterInferenceModeBroadcaster;
@@ -23,14 +23,12 @@ async fn inference_socket_connection_rejects_requests_after_the_balancer_closes_
     .await
     .expect("the connection to the balancer must open");
 
-    cluster
-        .shutdown()
-        .await
-        .expect("the cluster must shut down cleanly");
-
-    while !connection.is_disconnected() {
-        yield_now().await;
-    }
+    join!(connection.disconnected(), async {
+        cluster
+            .shutdown()
+            .await
+            .expect("the cluster must shut down cleanly");
+    });
 
     assert!(matches!(
         connection.send("request-after-close".to_owned(), "{}".to_owned()),
