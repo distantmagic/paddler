@@ -25,7 +25,6 @@ fn provider_config(api_base_url: &Url) -> Value {
     json!({
         "$schema": "https://opencode.ai/config.json",
         "model": format!("paddler/{MODEL_ID}"),
-        "permissions": [{ "action": "execute", "resource": "*", "effect": "deny" }],
         "providers": {
             "paddler": {
                 "name": "Paddler",
@@ -124,7 +123,6 @@ mod tests {
             json!({
                 "$schema": "https://opencode.ai/config.json",
                 "model": "paddler/paddler-opencode-test",
-                "permissions": [{ "action": "execute", "resource": "*", "effect": "deny" }],
                 "providers": {
                     "paddler": {
                         "name": "Paddler",

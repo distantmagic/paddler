@@ -76,7 +76,7 @@ impl ChatCompletionRequest {
                 conversation_history: ConversationHistory::new(
                     messages
                         .into_iter()
-                        .map(ChatCompletionMessage::into_conversation_message)
+                        .flat_map(ChatCompletionMessage::into_conversation_messages)
                         .collect(),
                 ),
                 enable_thinking,
@@ -110,7 +110,18 @@ mod tests {
     use serde_json::from_value;
     use serde_json::json;
 
+    use paddler_messaging::conversation_message::ConversationMessage;
+
     use super::ChatCompletionRequest;
+    use crate::chat_completion_message::ChatCompletionMessage;
+
+    fn conversation_messages_of(request: ChatCompletionRequest) -> Vec<ConversationMessage> {
+        request
+            .messages
+            .into_iter()
+            .flat_map(ChatCompletionMessage::into_conversation_messages)
+            .collect()
+    }
 
     fn request_with_token_limits(token_limits: &Value) -> ChatCompletionRequest {
         let mut input = json!({
@@ -160,9 +171,12 @@ mod tests {
         let params: ChatCompletionRequest = from_value(input).unwrap();
 
         assert_eq!(params.model, "test-model");
-        assert_eq!(params.messages.len(), 1);
-        assert_eq!(params.messages[0].role, "user");
-        assert_eq!(params.messages[0].content.text_content(), "hello");
+
+        let conversation_messages = conversation_messages_of(params);
+
+        assert_eq!(conversation_messages.len(), 1);
+        assert_eq!(conversation_messages[0].role, "user");
+        assert_eq!(conversation_messages[0].content.text_content(), "hello");
     }
 
     #[test]
@@ -209,15 +223,16 @@ mod tests {
             ]
         });
 
-        let params: ChatCompletionRequest = from_value(input).unwrap();
+        let conversation_messages =
+            conversation_messages_of(from_value::<ChatCompletionRequest>(input).unwrap());
 
-        assert_eq!(params.messages.len(), 1);
+        assert_eq!(conversation_messages.len(), 1);
         assert_eq!(
-            params.messages[0].content.text_content(),
+            conversation_messages[0].content.text_content(),
             "describe this image"
         );
 
-        let image_urls = params.messages[0].content.image_urls();
+        let image_urls = conversation_messages[0].content.image_urls();
 
         assert_eq!(image_urls.len(), 1);
         assert_eq!(image_urls[0].url, "data:image/jpeg;base64,/9j/4AAQ");
