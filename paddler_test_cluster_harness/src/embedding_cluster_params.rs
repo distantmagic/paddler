@@ -9,6 +9,7 @@ use crate::agent_config::AgentConfig;
 use crate::cluster_desired_state::ClusterDesiredState;
 use crate::cluster_params::ClusterParams;
 use crate::longer_than_any_test_run::LONGER_THAN_ANY_TEST_RUN;
+use crate::model_card::ModelCard;
 use crate::model_card::nomic_embed_text_v1_5::nomic_embed_text_v1_5;
 
 pub struct EmbeddingClusterParams {
@@ -16,6 +17,7 @@ pub struct EmbeddingClusterParams {
     pub buffered_request_timeout: Duration,
     pub embedding_parameters: EmbeddingParameters,
     pub max_buffered_requests: u64,
+    pub model_card: ModelCard,
     pub model_runtime_parameters: ModelRuntimeParameters,
 }
 
@@ -27,6 +29,7 @@ impl EmbeddingClusterParams {
             buffered_request_timeout,
             embedding_parameters,
             max_buffered_requests,
+            model_card,
             model_runtime_parameters,
         } = self;
 
@@ -38,8 +41,7 @@ impl EmbeddingClusterParams {
                     n_gpu_layers: ALL_GPU_LAYERS,
                     ..model_runtime_parameters
                 },
-                ..nomic_embed_text_v1_5()
-                    .into_desired_state_with_embedding_parameters(embedding_parameters)
+                ..model_card.into_desired_state_with_embedding_parameters(embedding_parameters)
             })),
             max_buffered_requests,
             wait_for_slots_ready: true,
@@ -55,6 +57,7 @@ impl Default for EmbeddingClusterParams {
             buffered_request_timeout: LONGER_THAN_ANY_TEST_RUN,
             embedding_parameters: EmbeddingParameters::default(),
             max_buffered_requests: 10,
+            model_card: nomic_embed_text_v1_5(),
             model_runtime_parameters: ModelRuntimeParameters::default(),
         }
     }

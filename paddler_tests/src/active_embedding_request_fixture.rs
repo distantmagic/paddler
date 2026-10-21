@@ -33,7 +33,7 @@ impl ActiveEmbeddingRequestFixture {
                 generated_embedding_tx,
                 inputs,
                 normalization_method: EmbeddingNormalizationMethod::None,
-                oversized_documents: Vec::new(),
+                unembeddable_documents: Vec::new(),
                 slot_guard: SlotGuard::new(slot_aggregated_status, reserved_slots),
             }
             .admit(None)

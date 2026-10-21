@@ -16,6 +16,6 @@ pub mod embedding_scheduler_context;
 pub mod next_embedding_batch;
 pub mod normalization;
 pub mod normalizes_embedding;
-pub mod oversized_embedding_document;
 pub mod prepared_embedding_batch_request;
 pub mod sequence_context_limit;
+pub mod unembeddable_embedding_document;

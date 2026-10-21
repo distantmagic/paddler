@@ -21,6 +21,7 @@ pub async fn collect_embedding_results(
     let mut failures: Vec<EmbeddingResult> = Vec::new();
     let mut no_embeddings_produced_count: usize = 0;
     let mut documents_exceeding_sequence_context = Vec::new();
+    let mut documents_tokenized_to_nothing = Vec::new();
     let mut oversized_documents = Vec::new();
     let mut request_ids = BTreeSet::new();
     let mut saw_done = false;
@@ -53,6 +54,9 @@ pub async fn collect_embedding_results(
                     EmbeddingResult::DocumentExceedsSequenceContext(details) => {
                         documents_exceeding_sequence_context.push(details);
                     }
+                    EmbeddingResult::DocumentTokenizedToNothing(details) => {
+                        documents_tokenized_to_nothing.push(details);
+                    }
                     failure @ (EmbeddingResult::AgentRuntimeFailed(_)
                     | EmbeddingResult::BatchAssemblyFailed(_)
                     | EmbeddingResult::DecodeFailed(_)
@@ -83,6 +87,7 @@ pub async fn collect_embedding_results(
 
     Ok(CollectedEmbeddingResults {
         documents_exceeding_sequence_context,
+        documents_tokenized_to_nothing,
         embeddings,
         failures,
         no_embeddings_produced_count,

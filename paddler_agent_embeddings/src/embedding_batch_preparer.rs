@@ -5,15 +5,16 @@ use paddler_agent_runtime::agent_request::AgentRequest;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
 use paddler_agent_runtime::prepares_scheduler_command::PreparesSchedulerCommand;
 use paddler_messaging::embedding_document_exceeding_sequence_context_details::EmbeddingDocumentExceedingSequenceContextDetails;
+use paddler_messaging::embedding_document_tokenized_to_nothing_details::EmbeddingDocumentTokenizedToNothingDetails;
 use paddler_messaging::embedding_result::EmbeddingResult;
 use paddler_messaging::oversized_embedding_document_details::OversizedEmbeddingDocumentDetails;
 use paddler_messaging::request_params::generate_embedding_batch_params::GenerateEmbeddingBatchParams;
 
 use crate::embedding_error::EmbeddingError;
 use crate::embedding_input_tokenized::EmbeddingInputTokenized;
-use crate::oversized_embedding_document::OversizedEmbeddingDocument;
 use crate::prepared_embedding_batch_request::PreparedEmbeddingBatchRequest;
 use crate::sequence_context_limit::SequenceContextLimit;
+use crate::unembeddable_embedding_document::UnembeddableEmbeddingDocument;
 
 pub struct EmbeddingBatchPreparer {
     pub loaded_llama_model: LoadedLlamaModel,
@@ -36,7 +37,7 @@ impl EmbeddingBatchPreparer {
         }: AgentRequest<GenerateEmbeddingBatchParams, EmbeddingResult>,
     ) -> Result<PreparedEmbeddingBatchRequest, EmbeddingError> {
         let mut inputs = Vec::with_capacity(input_batch.len());
-        let mut oversized_documents = Vec::new();
+        let mut unembeddable_documents = Vec::new();
 
         for input in input_batch {
             let tokens = self
@@ -50,8 +51,14 @@ impl EmbeddingBatchPreparer {
 
             let document_tokens = tokens.len();
 
-            if document_tokens > self.n_batch {
-                oversized_documents.push(OversizedEmbeddingDocument::ExceedsBatchSize(
+            if tokens.is_empty() {
+                unembeddable_documents.push(UnembeddableEmbeddingDocument::TokenizedToNothing(
+                    EmbeddingDocumentTokenizedToNothingDetails {
+                        source_document_id: input.id,
+                    },
+                ));
+            } else if document_tokens > self.n_batch {
+                unembeddable_documents.push(UnembeddableEmbeddingDocument::ExceedsBatchSize(
                     OversizedEmbeddingDocumentDetails {
                         document_tokens,
                         n_batch: self.n_batch,
@@ -62,7 +69,7 @@ impl EmbeddingBatchPreparer {
                 self.sequence_context_limit
                 && document_tokens > sequence_context_size
             {
-                oversized_documents.push(OversizedEmbeddingDocument::ExceedsSequenceContext(
+                unembeddable_documents.push(UnembeddableEmbeddingDocument::ExceedsSequenceContext(
                     EmbeddingDocumentExceedingSequenceContextDetails {
                         document_tokens,
                         sequence_context_size,
@@ -82,7 +89,7 @@ impl EmbeddingBatchPreparer {
             generated_embedding_tx,
             inputs,
             normalization_method,
-            oversized_documents,
+            unembeddable_documents,
             slot_guard,
         })
     }

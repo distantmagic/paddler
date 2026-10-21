@@ -35,6 +35,7 @@ pub mod decision_summary;
 pub mod embedded_chat_template_key;
 pub mod embedding;
 pub mod embedding_document_exceeding_sequence_context_details;
+pub mod embedding_document_tokenized_to_nothing_details;
 pub mod embedding_final_result;
 pub mod embedding_input_document;
 pub mod embedding_normalization_method;

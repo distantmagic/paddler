@@ -3,6 +3,7 @@ use std::iter::once;
 
 use paddler_messaging::embedding::Embedding;
 use paddler_messaging::embedding_document_exceeding_sequence_context_details::EmbeddingDocumentExceedingSequenceContextDetails;
+use paddler_messaging::embedding_document_tokenized_to_nothing_details::EmbeddingDocumentTokenizedToNothingDetails;
 use paddler_messaging::embedding_result::EmbeddingResult;
 use paddler_messaging::inference_client::message::Message as OutgoingMessage;
 use paddler_messaging::inference_client::response::Response as OutgoingResponse;
@@ -75,6 +76,16 @@ impl EmbeddingDocumentDuplicates {
                     )
                 })
                 .collect(),
+            EmbeddingResult::DocumentTokenizedToNothing(empty_document) => self
+                .duplicates_of(&empty_document.source_document_id)
+                .map(|duplicate_document_id| {
+                    EmbeddingResult::DocumentTokenizedToNothing(
+                        EmbeddingDocumentTokenizedToNothingDetails {
+                            source_document_id: duplicate_document_id.clone(),
+                        },
+                    )
+                })
+                .collect(),
             EmbeddingResult::Embedding(embedding) => self
                 .duplicates_of(&embedding.source_document_id)
                 .map(|duplicate_document_id| {
@@ -107,6 +118,7 @@ mod tests {
     use paddler_inference_parameters::pooling_type::PoolingType;
     use paddler_messaging::embedding::Embedding;
     use paddler_messaging::embedding_document_exceeding_sequence_context_details::EmbeddingDocumentExceedingSequenceContextDetails;
+    use paddler_messaging::embedding_document_tokenized_to_nothing_details::EmbeddingDocumentTokenizedToNothingDetails;
     use paddler_messaging::embedding_normalization_method::EmbeddingNormalizationMethod;
     use paddler_messaging::embedding_result::EmbeddingResult;
     use paddler_messaging::embedding_vector::EmbeddingVector;
@@ -163,6 +175,12 @@ mod tests {
         )
     }
 
+    fn document_tokenized_to_nothing(source_document_id: &str) -> EmbeddingResult {
+        EmbeddingResult::DocumentTokenizedToNothing(EmbeddingDocumentTokenizedToNothingDetails {
+            source_document_id: source_document_id.to_owned(),
+        })
+    }
+
     fn serialized(messages: &[OutgoingMessage]) -> Vec<String> {
         messages
             .iter()
@@ -209,6 +227,21 @@ mod tests {
                 embedding_response(document_exceeding_sequence_context("first")),
                 embedding_response(document_exceeding_sequence_context("second")),
                 embedding_response(document_exceeding_sequence_context("third")),
+            ])
+        );
+    }
+
+    #[test]
+    fn fans_a_document_tokenized_to_nothing_out_to_every_document_sharing_its_content() {
+        assert_eq!(
+            serialized(
+                &duplicates_of_first_document()
+                    .fan_out(embedding_response(document_tokenized_to_nothing("first")))
+            ),
+            serialized(&[
+                embedding_response(document_tokenized_to_nothing("first")),
+                embedding_response(document_tokenized_to_nothing("second")),
+                embedding_response(document_tokenized_to_nothing("third")),
             ])
         );
     }

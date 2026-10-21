@@ -3,6 +3,7 @@ use serde::Serialize;
 
 use crate::embedding::Embedding;
 use crate::embedding_document_exceeding_sequence_context_details::EmbeddingDocumentExceedingSequenceContextDetails;
+use crate::embedding_document_tokenized_to_nothing_details::EmbeddingDocumentTokenizedToNothingDetails;
 use crate::embedding_final_result::EmbeddingFinalResult;
 use crate::embedding_partial_result::EmbeddingPartialResult;
 use crate::oversized_embedding_document_details::OversizedEmbeddingDocumentDetails;
@@ -17,6 +18,7 @@ pub enum EmbeddingResult {
     DecodeFailed(String),
     DocumentExceedsBatchSize(OversizedEmbeddingDocumentDetails),
     DocumentExceedsSequenceContext(EmbeddingDocumentExceedingSequenceContextDetails),
+    DocumentTokenizedToNothing(EmbeddingDocumentTokenizedToNothingDetails),
     Done,
     Embedding(Embedding),
     EmbeddingTooLongForRmsNormalization(String),
@@ -61,6 +63,9 @@ impl From<EmbeddingPartialResult> for EmbeddingResult {
             EmbeddingPartialResult::DocumentExceedsSequenceContext(details) => {
                 Self::DocumentExceedsSequenceContext(details)
             }
+            EmbeddingPartialResult::DocumentTokenizedToNothing(details) => {
+                Self::DocumentTokenizedToNothing(details)
+            }
             EmbeddingPartialResult::Embedding(embedding) => Self::Embedding(embedding),
         }
     }
@@ -87,6 +92,9 @@ impl StreamableResult for EmbeddingResult {
             Self::DocumentExceedsSequenceContext(details) => ResultStep::Partial(
                 EmbeddingPartialResult::DocumentExceedsSequenceContext(details),
             ),
+            Self::DocumentTokenizedToNothing(details) => {
+                ResultStep::Partial(EmbeddingPartialResult::DocumentTokenizedToNothing(details))
+            }
             Self::Done => ResultStep::Final(EmbeddingFinalResult::Done),
             Self::Embedding(embedding) => {
                 ResultStep::Partial(EmbeddingPartialResult::Embedding(embedding))
@@ -120,6 +128,7 @@ mod tests {
     use super::EmbeddingResult;
     use crate::embedding::Embedding;
     use crate::embedding_document_exceeding_sequence_context_details::EmbeddingDocumentExceedingSequenceContextDetails;
+    use crate::embedding_document_tokenized_to_nothing_details::EmbeddingDocumentTokenizedToNothingDetails;
     use crate::embedding_final_result::EmbeddingFinalResult;
     use crate::embedding_normalization_method::EmbeddingNormalizationMethod;
     use crate::embedding_partial_result::EmbeddingPartialResult;
@@ -203,6 +212,9 @@ mod tests {
                 sequence_context_size: 8192,
                 source_document_id: "long".to_owned(),
             };
+        let document_tokenized_to_nothing = EmbeddingDocumentTokenizedToNothingDetails {
+            source_document_id: "empty".to_owned(),
+        };
 
         for (per_document_result, expected_partial_result) in [
             (
@@ -216,6 +228,10 @@ mod tests {
                 EmbeddingPartialResult::DocumentExceedsSequenceContext(
                     document_exceeding_sequence_context,
                 ),
+            ),
+            (
+                EmbeddingResult::DocumentTokenizedToNothing(document_tokenized_to_nothing.clone()),
+                EmbeddingPartialResult::DocumentTokenizedToNothing(document_tokenized_to_nothing),
             ),
             (
                 EmbeddingResult::Embedding(embedding.clone()),

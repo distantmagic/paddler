@@ -10,14 +10,14 @@ use crate::active_embedding_request::ActiveEmbeddingRequest;
 use crate::embedding_error::EmbeddingError;
 use crate::embedding_input_tokenized::EmbeddingInputTokenized;
 use crate::embedding_request_continuation::EmbeddingRequestContinuation;
-use crate::oversized_embedding_document::OversizedEmbeddingDocument;
+use crate::unembeddable_embedding_document::UnembeddableEmbeddingDocument;
 
 pub struct PreparedEmbeddingBatchRequest {
     pub generate_embedding_stop_rx: mpsc::UnboundedReceiver<()>,
     pub generated_embedding_tx: mpsc::UnboundedSender<EmbeddingResult>,
     pub inputs: Vec<EmbeddingInputTokenized>,
     pub normalization_method: EmbeddingNormalizationMethod,
-    pub oversized_documents: Vec<OversizedEmbeddingDocument>,
+    pub unembeddable_documents: Vec<UnembeddableEmbeddingDocument>,
     pub slot_guard: SlotGuard,
 }
 
@@ -29,17 +29,15 @@ impl PreparedEmbeddingBatchRequest {
             generated_embedding_tx,
             inputs,
             normalization_method,
-            oversized_documents,
+            unembeddable_documents,
             slot_guard,
         } = self;
 
-        for oversized_document in oversized_documents {
-            warn!(
-                "{agent_name:?}: skipped an oversized embedding document: {oversized_document:?}"
-            );
+        for unembeddable_document in unembeddable_documents {
+            warn!("{agent_name:?}: skipped an unembeddable document: {unembeddable_document:?}");
 
             if let Err(send_error) =
-                generated_embedding_tx.send(oversized_document.into_embedding_result())
+                generated_embedding_tx.send(unembeddable_document.into_embedding_result())
             {
                 EmbeddingError::ClientDisconnected(send_error)
                     .report(agent_name, &generated_embedding_tx);
@@ -86,7 +84,7 @@ mod tests {
     use super::PreparedEmbeddingBatchRequest;
     use crate::embedding_input_tokenized::EmbeddingInputTokenized;
     use crate::embedding_request_continuation::EmbeddingRequestContinuation;
-    use crate::oversized_embedding_document::OversizedEmbeddingDocument;
+    use crate::unembeddable_embedding_document::UnembeddableEmbeddingDocument;
 
     fn oversized_document_details() -> OversizedEmbeddingDocumentDetails {
         OversizedEmbeddingDocumentDetails {
@@ -107,7 +105,7 @@ mod tests {
             generated_embedding_tx,
             inputs,
             normalization_method: EmbeddingNormalizationMethod::None,
-            oversized_documents: vec![OversizedEmbeddingDocument::ExceedsBatchSize(
+            unembeddable_documents: vec![UnembeddableEmbeddingDocument::ExceedsBatchSize(
                 oversized_document_details(),
             )],
             slot_guard: SlotGuard::new(Arc::new(SlotAggregatedStatus::new(1)), NonZeroU16::MIN),

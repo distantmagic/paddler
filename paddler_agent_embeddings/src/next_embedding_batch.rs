@@ -79,7 +79,7 @@ mod tests {
             generated_embedding_tx,
             inputs,
             normalization_method: EmbeddingNormalizationMethod::None,
-            oversized_documents: Vec::new(),
+            unembeddable_documents: Vec::new(),
             slot_guard: SlotGuard::new(
                 Arc::new(SlotAggregatedStatus::new(8)),
                 NonZeroU16::new(sequences).unwrap(),
