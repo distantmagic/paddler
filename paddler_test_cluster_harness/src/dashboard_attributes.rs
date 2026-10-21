@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::str::from_utf8;
 
 use quick_xml::Reader;
+use quick_xml::XmlVersion;
 use quick_xml::events::BytesStart;
 use quick_xml::events::Event;
 
@@ -18,7 +19,7 @@ fn attributes_of(
             let attribute =
                 attribute_result.map_err(ClusterHarnessError::DashboardAttributeMalformed)?;
             let value = attribute
-                .unescape_value()
+                .normalized_value(XmlVersion::Implicit1_0)
                 .map_err(ClusterHarnessError::DashboardAttributeValueUnreadable)?;
 
             from_utf8(attribute.key.as_ref())
