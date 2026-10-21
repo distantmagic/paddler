@@ -10,11 +10,9 @@ use paddler_tests::start_cluster::start_cluster;
 async fn reading_a_missing_state_file_changes_nothing() {
     let database = StateDatabaseFile::new().expect("the state database file must be created");
     let cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
         desired_state: ClusterDesiredState::KeepStored,
         state_database_url: database.url.clone(),
-        wait_for_slots_ready: false,
-        ..ClusterParams::default()
+        ..ClusterParams::without_agents()
     })
     .await
     .expect("the cluster must start without a state file");

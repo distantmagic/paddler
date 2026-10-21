@@ -394,6 +394,8 @@ mod qwen3_without_a_chat_template;
 mod raw_inference_socket_reports_a_socket_closed_before_any_answer;
 mod reading_a_missing_state_file_changes_nothing;
 mod reapplying_the_served_state_keeps_serving_it_without_a_restart;
+#[cfg(test)]
+mod release_half_closed_openai_request;
 mod run_with_test_cluster_exports_the_url_of_every_service;
 mod run_with_test_cluster_fails_when_its_program_fails;
 mod run_with_test_cluster_fails_without_a_temporary_directory_for_agent_models;

@@ -24,13 +24,9 @@ fn model_metadata_named(name: &str) -> ModelMetadata {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn an_agent_cannot_answer_a_request_dispatched_to_another_agent() {
-    let mut cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
-        ..ClusterParams::default()
-    })
-    .await
-    .expect("a cluster without agents must start");
+    let mut cluster = start_cluster(ClusterParams::without_agents())
+        .await
+        .expect("a cluster without agents must start");
     let management_addr = cluster.balancer.addresses.management;
     let mut answering_agent = UntrustedManagementAgent::connect_registered(
         management_addr,
@@ -52,8 +48,12 @@ async fn an_agent_cannot_answer_a_request_dispatched_to_another_agent() {
         .await
         .expect("the balancer must register both agents");
 
-    let model_metadata_answer =
-        spawn(cluster.get_model_metadata(CancellationToken::new(), ANSWERING_AGENT_ID));
+    let client_management = cluster.client_management.clone();
+    let model_metadata_answer = spawn(async move {
+        client_management
+            .get_model_metadata(CancellationToken::new(), ANSWERING_AGENT_ID)
+            .await
+    });
     let model_metadata_request_id = answering_agent
         .next_request()
         .await

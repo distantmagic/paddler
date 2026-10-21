@@ -14,11 +14,7 @@ use paddler_test_cluster_harness::cluster_params::ClusterParams;
 async fn an_agent_reconnects_when_the_balancer_stops_answering_pings() {
     let mut cluster = start_subprocess_cluster(
         env!("CARGO_BIN_EXE_paddler_cluster_node"),
-        ClusterParams {
-            agents: Vec::new(),
-            wait_for_slots_ready: false,
-            ..ClusterParams::default()
-        },
+        ClusterParams::without_agents(),
     )
     .await
     .expect("a cluster without agents must start");

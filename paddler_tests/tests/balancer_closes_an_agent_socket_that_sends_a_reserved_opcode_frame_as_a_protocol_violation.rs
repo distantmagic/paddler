@@ -14,13 +14,9 @@ const FIRST_RESERVED_DATA_OPCODE: u8 = 3;
 #[tokio::test(flavor = "multi_thread")]
 async fn balancer_closes_an_agent_socket_that_sends_a_reserved_opcode_frame_as_a_protocol_violation()
  {
-    let cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
-        ..ClusterParams::default()
-    })
-    .await
-    .expect("the cluster must start");
+    let cluster = start_cluster(ClusterParams::without_agents())
+        .await
+        .expect("the cluster must start");
     let mut protocol_violating_agent = UntrustedManagementAgent::connect(
         cluster.balancer.addresses.management,
         "protocol-violating-agent",

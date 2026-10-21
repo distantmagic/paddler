@@ -14,11 +14,9 @@ use paddler_tests::start_cluster::start_cluster;
 #[tokio::test(flavor = "multi_thread")]
 async fn balancer_returns_504_when_no_agents_registered() {
     let cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
         buffered_request_timeout: SHORT_BUFFERED_REQUEST_TIMEOUT,
         max_buffered_requests: 1,
-        wait_for_slots_ready: false,
-        ..ClusterParams::default()
+        ..ClusterParams::without_agents()
     })
     .await
     .expect("a cluster without agents must start");

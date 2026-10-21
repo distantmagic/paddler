@@ -1,7 +1,8 @@
 use serde_json::json;
 
 use paddler_balancer::compatibility::openai_service::openai_api_path::OpenAIApiPath;
-use paddler_tests::release_half_closed_openai_request::release_half_closed_openai_request;
+
+use crate::release_half_closed_openai_request::release_half_closed_openai_request;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn openai_chat_completion_streaming_half_closed_client_releases_the_buffered_request() {
@@ -14,6 +15,5 @@ async fn openai_chat_completion_streaming_half_closed_client_releases_the_buffer
             "stream": true,
         }),
     )
-    .await
-    .expect("the OpenAI-compatible SSE stream must release its buffered request when the client half-closes");
+    .await;
 }

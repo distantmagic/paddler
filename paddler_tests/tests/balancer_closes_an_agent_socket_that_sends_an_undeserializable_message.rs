@@ -8,13 +8,9 @@ use crate::untrusted_management_agent::UntrustedManagementAgent;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn balancer_closes_an_agent_socket_that_sends_an_undeserializable_message() {
-    let cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
-        ..ClusterParams::default()
-    })
-    .await
-    .expect("the cluster must start");
+    let cluster = start_cluster(ClusterParams::without_agents())
+        .await
+        .expect("the cluster must start");
     let mut undeserializable_agent = UntrustedManagementAgent::connect(
         cluster.balancer.addresses.management,
         "undeserializable-agent",

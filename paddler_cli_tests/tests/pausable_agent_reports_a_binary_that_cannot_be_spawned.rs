@@ -12,11 +12,7 @@ use paddler_test_cluster_harness::cluster_params::ClusterParams;
 async fn pausable_agent_reports_a_binary_that_cannot_be_spawned() {
     let mut cluster = start_subprocess_cluster(
         env!("CARGO_BIN_EXE_paddler_cluster_node"),
-        ClusterParams {
-            agents: Vec::new(),
-            wait_for_slots_ready: false,
-            ..ClusterParams::default()
-        },
+        ClusterParams::without_agents(),
     )
     .await
     .expect("a cluster without agents must start");

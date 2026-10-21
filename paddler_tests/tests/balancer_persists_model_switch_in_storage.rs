@@ -24,11 +24,9 @@ async fn balancer_persists_model_switch_in_storage() {
     };
 
     let first_cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
         state_database_url: database.url.clone(),
         desired_state: ClusterDesiredState::Apply(Box::new(initial_state)),
-        ..ClusterParams::default()
+        ..ClusterParams::without_agents()
     })
     .await
     .expect("the cluster must start");
@@ -50,11 +48,9 @@ async fn balancer_persists_model_switch_in_storage() {
         .expect("the cluster must shut down cleanly");
 
     let second_cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
         state_database_url: database.url.clone(),
         desired_state: ClusterDesiredState::KeepStored,
-        ..ClusterParams::default()
+        ..ClusterParams::without_agents()
     })
     .await
     .expect("the cluster must restart from the stored desired state");

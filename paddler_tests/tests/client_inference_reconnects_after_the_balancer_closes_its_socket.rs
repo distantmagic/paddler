@@ -27,11 +27,9 @@ const fn raw_prompt_params(raw_prompt: String) -> ContinueFromRawPromptParams {
 #[tokio::test(flavor = "multi_thread")]
 async fn client_inference_reconnects_after_the_balancer_closes_its_socket() {
     let cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
         buffered_request_timeout: SHORT_BUFFERED_REQUEST_TIMEOUT,
         max_buffered_requests: 1,
-        wait_for_slots_ready: false,
-        ..ClusterParams::default()
+        ..ClusterParams::without_agents()
     })
     .await
     .expect("a cluster without agents must start");

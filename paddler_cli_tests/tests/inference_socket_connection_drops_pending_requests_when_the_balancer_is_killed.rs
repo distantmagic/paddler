@@ -24,11 +24,7 @@ async fn inference_socket_connection_drops_pending_requests_when_the_balancer_is
         mut cluster,
     } = start_signalled_subprocess_cluster(
         env!("CARGO_BIN_EXE_paddler_cluster_node"),
-        ClusterParams {
-            agents: Vec::new(),
-            wait_for_slots_ready: false,
-            ..ClusterParams::default()
-        },
+        ClusterParams::without_agents(),
     )
     .await
     .expect("a balancer without agents must start");

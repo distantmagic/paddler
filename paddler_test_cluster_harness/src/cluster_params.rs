@@ -16,6 +16,17 @@ pub struct ClusterParams {
     pub wait_for_slots_ready: bool,
 }
 
+impl ClusterParams {
+    #[must_use]
+    pub fn without_agents() -> Self {
+        Self {
+            agents: Vec::new(),
+            wait_for_slots_ready: false,
+            ..Self::default()
+        }
+    }
+}
+
 impl Default for ClusterParams {
     fn default() -> Self {
         Self {

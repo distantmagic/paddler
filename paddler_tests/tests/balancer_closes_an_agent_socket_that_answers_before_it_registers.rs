@@ -8,13 +8,9 @@ use crate::untrusted_management_agent::UntrustedManagementAgent;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn balancer_closes_an_agent_socket_that_answers_before_it_registers() {
-    let cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
-        ..ClusterParams::default()
-    })
-    .await
-    .expect("a cluster without agents must start");
+    let cluster = start_cluster(ClusterParams::without_agents())
+        .await
+        .expect("a cluster without agents must start");
     let mut unregistered_agent =
         UntrustedManagementAgent::connect(cluster.balancer.addresses.management, "unregistered")
             .await

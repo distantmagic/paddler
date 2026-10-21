@@ -12,13 +12,9 @@ use paddler_tests::start_cluster::start_cluster;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn half_closed_http_client_releases_the_buffered_request() {
-    let mut cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
-        ..ClusterParams::default()
-    })
-    .await
-    .expect("the cluster must start");
+    let mut cluster = start_cluster(ClusterParams::without_agents())
+        .await
+        .expect("the cluster must start");
 
     let inference_addr = cluster.balancer.addresses.inference;
     let params: ContinueFromConversationHistoryParams<RawParametersSchema> =

@@ -7,13 +7,9 @@ use paddler_tests::start_cluster::start_cluster;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn cluster_harness_waiting_for_its_first_agent_reports_that_none_registered() {
-    let mut cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
-        ..ClusterParams::default()
-    })
-    .await
-    .expect("a cluster without agents must start");
+    let mut cluster = start_cluster(ClusterParams::without_agents())
+        .await
+        .expect("a cluster without agents must start");
 
     assert_eq!(
         cluster
@@ -21,7 +17,6 @@ async fn cluster_harness_waiting_for_its_first_agent_reports_that_none_registere
             .await
             .err()
             .as_ref()
-            .and_then(|wait_error| wait_error.downcast_ref::<ClusterHarnessError>())
             .map(discriminant),
         Some(discriminant(
             &ClusterHarnessError::ClusterHasNoRegisteredAgent

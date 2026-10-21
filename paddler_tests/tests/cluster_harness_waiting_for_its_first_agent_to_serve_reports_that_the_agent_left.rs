@@ -32,7 +32,6 @@ async fn cluster_harness_waiting_for_its_first_agent_to_serve_reports_that_the_a
             .await
             .err()
             .as_ref()
-            .and_then(|wait_error| wait_error.downcast_ref::<ClusterHarnessError>())
             .map(discriminant),
         Some(discriminant(&ClusterHarnessError::AgentLeftThePool {
             agent_id: String::new()

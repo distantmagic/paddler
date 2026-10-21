@@ -1,7 +1,8 @@
 use std::process::Command;
 
-use paddler_bootstrap::llama_cpp_max_sequences::LLAMA_CPP_MAX_SEQUENCES;
 use paddler_cli_tests::clap_usage_error_exit_code::CLAP_USAGE_ERROR_EXIT_CODE;
+
+use crate::slots_beyond_what_llama_cpp_can_serve::SLOTS_BEYOND_WHAT_LLAMA_CPP_CAN_SERVE;
 
 #[test]
 fn paddler_agent_rejects_more_slots_than_llama_cpp_can_serve() {
@@ -10,7 +11,7 @@ fn paddler_agent_rejects_more_slots_than_llama_cpp_can_serve() {
         .arg("--management-addr")
         .arg("127.0.0.1:1")
         .arg("--slots")
-        .arg((LLAMA_CPP_MAX_SEQUENCES + 1).to_string())
+        .arg(SLOTS_BEYOND_WHAT_LLAMA_CPP_CAN_SERVE.to_string())
         .output()
         .expect("paddler agent must run");
 

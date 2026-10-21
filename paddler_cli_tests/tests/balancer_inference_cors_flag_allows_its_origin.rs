@@ -9,10 +9,8 @@ async fn balancer_inference_cors_flag_allows_its_origin() {
     let cluster = start_subprocess_cluster(
         env!("CARGO_BIN_EXE_paddler_cluster_node"),
         ClusterParams {
-            agents: Vec::new(),
             inference_cors_allowed_hosts: vec![ALLOWED_ORIGIN.to_owned()],
-            wait_for_slots_ready: false,
-            ..ClusterParams::default()
+            ..ClusterParams::without_agents()
         },
     )
     .await

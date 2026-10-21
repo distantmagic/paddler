@@ -29,7 +29,6 @@ async fn subprocess_cluster_reports_a_desired_state_the_balancer_cannot_store() 
     let start_error = start_subprocess_cluster(
         env!("CARGO_BIN_EXE_paddler_cluster_node"),
         ClusterParams {
-            agents: Vec::new(),
             desired_state: ClusterDesiredState::Apply(Box::new(BalancerDesiredState {
                 model: AgentDesiredModel::Uri("agent:///unstorable-model.gguf".to_owned()),
                 ..BalancerDesiredState::default()
@@ -38,8 +37,7 @@ async fn subprocess_cluster_reports_a_desired_state_the_balancer_cannot_store() 
                 "file://{}",
                 state_directory.path().join("state.json").display()
             ),
-            wait_for_slots_ready: false,
-            ..ClusterParams::default()
+            ..ClusterParams::without_agents()
         },
     )
     .await

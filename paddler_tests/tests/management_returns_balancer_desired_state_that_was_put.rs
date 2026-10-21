@@ -22,13 +22,9 @@ async fn get_balancer_desired_state(
 
 #[tokio::test(flavor = "multi_thread")]
 async fn management_returns_balancer_desired_state_that_was_put() {
-    let cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
-        ..ClusterParams::default()
-    })
-    .await
-    .expect("the cluster must start");
+    let cluster = start_cluster(ClusterParams::without_agents())
+        .await
+        .expect("the cluster must start");
 
     assert_eq!(
         get_balancer_desired_state(&cluster.client_management)

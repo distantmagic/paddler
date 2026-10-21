@@ -11,13 +11,11 @@ async fn balancer_reports_the_url_model_of_its_desired_state() {
     let configured_url = "https://example.invalid/persisted-model.gguf".to_owned();
 
     let cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
         desired_state: ClusterDesiredState::Apply(Box::new(BalancerDesiredState {
             model: AgentDesiredModel::Uri(configured_url.clone()),
             ..BalancerDesiredState::default()
         })),
-        ..ClusterParams::default()
+        ..ClusterParams::without_agents()
     })
     .await
     .expect("the cluster must start");

@@ -28,10 +28,8 @@ async fn balancer_reports_the_huggingface_mmproj_of_its_desired_state() {
     );
 
     let cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
         desired_state: ClusterDesiredState::Apply(Box::new(desired_state.clone())),
-        ..ClusterParams::default()
+        ..ClusterParams::without_agents()
     })
     .await
     .expect("the cluster must start");

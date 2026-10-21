@@ -18,11 +18,9 @@ async fn balancer_memory_storage_reports_the_desired_state_it_started_with() {
     };
 
     let cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
         state_database_url: "memory://".to_owned(),
         desired_state: ClusterDesiredState::Apply(Box::new(desired_state.clone())),
-        ..ClusterParams::default()
+        ..ClusterParams::without_agents()
     })
     .await
     .expect("the cluster must start");

@@ -14,10 +14,8 @@ const ALLOWED_ORIGIN: &str = "http://example.com";
 #[tokio::test(flavor = "multi_thread")]
 async fn openai_service_lets_browsers_send_and_read_openai_headers() {
     let cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
         inference_cors_allowed_hosts: vec![ALLOWED_ORIGIN.to_owned()],
-        wait_for_slots_ready: false,
-        ..ClusterParams::default()
+        ..ClusterParams::without_agents()
     })
     .await
     .expect("a balancer without agents must start");

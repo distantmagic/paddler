@@ -31,11 +31,9 @@ async fn balancer_refuses_a_stored_desired_state_with_an_ambiguous_parameter() {
     .expect("the file must be written");
 
     let start_error = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
         state_database_url: database.url.clone(),
         desired_state: ClusterDesiredState::KeepStored,
-        ..ClusterParams::default()
+        ..ClusterParams::without_agents()
     })
     .await
     .err();

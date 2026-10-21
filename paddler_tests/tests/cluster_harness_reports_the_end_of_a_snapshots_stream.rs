@@ -10,13 +10,9 @@ async fn cluster_harness_reports_the_end_of_a_snapshots_stream() {
         mut agents_watcher,
         balancer,
         ..
-    } = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
-        ..ClusterParams::default()
-    })
-    .await
-    .expect("a cluster without agents must start");
+    } = start_cluster(ClusterParams::without_agents())
+        .await
+        .expect("a cluster without agents must start");
 
     balancer
         .shutdown()

@@ -9,13 +9,9 @@ const REPEATING_AGENT_ID: &str = "repeating-agent";
 
 #[tokio::test(flavor = "multi_thread")]
 async fn balancer_keeps_an_agent_that_repeats_its_status_registered() {
-    let mut cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
-        ..ClusterParams::default()
-    })
-    .await
-    .expect("a balancer without agents must start");
+    let mut cluster = start_cluster(ClusterParams::without_agents())
+        .await
+        .expect("a balancer without agents must start");
     let status_report = |desired_slots_total: u16, version: u64| SlotAggregatedStatusSnapshot {
         status: AgentStatus {
             desired_slots_total,

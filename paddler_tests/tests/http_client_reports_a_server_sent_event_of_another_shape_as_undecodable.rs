@@ -12,13 +12,9 @@ use paddler_tests::start_cluster::start_cluster;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn http_client_reports_a_server_sent_event_of_another_shape_as_undecodable() {
-    let cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
-        ..ClusterParams::default()
-    })
-    .await
-    .expect("a balancer without agents must start");
+    let cluster = start_cluster(ClusterParams::without_agents())
+        .await
+        .expect("a balancer without agents must start");
     let mut events = HttpClient::new(
         cluster
             .balancer

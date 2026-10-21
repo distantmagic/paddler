@@ -8,11 +8,7 @@ use paddler_test_cluster_harness::cluster_params::ClusterParams;
 async fn balancer_serves_on_the_addresses_it_announces() {
     let cluster = start_subprocess_cluster(
         env!("CARGO_BIN_EXE_paddler_cluster_node"),
-        ClusterParams {
-            agents: Vec::new(),
-            wait_for_slots_ready: false,
-            ..ClusterParams::default()
-        },
+        ClusterParams::without_agents(),
     )
     .await
     .expect("the balancer subprocess must start and announce its addresses");

@@ -20,10 +20,8 @@ pub async fn start_pausable_agent_cluster(
     let mut cluster = start_subprocess_cluster(
         &binary_path,
         ClusterParams {
-            agents: Vec::new(),
             desired_state,
-            wait_for_slots_ready: false,
-            ..ClusterParams::default()
+            ..ClusterParams::without_agents()
         },
     )
     .await?;

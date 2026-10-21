@@ -23,6 +23,7 @@ pub mod start_subprocess_cluster;
 pub mod start_subprocess_cluster_with_qwen3;
 pub mod start_subprocess_embedding_cluster;
 pub mod subprocess_agent_spawner;
+pub mod subprocess_agents_cluster_connection;
 pub mod subprocess_cluster;
 pub mod subprocess_cluster_error;
 pub mod subprocess_process;

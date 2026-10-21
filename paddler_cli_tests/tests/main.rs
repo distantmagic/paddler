@@ -26,6 +26,8 @@ mod balancer_web_admin_panel_shows_its_command_line_configuration;
 mod balancer_without_compatibility_flags_announces_no_compatibility_addresses;
 #[cfg(test)]
 mod cluster_with_a_missing_agent_binary;
+#[cfg(test)]
+mod ephemeral_balancer_arguments;
 mod http_client_reports_a_balancer_killed_before_responding_as_a_failed_request;
 mod inference_socket_connection_drops_pending_requests_when_the_balancer_is_killed;
 mod management_metrics_count_only_the_slots_of_serving_agents;
@@ -39,6 +41,8 @@ mod pausable_agent_reports_a_binary_that_cannot_be_spawned;
 #[cfg(test)]
 mod running_balancer_subprocess;
 mod signalling_a_subprocess_refuses_one_already_reaped;
+#[cfg(test)]
+mod slots_beyond_what_llama_cpp_can_serve;
 mod spawned_balancer_reports_a_subprocess_it_cannot_signal;
 mod spawned_balancer_reports_an_announcement_that_is_not_its_addresses;
 mod spawned_balancer_reports_an_exit_it_cannot_observe;

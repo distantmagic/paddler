@@ -18,13 +18,9 @@ const PINGING_AGENT_ID: &str = "pinging";
 
 #[tokio::test(flavor = "multi_thread")]
 async fn an_untrusted_agent_waiting_for_a_request_skips_the_pong_answering_its_ping() {
-    let mut cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
-        ..ClusterParams::default()
-    })
-    .await
-    .expect("a cluster without agents must start");
+    let mut cluster = start_cluster(ClusterParams::without_agents())
+        .await
+        .expect("a cluster without agents must start");
     let mut pinging_agent =
         UntrustedManagementAgent::connect(cluster.balancer.addresses.management, PINGING_AGENT_ID)
             .await
@@ -47,8 +43,12 @@ async fn an_untrusted_agent_waiting_for_a_request_skips_the_pong_answering_its_p
         .await
         .expect("the balancer must register the pinging agent after answering its ping");
 
-    let model_metadata_answer =
-        spawn(cluster.get_model_metadata(CancellationToken::new(), PINGING_AGENT_ID));
+    let client_management = cluster.client_management.clone();
+    let model_metadata_answer = spawn(async move {
+        client_management
+            .get_model_metadata(CancellationToken::new(), PINGING_AGENT_ID)
+            .await
+    });
     let model_metadata_request = pinging_agent
         .next_request()
         .await

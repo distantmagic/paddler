@@ -20,7 +20,6 @@ use paddler_messaging::agent_issue::AgentIssue;
 use paddler_messaging::agent_runtime_status::AgentRuntimeStatus;
 use paddler_messaging::buffered_request_manager_snapshot::BufferedRequestManagerSnapshot;
 use paddler_messaging::inference_mode::InferenceMode;
-use paddler_messaging::model_metadata::ModelMetadata;
 use paddler_messaging::request_params::continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
 use paddler_messaging::request_params::continue_from_conversation_history_params::tool::tool_params::function_call::parameters_schema::validated_parameters_schema::ValidatedParametersSchema;
 use paddler_messaging::request_params::continue_from_raw_prompt_params::ContinueFromRawPromptParams;
@@ -205,23 +204,6 @@ impl Cluster {
         })
     }
 
-    pub fn get_model_metadata(
-        &self,
-        cancellation_token: CancellationToken,
-        agent_id: &str,
-    ) -> impl Future<Output = Result<Option<ModelMetadata>, ClusterHarnessError>> + Send + use<>
-    {
-        let client_management = self.client_management.clone();
-        let agent_id = agent_id.to_owned();
-
-        self.connection_budget.hold_during(async move {
-            client_management
-                .get_model_metadata(cancellation_token, &agent_id)
-                .await
-                .map_err(ClusterHarnessError::ModelMetadataRequestFailed)
-        })
-    }
-
     pub fn generate_embedding_batch(
         &self,
         cancellation_token: CancellationToken,
@@ -401,7 +383,7 @@ impl Cluster {
     pub async fn wait_for_first_agent_issue<TIssueMatcher>(
         &mut self,
         issue_matcher: TIssueMatcher,
-    ) -> Result<AgentControllerPoolSnapshot>
+    ) -> Result<AgentControllerPoolSnapshot, ClusterHarnessError>
     where
         TIssueMatcher: Fn(&AgentIssue) -> bool,
     {
@@ -412,7 +394,7 @@ impl Cluster {
     pub async fn wait_for_first_agent_to_serve(
         &mut self,
         inference_mode: InferenceMode,
-    ) -> Result<AgentControllerPoolSnapshot> {
+    ) -> Result<AgentControllerPoolSnapshot, ClusterHarnessError> {
         self.wait_for_first_agent(|agent| {
             matches!(
                 agent.status.runtime,
@@ -428,7 +410,7 @@ impl Cluster {
     async fn wait_for_first_agent<TAgentMatcher>(
         &mut self,
         agent_matcher: TAgentMatcher,
-    ) -> Result<AgentControllerPoolSnapshot>
+    ) -> Result<AgentControllerPoolSnapshot, ClusterHarnessError>
     where
         TAgentMatcher: Fn(&AgentControllerSnapshot) -> bool,
     {
@@ -438,15 +420,14 @@ impl Cluster {
             .ok_or(ClusterHarnessError::ClusterHasNoRegisteredAgent)?
             .clone();
 
-        Ok(self
-            .agents_watcher
+        self.agents_watcher
             .until_agent(&agent_id, |snapshot| {
                 snapshot
                     .agents
                     .iter()
                     .any(|agent| agent.id == agent_id && agent_matcher(agent))
             })
-            .await?)
+            .await
     }
 
     pub async fn register_agents(

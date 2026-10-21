@@ -10,13 +10,9 @@ use crate::untrusted_management_agent::UntrustedManagementAgent;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn an_untrusted_agent_waiting_for_a_request_reports_the_balancer_closing_its_socket() {
-    let cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
-        ..ClusterParams::default()
-    })
-    .await
-    .expect("a cluster without agents must start");
+    let cluster = start_cluster(ClusterParams::without_agents())
+        .await
+        .expect("a cluster without agents must start");
     let mut closed_agent = UntrustedManagementAgent::connect(
         cluster.balancer.addresses.management,
         "closed-before-a-request",

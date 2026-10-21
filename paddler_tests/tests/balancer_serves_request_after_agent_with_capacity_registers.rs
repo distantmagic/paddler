@@ -15,11 +15,9 @@ use paddler_tests::start_cluster::start_cluster;
 #[tokio::test(flavor = "multi_thread")]
 async fn balancer_serves_request_after_agent_with_capacity_registers() {
     let mut cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
         max_buffered_requests: 10,
         desired_state: ClusterDesiredState::Apply(Box::new(qwen3_0_6b().into_desired_state())),
-        ..ClusterParams::default()
+        ..ClusterParams::without_agents()
     })
     .await
     .expect("the cluster must start");

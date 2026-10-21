@@ -14,13 +14,9 @@ const AGENT_ID: &str = "hanging-up";
 
 #[tokio::test(flavor = "multi_thread")]
 async fn management_api_reports_an_agent_hanging_up_before_it_answers_as_a_bad_gateway() {
-    let mut cluster = start_cluster(ClusterParams {
-        agents: Vec::new(),
-        wait_for_slots_ready: false,
-        ..ClusterParams::default()
-    })
-    .await
-    .expect("a cluster without agents must start");
+    let mut cluster = start_cluster(ClusterParams::without_agents())
+        .await
+        .expect("a cluster without agents must start");
     let mut hanging_up_agent = UntrustedManagementAgent::connect_registered(
         cluster.balancer.addresses.management,
         AGENT_ID,

@@ -19,7 +19,6 @@ pub async fn subprocess_cluster_with_a_serving_and_a_stuck_agent() -> Cluster {
     let mut cluster = start_subprocess_cluster(
         env!("CARGO_BIN_EXE_paddler_cluster_node"),
         ClusterParams {
-            agents: Vec::new(),
             desired_state: ClusterDesiredState::Apply(Box::new(BalancerDesiredState {
                 model_runtime_parameters: ModelRuntimeParameters {
                     n_batch: BatchSize::try_from(u32::from(SERVING_AGENT_SLOTS))
@@ -28,8 +27,7 @@ pub async fn subprocess_cluster_with_a_serving_and_a_stuck_agent() -> Cluster {
                 },
                 ..qwen3_desired_state
             })),
-            wait_for_slots_ready: false,
-            ..ClusterParams::default()
+            ..ClusterParams::without_agents()
         },
     )
     .await

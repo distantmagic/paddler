@@ -11,10 +11,8 @@ async fn subprocess_cluster_reports_a_balancer_that_exits_before_announcing() {
     let start_error = start_subprocess_cluster(
         env!("CARGO_BIN_EXE_paddler_cluster_node"),
         ClusterParams {
-            agents: Vec::new(),
             state_database_url: "unsupported-scheme://state".to_owned(),
-            wait_for_slots_ready: false,
-            ..ClusterParams::default()
+            ..ClusterParams::without_agents()
         },
     )
     .await
