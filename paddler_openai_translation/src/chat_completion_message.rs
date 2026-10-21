@@ -191,10 +191,13 @@ mod tests {
 
     #[test]
     fn a_tool_message_without_a_tool_call_id_is_refused() {
-        assert!(matches!(
-            converted(json!({"role": "tool", "content": "file contents"})),
-            Err(OpenAITranslationError::ToolResultWithoutToolCallId)
-        ));
+        assert_eq!(
+            converted(json!({"role": "tool", "content": "file contents"}))
+                .err()
+                .as_ref()
+                .map(ToString::to_string),
+            Some(OpenAITranslationError::ToolResultWithoutToolCallId.to_string())
+        );
     }
 
     #[test]

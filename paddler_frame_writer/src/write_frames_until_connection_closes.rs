@@ -32,7 +32,6 @@ where
 #[cfg(test)]
 mod tests {
     use futures::channel::mpsc as sink_channel;
-    use futures::channel::mpsc::SendError;
     use tokio::spawn;
     use tokio::sync::mpsc;
     use tokio_util::sync::CancellationToken;
@@ -68,7 +67,7 @@ mod tests {
 
         assert!(matches!(
             write_frames_until_connection_closes(CancellationToken::new(), outbound_rx, sink).await,
-            FrameWritingEnd::SendFailed(SendError { .. })
+            FrameWritingEnd::SendFailed(send_error) if send_error.is_disconnected()
         ));
     }
 

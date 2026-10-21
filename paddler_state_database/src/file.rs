@@ -90,18 +90,19 @@ fn replace_state_file(
         replacement.as_file_mut(),
         &replacement_path,
         serialized_schema.as_bytes(),
-    )?;
-
-    replacement
-        .persist(state_path)
-        .map(drop)
-        .map_err(
-            |PersistError { error, .. }| StateDatabaseError::FileReplaceFailed {
-                path: state_path.to_path_buf(),
-                replacement_path,
-                source: error,
-            },
-        )
+    )
+    .and_then(|()| {
+        replacement
+            .persist(state_path)
+            .map(drop)
+            .map_err(
+                |PersistError { error, .. }| StateDatabaseError::FileReplaceFailed {
+                    path: state_path.to_path_buf(),
+                    replacement_path,
+                    source: error,
+                },
+            )
+    })
 }
 
 pub struct File {

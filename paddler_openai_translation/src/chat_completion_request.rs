@@ -104,6 +104,7 @@ impl ChatCompletionRequest {
 #[cfg(test)]
 mod tests {
     use std::num::NonZeroU32;
+    use std::time::UNIX_EPOCH;
 
     use serde_json::Value;
     use serde_json::from_value;
@@ -116,6 +117,7 @@ mod tests {
 
     use super::ChatCompletionRequest;
     use crate::chat_completion_message::ChatCompletionMessage;
+    use crate::openai_translation_error::OpenAITranslationError;
 
     fn conversation_messages_of(request: ChatCompletionRequest) -> Vec<ConversationMessage> {
         request
@@ -181,6 +183,20 @@ mod tests {
                 role: "user".to_owned(),
             }]
         );
+    }
+
+    #[test]
+    fn a_request_with_a_message_it_cannot_translate_is_refused() {
+        let params: ChatCompletionRequest = from_value(json!({
+            "model": "test-model",
+            "messages": [{"role": "user", "content": null}]
+        }))
+        .unwrap();
+
+        assert!(matches!(
+            params.translate(UNIX_EPOCH),
+            Err(OpenAITranslationError::MessageWithoutContent { role }) if role == "user"
+        ));
     }
 
     #[test]
