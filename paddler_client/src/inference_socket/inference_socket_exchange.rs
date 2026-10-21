@@ -81,12 +81,17 @@ impl InferenceSocketExchange {
 
     pub fn fail(&self, request_id: &str, error: Error) -> bool {
         if let InferenceSocketExchangeState::Open(open_exchange) = &mut *self.state.lock()
-            && let Some(AwaitedResponse { response_tx, .. }) =
-                open_exchange.awaiting_responses.remove(request_id)
+            && let Some(AwaitedResponse {
+                response_tx,
+                stop_frame,
+            }) = open_exchange.awaiting_responses.remove(request_id)
         {
             if response_tx.send(Err(error)).is_err() {
                 debug!("Receiver already dropped for request: {request_id}");
             }
+
+            open_exchange.queued_frames.push(stop_frame);
+            self.frames_queued.notify_waiters();
 
             return true;
         }
@@ -264,6 +269,31 @@ mod tests {
 
         exchange.stop_responding_to("stopped");
         drop(stopped_response_rx);
+
+        assert!(matches!(
+            exchange.next_outbound_frames().now_or_never(),
+            Some(OutboundFrames::Queued(frames)) if frames == expected_frames
+        ));
+    }
+
+    #[test]
+    fn failing_a_request_queues_its_stop_frame_after_its_request_frame() {
+        let exchange = InferenceSocketExchange::default();
+        let failed_request = outbound_request("failed");
+        let expected_frames = vec![
+            failed_request.request_frame.clone(),
+            failed_request.stop_frame.clone(),
+        ];
+        let _failed_response_rx = exchange
+            .register(failed_request)
+            .expect("an open exchange must accept a request");
+
+        exchange.fail(
+            "failed",
+            Error::InferenceRequestCancelled {
+                request_id: "failed".to_owned(),
+            },
+        );
 
         assert!(matches!(
             exchange.next_outbound_frames().now_or_never(),
