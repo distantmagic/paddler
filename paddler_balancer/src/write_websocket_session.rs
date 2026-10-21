@@ -1,9 +1,14 @@
+use std::pin::pin;
+
 use actix_ws::Closed;
 use actix_ws::Session;
+use futures_util::sink::unfold;
 use log::debug;
-use tokio::select;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio_util::sync::CancellationToken;
+
+use paddler_frame_writer::frame_writing_end::FrameWritingEnd;
+use paddler_frame_writer::write_frames_until_connection_closes::write_frames_until_connection_closes;
 
 use crate::websocket_outbound_frame::WebSocketOutboundFrame;
 
@@ -18,24 +23,24 @@ async fn send_frame(session: &mut Session, frame: WebSocketOutboundFrame) -> Res
 
 pub async fn write_websocket_session(
     connection_close: CancellationToken,
-    mut outbound_rx: UnboundedReceiver<WebSocketOutboundFrame>,
-    mut session: Session,
+    outbound_rx: UnboundedReceiver<WebSocketOutboundFrame>,
+    session: Session,
 ) {
-    while let Some(frame) = outbound_rx.recv().await {
-        select! {
-            biased;
-            send_outcome = send_frame(&mut session, frame) => {
-                if send_outcome.is_err() {
-                    debug!("The WebSocket session closed before all of its frames were sent");
-
-                    return;
-                }
-            }
-            () = connection_close.cancelled() => {
-                debug!("Abandoning the WebSocket session writes because the peer is not reading them");
-
-                return;
-            }
+    match write_frames_until_connection_closes(
+        connection_close,
+        outbound_rx,
+        pin!(unfold(session, |mut session, frame| async move {
+            send_frame(&mut session, frame).await.map(|()| session)
+        })),
+    )
+    .await
+    {
+        FrameWritingEnd::ConnectionClosed => {
+            debug!("Abandoning the WebSocket session writes because the peer is not reading them");
+        }
+        FrameWritingEnd::EveryFrameSent => {}
+        FrameWritingEnd::SendFailed(Closed) => {
+            debug!("The WebSocket session closed before all of its frames were sent");
         }
     }
 }

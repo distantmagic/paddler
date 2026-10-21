@@ -1,4 +1,3 @@
-use std::fs::read_to_string;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 
@@ -6,18 +5,9 @@ use tokio::io::AsyncWriteExt as _;
 use tokio::net::TcpSocket;
 
 use paddler_local_http_fixture::local_http_fixture::LocalHttpFixture;
+use paddler_tcp_buffer_limits::tcp_buffer_limits_file::TcpBufferLimitsFile;
 
 const SMALLEST_RECEIVE_BUFFER_REQUEST: u32 = 1;
-
-fn largest_tcp_send_buffer() -> usize {
-    read_to_string("/proc/sys/net/ipv4/tcp_wmem")
-        .expect("the kernel must report its TCP send buffer limits")
-        .split_whitespace()
-        .last()
-        .expect("the TCP send buffer limits must end with their maximum")
-        .parse()
-        .expect("the TCP send buffer maximum must be a byte count")
-}
 
 pub struct ResettingClient {
     receive_buffer: usize,
@@ -44,7 +34,14 @@ impl ResettingClient {
     }
 
     pub fn body_outlasting_both_socket_buffers(&self) -> Vec<u8> {
-        vec![0; largest_tcp_send_buffer() + self.receive_buffer + 1]
+        vec![
+            0;
+            TcpBufferLimitsFile::of_kernel_send_buffers()
+                .largest_buffer()
+                .expect("the kernel must report its TCP send buffer limits")
+                + self.receive_buffer
+                + 1
+        ]
     }
 
     pub async fn request_then_reset(self, fixture: &LocalHttpFixture) {

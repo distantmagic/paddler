@@ -21,6 +21,7 @@ tokio = { workspace = true }
 
 [dev-dependencies]
 nix = { workspace = true }
+paddler_tcp_buffer_limits = { workspace = true }
 
 [lints]
 workspace = true

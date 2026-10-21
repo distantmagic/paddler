@@ -29,6 +29,7 @@ llama-cpp-bindings-types = { workspace = true }
 log = { workspace = true }
 mime_guess = { workspace = true, optional = true }
 nanoid = { workspace = true }
+paddler_frame_writer = { workspace = true }
 paddler_inference_parameters = { workspace = true }
 paddler_messaging = { workspace = true }
 paddler_openai_translation = { workspace = true }

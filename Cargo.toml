@@ -15,6 +15,7 @@ members = [
     "paddler_cli_tests",
     "paddler_client",
     "paddler_download_manager",
+    "paddler_frame_writer",
     "paddler_image_decoder",
     "paddler_inference_parameters",
     "paddler_local_http_fixture",
@@ -26,6 +27,7 @@ members = [
     "paddler_outbox",
     "paddler_request_registry",
     "paddler_state_database",
+    "paddler_tcp_buffer_limits",
     "paddler_test_cluster_harness",
     "paddler_tests",
     "paddler_tool_call_validator",
@@ -119,6 +121,7 @@ paddler_cache_dir = { version = "5.0", path = "paddler_cache_dir" }
 paddler_cli = { version = "5.0", path = "paddler_cli" }
 paddler_client = { version = "5.0", path = "paddler_client" }
 paddler_download_manager = { version = "5.0", path = "paddler_download_manager" }
+paddler_frame_writer = { version = "5.0", path = "paddler_frame_writer" }
 paddler_image_decoder = { version = "5.0", path = "paddler_image_decoder" }
 paddler_inference_parameters = { version = "5.0", path = "paddler_inference_parameters" }
 paddler_local_http_fixture = { version = "5.0", path = "paddler_local_http_fixture" }
@@ -129,6 +132,7 @@ paddler_openai_translation = { version = "5.0", path = "paddler_openai_translati
 paddler_outbox = { version = "5.0", path = "paddler_outbox" }
 paddler_request_registry = { version = "5.0", path = "paddler_request_registry" }
 paddler_state_database = { version = "5.0", path = "paddler_state_database" }
+paddler_tcp_buffer_limits = { version = "5.0", path = "paddler_tcp_buffer_limits" }
 paddler_test_cluster_harness = { version = "5.0", path = "paddler_test_cluster_harness" }
 paddler_tests = { version = "5.0", path = "paddler_tests" }
 paddler_tool_call_validator = { version = "5.0", path = "paddler_tool_call_validator" }

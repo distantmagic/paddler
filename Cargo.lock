@@ -3200,7 +3200,6 @@ version = "5.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "futures 0.3.32",
  "futures-util",
  "http 1.4.0",
  "log",
@@ -3212,6 +3211,7 @@ dependencies = [
  "paddler_agent_text_generation",
  "paddler_blocking_thread_fixture",
  "paddler_cache_dir",
+ "paddler_frame_writer",
  "paddler_inference_parameters",
  "paddler_local_http_fixture",
  "paddler_messaging",
@@ -3341,6 +3341,7 @@ dependencies = [
  "log",
  "mime_guess",
  "nanoid",
+ "paddler_frame_writer",
  "paddler_inference_parameters",
  "paddler_messaging",
  "paddler_openai_response_format_validator",
@@ -3499,6 +3500,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "paddler_frame_writer"
+version = "5.0.0"
+dependencies = [
+ "futures 0.3.32",
+ "futures-util",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "paddler_image_decoder"
 version = "5.0.0"
 dependencies = [
@@ -3527,6 +3538,7 @@ dependencies = [
  "http 1.4.0",
  "httparse",
  "nix",
+ "paddler_tcp_buffer_limits",
  "tokio",
 ]
 
@@ -3640,6 +3652,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "paddler_tcp_buffer_limits"
+version = "5.0.0"
+dependencies = [
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "paddler_test_cluster_harness"
 version = "5.0.0"
 dependencies = [
@@ -3702,6 +3722,7 @@ dependencies = [
  "paddler_model_source",
  "paddler_openai_response_format_validator",
  "paddler_state_database",
+ "paddler_tcp_buffer_limits",
  "paddler_test_cluster_harness",
  "paddler_typesafe_translation",
  "reqwest 0.12.28",

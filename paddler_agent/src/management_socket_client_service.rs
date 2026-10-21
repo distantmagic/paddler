@@ -23,6 +23,8 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_util::sync::CancellationToken;
 use trzcina::Service;
 
+use paddler_frame_writer::frame_writing_end::FrameWritingEnd;
+use paddler_frame_writer::write_frames_until_connection_closes::write_frames_until_connection_closes;
 use paddler_messaging::management_socket::balancer::message::Message as ManagementJsonRpcMessage;
 use paddler_messaging::management_socket::balancer::notification::Notification as ManagementJsonRpcNotification;
 use paddler_messaging::management_socket::balancer::notification_params::register_agent_params::RegisterAgentParams;
@@ -35,7 +37,6 @@ use paddler_messaging::subscribes_to_updates::SubscribesToUpdates as _;
 use crate::balancer_message_context::BalancerMessageContext;
 use crate::enqueue_management_message::enqueue_management_message;
 use crate::enqueue_outbound_frame::enqueue_outbound_frame;
-use crate::forward_outbound_frames::forward_outbound_frames;
 use crate::last_announced_agent_status::LastAnnouncedAgentStatus;
 use crate::management_connection_end::ManagementConnectionEnd;
 use crate::management_connection_step::ManagementConnectionStep;
@@ -85,15 +86,32 @@ impl ManagementSocketClientService {
     ) {
         let (ws_sink, ws_source) = ws_stream.split();
         let (outbound_tx, outbound_rx) = mpsc::unbounded_channel();
+        let connection_close = CancellationToken::new();
 
-        join!(
-            self.read_until_the_connection_ends(ws_source, outbound_tx, shutdown),
-            forward_outbound_frames(ws_sink, outbound_rx),
+        let ((), frame_writing_end) = join!(
+            self.read_until_the_connection_ends(
+                connection_close.clone(),
+                ws_source,
+                outbound_tx,
+                shutdown
+            ),
+            write_frames_until_connection_closes(connection_close, outbound_rx, ws_sink),
         );
+
+        match frame_writing_end {
+            FrameWritingEnd::ConnectionClosed => {
+                info!("Abandoned the management socket frames the balancer did not read");
+            }
+            FrameWritingEnd::EveryFrameSent => {}
+            FrameWritingEnd::SendFailed(send_error) => {
+                error!("Failed to send a management socket frame: {send_error}");
+            }
+        }
     }
 
     async fn read_until_the_connection_ends(
         &self,
+        connection_close: CancellationToken,
         mut ws_source: SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
         outbound_tx: mpsc::UnboundedSender<Message>,
         shutdown: CancellationToken,
@@ -173,6 +191,8 @@ impl ManagementSocketClientService {
         };
 
         let close_frame_delivery = outbound_tx.send(Message::Close(connection_end.close_frame()));
+
+        connection_close.cancel();
 
         info!(
             "Closing the management connection after {connection_end:?}: {close_frame_delivery:?}"

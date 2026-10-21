@@ -15,7 +15,6 @@ pub mod desired_state_reconciliation_attempt;
 pub mod enqueue_management_message;
 pub mod enqueue_outbound_frame;
 pub mod finished_serving_startup;
-pub mod forward_outbound_frames;
 pub mod inference_capabilities;
 pub mod last_announced_agent_status;
 pub mod llamacpp_arbiter_service;
