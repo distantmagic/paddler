@@ -9,6 +9,7 @@ pub mod balancer_message_context;
 pub mod capability_plan;
 pub mod capability_starter;
 pub mod capability_startup_interruption;
+pub mod desired_model_file;
 pub mod desired_state_reconciler;
 pub mod desired_state_reconciliation;
 pub mod desired_state_reconciliation_attempt;

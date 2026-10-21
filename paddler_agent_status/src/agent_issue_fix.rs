@@ -12,6 +12,7 @@ pub enum AgentIssueFix {
     ModelDownloadCompleted(ModelPath),
     ModelDownloadStarted(ModelPath),
     MultimodalProjectionIsLoaded(ModelPath),
+    PointerHeadFileExists(ModelPath),
     SlotStarted(u32),
 }
 
@@ -57,13 +58,18 @@ impl AgentIssueFix {
             | AgentIssue::HuggingFaceModelUriIsMalformed(_)
             | AgentIssue::ModelArchitectureUnsupportedForDecisions(_)
             | AgentIssue::ModelUriIsUnparseable(_)
-            | AgentIssue::PointerHeadCannotBeLoaded(_)
             | AgentIssue::PointerHeadIncompatibleWithModel(_)
             | AgentIssue::SlotsInsufficientForDecisions(_)
             | AgentIssue::UnableToFindChatTemplate(_) => false,
             AgentIssue::MultimodalProjectionCannotBeLoaded(_) => {
                 matches!(self, Self::MultimodalProjectionIsLoaded(_))
             }
+            AgentIssue::PointerHeadCannotBeLoaded(issue_pointer_head_path) => match self {
+                Self::PointerHeadFileExists(fix_pointer_head_path) => {
+                    issue_pointer_head_path.eq(fix_pointer_head_path)
+                }
+                _ => false,
+            },
             AgentIssue::SlotCannotStart(SlotCannotStartParams {
                 error: _,
                 inference_capability: _,
@@ -130,7 +136,6 @@ mod tests {
                 },
             ),
             AgentIssue::ModelUriIsUnparseable(issue_path.clone()),
-            AgentIssue::PointerHeadCannotBeLoaded(issue_path.clone()),
             AgentIssue::PointerHeadIncompatibleWithModel(PointerHeadIncompatibleWithModelParams {
                 incompatibility: PointerHeadIncompatibility::HiddenSizeMismatch {
                     model_hidden_size: 1024,
@@ -152,7 +157,8 @@ mod tests {
             AgentIssueFix::ModelDownloadStarted(issue_path.clone()),
             AgentIssueFix::ModelFileExists(issue_path.clone()),
             AgentIssueFix::ModelIsLoaded(issue_path.clone()),
-            AgentIssueFix::MultimodalProjectionIsLoaded(issue_path),
+            AgentIssueFix::MultimodalProjectionIsLoaded(issue_path.clone()),
+            AgentIssueFix::PointerHeadFileExists(issue_path),
             AgentIssueFix::SlotStarted(0),
         ];
 
@@ -161,6 +167,22 @@ mod tests {
                 assert!(!fix.can_fix(issue), "{fix:?} must not fix {issue:?}");
             }
         }
+    }
+
+    #[test]
+    fn pointer_head_file_exists_fixes_only_the_pointer_head_it_names() {
+        let fix = AgentIssueFix::PointerHeadFileExists(model_path("pointer_head_a"));
+
+        assert!(
+            fix.can_fix(&AgentIssue::PointerHeadCannotBeLoaded(model_path(
+                "pointer_head_a"
+            )))
+        );
+        assert!(
+            !fix.can_fix(&AgentIssue::PointerHeadCannotBeLoaded(model_path(
+                "pointer_head_b"
+            )))
+        );
     }
 
     #[test]

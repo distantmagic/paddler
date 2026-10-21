@@ -11,8 +11,6 @@ use paddler_cache_dir::cache_dir::CacheDir;
 use paddler_messaging::agent_decisions_settings::AgentDecisionsSettings;
 use paddler_messaging::agent_desired_model::AgentDesiredModel;
 use paddler_messaging::agent_desired_state::AgentDesiredState;
-use paddler_messaging::agent_issue::AgentIssue;
-use paddler_messaging::agent_issue_params::model_path::ModelPath;
 use paddler_messaging::balancer_text_generation_settings::BalancerTextGenerationSettings;
 use paddler_messaging::decision_settings::DecisionSettings;
 use paddler_messaging::multimodal_settings::MultimodalSettings;
@@ -23,6 +21,7 @@ use paddler_model_source::resolve_desired_model::resolve_desired_model;
 use crate::agent_applicable_state::AgentApplicableState;
 use crate::agent_desired_state_conversion::AgentDesiredStateConversion;
 use crate::applicable_decisions::ApplicableDecisions;
+use crate::desired_model_file::DesiredModelFile;
 use crate::inference_capabilities::InferenceCapabilities;
 use crate::model_serving_settings::ModelServingSettings;
 
@@ -53,7 +52,7 @@ impl AgentDesiredStateConverter {
         }: &AgentDesiredState,
     ) -> Result<AgentDesiredStateConversion, ModelSourceError> {
         let ControlFlow::Continue(model_path) = self
-            .resolve_model_file(model, AgentIssue::ModelFileDoesNotExist)
+            .resolve_model_file(model, DesiredModelFile::Model)
             .await?
         else {
             return Ok(AgentDesiredStateConversion::Cancelled);
@@ -66,7 +65,7 @@ impl AgentDesiredStateConverter {
             ));
         };
         let ControlFlow::Continue(multimodal_projection_path) = self
-            .resolve_model_file(projection, AgentIssue::MultimodalProjectionCannotBeLoaded)
+            .resolve_model_file(projection, DesiredModelFile::MultimodalProjection)
             .await?
         else {
             return Ok(AgentDesiredStateConversion::Cancelled);
@@ -110,7 +109,7 @@ impl AgentDesiredStateConverter {
             }
             AgentDecisionsSettings::Served(DecisionSettings { pointer_head }) => Ok(
                 match self
-                    .resolve_model_file(pointer_head, AgentIssue::PointerHeadCannotBeLoaded)
+                    .resolve_model_file(pointer_head, DesiredModelFile::PointerHead)
                     .await?
                 {
                     ControlFlow::Break(()) => {
@@ -130,7 +129,7 @@ impl AgentDesiredStateConverter {
     async fn resolve_model_file(
         &self,
         desired_model: &AgentDesiredModel,
-        local_file_missing_issue: fn(ModelPath) -> AgentIssue,
+        desired_model_file: DesiredModelFile,
     ) -> Result<ControlFlow<(), Option<PathBuf>>, ModelSourceError> {
         match resolve_desired_model(
             &self.cancellation_token,
@@ -142,12 +141,13 @@ impl AgentDesiredStateConverter {
         {
             DesiredModelResolution::Cancelled => Ok(ControlFlow::Break(())),
             DesiredModelResolution::NotConfigured => Ok(ControlFlow::Continue(None)),
-            DesiredModelResolution::Resolved(path) => Ok(ControlFlow::Continue(Some(path))),
+            DesiredModelResolution::Resolved(path) => {
+                desired_model_file.report_found(&path, &self.slot_aggregated_status);
+
+                Ok(ControlFlow::Continue(Some(path)))
+            }
             DesiredModelResolution::LocalFileMissing(path) => {
-                self.slot_aggregated_status
-                    .register_desired_state_issue(local_file_missing_issue(ModelPath::from(
-                        path.as_path(),
-                    )));
+                desired_model_file.report_missing(&path, &self.slot_aggregated_status);
 
                 Err(ModelSourceError::LocalFileMissing { path })
             }
@@ -157,6 +157,7 @@ impl AgentDesiredStateConverter {
 
 #[cfg(test)]
 mod tests {
+    use std::fs::write;
     use std::path::Path;
     use std::path::PathBuf;
     use std::sync::Arc;
@@ -335,6 +336,62 @@ mod tests {
                 model_path: missing_path.display().to_string(),
             })),
             "MultimodalProjectionCannotBeLoaded must NOT be registered for a missing model"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_model_file_that_appears_on_a_retry_clears_its_missing_file_issue() {
+        let status = fresh_status();
+        let MissingLocalModel {
+            _dir_guard,
+            path: appearing_path,
+        } = nonexistent_path_in_temp_dir("model");
+        let desired = desired_state(local_model_at(&appearing_path), AgentDesiredModel::None);
+        let converter = AgentDesiredStateConverter {
+            cache_dir: CacheDir::from_process_env(),
+            cancellation_token: CancellationToken::new(),
+            slot_aggregated_status: status.clone(),
+        };
+
+        assert!(converter.convert(&desired).await.is_err());
+
+        write(&appearing_path, b"").unwrap();
+        converter.convert(&desired).await.unwrap();
+
+        assert!(
+            !status.has_issue(&AgentIssue::ModelFileDoesNotExist(ModelPath {
+                model_path: appearing_path.display().to_string(),
+            }))
+        );
+    }
+
+    #[tokio::test]
+    async fn a_pointer_head_that_appears_on_a_retry_clears_its_missing_file_issue() {
+        let status = fresh_status();
+        let model_file = NamedTempFile::new().unwrap();
+        let MissingLocalModel {
+            _dir_guard,
+            path: appearing_path,
+        } = nonexistent_path_in_temp_dir("pointer-head");
+        let desired = desired_state_serving_decisions(
+            local_model_at(model_file.path()),
+            local_model_at(&appearing_path),
+        );
+        let converter = AgentDesiredStateConverter {
+            cache_dir: CacheDir::from_process_env(),
+            cancellation_token: CancellationToken::new(),
+            slot_aggregated_status: status.clone(),
+        };
+
+        assert!(converter.convert(&desired).await.is_err());
+
+        write(&appearing_path, b"").unwrap();
+        converter.convert(&desired).await.unwrap();
+
+        assert!(
+            !status.has_issue(&AgentIssue::PointerHeadCannotBeLoaded(ModelPath {
+                model_path: appearing_path.display().to_string(),
+            }))
         );
     }
 
