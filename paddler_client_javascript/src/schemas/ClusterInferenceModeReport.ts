@@ -4,7 +4,7 @@ import { InferenceModeSchema } from "./InferenceMode";
 
 export const ClusterInferenceModeReportSchema = z
   .object({
-    balancer_instance: z.number().int(),
+    balancer_instance: z.string(),
     inference_mode: InferenceModeSchema,
     version: z.number().int(),
   })

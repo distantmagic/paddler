@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use futures_util::Stream;
 use futures_util::StreamExt;
 use log::error;
@@ -8,25 +6,18 @@ use tokio::task::JoinHandle;
 use tokio_tungstenite::tungstenite::Error as WebSocketError;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
-use crate::inference_socket::cluster_inference_mode_broadcaster::ClusterInferenceModeBroadcaster;
 use crate::inference_socket::inbound_message_router::InboundMessageRouter;
-use crate::inference_socket::inference_socket_exchange::InferenceSocketExchange;
 
 #[must_use]
 pub fn spawn_read_task<TWebSocketReadStream>(
     ws_read: TWebSocketReadStream,
-    exchange: Arc<InferenceSocketExchange>,
-    cluster_inference_mode_broadcaster: Arc<ClusterInferenceModeBroadcaster>,
+    router: InboundMessageRouter,
 ) -> JoinHandle<()>
 where
     TWebSocketReadStream: Stream<Item = Result<WsMessage, WebSocketError>> + Send + Unpin + 'static,
 {
     spawn(async move {
         let mut ws_read = ws_read;
-        let router = InboundMessageRouter {
-            cluster_inference_mode_broadcaster,
-            exchange,
-        };
 
         while let Some(msg_result) = ws_read.next().await {
             match msg_result {
@@ -69,6 +60,7 @@ mod tests {
     use super::spawn_read_task;
     use crate::error::Error;
     use crate::inference_socket::cluster_inference_mode_broadcaster::ClusterInferenceModeBroadcaster;
+    use crate::inference_socket::inbound_message_router::InboundMessageRouter;
     use crate::inference_socket::inference_socket_exchange::InferenceSocketExchange;
     use crate::inference_socket::outbound_request::OutboundRequest;
 
@@ -84,8 +76,13 @@ mod tests {
 
         spawn_read_task(
             iter([Ok(WsMessage::Binary(vec![0].into()))]).chain(pending()),
-            exchange,
-            Arc::new(ClusterInferenceModeBroadcaster::default()),
+            InboundMessageRouter {
+                cluster_inference_mode_broadcaster: Arc::new(
+                    ClusterInferenceModeBroadcaster::default(),
+                ),
+                connection_generation: 1,
+                exchange,
+            },
         )
         .await
         .expect("the read task must not panic");
@@ -131,8 +128,13 @@ mod tests {
                     .into(),
                 )),
             ]),
-            exchange,
-            Arc::new(ClusterInferenceModeBroadcaster::default()),
+            InboundMessageRouter {
+                cluster_inference_mode_broadcaster: Arc::new(
+                    ClusterInferenceModeBroadcaster::default(),
+                ),
+                connection_generation: 1,
+                exchange,
+            },
         )
         .await
         .expect("the read task must not panic");

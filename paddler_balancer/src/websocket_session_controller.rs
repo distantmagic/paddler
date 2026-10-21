@@ -89,7 +89,7 @@ mod tests {
     fn cluster_inference_mode_notification() -> OutgoingMessage {
         OutgoingMessage::Notification(Notification::ClusterInferenceMode(
             ClusterInferenceModeReport {
-                balancer_instance: 1,
+                balancer_instance: "balancer-instance".to_owned(),
                 inference_mode: InferenceMode::TextGenerationAndEmbeddings,
                 version: 0,
             },

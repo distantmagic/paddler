@@ -33,6 +33,7 @@ impl RequestScopedMessage {
 
 pub struct InboundMessageRouter {
     pub cluster_inference_mode_broadcaster: Arc<ClusterInferenceModeBroadcaster>,
+    pub connection_generation: u64,
     pub exchange: Arc<InferenceSocketExchange>,
 }
 
@@ -75,7 +76,8 @@ impl InboundMessageRouter {
                 message: InferenceMessage::Error(envelope),
             },
             InferenceMessage::Notification(Notification::ClusterInferenceMode(report)) => {
-                self.cluster_inference_mode_broadcaster.publish(report);
+                self.cluster_inference_mode_broadcaster
+                    .publish(report, self.connection_generation);
 
                 return;
             }
@@ -138,6 +140,7 @@ mod tests {
     fn router_for(exchange: &Arc<InferenceSocketExchange>) -> InboundMessageRouter {
         InboundMessageRouter {
             cluster_inference_mode_broadcaster: Arc::new(ClusterInferenceModeBroadcaster::default()),
+            connection_generation: 1,
             exchange: Arc::clone(exchange),
         }
     }
@@ -271,7 +274,7 @@ mod tests {
             &json!({
                 "Notification": {
                     "ClusterInferenceMode": {
-                        "balancer_instance": 1,
+                        "balancer_instance": "balancer-instance",
                         "inference_mode": "TextGenerationAndEmbeddings",
                         "version": 0
                     }

@@ -8,5 +8,5 @@ pub async fn next_reported_cluster_inference_mode(
 ) -> Result<ReportedClusterInferenceMode, RecvError> {
     cluster_inference_mode_rx.changed().await?;
 
-    Ok(*cluster_inference_mode_rx.borrow_and_update())
+    Ok(cluster_inference_mode_rx.borrow_and_update().clone())
 }

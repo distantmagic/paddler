@@ -11,6 +11,7 @@ use paddler_messaging::inference_client::message::Message as InferenceMessage;
 
 use crate::error::Result;
 use crate::inference_socket::cluster_inference_mode_broadcaster::ClusterInferenceModeBroadcaster;
+use crate::inference_socket::inbound_message_router::InboundMessageRouter;
 use crate::inference_socket::inference_socket_exchange::InferenceSocketExchange;
 use crate::inference_socket::outbound_request::OutboundRequest;
 use crate::inference_socket::spawn_read_task::spawn_read_task;
@@ -36,8 +37,11 @@ impl Connection {
         Ok(Self {
             read_task: spawn_read_task(
                 ws_read,
-                exchange.clone(),
-                cluster_inference_mode_broadcaster,
+                InboundMessageRouter {
+                    connection_generation: cluster_inference_mode_broadcaster.register_connection(),
+                    cluster_inference_mode_broadcaster,
+                    exchange: exchange.clone(),
+                },
             ),
             write_task: spawn_write_task(ws_write, exchange.clone()),
             exchange,
