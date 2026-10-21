@@ -35,14 +35,6 @@ export function AgentListAgentStatus({
           </abbr>
         </div>
       );
-    case "AttemptedAndNotAppliable":
-      return (
-        <div className={agentListAgentStatus__progress}>
-          <div>
-            🏳️ <i>Needs your help</i>
-          </div>
-        </div>
-      );
     case "AttemptedAndRetrying":
       return (
         <div className={agentListAgentStatus__progress}>

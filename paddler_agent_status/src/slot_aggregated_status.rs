@@ -112,9 +112,7 @@ impl SlotAggregatedStatus {
             *state_application_status = match *state_application_status {
                 AgentStateApplicationStatus::AttemptedAndRetrying
                 | AgentStateApplicationStatus::Stuck => AgentStateApplicationStatus::Stuck,
-                AgentStateApplicationStatus::Applied
-                | AgentStateApplicationStatus::AttemptedAndNotAppliable
-                | AgentStateApplicationStatus::Fresh => {
+                AgentStateApplicationStatus::Applied | AgentStateApplicationStatus::Fresh => {
                     AgentStateApplicationStatus::AttemptedAndRetrying
                 }
             };

@@ -13,7 +13,6 @@ export const AgentStatusSchema = z
     runtime: AgentRuntimeStatusSchema,
     state_application_status: z.enum([
       "Applied",
-      "AttemptedAndNotAppliable",
       "AttemptedAndRetrying",
       "Fresh",
       "Stuck",
