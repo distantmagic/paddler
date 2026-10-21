@@ -1,6 +1,7 @@
 use futures_util::StreamExt as _;
 
 use paddler_client::inference_socket::reported_cluster_inference_mode::ReportedClusterInferenceMode;
+use paddler_messaging::cluster_inference_mode_report::ClusterInferenceModeReport;
 use paddler_messaging::inference_mode::InferenceMode;
 use paddler_tests::cluster_without_agents_serving::cluster_without_agents_serving;
 use paddler_tests::rejected_conversation_stream::rejected_conversation_stream;
@@ -22,13 +23,16 @@ async fn a_late_cluster_inference_mode_subscriber_sees_the_current_mode() {
         .expect("the inference socket must answer before anyone subscribes")
         .expect("the answer must be readable");
 
-    assert_eq!(
+    assert!(matches!(
         *cluster
             .client_inference
             .subscribe_to_cluster_inference_mode()
             .borrow(),
-        ReportedClusterInferenceMode::Reported(InferenceMode::TextGenerationAndEmbeddings)
-    );
+        ReportedClusterInferenceMode::Reported(ClusterInferenceModeReport {
+            inference_mode: InferenceMode::TextGenerationAndEmbeddings,
+            ..
+        })
+    ));
 
     cluster
         .shutdown()

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use serde_json::json;
 use tokio::join;
 
 use paddler_client::error::Error;
@@ -31,7 +32,7 @@ async fn inference_socket_connection_rejects_requests_after_the_balancer_closes_
     });
 
     assert!(matches!(
-        connection.send("request-after-close".to_owned(), "{}".to_owned()),
+        connection.send("request-after-close".to_owned(), &json!({})),
         Err(Error::ConnectionDropped { request_id }) if request_id == "request-after-close"
     ));
 }

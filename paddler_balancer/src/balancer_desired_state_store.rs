@@ -24,7 +24,7 @@ impl BalancerDesiredStateStore {
             StoredBalancerDesiredState::Stored(stored_desired_state) => stored_desired_state,
         };
         let (balancer_applicable_state_tx, _initial_balancer_applicable_state_rx) = watch::channel(
-            Arc::new(BalancerApplicableState::from(balancer_desired_state)),
+            Arc::new(BalancerApplicableState::initial(balancer_desired_state)),
         );
 
         Ok(Self {

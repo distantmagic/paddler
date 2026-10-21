@@ -49,7 +49,7 @@ export function inferenceSocketClient({
     filter(isNotificationFrame),
     map(function (parsedFrame: unknown): InferenceMode {
       return InferenceNotificationSchema.parse(parsedFrame).Notification
-        .ClusterInferenceMode;
+        .ClusterInferenceMode.inference_mode;
     }),
   );
 

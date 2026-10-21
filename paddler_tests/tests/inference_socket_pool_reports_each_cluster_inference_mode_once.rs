@@ -6,6 +6,7 @@ use tokio_util::sync::CancellationToken;
 use paddler_client::client_inference::ClientInference;
 use paddler_client::client_inference_params::ClientInferenceParams;
 use paddler_client::inference_socket::reported_cluster_inference_mode::ReportedClusterInferenceMode;
+use paddler_messaging::cluster_inference_mode_report::ClusterInferenceModeReport;
 use paddler_messaging::inference_mode::InferenceMode;
 use paddler_tests::cluster_without_agents_serving::cluster_without_agents_serving;
 use paddler_tests::desired_state_serving::desired_state_serving;
@@ -73,15 +74,25 @@ async fn inference_socket_pool_reports_each_cluster_inference_mode_once() {
         );
     }
 
-    assert_eq!(
-        reported_modes,
-        [
-            ReportedClusterInferenceMode::Reported(InferenceMode::TextGenerationAndEmbeddings),
-            ReportedClusterInferenceMode::Reported(
-                InferenceMode::TextGenerationEmbeddingsAndDecisions
-            ),
-            ReportedClusterInferenceMode::Reported(InferenceMode::TextGenerationAndEmbeddings),
-        ]
+    assert!(
+        matches!(
+            reported_modes.as_slice(),
+            [
+                ReportedClusterInferenceMode::Reported(ClusterInferenceModeReport {
+                    inference_mode: InferenceMode::TextGenerationAndEmbeddings,
+                    ..
+                }),
+                ReportedClusterInferenceMode::Reported(ClusterInferenceModeReport {
+                    inference_mode: InferenceMode::TextGenerationEmbeddingsAndDecisions,
+                    ..
+                }),
+                ReportedClusterInferenceMode::Reported(ClusterInferenceModeReport {
+                    inference_mode: InferenceMode::TextGenerationAndEmbeddings,
+                    ..
+                }),
+            ]
+        ),
+        "{reported_modes:?}"
     );
 
     cluster

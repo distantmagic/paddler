@@ -20,13 +20,13 @@ pub async fn report_cluster_inference_mode(
 ) {
     let mut balancer_applicable_state_rx = balancer_applicable_state_holder.subscribe();
     let mut session_controller = WebSocketSessionController::<OutgoingMessage>::new(outbound_tx);
-    let mut last_inference_mode = balancer_applicable_state_rx
+    let mut last_report = balancer_applicable_state_rx
         .borrow_and_update()
-        .inference_mode();
+        .cluster_inference_mode_report();
 
     session_controller
         .send_response_safe(OutgoingMessage::Notification(
-            Notification::ClusterInferenceMode(last_inference_mode),
+            Notification::ClusterInferenceMode(last_report),
         ))
         .await;
 
@@ -35,19 +35,19 @@ pub async fn report_cluster_inference_mode(
             select! {
                 () = connection_close.cancelled() => break,
                 Ok(()) = balancer_applicable_state_rx.changed() => {
-                    let current_inference_mode = balancer_applicable_state_rx
+                    let current_report = balancer_applicable_state_rx
                         .borrow_and_update()
-                        .inference_mode();
+                        .cluster_inference_mode_report();
 
-                    if current_inference_mode == last_inference_mode {
+                    if current_report.inference_mode == last_report.inference_mode {
                         continue;
                     }
 
-                    last_inference_mode = current_inference_mode;
+                    last_report = current_report;
 
                     session_controller
                         .send_response_safe(OutgoingMessage::Notification(
-                            Notification::ClusterInferenceMode(current_inference_mode),
+                            Notification::ClusterInferenceMode(current_report),
                         ))
                         .await;
                 }

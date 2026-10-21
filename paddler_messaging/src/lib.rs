@@ -19,6 +19,7 @@ pub mod chat_template_message;
 pub mod chat_template_message_content;
 pub mod chat_template_message_content_part;
 pub mod chat_template_source;
+pub mod cluster_inference_mode_report;
 pub mod conversation_history;
 pub mod conversation_message;
 pub mod conversation_message_content;

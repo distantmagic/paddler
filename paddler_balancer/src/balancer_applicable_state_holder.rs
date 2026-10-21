@@ -83,7 +83,7 @@ mod tests {
 
     fn holder_serving_text_generation_and_embeddings() -> BalancerApplicableStateHolder {
         let (_balancer_applicable_state_tx, balancer_applicable_state_rx) = watch::channel(
-            Arc::new(BalancerApplicableState::from(BalancerDesiredState {
+            Arc::new(BalancerApplicableState::initial(BalancerDesiredState {
                 inference_mode: InferenceMode::TextGenerationAndEmbeddings,
                 ..BalancerDesiredState::default()
             })),

@@ -58,6 +58,7 @@ mod tests {
     use tokio::sync::mpsc::error::TryRecvError;
     use tokio::sync::mpsc::unbounded_channel;
 
+    use paddler_messaging::cluster_inference_mode_report::ClusterInferenceModeReport;
     use paddler_messaging::inference_client::message::Message as OutgoingMessage;
     use paddler_messaging::inference_client::notification::Notification;
     use paddler_messaging::inference_mode::InferenceMode;
@@ -87,7 +88,11 @@ mod tests {
 
     fn cluster_inference_mode_notification() -> OutgoingMessage {
         OutgoingMessage::Notification(Notification::ClusterInferenceMode(
-            InferenceMode::TextGenerationAndEmbeddings,
+            ClusterInferenceModeReport {
+                balancer_instance: 1,
+                inference_mode: InferenceMode::TextGenerationAndEmbeddings,
+                version: 0,
+            },
         ))
     }
 

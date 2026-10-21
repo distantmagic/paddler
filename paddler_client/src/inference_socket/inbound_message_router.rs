@@ -13,7 +13,7 @@ use paddler_messaging::result_step::ResultStep;
 
 use crate::error::Error;
 use crate::inference_socket::cluster_inference_mode_broadcaster::ClusterInferenceModeBroadcaster;
-use crate::inference_socket::pending_requests::PendingRequests;
+use crate::inference_socket::inference_socket_exchange::InferenceSocketExchange;
 
 struct RequestScopedMessage {
     is_done: bool,
@@ -33,7 +33,7 @@ impl RequestScopedMessage {
 
 pub struct InboundMessageRouter {
     pub cluster_inference_mode_broadcaster: Arc<ClusterInferenceModeBroadcaster>,
-    pub pending: Arc<PendingRequests>,
+    pub exchange: Arc<InferenceSocketExchange>,
 }
 
 impl InboundMessageRouter {
@@ -46,7 +46,7 @@ impl InboundMessageRouter {
 
                     error!("Failed to decode a message for request {request_id}: {decoding_error}");
 
-                    if !self.pending.fail(
+                    if !self.exchange.fail(
                         &request_id,
                         Error::UndecodableInferenceMessage {
                             request_id: request_id.clone(),
@@ -74,9 +74,8 @@ impl InboundMessageRouter {
                 request_id: envelope.request_id.clone(),
                 message: InferenceMessage::Error(envelope),
             },
-            InferenceMessage::Notification(Notification::ClusterInferenceMode(inference_mode)) => {
-                self.cluster_inference_mode_broadcaster
-                    .publish(inference_mode);
+            InferenceMessage::Notification(Notification::ClusterInferenceMode(report)) => {
+                self.cluster_inference_mode_broadcaster.publish(report);
 
                 return;
             }
@@ -104,7 +103,7 @@ impl InboundMessageRouter {
             },
         };
 
-        if !self.pending.deliver(
+        if !self.exchange.deliver(
             &request_scoped_message.request_id,
             request_scoped_message.message,
             request_scoped_message.is_done,
@@ -133,23 +132,27 @@ mod tests {
     use super::InboundMessageRouter;
     use crate::error::Error;
     use crate::inference_socket::cluster_inference_mode_broadcaster::ClusterInferenceModeBroadcaster;
-    use crate::inference_socket::pending_requests::PendingRequests;
+    use crate::inference_socket::inference_socket_exchange::InferenceSocketExchange;
+    use crate::inference_socket::outbound_request::OutboundRequest;
 
-    fn router_for(pending: &Arc<PendingRequests>) -> InboundMessageRouter {
+    fn router_for(exchange: &Arc<InferenceSocketExchange>) -> InboundMessageRouter {
         InboundMessageRouter {
             cluster_inference_mode_broadcaster: Arc::new(ClusterInferenceModeBroadcaster::default()),
-            pending: Arc::clone(pending),
+            exchange: Arc::clone(exchange),
         }
     }
 
     #[test]
     fn fails_the_request_whose_message_cannot_be_decoded() {
-        let pending = Arc::new(PendingRequests::default());
-        let mut response_rx = pending
-            .register("request-1".to_owned())
-            .expect("an open registry must accept a request");
+        let exchange = Arc::new(InferenceSocketExchange::default());
+        let mut response_rx = exchange
+            .register(
+                OutboundRequest::serialize("request-1".to_owned(), &json!({}))
+                    .expect("a JSON request must serialize"),
+            )
+            .expect("an open exchange must accept a request");
 
-        router_for(&pending).route_text(
+        router_for(&exchange).route_text(
             &json!({
                 "Response": {
                     "generated_by": null,
@@ -168,12 +171,15 @@ mod tests {
 
     #[test]
     fn leaves_other_requests_pending_when_an_undecodable_message_names_an_unknown_request() {
-        let pending = Arc::new(PendingRequests::default());
-        let mut response_rx = pending
-            .register("request-1".to_owned())
-            .expect("an open registry must accept a request");
+        let exchange = Arc::new(InferenceSocketExchange::default());
+        let mut response_rx = exchange
+            .register(
+                OutboundRequest::serialize("request-1".to_owned(), &json!({}))
+                    .expect("a JSON request must serialize"),
+            )
+            .expect("an open exchange must accept a request");
 
-        router_for(&pending).route_text(
+        router_for(&exchange).route_text(
             &json!({ "Error": { "request_id": "request-2", "error": { "NoSuchError": {} } } })
                 .to_string(),
         );
@@ -187,12 +193,15 @@ mod tests {
 
     #[test]
     fn leaves_requests_pending_when_an_undecodable_message_names_no_request() {
-        let pending = Arc::new(PendingRequests::default());
-        let mut response_rx = pending
-            .register("request-1".to_owned())
-            .expect("an open registry must accept a request");
+        let exchange = Arc::new(InferenceSocketExchange::default());
+        let mut response_rx = exchange
+            .register(
+                OutboundRequest::serialize("request-1".to_owned(), &json!({}))
+                    .expect("a JSON request must serialize"),
+            )
+            .expect("an open exchange must accept a request");
 
-        router_for(&pending).route_text("not json");
+        router_for(&exchange).route_text("not json");
 
         assert!(
             response_rx
@@ -213,12 +222,15 @@ mod tests {
                 Response::Decision(DecisionResult::StopRequested),
             ),
         ] {
-            let pending = Arc::new(PendingRequests::default());
-            let mut response_rx = pending
-                .register("request-1".to_owned())
-                .expect("an open registry must accept a request");
+            let exchange = Arc::new(InferenceSocketExchange::default());
+            let mut response_rx = exchange
+                .register(
+                    OutboundRequest::serialize("request-1".to_owned(), &json!({}))
+                        .expect("a JSON request must serialize"),
+                )
+                .expect("an open exchange must accept a request");
 
-            router_for(&pending).route_text(
+            router_for(&exchange).route_text(
                 &json!({
                     "Response": {
                         "generated_by": null,
@@ -247,14 +259,25 @@ mod tests {
 
     #[test]
     fn a_notification_nobody_listens_to_leaves_requests_pending() {
-        let pending = Arc::new(PendingRequests::default());
-        let mut response_rx = pending
-            .register("request-1".to_owned())
-            .expect("an open registry must accept a request");
+        let exchange = Arc::new(InferenceSocketExchange::default());
+        let mut response_rx = exchange
+            .register(
+                OutboundRequest::serialize("request-1".to_owned(), &json!({}))
+                    .expect("a JSON request must serialize"),
+            )
+            .expect("an open exchange must accept a request");
 
-        router_for(&pending).route_text(
-            &json!({ "Notification": { "ClusterInferenceMode": "TextGenerationAndEmbeddings" } })
-                .to_string(),
+        router_for(&exchange).route_text(
+            &json!({
+                "Notification": {
+                    "ClusterInferenceMode": {
+                        "balancer_instance": 1,
+                        "inference_mode": "TextGenerationAndEmbeddings",
+                        "version": 0
+                    }
+                }
+            })
+            .to_string(),
         );
 
         assert!(

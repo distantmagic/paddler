@@ -1,8 +1,6 @@
 use std::num::NonZeroU32;
 use std::sync::Arc;
 
-use serde_json::to_string;
-
 use paddler_cli_tests::start_signalled_subprocess_cluster::start_signalled_subprocess_cluster;
 use paddler_cli_tests::subprocess_cluster::SubprocessCluster;
 use paddler_client::error::Error;
@@ -47,10 +45,7 @@ async fn inference_socket_connection_drops_pending_requests_when_the_balancer_is
             }),
         });
     let mut response_rx = connection
-        .send(
-            PENDING_REQUEST_ID.to_owned(),
-            to_string(&request).expect("the request must serialize"),
-        )
+        .send(PENDING_REQUEST_ID.to_owned(), &request)
         .expect("an open connection must accept the request");
 
     cluster

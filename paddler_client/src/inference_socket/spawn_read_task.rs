@@ -10,12 +10,12 @@ use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 use crate::inference_socket::cluster_inference_mode_broadcaster::ClusterInferenceModeBroadcaster;
 use crate::inference_socket::inbound_message_router::InboundMessageRouter;
-use crate::inference_socket::pending_requests::PendingRequests;
+use crate::inference_socket::inference_socket_exchange::InferenceSocketExchange;
 
 #[must_use]
 pub fn spawn_read_task<TWebSocketReadStream>(
     ws_read: TWebSocketReadStream,
-    pending: Arc<PendingRequests>,
+    exchange: Arc<InferenceSocketExchange>,
     cluster_inference_mode_broadcaster: Arc<ClusterInferenceModeBroadcaster>,
 ) -> JoinHandle<()>
 where
@@ -25,7 +25,7 @@ where
         let mut ws_read = ws_read;
         let router = InboundMessageRouter {
             cluster_inference_mode_broadcaster,
-            pending,
+            exchange,
         };
 
         while let Some(msg_result) = ws_read.next().await {
@@ -46,7 +46,7 @@ where
             }
         }
 
-        router.pending.close();
+        router.exchange.close();
     })
 }
 
@@ -57,23 +57,34 @@ mod tests {
     use futures_util::StreamExt as _;
     use futures_util::stream::iter;
     use futures_util::stream::pending;
+    use serde_json::json;
+    use tokio_tungstenite::tungstenite::Bytes;
     use tokio_tungstenite::tungstenite::Message as WsMessage;
+
+    use paddler_messaging::embedding_result::EmbeddingResult;
+    use paddler_messaging::inference_client::message::Message as InferenceMessage;
+    use paddler_messaging::inference_client::response::Response;
+    use paddler_messaging::jsonrpc::response_envelope::ResponseEnvelope;
 
     use super::spawn_read_task;
     use crate::error::Error;
     use crate::inference_socket::cluster_inference_mode_broadcaster::ClusterInferenceModeBroadcaster;
-    use crate::inference_socket::pending_requests::PendingRequests;
+    use crate::inference_socket::inference_socket_exchange::InferenceSocketExchange;
+    use crate::inference_socket::outbound_request::OutboundRequest;
 
     #[tokio::test]
     async fn a_binary_frame_drops_every_pending_request_without_waiting_for_more_frames() {
-        let pending_requests = Arc::new(PendingRequests::default());
-        let mut response_rx = pending_requests
-            .register("request-1".to_owned())
+        let exchange = Arc::new(InferenceSocketExchange::default());
+        let mut response_rx = exchange
+            .register(
+                OutboundRequest::serialize("request-1".to_owned(), &json!({}))
+                    .expect("a JSON request must serialize"),
+            )
             .expect("an open connection must accept a request");
 
         spawn_read_task(
             iter([Ok(WsMessage::Binary(vec![0].into()))]).chain(pending()),
-            pending_requests,
+            exchange,
             Arc::new(ClusterInferenceModeBroadcaster::default()),
         )
         .await
@@ -92,6 +103,47 @@ mod tests {
                 }
                 .to_string()
             )
+        );
+    }
+
+    #[tokio::test]
+    async fn a_ping_between_frames_leaves_the_following_response_for_its_request() {
+        let exchange = Arc::new(InferenceSocketExchange::default());
+        let mut response_rx = exchange
+            .register(
+                OutboundRequest::serialize("request-1".to_owned(), &json!({}))
+                    .expect("a JSON request must serialize"),
+            )
+            .expect("an open connection must accept a request");
+
+        spawn_read_task(
+            iter([
+                Ok(WsMessage::Ping(Bytes::new())),
+                Ok(WsMessage::Text(
+                    json!({
+                        "Response": {
+                            "generated_by": null,
+                            "request_id": "request-1",
+                            "response": { "Embedding": "Done" }
+                        }
+                    })
+                    .to_string()
+                    .into(),
+                )),
+            ]),
+            exchange,
+            Arc::new(ClusterInferenceModeBroadcaster::default()),
+        )
+        .await
+        .expect("the read task must not panic");
+
+        assert_eq!(
+            response_rx.recv().await.and_then(Result::ok),
+            Some(InferenceMessage::Response(ResponseEnvelope {
+                generated_by: None,
+                request_id: "request-1".to_owned(),
+                response: Response::Embedding(EmbeddingResult::Done),
+            }))
         );
     }
 }

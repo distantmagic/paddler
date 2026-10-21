@@ -1,12 +1,12 @@
 import { z } from "zod";
 
-import { InferenceModeSchema } from "./InferenceMode";
+import { ClusterInferenceModeReportSchema } from "./ClusterInferenceModeReport";
 
 export const InferenceNotificationSchema = z
   .object({
     Notification: z
       .object({
-        ClusterInferenceMode: InferenceModeSchema,
+        ClusterInferenceMode: ClusterInferenceModeReportSchema,
       })
       .strict(),
   })

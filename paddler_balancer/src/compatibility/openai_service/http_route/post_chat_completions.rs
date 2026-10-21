@@ -93,7 +93,7 @@ mod tests {
         CompatibilityAppData {
             agent_controller_pool: agent_controller_pool.clone(),
             balancer_applicable_state_holder: Arc::new(BalancerApplicableStateHolder::new(
-                watch::channel(Arc::new(BalancerApplicableState::from(
+                watch::channel(Arc::new(BalancerApplicableState::initial(
                     BalancerDesiredState::default(),
                 )))
                 .1,

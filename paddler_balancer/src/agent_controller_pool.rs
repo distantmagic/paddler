@@ -312,7 +312,7 @@ mod tests {
     fn registering_an_agent_sends_it_the_current_desired_state_before_anything_else() {
         let current_desired_state = desired_state_with_model("agent:///current/model.gguf");
         let (_applicable_state_tx, applicable_state_rx) = watch::channel(Arc::new(
-            BalancerApplicableState::from(current_desired_state.clone()),
+            BalancerApplicableState::initial(current_desired_state.clone()),
         ));
         let agent_controller = registering_agent_controller();
         let _registration = Arc::new(AgentControllerPool::default()).register_agent_controller(

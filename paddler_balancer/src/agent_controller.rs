@@ -182,7 +182,7 @@ mod tests {
     #[test]
     fn a_desired_state_arriving_after_a_newer_one_is_not_sent_to_the_agent() {
         let replaced_state =
-            BalancerApplicableState::from(desired_state_with_model("agent:///replaced.gguf"));
+            BalancerApplicableState::initial(desired_state_with_model("agent:///replaced.gguf"));
         let newest_state =
             replaced_state.superseded_by(desired_state_with_model("agent:///newest.gguf"));
         let agent_controller = AgentController::new(AgentControllerParams {

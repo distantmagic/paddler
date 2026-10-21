@@ -1,10 +1,10 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::inference_mode::InferenceMode;
+use crate::cluster_inference_mode_report::ClusterInferenceModeReport;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub enum Notification {
-    ClusterInferenceMode(InferenceMode),
+    ClusterInferenceMode(ClusterInferenceModeReport),
 }

@@ -4,7 +4,6 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
 use serde::Serialize;
-use serde_json::to_string;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::watch;
@@ -53,16 +52,14 @@ impl Pool {
         self.cluster_inference_mode_broadcaster.subscribe()
     }
 
-    pub async fn send_request<TMessage: Serialize>(
+    pub async fn send_request<TMessage: Serialize + Sync>(
         &self,
         cancellation_token: CancellationToken,
         request_id: String,
         message: TMessage,
     ) -> Result<InferenceMessageStream> {
-        let json = to_string(&message)?;
-
         let Some(established_request_result) = cancellation_token
-            .run_until_cancelled(self.establish_request(json, request_id.clone()))
+            .run_until_cancelled(self.establish_request(&message, request_id.clone()))
             .await
         else {
             return Err(Error::InferenceRequestCancelled { request_id });
@@ -103,13 +100,13 @@ impl Pool {
         Ok(connection)
     }
 
-    async fn establish_request(
+    async fn establish_request<TMessage: Serialize + Sync>(
         &self,
-        json: String,
+        message: &TMessage,
         request_id: String,
     ) -> Result<EstablishedRequest> {
         let connection = self.connected(self.next_connection_slot()).await?;
-        let response_rx = connection.send(request_id, json)?;
+        let response_rx = connection.send(request_id, message)?;
 
         Ok(EstablishedRequest {
             connection,

@@ -66,7 +66,7 @@ mod tests {
     async fn stops_cleanly_when_its_desired_state_store_closes_during_shutdown() {
         for _ in 0..RUNS_TO_EXERCISE_EVERY_BRANCH_ORDER {
             let (balancer_applicable_state_tx, balancer_applicable_state_rx) =
-                watch::channel(Arc::new(BalancerApplicableState::from(
+                watch::channel(Arc::new(BalancerApplicableState::initial(
                     BalancerDesiredState::default(),
                 )));
             let shutdown = CancellationToken::new();
