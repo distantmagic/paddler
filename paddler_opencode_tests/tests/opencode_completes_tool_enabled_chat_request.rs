@@ -33,8 +33,11 @@ async fn opencode_completes_tool_enabled_chat_request() {
         .expect("the opencode test project must be created");
 
     let prompt = format!(
-        "Read the file {} in this directory and reply with the exact marker value it contains.",
-        project.marker_file_name()
+        "Read the file {} and reply with the exact marker value it contains.",
+        project
+            .directory_path()
+            .join(project.marker_file_name())
+            .display()
     );
 
     let outcome = run_opencode(&binary_path, &project, &prompt)

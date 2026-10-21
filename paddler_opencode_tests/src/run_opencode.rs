@@ -13,17 +13,24 @@ pub async fn run_opencode(
     prompt: &str,
 ) -> Result<OpenCodeRunOutcome, OpenCodeTestError> {
     let mut command = Command::new(binary_path);
+    let home = project.home_path();
 
     command
         .arg("run")
         .arg(prompt)
-        .arg("--dir")
-        .arg(project.directory_path())
-        .arg("--pure")
+        .arg("--standalone")
         .arg("--auto")
         .arg("--model")
         .arg(project.model_reference())
+        .current_dir(project.directory_path())
+        .env("PWD", project.directory_path())
+        .env("HOME", home)
+        .env("XDG_CACHE_HOME", home.join(".cache"))
+        .env("XDG_CONFIG_HOME", home.join(".config"))
+        .env("XDG_DATA_HOME", home.join(".local").join("share"))
+        .env("XDG_STATE_HOME", home.join(".local").join("state"))
         .kill_on_drop(true)
+        .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
