@@ -1,3 +1,5 @@
+use nanoid::nanoid;
+
 #[derive(Clone, Copy)]
 pub enum ResponsesOutputItemKind {
     FunctionCall,
@@ -7,14 +9,14 @@ pub enum ResponsesOutputItemKind {
 
 impl ResponsesOutputItemKind {
     #[must_use]
-    pub fn item_id(self, output_index: usize) -> String {
+    pub fn item_id(self) -> String {
         let prefix = match self {
             Self::FunctionCall => "fc",
             Self::Message => "msg",
             Self::Reasoning => "rs",
         };
 
-        format!("{prefix}_{output_index}")
+        format!("{prefix}_{}", nanoid!())
     }
 }
 
@@ -23,15 +25,21 @@ mod tests {
     use super::ResponsesOutputItemKind;
 
     #[test]
-    fn names_each_output_item_after_its_kind_and_position() {
-        assert_eq!(
-            [
-                ResponsesOutputItemKind::Reasoning,
-                ResponsesOutputItemKind::Message,
-                ResponsesOutputItemKind::FunctionCall,
-            ]
-            .map(|item_kind| item_kind.item_id(2)),
-            ["rs_2", "msg_2", "fc_2"]
+    fn names_each_output_item_after_its_kind() {
+        assert!(
+            ResponsesOutputItemKind::Reasoning
+                .item_id()
+                .starts_with("rs_")
+        );
+        assert!(
+            ResponsesOutputItemKind::Message
+                .item_id()
+                .starts_with("msg_")
+        );
+        assert!(
+            ResponsesOutputItemKind::FunctionCall
+                .item_id()
+                .starts_with("fc_")
         );
     }
 }

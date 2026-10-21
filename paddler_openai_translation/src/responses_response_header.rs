@@ -74,21 +74,21 @@ impl CompletesGeneration for ResponsesResponseHeader {
 
         if !reasoning.is_empty() {
             output.push(ResponsesOutputItem::completed_reasoning(
-                ResponsesOutputItemKind::Reasoning.item_id(output.len()),
+                ResponsesOutputItemKind::Reasoning.item_id(),
                 reasoning,
             ));
         }
 
         if !content.is_empty() || tool_calls.is_empty() {
             output.push(ResponsesOutputItem::completed_message(
-                ResponsesOutputItemKind::Message.item_id(output.len()),
+                ResponsesOutputItemKind::Message.item_id(),
                 content,
             ));
         }
 
         for parsed_call in &tool_calls {
             output.push(ResponsesOutputItem::completed_function_call(
-                ResponsesOutputItemKind::FunctionCall.item_id(output.len()),
+                ResponsesOutputItemKind::FunctionCall.item_id(),
                 parsed_call,
                 arguments_to_tool_call_string(&parsed_call.arguments),
             ));
@@ -223,6 +223,19 @@ mod tests {
         assert_eq!(response["status"], "completed");
         assert_eq!(response["output"][0]["type"], "message");
         assert_eq!(response["output"][0]["content"][0]["text"], "hello");
+    }
+
+    #[test]
+    fn two_responses_never_share_an_output_item_id() {
+        let first_response =
+            completed_response_of(vec![GeneratedOutputPart::Content("hello".to_owned())]);
+        let second_response =
+            completed_response_of(vec![GeneratedOutputPart::Content("hello".to_owned())]);
+
+        assert_ne!(
+            first_response["output"][0]["id"],
+            second_response["output"][0]["id"]
+        );
     }
 
     #[test]

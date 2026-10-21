@@ -206,7 +206,7 @@ impl ResponsesStream {
         } else {
             self.close_open_item(events);
 
-            let item_id = ResponsesOutputItemKind::Reasoning.item_id(self.output_index);
+            let item_id = ResponsesOutputItemKind::Reasoning.item_id();
 
             self.add_item(
                 events,
@@ -242,7 +242,7 @@ impl ResponsesStream {
         } else {
             self.close_open_item(events);
 
-            let item_id = ResponsesOutputItemKind::Message.item_id(self.output_index);
+            let item_id = ResponsesOutputItemKind::Message.item_id();
 
             self.add_item(
                 events,
@@ -284,7 +284,7 @@ impl ResponsesStream {
 
         for call in parsed_calls {
             let output_index = self.output_index;
-            let item_id = ResponsesOutputItemKind::FunctionCall.item_id(output_index);
+            let item_id = ResponsesOutputItemKind::FunctionCall.item_id();
             let arguments = arguments_to_tool_call_string(&call.arguments);
 
             self.add_item(
@@ -428,6 +428,31 @@ mod tests {
         );
         assert_eq!(serialized(&events[0])["response"]["status"], "in_progress");
         assert_eq!(serialized(&events[4])["delta"], "hi");
+    }
+
+    #[test]
+    fn every_event_of_a_streamed_item_carries_the_same_id() {
+        let mut responses_stream = responses_stream();
+        let mut events = responses_stream.advance(content("hel"));
+
+        events.extend(responses_stream.advance(content("lo")));
+        events.extend(responses_stream.conclude(finished(GenerationFinish::EndOfGeneration)));
+
+        let item_ids = events
+            .iter()
+            .map(serialized)
+            .filter_map(|event| match event["type"].as_str() {
+                Some("response.output_item.added" | "response.output_item.done") => {
+                    Some(event["item"]["id"].clone())
+                }
+                Some("response.completed") => Some(event["response"]["output"][0]["id"].clone()),
+                Some("response.created" | "response.in_progress") => None,
+                Some(_) | None => Some(event["item_id"].clone()),
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(item_ids.len(), 8);
+        assert!(item_ids.iter().all(|item_id| *item_id == item_ids[0]));
     }
 
     #[test]
