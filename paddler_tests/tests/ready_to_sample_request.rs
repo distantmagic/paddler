@@ -7,6 +7,8 @@ use llama_cpp_bindings::SampledTokenClassifier;
 use llama_cpp_bindings::context::LlamaContext;
 use llama_cpp_bindings::model::LlamaModel;
 use llama_cpp_bindings::token::data_array::LlamaTokenDataArray;
+use log::LevelFilter;
+use log::set_max_level;
 
 use paddler_agent_runtime::sequence_id_guard::SequenceIdGuard;
 use paddler_agent_runtime::sequence_id_pool::SequenceIdPool;
@@ -43,6 +45,9 @@ impl ReadyToSampleRequest<'_> {
             prompt,
             runtime,
         } = self;
+
+        set_max_level(LevelFilter::Trace);
+
         let sequence_context_size = llama_context.n_ctx_seq();
         let classifier_model: &'static LlamaModel =
             Box::leak(Box::new(Arc::clone(&runtime.loaded_llama_model.model)));

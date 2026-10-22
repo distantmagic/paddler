@@ -16,7 +16,7 @@ fn http_listener_reports_a_socket_it_cannot_open() {
     let lowest_free_descriptor = File::open("/dev/null")
         .expect("a probe descriptor must open")
         .as_raw_fd();
-    let (_soft_descriptor_limit, hard_descriptor_limit) =
+    let (soft_descriptor_limit, hard_descriptor_limit) =
         getrlimit(Resource::RLIMIT_NOFILE).expect("the descriptor limit must be readable");
 
     setrlimit(
@@ -26,12 +26,18 @@ fn http_listener_reports_a_socket_it_cannot_open() {
     )
     .expect("the descriptor limit must be lowered");
 
-    assert_eq!(
-        HttpListener::bind(SocketAddr::from((Ipv4Addr::LOCALHOST, 0)))
-            .err()
-            .as_ref()
-            .and_then(io::Error::raw_os_error)
-            .map(Errno::from_raw),
-        Some(Errno::EMFILE)
-    );
+    let bind_errno = HttpListener::bind(SocketAddr::from((Ipv4Addr::LOCALHOST, 0)))
+        .err()
+        .as_ref()
+        .and_then(io::Error::raw_os_error)
+        .map(Errno::from_raw);
+
+    setrlimit(
+        Resource::RLIMIT_NOFILE,
+        soft_descriptor_limit,
+        hard_descriptor_limit,
+    )
+    .expect("the descriptor limit must be restored");
+
+    assert_eq!(bind_errno, Some(Errno::EMFILE));
 }
