@@ -51,6 +51,7 @@ fn a_decision_admitted_to_a_sequence_that_cannot_be_cleared_fails_with_kv_cache_
         active_requests: VecDeque::new(),
         agent_shutdown: CancellationToken::new(),
         capacity_ledger: DecisionCapacityLedger::new(SEQUENCES_THE_LEDGER_HANDS_OUT),
+        pending_requests: VecDeque::new(),
         scheduler_inbox: SchedulerInbox::new(scheduler_message_rx),
         sequences: SEQUENCES_THE_CONTEXT_HOLDS,
     });

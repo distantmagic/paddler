@@ -11,6 +11,7 @@ pub struct DecisionSchedulerRun {
     pub active_requests: VecDeque<ActiveDecisionRequest>,
     pub agent_shutdown: CancellationToken,
     pub capacity_ledger: DecisionCapacityLedger,
+    pub pending_requests: VecDeque<PreparedDecisionRequest>,
     pub scheduler_inbox: SchedulerInbox<PreparedDecisionRequest>,
     pub sequences: u16,
 }

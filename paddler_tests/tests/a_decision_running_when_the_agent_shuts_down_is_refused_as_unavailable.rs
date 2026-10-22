@@ -44,6 +44,7 @@ fn a_decision_running_when_the_agent_shuts_down_is_refused_as_unavailable() {
         active_requests: VecDeque::from([active_decision_request]),
         agent_shutdown,
         capacity_ledger,
+        pending_requests: VecDeque::new(),
         scheduler_inbox: SchedulerInbox::new(scheduler_message_rx),
         sequences: DECISION_SEQUENCES,
     });

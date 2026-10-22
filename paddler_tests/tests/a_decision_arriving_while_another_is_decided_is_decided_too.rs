@@ -52,6 +52,7 @@ fn a_decision_arriving_while_another_is_decided_is_decided_too() {
         active_requests: VecDeque::new(),
         agent_shutdown: CancellationToken::new(),
         capacity_ledger: DecisionCapacityLedger::new(CONCURRENT_DECISIONS),
+        pending_requests: VecDeque::new(),
         scheduler_inbox: SchedulerInbox::new(scheduler_message_rx),
         sequences: CONCURRENT_DECISIONS,
     });

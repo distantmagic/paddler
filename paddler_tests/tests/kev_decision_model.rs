@@ -1,7 +1,5 @@
 #![cfg(feature = "tests_that_use_llms")]
 
-use std::collections::VecDeque;
-
 use llama_cpp_bindings::llama_batch::LlamaBatch;
 use llama_cpp_bindings::token::LlamaToken;
 
@@ -61,6 +59,7 @@ impl KevDecisionModel {
             active_requests,
             agent_shutdown,
             capacity_ledger,
+            pending_requests,
             scheduler_inbox,
             sequences,
         }: DecisionSchedulerRun,
@@ -79,7 +78,7 @@ impl KevDecisionModel {
             llama_context: runtime
                 .create_decision_llama_context(u32::from(sequences))
                 .expect("the decision context must be created"),
-            pending_requests: VecDeque::new(),
+            pending_requests,
             scheduler_context: DecisionSchedulerContext {
                 agent_name: None,
                 n_batch: runtime.model_runtime_parameters.n_batch.tokens_usize(),
