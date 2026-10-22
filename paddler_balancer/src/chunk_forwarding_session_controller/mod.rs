@@ -39,7 +39,7 @@ where
     TTransformsOutgoingMessage: TransformsOutgoingMessage + Send + Sync,
 {
     async fn send_response(&mut self, message: OutgoingMessage) -> Result<()> {
-        for output in self.transformer.transform(message).await? {
+        for output in self.transformer.transform(message).await {
             self.chunk_tx.send(output)?;
         }
 

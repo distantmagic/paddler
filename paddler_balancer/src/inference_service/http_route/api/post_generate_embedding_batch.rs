@@ -11,7 +11,6 @@ use anyhow::Result;
 use async_trait::async_trait;
 use futures::stream::StreamExt;
 use nanoid::nanoid;
-use serde_json::to_string;
 use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -25,7 +24,6 @@ use paddler_messaging::jsonrpc::response_envelope::ResponseEnvelope;
 use paddler_messaging::request_params::generate_embedding_batch_params::GenerateEmbeddingBatchParams;
 
 use crate::agent_relay::AgentRelay;
-use crate::agent_relay_error::AgentRelayError;
 use crate::awaiting_agent_relay::AwaitingAgentRelay;
 use crate::cancellation_token_stream_guard::CancellationTokenStreamGuard;
 use crate::chunk_forwarding_session_controller::ChunkForwardingSessionController;
@@ -167,26 +165,19 @@ struct EmbeddingChunkBodyTransformer {
 impl TransformsOutgoingMessage for EmbeddingChunkBodyTransformer {
     type Output = TransformResult;
 
-    async fn transform(
-        &self,
-        message: OutgoingMessage,
-    ) -> Result<Vec<TransformResult>, AgentRelayError> {
+    async fn transform(&self, message: OutgoingMessage) -> Vec<TransformResult> {
         if let OutgoingMessage::Response(ResponseEnvelope {
             response: OutgoingResponse::Embedding(EmbeddingResult::Done),
             ..
         }) = &message
         {
-            return Ok(vec![TransformResult::Discard]);
+            return vec![TransformResult::Discard];
         }
 
         self.embedding_document_duplicates
             .fan_out(message)
             .iter()
-            .map(|fanned_out_message| {
-                to_string(fanned_out_message)
-                    .map(TransformResult::Chunk)
-                    .map_err(AgentRelayError::MessageUnserializable)
-            })
+            .map(TransformResult::serialized_from)
             .collect()
     }
 }

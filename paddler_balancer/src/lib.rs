@@ -11,7 +11,6 @@ pub mod agent_desired_state_notification;
 pub mod agent_id_path_params;
 pub mod agent_relay;
 pub mod agent_relay_conclusion;
-pub mod agent_relay_error;
 pub mod agent_relay_event;
 pub mod agent_relay_phase;
 pub mod agent_relay_step;
