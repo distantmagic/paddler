@@ -25,6 +25,7 @@ pub mod embedding_with_producer;
 pub mod ephemeral_loopback_addr;
 pub mod fixture_path;
 pub mod half_closed_client;
+pub mod inference_stream_error_codes;
 pub mod is_unending_generation_text;
 pub mod load_fixture_data_uri;
 pub mod load_test_image_data_uri;

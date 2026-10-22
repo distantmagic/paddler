@@ -23,7 +23,7 @@ async fn openai_chat_completion_non_streaming_returns_usage() {
 
     let usage = response
         .get("usage")
-        .unwrap_or_else(|| panic!("non-streaming response missing usage: {response}"));
+        .expect("non-streaming response missing usage");
 
     let prompt_tokens = usage
         .get("prompt_tokens")

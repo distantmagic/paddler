@@ -1,3 +1,8 @@
+use std::error::Error as _;
+use std::mem::discriminant;
+
+use serde_json::Value;
+use serde_json::from_str;
 use serde_json::json;
 use serde_json::to_string;
 use serde_json::to_value;
@@ -38,15 +43,28 @@ async fn balancer_refuses_a_stored_desired_state_with_an_ambiguous_parameter() {
     .await
     .err();
 
-    assert!(
-        matches!(
-            start_error
-                .as_ref()
-                .and_then(|error| error.downcast_ref::<BootstrapError>()),
-            Some(BootstrapError::StateDatabaseReadFailed {
-                source: StateDatabaseError::FileContentsInvalid { .. }
-            })
-        ),
+    let bootstrap_error = start_error
+        .as_ref()
+        .and_then(|error| error.downcast_ref::<BootstrapError>());
+
+    assert_eq!(
+        bootstrap_error.map(discriminant),
+        Some(discriminant(&BootstrapError::StateDatabaseReadFailed {
+            source: StateDatabaseError::FilePathEmpty
+        })),
         "{start_error:?}"
+    );
+    assert_eq!(
+        bootstrap_error
+            .and_then(|bootstrap_error| bootstrap_error.source())
+            .map(ToString::to_string),
+        Some(
+            StateDatabaseError::FileContentsInvalid {
+                path: database.path.clone(),
+                source: from_str::<Value>("")
+                    .expect_err("an empty document must not parse as JSON"),
+            }
+            .to_string()
+        )
     );
 }

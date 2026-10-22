@@ -47,9 +47,8 @@ async fn agent_conversation_with_gbnf_grammar_constrains_output() {
     let lower = collected.text.to_lowercase();
 
     assert!(
-        lower == "yes" || lower == "no",
-        "GBNF grammar should constrain output to yes/no; got {:?}",
-        collected.text
+        ["yes", "no"].contains(&lower.as_str()),
+        "GBNF grammar should constrain output to yes/no; got {lower:?}"
     );
 
     cluster

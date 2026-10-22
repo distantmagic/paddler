@@ -102,15 +102,16 @@ mod tests {
         let budget = ConcurrentConnectionBudget::default();
         let _held_reservations = hold_every_connection(&budget);
 
-        assert!(matches!(
-            budget.reserve(),
-            Err(
+        assert_eq!(
+            budget.reserve().err().map(|refusal| refusal.to_string()),
+            Some(
                 ClusterHarnessError::ConcurrentConnectionsExceedPortableListenBacklog {
                     held_connections: PORTABLE_LISTEN_BACKLOG,
                     limit: PORTABLE_LISTEN_BACKLOG,
                 }
+                .to_string()
             )
-        ));
+        );
     }
 
     #[test]

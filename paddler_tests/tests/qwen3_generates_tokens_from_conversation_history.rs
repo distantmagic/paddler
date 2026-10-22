@@ -7,10 +7,8 @@ use tokio_util::sync::CancellationToken;
 use paddler_messaging::conversation_history::ConversationHistory;
 use paddler_messaging::conversation_message::ConversationMessage;
 use paddler_messaging::conversation_message_content::ConversationMessageContent;
-use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_messaging::request_params::continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
-use paddler_test_cluster_harness::token_result_with_producer::TokenResultWithProducer;
 use paddler_tests::start_cluster_with_qwen3::start_cluster_with_qwen3;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -48,13 +46,9 @@ async fn qwen3_generates_tokens_from_conversation_history() {
 
     assert!(token_count > 0);
     assert!(token_count < 500, "EOG should stop generation early");
-    assert!(matches!(
-        collected.token_results.last(),
-        Some(TokenResultWithProducer {
-            token_result: GeneratedTokenResult::Done(_),
-            ..
-        })
-    ));
+    collected
+        .summary()
+        .expect("the generation must finish with a summary");
 
     cluster
         .shutdown()

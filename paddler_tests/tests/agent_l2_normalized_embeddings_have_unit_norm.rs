@@ -38,10 +38,10 @@ async fn agent_l2_normalized_embeddings_have_unit_norm() {
 
     let produced = &collected.embeddings[0];
 
-    assert!(matches!(
+    assert_eq!(
         produced.embedding.normalization_method,
         EmbeddingNormalizationMethod::L2
-    ));
+    );
 
     let l2_norm: f32 = produced
         .embedding

@@ -6,7 +6,6 @@ use std::num::NonZeroU32;
 use futures_util::future::try_join_all;
 use tokio_util::sync::CancellationToken;
 
-use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_messaging::request_params::continue_from_raw_prompt_params::ContinueFromRawPromptParams;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_test_cluster_harness::cluster_desired_state::ClusterDesiredState;
@@ -54,13 +53,9 @@ async fn balancer_serves_every_concurrent_request_on_a_single_slot_agent() {
     .expect("every concurrent request must succeed");
 
     for collected in collected_requests {
-        assert!(matches!(
-            collected
-                .token_results
-                .last()
-                .map(|token_result_with_producer| &token_result_with_producer.token_result),
-            Some(GeneratedTokenResult::Done(_))
-        ));
+        collected
+            .summary()
+            .expect("the generation must finish with a summary");
     }
 
     cluster

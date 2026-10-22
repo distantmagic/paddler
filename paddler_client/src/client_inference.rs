@@ -170,6 +170,7 @@ impl ReportsHealth for ClientInference {
 
 #[cfg(test)]
 mod tests {
+    use std::mem::discriminant;
     use std::num::NonZeroU32;
     use std::num::NonZeroUsize;
 
@@ -257,12 +258,21 @@ use paddler_messaging::request_params::generate_embedding_batch_params::Generate
 
         let rejection = unreachable_client()
             .continue_from_raw_prompt(cancellation_token, raw_prompt_params())
-            .await;
+            .await
+            .err()
+            .expect("a cancelled request must be rejected");
+        let rejection_without_a_request_id = Error::InferenceRequestCancelled {
+            request_id: String::new(),
+        };
 
-        assert!(matches!(
-            rejection,
-            Err(Error::InferenceRequestCancelled { request_id }) if !request_id.is_empty()
-        ));
+        assert_eq!(
+            discriminant(&rejection),
+            discriminant(&rejection_without_a_request_id)
+        );
+        assert_ne!(
+            rejection.to_string(),
+            rejection_without_a_request_id.to_string()
+        );
     }
 
     #[tokio::test]

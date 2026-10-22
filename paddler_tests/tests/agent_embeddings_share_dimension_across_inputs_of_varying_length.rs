@@ -46,16 +46,15 @@ async fn agent_embeddings_share_dimension_across_inputs_of_varying_length() {
 
     assert!(first_dimension > 0, "embedding dimension must be positive");
 
-    for produced in &collected.embeddings {
-        assert_eq!(
-            produced.embedding.embedding.len(),
-            first_dimension,
-            "all embeddings must share dimension; {} has {} instead of {}",
-            produced.embedding.source_document_id,
-            produced.embedding.embedding.len(),
-            first_dimension
-        );
-    }
+    assert_eq!(
+        collected
+            .embeddings
+            .iter()
+            .map(|produced| produced.embedding.embedding.len())
+            .collect::<Vec<_>>(),
+        vec![first_dimension; collected.embeddings.len()],
+        "all embeddings must share dimension"
+    );
 
     cluster
         .shutdown()

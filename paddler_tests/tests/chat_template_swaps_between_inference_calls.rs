@@ -12,13 +12,14 @@ use paddler_messaging::conversation_message_content::ConversationMessageContent;
 use paddler_messaging::request_params::continue_from_conversation_history_params::ContinueFromConversationHistoryParams;
 use paddler_test_cluster_harness::agent_config::AgentConfig;
 use paddler_test_cluster_harness::cluster::Cluster;
+use paddler_test_cluster_harness::collected_generated_tokens::CollectedGeneratedTokens;
 use paddler_tests::desired_state_with_chat_template_override::desired_state_with_chat_template_override;
 use paddler_tests::qwen3_desired_state::qwen3_desired_state;
 use paddler_tests::start_cluster_with_qwen3::start_cluster_with_qwen3;
 
 const CAPITAL_OF_FRANCE_MAX_TOKENS: NonZeroU32 = NonZeroU32::new(10).unwrap();
 
-async fn capital_of_france(cluster: &Cluster) -> Result<()> {
+async fn capital_of_france(cluster: &Cluster) -> Result<CollectedGeneratedTokens> {
     cluster
         .continue_from_conversation_history(
             CancellationToken::new(),
@@ -39,10 +40,7 @@ async fn capital_of_france(cluster: &Cluster) -> Result<()> {
                 tools: vec![],
             },
         )
-        .await?
-        .summary()?;
-
-    Ok(())
+        .await
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -61,7 +59,9 @@ async fn chat_template_swaps_between_inference_calls() {
 
     capital_of_france(&cluster)
         .await
-        .expect("the capital of France request must be answered");
+        .expect("the capital of France request must be answered")
+        .summary()
+        .expect("the capital of France answer must finish with a summary");
 
     cluster
         .client_management
@@ -81,7 +81,9 @@ async fn chat_template_swaps_between_inference_calls() {
 
     capital_of_france(&cluster)
         .await
-        .expect("the capital of France request must be answered");
+        .expect("the capital of France request must be answered")
+        .summary()
+        .expect("the capital of France answer must finish with a summary");
 
     assert_eq!(
         cluster

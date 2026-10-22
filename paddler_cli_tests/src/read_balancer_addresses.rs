@@ -32,6 +32,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error as _;
+    use std::io;
+    use std::mem::discriminant;
+
     use super::read_balancer_addresses;
     use crate::subprocess_cluster_error::SubprocessClusterError;
 
@@ -58,9 +62,18 @@ mod tests {
             .await
             .expect_err("a line that is not UTF-8 must not be readable");
 
-        assert!(matches!(
-            read_error,
-            SubprocessClusterError::AnnouncementUnreadable { .. }
-        ));
+        assert_eq!(
+            discriminant(&read_error),
+            discriminant(&SubprocessClusterError::AnnouncementUnreadable {
+                source: io::Error::from(io::ErrorKind::InvalidData)
+            })
+        );
+        assert_eq!(
+            read_error
+                .source()
+                .and_then(|source| source.downcast_ref::<io::Error>())
+                .map(io::Error::kind),
+            Some(io::ErrorKind::InvalidData)
+        );
     }
 }

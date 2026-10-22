@@ -1,3 +1,4 @@
+use std::mem::discriminant;
 use std::num::NonZeroU32;
 use std::num::NonZeroUsize;
 
@@ -60,10 +61,12 @@ async fn client_inference_reconnects_after_the_balancer_closes_its_socket() {
         .expect("the follow-up request must be answered")
         .expect("the follow-up answer must be readable");
 
-    assert!(matches!(
-        oversized_request_outcome,
-        Err(Error::ConnectionDropped { .. })
-    ));
+    assert_eq!(
+        oversized_request_outcome.as_ref().err().map(discriminant),
+        Some(discriminant(&Error::ConnectionDropped {
+            request_id: String::new()
+        }))
+    );
     assert!(matches!(
         follow_up_message,
         Message::Error(envelope) if envelope.error.code == 504

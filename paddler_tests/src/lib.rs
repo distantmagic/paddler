@@ -85,6 +85,7 @@ pub mod tokenizer_reference_entry;
 pub mod tools_serializer_that_fails;
 pub mod two_option_question;
 pub mod uncompilable_chat_template;
+pub mod uncompilable_chat_template_issue;
 pub mod weather_question_conversation;
 pub mod weather_tool_call_json;
 pub mod weather_tool_parameters_with_an_integer_location;

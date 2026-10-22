@@ -29,7 +29,7 @@ async fn openai_chat_completion_streaming_emits_usage_when_requested() {
 
     let usage = last_chunk
         .get("usage")
-        .unwrap_or_else(|| panic!("trailing chunk lacks usage field: {last_chunk}"));
+        .expect("trailing chunk lacks usage field");
 
     let prompt_tokens = usage
         .get("prompt_tokens")
