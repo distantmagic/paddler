@@ -4,6 +4,7 @@ pub mod agent_inference_runtime_context;
 pub mod agent_runner_connected_to;
 pub mod chat_template_rendering_every_message_after;
 pub mod cluster_without_agents_serving;
+pub mod conversation_generation;
 pub mod conversation_with_a_tool_requiring_an_undeclared_property;
 pub mod decision_cluster_params;
 pub mod decision_done_discriminant;

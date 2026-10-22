@@ -7,6 +7,7 @@ use paddler_agent_text_generation::conversation_support::ConversationSupport;
 use paddler_agent_text_generation::generation_request_preparer::GenerationRequestPreparer;
 use paddler_agent_text_generation::image_input::ImageInput;
 use paddler_agent_text_generation::model_bos_token::ModelBosToken;
+use paddler_agent_text_generation::multimodal_prompt_support::MultimodalPromptSupport;
 use paddler_agent_text_generation::prompt_tokenizer::PromptTokenizer;
 use paddler_messaging::media_marker::MediaMarker;
 use paddler_messaging::multimodal_settings::MultimodalSettings;
@@ -24,6 +25,36 @@ impl FirstMessageContentRequestPreparer<'_> {
         sampler_chain_factory: TSamplerChainFactory,
         tools_serializer: TToolsSerializer,
     ) -> GenerationRequestPreparer<TSamplerChainFactory, TToolsSerializer> {
+        self.into_preparer_with_image_input(
+            sampler_chain_factory,
+            tools_serializer,
+            ImageInput::Unsupported,
+            MediaMarker::new("<media>".to_owned()),
+        )
+    }
+
+    pub fn into_multimodal_generation_request_preparer<TSamplerChainFactory, TToolsSerializer>(
+        self,
+        sampler_chain_factory: TSamplerChainFactory,
+        tools_serializer: TToolsSerializer,
+        multimodal_prompt_support: MultimodalPromptSupport,
+        media_marker: MediaMarker,
+    ) -> GenerationRequestPreparer<TSamplerChainFactory, TToolsSerializer> {
+        self.into_preparer_with_image_input(
+            sampler_chain_factory,
+            tools_serializer,
+            ImageInput::Supported(multimodal_prompt_support),
+            media_marker,
+        )
+    }
+
+    fn into_preparer_with_image_input<TSamplerChainFactory, TToolsSerializer>(
+        self,
+        sampler_chain_factory: TSamplerChainFactory,
+        tools_serializer: TToolsSerializer,
+        image_input: ImageInput,
+        media_marker: MediaMarker,
+    ) -> GenerationRequestPreparer<TSamplerChainFactory, TToolsSerializer> {
         let loaded_llama_model = &self.llama_runtime.loaded_llama_model;
         let model = &loaded_llama_model.model;
 
@@ -35,12 +66,12 @@ impl FirstMessageContentRequestPreparer<'_> {
                             first_message_content_chat_template(),
                         )
                         .expect("the first message content chat template must compile"),
-                        media_marker: MediaMarker::new("<media>".to_owned()),
+                        media_marker,
                         token_bos_str: String::new(),
                         token_eos_str: String::new(),
                         token_nl_str: String::new(),
                     },
-                    image_input: ImageInput::Unsupported,
+                    image_input,
                 },
             )),
             image_resize_to_fit: MultimodalSettings::default().image_resize_to_fit,
