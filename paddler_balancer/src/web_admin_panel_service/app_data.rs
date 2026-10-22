@@ -1,10 +1,7 @@
-use std::sync::Arc;
-
-use esbuild_metafile::EsbuildMetaFile;
-
+use crate::web_admin_panel_service::dashboard_assets::DashboardAssets;
 use crate::web_admin_panel_service::template_data::TemplateData;
 
 pub struct AppData {
-    pub esbuild_metafile: Arc<EsbuildMetaFile>,
+    pub dashboard_assets: DashboardAssets,
     pub template_data: TemplateData,
 }
