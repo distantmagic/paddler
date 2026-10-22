@@ -55,6 +55,20 @@ impl SamplingParameters {
             top_p: 1.0,
         }
     }
+
+    pub const fn ensure_penalty_window_fits(
+        &self,
+        sequence_context_size: u32,
+    ) -> Result<(), InvalidInferenceParameters> {
+        if self.penalty_last_n as i64 > sequence_context_size as i64 {
+            return Err(InvalidInferenceParameters::PenaltyWindowExceedsSequenceContext {
+                penalty_last_n: self.penalty_last_n,
+                sequence_context_size,
+            });
+        }
+
+        Ok(())
+    }
 }
 
 impl Default for SamplingParameters {
@@ -176,6 +190,29 @@ mod tests {
 
     fn rejection(raw: RawSamplingParameters) -> Option<InvalidInferenceParameters> {
         SamplingParameters::try_from(raw).err()
+    }
+
+    #[test]
+    fn accepts_a_penalty_window_as_long_as_the_sequence_context() {
+        assert_eq!(
+            SamplingParameters::try_from(valid_raw())
+                .unwrap()
+                .ensure_penalty_window_fits(64),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn rejects_a_penalty_window_longer_than_the_sequence_context() {
+        assert_eq!(
+            SamplingParameters::try_from(valid_raw())
+                .unwrap()
+                .ensure_penalty_window_fits(63),
+            Err(InvalidInferenceParameters::PenaltyWindowExceedsSequenceContext {
+                penalty_last_n: 64,
+                sequence_context_size: 63,
+            })
+        );
     }
 
     #[test]

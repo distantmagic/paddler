@@ -27,6 +27,7 @@ use paddler_agent_runtime::agent_runtime_error::AgentRuntimeError;
 use paddler_agent_runtime::rejection_description::rejection_description;
 use paddler_agent_runtime::send_result_or_warn::send_result_or_warn;
 use paddler_image_decoder::decoded_image_error::DecodedImageError;
+use paddler_inference_parameters::invalid_inference_parameters::InvalidInferenceParameters;
 use paddler_messaging::agent_issue_params::model_path::ModelPath;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_messaging::oversized_media_details::OversizedMediaDetails;
@@ -74,6 +75,9 @@ pub enum TextGenerationError {
 
     #[error("unable to detect the model's streaming markers: {0}")]
     StreamingMarkersUnavailable(#[source] MarkerDetectionError),
+
+    #[error("the sampling parameters do not fit the sequence context: {0}")]
+    SamplingParametersUnfitForTheSequenceContext(#[source] InvalidInferenceParameters),
 
     #[error("Grammar constraints are incompatible with thinking mode")]
     GrammarIncompatibleWithThinking,
@@ -229,6 +233,7 @@ impl TextGenerationError {
             | Self::MediaMarkerUnavailable(_)
             | Self::ModelNotLoaded
             | Self::MultimodalProjectionLoadFailed { .. }
+            | Self::SamplingParametersUnfitForTheSequenceContext(_)
             | Self::SpecialTokenUnrenderable(_)
             | Self::StreamingMarkersUnavailable(_) => GeneratedTokenResult::ModelNotLoaded(message),
             Self::MultimodalNotSupported => GeneratedTokenResult::MultimodalNotSupported(message),

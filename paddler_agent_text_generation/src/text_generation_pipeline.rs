@@ -119,6 +119,12 @@ impl<TMediaMarker: ProvidesMediaMarker> TextGenerationPipeline<TMediaMarker> {
                     .into_llama_context_params(),
             )?;
             let sequence_context_size = llama_context.n_ctx_seq();
+
+            self.text_generation_settings
+                .sampling_parameters
+                .ensure_penalty_window_fits(sequence_context_size)
+                .map_err(TextGenerationError::SamplingParametersUnfitForTheSequenceContext)?;
+
             let prompt_tokenizer = PromptTokenizer {
                 model: loaded_llama_model.model.clone(),
                 model_bos_token: ModelBosToken::of(&loaded_llama_model.model),

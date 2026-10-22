@@ -31,6 +31,13 @@ pub enum InvalidInferenceParameters {
     )]
     PenaltyWindowWithoutPenalties { penalty_last_n: i32 },
     #[error(
+        "penalty_last_n {penalty_last_n} exceeds the sequence context of {sequence_context_size} tokens"
+    )]
+    PenaltyWindowExceedsSequenceContext {
+        penalty_last_n: i32,
+        sequence_context_size: u32,
+    },
+    #[error(
         "pooling_type None produces no embeddings; choose Mean, Cls, Last, Rank, or Unspecified"
     )]
     PoolingProducesNoEmbeddings,
