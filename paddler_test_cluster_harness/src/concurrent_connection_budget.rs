@@ -129,21 +129,18 @@ mod tests {
         let budget = ConcurrentConnectionBudget::default();
         let _held_reservations = hold_every_connection(&budget);
 
-        let refused_request = budget
-            .hold_during(pending::<Result<(), ClusterHarnessError>>())
-            .now_or_never();
-
-        assert!(
-            matches!(
-                refused_request,
-                Some(Err(
-                    ClusterHarnessError::ConcurrentConnectionsExceedPortableListenBacklog {
-                        held_connections: PORTABLE_LISTEN_BACKLOG,
-                        limit: PORTABLE_LISTEN_BACKLOG,
-                    }
-                ))
-            ),
-            "{refused_request:?}"
+        assert_eq!(
+            budget
+                .hold_during(pending::<Result<(), ClusterHarnessError>>())
+                .now_or_never()
+                .map(|refused_request| refused_request.map_err(|refusal| refusal.to_string())),
+            Some(Err(
+                ClusterHarnessError::ConcurrentConnectionsExceedPortableListenBacklog {
+                    held_connections: PORTABLE_LISTEN_BACKLOG,
+                    limit: PORTABLE_LISTEN_BACKLOG,
+                }
+                .to_string()
+            ))
         );
     }
 
@@ -152,22 +149,18 @@ mod tests {
         let budget = ConcurrentConnectionBudget::default();
         let _held_reservations = hold_every_connection(&budget);
 
-        let refused_stream = budget
-            .hold_while_streaming(pending::<ClientResult<InferenceMessageStream>>())
-            .now_or_never()
-            .map(Result::err);
-
-        assert!(
-            matches!(
-                refused_stream,
-                Some(Some(
-                    ClusterHarnessError::ConcurrentConnectionsExceedPortableListenBacklog {
-                        held_connections: PORTABLE_LISTEN_BACKLOG,
-                        limit: PORTABLE_LISTEN_BACKLOG,
-                    }
-                ))
-            ),
-            "{refused_stream:?}"
+        assert_eq!(
+            budget
+                .hold_while_streaming(pending::<ClientResult<InferenceMessageStream>>())
+                .now_or_never()
+                .map(|refused_stream| refused_stream.err().map(|refusal| refusal.to_string())),
+            Some(Some(
+                ClusterHarnessError::ConcurrentConnectionsExceedPortableListenBacklog {
+                    held_connections: PORTABLE_LISTEN_BACKLOG,
+                    limit: PORTABLE_LISTEN_BACKLOG,
+                }
+                .to_string()
+            ))
         );
     }
 }

@@ -31,11 +31,13 @@ async fn a_late_cluster_inference_mode_subscriber_sees_the_current_mode() {
 
     assert!(
         matches!(
-            late_subscriber_view,
-            ReportedClusterInferenceMode::Reported(ClusterInferenceModeReport {
-                inference_mode: InferenceMode::TextGenerationAndEmbeddings,
-                ..
-            })
+            &late_subscriber_view,
+            ReportedClusterInferenceMode::Reported(current_report)
+                if *current_report == ClusterInferenceModeReport {
+                    balancer_instance: current_report.balancer_instance.clone(),
+                    inference_mode: InferenceMode::TextGenerationAndEmbeddings,
+                    version: 0,
+                }
         ),
         "{late_subscriber_view:?}"
     );
