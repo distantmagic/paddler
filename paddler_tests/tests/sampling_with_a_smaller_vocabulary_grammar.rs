@@ -2,9 +2,6 @@
 
 use std::path::Path;
 
-use llama_cpp_bindings::llama_batch::LlamaBatch;
-use llama_cpp_bindings::model::AddBos;
-use llama_cpp_bindings::model::ParseSpecialTokens;
 use llama_cpp_bindings::sampling::LlamaSampler;
 use llama_cpp_bindings::token::data_array::LlamaTokenDataArray;
 
@@ -16,6 +13,7 @@ use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_cont
 use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
 use paddler_tests::llama_runtime::LlamaRuntime;
 
+use crate::decode_prompt_for_sampling::decode_prompt_for_sampling;
 use crate::vocabulary_only_llama_model::VocabularyOnlyLlamaModel;
 
 pub struct SamplingWithASmallerVocabularyGrammar {
@@ -49,25 +47,8 @@ impl SamplingWithASmallerVocabularyGrammar {
             .runtime
             .create_text_generation_llama_context(1)
             .expect("the text generation context must be created");
-        let prompt_tokens = self
-            .runtime
-            .loaded_llama_model
-            .model
-            .str_to_token(
-                "Paddler balances",
-                AddBos::Always,
-                ParseSpecialTokens::Always,
-            )
-            .expect("the prompt must tokenize");
-        let mut batch =
-            LlamaBatch::new(self.runtime.model_runtime_parameters.n_batch.capacity(), 1);
-
-        batch
-            .add_sequence(&prompt_tokens, 0, false)
-            .expect("the prompt must fit the batch");
-        llama_context
-            .decode(&mut batch)
-            .expect("the prompt must decode");
+        let batch_position =
+            decode_prompt_for_sampling(&self.runtime, &mut llama_context, "Paddler balances");
 
         token_sampling(
             LlamaSampler::grammar(&self.smaller_vocabulary_model, r#"root ::= "a""#, "root")
@@ -75,7 +56,7 @@ impl SamplingWithASmallerVocabularyGrammar {
         )
         .sample(
             &llama_context,
-            batch.n_tokens() - 1,
+            batch_position,
             &mut LlamaTokenDataArray::new(Vec::new(), false),
         )
     }

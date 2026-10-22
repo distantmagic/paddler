@@ -3706,6 +3706,7 @@ dependencies = [
  "paddler_state_database",
  "paddler_tcp_buffer_limits",
  "paddler_test_cluster_harness",
+ "paddler_tool_call_validator",
  "paddler_typesafe_translation",
  "reqwest 0.12.28",
  "serde",
