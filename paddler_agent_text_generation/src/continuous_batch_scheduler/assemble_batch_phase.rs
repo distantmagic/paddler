@@ -27,14 +27,13 @@ impl AssembleBatchPhase {
         pass: &mut BatchPass,
         requests: &mut [ContinuousBatchActiveRequest<'_>],
     ) -> Result<(), BatchAddError> {
-        let added = self.fill_generating(pass, requests)?;
+        let added = Self::fill_generating(pass, requests)?;
         pass.contributions.current_batch_token_count += added;
         self.fill_ingesting(pass, requests)?;
         Ok(())
     }
 
     fn fill_generating(
-        &self,
         pass: &mut BatchPass,
         requests: &[ContinuousBatchActiveRequest<'_>],
     ) -> Result<usize, BatchAddError> {
@@ -47,10 +46,6 @@ impl AssembleBatchPhase {
             else {
                 continue;
             };
-
-            if tokens_added >= self.n_batch {
-                break;
-            }
 
             let batch_position = pass.batch.n_tokens();
 

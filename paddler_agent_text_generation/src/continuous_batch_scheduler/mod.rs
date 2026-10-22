@@ -19,7 +19,6 @@ use std::slice;
 
 use llama_cpp_bindings::SampledTokenClassifier;
 use llama_cpp_bindings::batch_add_error::BatchAddError;
-use llama_cpp_bindings::error::DecodeError;
 use llama_cpp_bindings::ingest_outcome::IngestOutcome;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
 use llama_cpp_bindings::token::data_array::LlamaTokenDataArray;
@@ -370,7 +369,6 @@ impl<'model> ContinuousBatchScheduler<'model> {
                 }
                 .run(pass);
             }
-            Err(DecodeError::Aborted) => {}
             Err(decode_error) => {
                 let description = format!(
                     "{:?}: llama.cpp rejected the batch: {decode_error}",
