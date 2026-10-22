@@ -61,10 +61,12 @@ impl SamplingParameters {
         sequence_context_size: u32,
     ) -> Result<(), InvalidInferenceParameters> {
         if self.penalty_last_n as i64 > sequence_context_size as i64 {
-            return Err(InvalidInferenceParameters::PenaltyWindowExceedsSequenceContext {
-                penalty_last_n: self.penalty_last_n,
-                sequence_context_size,
-            });
+            return Err(
+                InvalidInferenceParameters::PenaltyWindowExceedsSequenceContext {
+                    penalty_last_n: self.penalty_last_n,
+                    sequence_context_size,
+                },
+            );
         }
 
         Ok(())
@@ -208,10 +210,12 @@ mod tests {
             SamplingParameters::try_from(valid_raw())
                 .unwrap()
                 .ensure_penalty_window_fits(63),
-            Err(InvalidInferenceParameters::PenaltyWindowExceedsSequenceContext {
-                penalty_last_n: 64,
-                sequence_context_size: 63,
-            })
+            Err(
+                InvalidInferenceParameters::PenaltyWindowExceedsSequenceContext {
+                    penalty_last_n: 64,
+                    sequence_context_size: 63,
+                }
+            )
         );
     }
 
