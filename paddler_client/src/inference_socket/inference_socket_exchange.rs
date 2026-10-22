@@ -228,10 +228,10 @@ mod tests {
             awaited_request.try_recv(),
             Ok(Err(Error::ConnectionDropped { request_id })) if request_id == "awaited"
         ));
-        assert!(matches!(
-            awaited_request.try_recv(),
-            Err(TryRecvError::Disconnected)
-        ));
+        assert_eq!(
+            awaited_request.try_recv().err(),
+            Some(TryRecvError::Disconnected)
+        );
     }
 
     #[test]
@@ -249,10 +249,10 @@ mod tests {
 
         exchange.close();
 
-        assert!(matches!(
+        assert_eq!(
             exchange.next_outbound_frames().now_or_never(),
             Some(OutboundFrames::ExchangeClosed)
-        ));
+        );
     }
 
     #[test]
@@ -270,10 +270,10 @@ mod tests {
         exchange.stop_responding_to("stopped");
         drop(stopped_response_rx);
 
-        assert!(matches!(
+        assert_eq!(
             exchange.next_outbound_frames().now_or_never(),
-            Some(OutboundFrames::Queued(frames)) if frames == expected_frames
-        ));
+            Some(OutboundFrames::Queued(expected_frames))
+        );
     }
 
     #[test]
@@ -295,10 +295,10 @@ mod tests {
             },
         );
 
-        assert!(matches!(
+        assert_eq!(
             exchange.next_outbound_frames().now_or_never(),
-            Some(OutboundFrames::Queued(frames)) if frames == expected_frames
-        ));
+            Some(OutboundFrames::Queued(expected_frames))
+        );
     }
 
     #[test]

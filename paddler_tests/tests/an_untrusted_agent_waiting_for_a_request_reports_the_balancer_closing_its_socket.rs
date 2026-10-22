@@ -26,15 +26,23 @@ async fn an_untrusted_agent_waiting_for_a_request_reports_the_balancer_closing_i
         .await
         .expect("the undeserializable message must be sent");
 
-    assert!(matches!(
-        closed_agent.next_request().await.err(),
-        Some(ClusterHarnessError::AgentSocketClosedBeforeText {
-            close_frame: Some(CloseFrame {
-                code: CloseCode::Invalid,
-                ..
-            })
-        })
-    ));
+    assert_eq!(
+        closed_agent
+            .next_request()
+            .await
+            .err()
+            .as_ref()
+            .map(ToString::to_string),
+        Some(
+            ClusterHarnessError::AgentSocketClosedBeforeText {
+                close_frame: Some(CloseFrame {
+                    code: CloseCode::Invalid,
+                    reason: "Agent message could not be deserialized".into(),
+                })
+            }
+            .to_string()
+        )
+    );
 
     cluster
         .shutdown()

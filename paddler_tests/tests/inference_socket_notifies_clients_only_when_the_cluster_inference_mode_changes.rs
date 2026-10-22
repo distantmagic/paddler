@@ -72,27 +72,38 @@ async fn inference_socket_notifies_clients_only_when_the_cluster_inference_mode_
     let without_decisions_notification =
         notification_after(InferenceMode::TextGenerationAndEmbeddings).await;
 
-    assert!(matches!(
-        [
-            connect_notification,
-            decisions_notification,
-            without_decisions_notification,
-        ],
-        [
-            ReportedClusterInferenceMode::Reported(ClusterInferenceModeReport {
-                inference_mode: InferenceMode::TextGenerationAndEmbeddings,
-                ..
-            }),
-            ReportedClusterInferenceMode::Reported(ClusterInferenceModeReport {
-                inference_mode: InferenceMode::TextGenerationEmbeddingsAndDecisions,
-                ..
-            }),
-            ReportedClusterInferenceMode::Reported(ClusterInferenceModeReport {
-                inference_mode: InferenceMode::TextGenerationAndEmbeddings,
-                ..
-            }),
-        ]
-    ));
+    let notifications = [
+        connect_notification,
+        decisions_notification,
+        without_decisions_notification,
+    ];
+
+    assert!(
+        matches!(
+            &notifications,
+            [
+                ReportedClusterInferenceMode::Reported(ClusterInferenceModeReport {
+                    balancer_instance: connect_balancer_instance,
+                    inference_mode: InferenceMode::TextGenerationAndEmbeddings,
+                    version: connect_version,
+                }),
+                ReportedClusterInferenceMode::Reported(ClusterInferenceModeReport {
+                    balancer_instance: decisions_balancer_instance,
+                    inference_mode: InferenceMode::TextGenerationEmbeddingsAndDecisions,
+                    version: decisions_version,
+                }),
+                ReportedClusterInferenceMode::Reported(ClusterInferenceModeReport {
+                    balancer_instance: without_decisions_balancer_instance,
+                    inference_mode: InferenceMode::TextGenerationAndEmbeddings,
+                    version: without_decisions_version,
+                }),
+            ] if decisions_balancer_instance == connect_balancer_instance
+                && without_decisions_balancer_instance == connect_balancer_instance
+                && *decisions_version == connect_version + 2
+                && *without_decisions_version == connect_version + 3
+        ),
+        "{notifications:?}"
+    );
 
     cluster
         .shutdown()

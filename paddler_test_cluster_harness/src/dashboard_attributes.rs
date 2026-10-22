@@ -58,6 +58,7 @@ pub fn dashboard_attributes(page: &str) -> Result<BTreeMap<String, String>, Clus
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
+    use std::error::Error as _;
     use std::mem::discriminant;
 
     use quick_xml::errors::Error as XmlError;
@@ -84,22 +85,42 @@ mod tests {
 
     #[test]
     fn markup_ending_inside_a_tag_is_unreadable() {
-        assert!(matches!(
-            dashboard_attributes(r#"<html><body><div id="paddler-dashboard""#),
-            Err(ClusterHarnessError::DashboardMarkupUnreadable(
+        let unreadable_markup =
+            dashboard_attributes(r#"<html><body><div id="paddler-dashboard""#).unwrap_err();
+
+        assert_eq!(
+            discriminant(&unreadable_markup),
+            discriminant(&ClusterHarnessError::DashboardMarkupUnreadable(
                 XmlError::Syntax(SyntaxError::UnclosedTag)
             ))
-        ));
+        );
+        assert_eq!(
+            unreadable_markup
+                .source()
+                .and_then(|xml_error| xml_error.source())
+                .and_then(|syntax_error| syntax_error.downcast_ref::<SyntaxError>()),
+            Some(&SyntaxError::UnclosedTag)
+        );
     }
 
     #[test]
     fn a_repeated_attribute_is_malformed() {
-        assert!(matches!(
-            dashboard_attributes(r#"<div id="paddler-dashboard" id="another-dashboard">"#),
-            Err(ClusterHarnessError::DashboardAttributeMalformed(
-                AttrError::Duplicated(_, _)
+        let malformed_attribute =
+            dashboard_attributes(r#"<div id="paddler-dashboard" id="another-dashboard">"#)
+                .unwrap_err();
+
+        assert_eq!(
+            discriminant(&malformed_attribute),
+            discriminant(&ClusterHarnessError::DashboardAttributeMalformed(
+                AttrError::Duplicated(27, 4)
             ))
-        ));
+        );
+        assert_eq!(
+            malformed_attribute
+                .source()
+                .and_then(|attribute_error| attribute_error.downcast_ref::<AttrError>()),
+            Some(&AttrError::Duplicated(27, 4))
+        );
     }
 
     #[test]

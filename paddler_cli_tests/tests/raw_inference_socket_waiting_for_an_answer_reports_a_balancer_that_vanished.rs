@@ -1,3 +1,6 @@
+use std::error::Error as _;
+use std::mem::discriminant;
+
 use tokio_tungstenite::tungstenite::Error as WebSocketError;
 use tokio_tungstenite::tungstenite::error::ProtocolError;
 
@@ -27,12 +30,24 @@ async fn raw_inference_socket_waiting_for_an_answer_reports_a_balancer_that_vani
         .kill()
         .expect("the balancer must be killed");
 
-    assert!(matches!(
-        raw_inference_socket.next_answer().await.err(),
-        Some(ClusterHarnessError::InferenceSocketReceiveFailed(
-            WebSocketError::Protocol(ProtocolError::ResetWithoutClosingHandshake)
+    let receive_error = raw_inference_socket
+        .next_answer()
+        .await
+        .expect_err("a vanished balancer must not answer");
+
+    assert_eq!(
+        discriminant(&receive_error),
+        discriminant(&ClusterHarnessError::InferenceSocketReceiveFailed(
+            WebSocketError::ConnectionClosed
         ))
-    ));
+    );
+    assert_eq!(
+        receive_error
+            .source()
+            .and_then(|websocket_error| websocket_error.source())
+            .and_then(|protocol_error| protocol_error.downcast_ref::<ProtocolError>()),
+        Some(&ProtocolError::ResetWithoutClosingHandshake)
+    );
 
     cluster
         .shutdown()

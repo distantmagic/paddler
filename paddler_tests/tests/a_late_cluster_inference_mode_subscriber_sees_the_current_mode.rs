@@ -23,16 +23,22 @@ async fn a_late_cluster_inference_mode_subscriber_sees_the_current_mode() {
         .expect("the inference socket must answer before anyone subscribes")
         .expect("the answer must be readable");
 
-    assert!(matches!(
-        *cluster
-            .client_inference
-            .subscribe_to_cluster_inference_mode()
-            .borrow(),
-        ReportedClusterInferenceMode::Reported(ClusterInferenceModeReport {
-            inference_mode: InferenceMode::TextGenerationAndEmbeddings,
-            ..
-        })
-    ));
+    let late_subscriber_view = cluster
+        .client_inference
+        .subscribe_to_cluster_inference_mode()
+        .borrow()
+        .clone();
+
+    assert!(
+        matches!(
+            late_subscriber_view,
+            ReportedClusterInferenceMode::Reported(ClusterInferenceModeReport {
+                inference_mode: InferenceMode::TextGenerationAndEmbeddings,
+                ..
+            })
+        ),
+        "{late_subscriber_view:?}"
+    );
 
     cluster
         .shutdown()
