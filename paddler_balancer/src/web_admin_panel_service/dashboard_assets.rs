@@ -4,8 +4,6 @@ use esbuild_metafile::asset::Asset;
 use esbuild_metafile::esbuild_metafile::EsbuildMetafile;
 use esbuild_metafile::input_lookup::InputLookup;
 use esbuild_metafile::input_properties::InputProperties;
-use esbuild_metafile::output_lookup::OutputLookup;
-use esbuild_metafile::output_properties::OutputProperties;
 use esbuild_metafile::path_renderer::PathRenderer;
 use esbuild_metafile::preloadable_asset::PreloadableAsset;
 
@@ -26,21 +24,18 @@ impl DashboardAssets {
         let mut rendered_preloads = BTreeSet::new();
 
         for input_path in DASHBOARD_INPUT_PATHS {
-            let InputLookup::Found(InputProperties { outputs, .. }) =
-                esbuild_metafile.input(input_path)
+            let InputLookup::Found(InputProperties {
+                outputs, preloads, ..
+            }) = esbuild_metafile.input(input_path)
             else {
                 return None;
             };
 
-            for output_path in outputs {
-                if let OutputLookup::Found(OutputProperties { preloads }) =
-                    esbuild_metafile.output(&output_path)
-                {
-                    rendered_preloads.extend(preloads.into_iter().map(|preload_path| {
-                        PreloadableAsset::from_path(preload_path).render(&path_renderer)
-                    }));
-                }
+            rendered_preloads.extend(preloads.into_iter().map(|preload_path| {
+                PreloadableAsset::from_path(preload_path).render(&path_renderer)
+            }));
 
+            for output_path in outputs {
                 match Asset::from_path(output_path) {
                     Asset::Unknown(_) => {}
                     includable_asset => {
