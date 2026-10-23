@@ -3,7 +3,6 @@
 use hf_hub::Cache;
 
 use paddler_agent_runtime::agent_runtime_error::AgentRuntimeError;
-use paddler_agent_text_generation::llama_cpp_media_marker::LlamaCppMediaMarker;
 use paddler_agent_text_generation::multimodal_projection::MultimodalProjection;
 use paddler_agent_text_generation::text_generation_error::TextGenerationError;
 use paddler_messaging::chat_template_source::ChatTemplateSource;
@@ -34,7 +33,6 @@ async fn a_second_multimodal_projection_cannot_load_while_one_is_resident() {
         TextGenerationPipelineParts {
             chat_template_source: ChatTemplateSource::EmbeddedInModel,
             llama_runtime,
-            media_marker: LlamaCppMediaMarker,
             multimodal_projection: MultimodalProjection::File(
                 smolvlm2_256m_mmproj()
                     .reference

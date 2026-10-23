@@ -9,7 +9,6 @@ use paddler_agent_runtime::llama_model_settings::LlamaModelSettings;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
 use paddler_agent_runtime::shuts_down::ShutsDown as _;
 use paddler_agent_runtime::startup_outcome::StartupOutcome;
-use paddler_agent_text_generation::llama_cpp_media_marker::LlamaCppMediaMarker;
 use paddler_agent_text_generation::text_generation_pipeline::TextGenerationPipeline;
 use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
 use paddler_spawn_resuming_panic::spawn_blocking_resuming_panic::spawn_blocking_resuming_panic;
@@ -242,7 +241,6 @@ impl CapabilityStarter<'_> {
             CapabilityPlan::Start => TextGenerationPipeline {
                 inference_runtime_context: self.inference_runtime_context.clone(),
                 loaded_llama_model: loaded_llama_model.clone(),
-                media_marker: LlamaCppMediaMarker,
                 model_runtime_parameters: model_serving_settings.model_runtime_parameters.clone(),
                 text_generation_settings: model_serving_settings
                     .capabilities

@@ -19,7 +19,6 @@ use paddler_agent_text_generation::continuous_batch_request_state::ContinuousBat
 use paddler_agent_text_generation::continuous_batch_scheduler::advance_generating_phase::AdvanceGeneratingPhase;
 use paddler_agent_text_generation::continuous_batch_scheduler_context::ContinuousBatchSchedulerContext;
 use paddler_agent_text_generation::continuous_batch_terminal_outcome::ContinuousBatchTerminalOutcome;
-use paddler_agent_text_generation::json_tools_serializer::JsonToolsSerializer;
 use paddler_agent_text_generation::prepared_generation_request::PreparedGenerationRequest;
 use paddler_agent_text_generation::token_classification::TokenClassification;
 use paddler_tests::llama_runtime::LlamaRuntime;
@@ -80,7 +79,7 @@ impl ReadyToSampleRequest<'_> {
                 llama_runtime: runtime,
                 sequence_context_size,
             }
-            .into_generation_request_preparer(runtime.sampler_chain_factory(), JsonToolsSerializer)
+            .into_generation_request_preparer()
             .prepare_raw_prompt(agent_request)
             .expect("the generation must be prepared"),
         );

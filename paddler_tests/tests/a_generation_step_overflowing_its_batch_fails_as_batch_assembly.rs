@@ -8,6 +8,7 @@ use hf_hub::Cache;
 use llama_cpp_bindings::batch_add_error::BatchAddError;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
 use llama_cpp_bindings::mtmd::micro_batch_tokens;
+use llama_cpp_bindings::mtmd::mtmd_default_marker;
 use llama_cpp_bindings_types::BatchCapacity;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::mpsc::unbounded_channel;
@@ -17,11 +18,8 @@ use paddler_agent_runtime::scheduler_message::SchedulerMessage;
 use paddler_agent_text_generation::continuous_batch_scheduler::ContinuousBatchScheduler;
 use paddler_agent_text_generation::continuous_batch_scheduler_context::ContinuousBatchSchedulerContext;
 use paddler_agent_text_generation::continuous_batch_scheduler_params::ContinuousBatchSchedulerParams;
-use paddler_agent_text_generation::json_tools_serializer::JsonToolsSerializer;
-use paddler_agent_text_generation::llama_cpp_media_marker::LlamaCppMediaMarker;
 use paddler_agent_text_generation::model_bos_token::ModelBosToken;
 use paddler_agent_text_generation::multimodal_prompt_support::MultimodalPromptSupport;
-use paddler_agent_text_generation::provides_media_marker::ProvidesMediaMarker as _;
 use paddler_agent_text_generation::resident_multimodal_context::ResidentMultimodalContext;
 use paddler_agent_text_generation::text_generation_error::TextGenerationError;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
@@ -91,8 +89,6 @@ fn a_generation_step_overflowing_its_batch_fails_as_batch_assembly() {
         sequence_context_size,
     }
     .into_multimodal_generation_request_preparer(
-        runtime.sampler_chain_factory(),
-        JsonToolsSerializer,
         MultimodalPromptSupport {
             micro_batch_tokens: micro_batch_tokens(&llama_context, n_batch.tokens()),
             model_bos_token: ModelBosToken::of(model),
@@ -101,8 +97,7 @@ fn a_generation_step_overflowing_its_batch_fails_as_batch_assembly() {
             sequence_context_size,
         },
         MediaMarker::new(
-            LlamaCppMediaMarker
-                .media_marker()
+            mtmd_default_marker()
                 .expect("llama.cpp must report its media marker")
                 .to_owned(),
         ),

@@ -8,6 +8,7 @@ use llama_cpp_bindings::error::TokenToStringError;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
 use llama_cpp_bindings::model::LlamaModel;
 use llama_cpp_bindings::mtmd::micro_batch_tokens;
+use llama_cpp_bindings::mtmd::mtmd_default_marker;
 use llama_cpp_bindings::token::LlamaToken;
 use log::info;
 use log::warn;
@@ -44,13 +45,10 @@ use crate::conversation_prompt_support::ConversationPromptSupport;
 use crate::conversation_support::ConversationSupport;
 use crate::generation_request_preparer::GenerationRequestPreparer;
 use crate::image_input::ImageInput;
-use crate::json_tools_serializer::JsonToolsSerializer;
-use crate::llama_cpp_media_marker::LlamaCppMediaMarker;
 use crate::model_bos_token::ModelBosToken;
 use crate::multimodal_projection::MultimodalProjection;
 use crate::multimodal_prompt_support::MultimodalPromptSupport;
 use crate::prompt_tokenizer::PromptTokenizer;
-use crate::provides_media_marker::ProvidesMediaMarker;
 use crate::resident_multimodal_context::ResidentMultimodalContext;
 use crate::sampler_chain_factory::SamplerChainFactory;
 use crate::text_generation_error::TextGenerationError;
@@ -67,15 +65,14 @@ fn special_token_text(
     )
 }
 
-pub struct TextGenerationPipeline<TMediaMarker: ProvidesMediaMarker = LlamaCppMediaMarker> {
+pub struct TextGenerationPipeline {
     pub inference_runtime_context: InferenceRuntimeContext,
     pub loaded_llama_model: LoadedLlamaModel,
-    pub media_marker: TMediaMarker,
     pub model_runtime_parameters: ModelRuntimeParameters,
     pub text_generation_settings: TextGenerationSettings,
 }
 
-impl<TMediaMarker: ProvidesMediaMarker> TextGenerationPipeline<TMediaMarker> {
+impl TextGenerationPipeline {
     pub async fn spawn(
         self,
         cancellation_token: &CancellationToken,
@@ -168,7 +165,6 @@ impl<TMediaMarker: ProvidesMediaMarker> TextGenerationPipeline<TMediaMarker> {
                                         n_vocab: loaded_llama_model.model.n_vocab(),
                                     },
                                     streaming_markers,
-                                    tools_serializer: JsonToolsSerializer,
                                 },
                                 preparation_tasks: TaskTracker::new(),
                                 scheduler_message_tx,
@@ -247,8 +243,7 @@ impl<TMediaMarker: ProvidesMediaMarker> TextGenerationPipeline<TMediaMarker> {
         Ok(ChatPromptRenderer {
             chat_template_renderer,
             media_marker: MediaMarker::new(
-                self.media_marker
-                    .media_marker()
+                mtmd_default_marker()
                     .map_err(TextGenerationError::MediaMarkerUnavailable)?
                     .to_owned(),
             ),

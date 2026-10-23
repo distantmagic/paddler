@@ -8,7 +8,6 @@ use paddler_agent_runtime::scheduler_message::SchedulerMessage;
 use paddler_agent_text_generation::continuous_batch_scheduler::ContinuousBatchScheduler;
 use paddler_agent_text_generation::continuous_batch_scheduler_context::ContinuousBatchSchedulerContext;
 use paddler_agent_text_generation::continuous_batch_scheduler_params::ContinuousBatchSchedulerParams;
-use paddler_agent_text_generation::json_tools_serializer::JsonToolsSerializer;
 use paddler_agent_text_generation::text_generation_error::TextGenerationError;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
@@ -33,7 +32,7 @@ fn a_generation_arriving_while_every_sequence_is_taken_is_refused() {
         llama_runtime: &runtime,
         sequence_context_size,
     }
-    .into_generation_request_preparer(runtime.sampler_chain_factory(), JsonToolsSerializer);
+    .into_generation_request_preparer();
     let RawPromptGeneration {
         agent_request: generation_taking_the_only_sequence,
         generate_tokens_stop_tx: _first_generate_tokens_stop_tx,

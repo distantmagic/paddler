@@ -4,7 +4,6 @@ use hf_hub::Cache;
 use llama_cpp_bindings::error::TokenToStringError;
 use tempfile::TempDir;
 
-use paddler_agent_text_generation::llama_cpp_media_marker::LlamaCppMediaMarker;
 use paddler_agent_text_generation::multimodal_projection::MultimodalProjection;
 use paddler_agent_text_generation::text_generation_error::TextGenerationError;
 use paddler_messaging::chat_template_source::ChatTemplateSource;
@@ -35,7 +34,6 @@ async fn a_text_generation_pipeline_refuses_a_bos_token_it_cannot_render() {
     assert_eq!(
         TextGenerationPipelineParts {
             chat_template_source: ChatTemplateSource::EmbeddedInModel,
-            media_marker: LlamaCppMediaMarker,
             llama_runtime: LlamaRuntime::load(&model_path, agent_inference_runtime_context(1))
                 .expect("the model must load"),
             multimodal_projection: MultimodalProjection::NotConfigured,

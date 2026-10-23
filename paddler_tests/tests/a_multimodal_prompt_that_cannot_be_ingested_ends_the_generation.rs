@@ -12,7 +12,6 @@ use paddler_agent_runtime::scheduler_message::SchedulerMessage;
 use paddler_agent_text_generation::continuous_batch_scheduler::ContinuousBatchScheduler;
 use paddler_agent_text_generation::continuous_batch_scheduler_context::ContinuousBatchSchedulerContext;
 use paddler_agent_text_generation::continuous_batch_scheduler_params::ContinuousBatchSchedulerParams;
-use paddler_agent_text_generation::json_tools_serializer::JsonToolsSerializer;
 use paddler_agent_text_generation::model_bos_token::ModelBosToken;
 use paddler_agent_text_generation::multimodal_prompt_ingestion::MultimodalPromptIngestion;
 use paddler_agent_text_generation::multimodal_prompt_support::MultimodalPromptSupport;
@@ -87,7 +86,7 @@ fn a_multimodal_prompt_that_cannot_be_ingested_ends_the_generation() {
                 llama_runtime: &runtime,
                 sequence_context_size,
             }
-            .into_generation_request_preparer(runtime.sampler_chain_factory(), JsonToolsSerializer)
+            .into_generation_request_preparer()
             .prepare_raw_prompt(agent_request)
             .expect("the generation must be prepared");
             let (scheduler_message_tx, scheduler_message_rx) = unbounded_channel();

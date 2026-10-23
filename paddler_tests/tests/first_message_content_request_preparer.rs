@@ -20,41 +20,29 @@ pub struct FirstMessageContentRequestPreparer<'runtime> {
 }
 
 impl FirstMessageContentRequestPreparer<'_> {
-    pub fn into_generation_request_preparer<TSamplerChainFactory, TToolsSerializer>(
-        self,
-        sampler_chain_factory: TSamplerChainFactory,
-        tools_serializer: TToolsSerializer,
-    ) -> GenerationRequestPreparer<TSamplerChainFactory, TToolsSerializer> {
+    pub fn into_generation_request_preparer(self) -> GenerationRequestPreparer {
         self.into_preparer_with_image_input(
-            sampler_chain_factory,
-            tools_serializer,
             ImageInput::Unsupported,
             MediaMarker::new("<media>".to_owned()),
         )
     }
 
-    pub fn into_multimodal_generation_request_preparer<TSamplerChainFactory, TToolsSerializer>(
+    pub fn into_multimodal_generation_request_preparer(
         self,
-        sampler_chain_factory: TSamplerChainFactory,
-        tools_serializer: TToolsSerializer,
         multimodal_prompt_support: MultimodalPromptSupport,
         media_marker: MediaMarker,
-    ) -> GenerationRequestPreparer<TSamplerChainFactory, TToolsSerializer> {
+    ) -> GenerationRequestPreparer {
         self.into_preparer_with_image_input(
-            sampler_chain_factory,
-            tools_serializer,
             ImageInput::Supported(multimodal_prompt_support),
             media_marker,
         )
     }
 
-    fn into_preparer_with_image_input<TSamplerChainFactory, TToolsSerializer>(
+    fn into_preparer_with_image_input(
         self,
-        sampler_chain_factory: TSamplerChainFactory,
-        tools_serializer: TToolsSerializer,
         image_input: ImageInput,
         media_marker: MediaMarker,
-    ) -> GenerationRequestPreparer<TSamplerChainFactory, TToolsSerializer> {
+    ) -> GenerationRequestPreparer {
         let loaded_llama_model = &self.llama_runtime.loaded_llama_model;
         let model = &loaded_llama_model.model;
 
@@ -81,11 +69,10 @@ impl FirstMessageContentRequestPreparer<'_> {
                 model_bos_token: ModelBosToken::of(model),
                 sequence_context_size: self.sequence_context_size,
             },
-            sampler_chain_factory,
+            sampler_chain_factory: self.llama_runtime.sampler_chain_factory(),
             streaming_markers: model
                 .streaming_markers()
                 .expect("the model must report its streaming markers"),
-            tools_serializer,
         }
     }
 }

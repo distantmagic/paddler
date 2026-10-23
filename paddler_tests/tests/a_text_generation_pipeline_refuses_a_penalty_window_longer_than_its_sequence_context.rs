@@ -3,7 +3,6 @@
 use hf_hub::Cache;
 use tokio_util::sync::CancellationToken;
 
-use paddler_agent_text_generation::llama_cpp_media_marker::LlamaCppMediaMarker;
 use paddler_agent_text_generation::multimodal_projection::MultimodalProjection;
 use paddler_agent_text_generation::text_generation_error::TextGenerationError;
 use paddler_inference_parameters::invalid_inference_parameters::InvalidInferenceParameters;
@@ -31,7 +30,6 @@ async fn a_text_generation_pipeline_refuses_a_penalty_window_longer_than_its_seq
     let mut text_generation_pipeline = TextGenerationPipelineParts {
         chat_template_source: ChatTemplateSource::EmbeddedInModel,
         llama_runtime,
-        media_marker: LlamaCppMediaMarker,
         multimodal_projection: MultimodalProjection::NotConfigured,
     }
     .into_text_generation_pipeline();

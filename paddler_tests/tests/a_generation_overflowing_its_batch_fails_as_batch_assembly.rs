@@ -12,7 +12,6 @@ use paddler_agent_runtime::scheduler_message::SchedulerMessage;
 use paddler_agent_text_generation::continuous_batch_scheduler::ContinuousBatchScheduler;
 use paddler_agent_text_generation::continuous_batch_scheduler_context::ContinuousBatchSchedulerContext;
 use paddler_agent_text_generation::continuous_batch_scheduler_params::ContinuousBatchSchedulerParams;
-use paddler_agent_text_generation::json_tools_serializer::JsonToolsSerializer;
 use paddler_agent_text_generation::text_generation_error::TextGenerationError;
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
@@ -50,7 +49,7 @@ fn a_generation_overflowing_its_batch_fails_as_batch_assembly() {
         llama_runtime: &runtime,
         sequence_context_size,
     }
-    .into_generation_request_preparer(runtime.sampler_chain_factory(), JsonToolsSerializer)
+    .into_generation_request_preparer()
     .prepare_raw_prompt(agent_request)
     .expect("the generation must be prepared");
     let (scheduler_message_tx, scheduler_message_rx) = unbounded_channel();

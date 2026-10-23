@@ -46,7 +46,6 @@ mod tests {
     use paddler_messaging::generated_token_result::GeneratedTokenResult;
 
     use super::PreparedGenerationRequest;
-    use crate::creates_sampler_chain::CreatesSamplerChain as _;
     use crate::grammar_sampling::GrammarSampling;
     use crate::prepared_prompt::PreparedPrompt;
     use crate::sampler_chain_factory::SamplerChainFactory;
