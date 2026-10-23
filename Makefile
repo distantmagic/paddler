@@ -190,7 +190,7 @@ test.client.js.llm: $(PADDLER_TEST_BINARY) node_modules target/test-model-cards.
 .PHONY: test.coverage
 test.coverage: esbuild-meta.json node_modules target/kev_0_8b/model.gguf target/kev_0_8b/pointer_head.gguf target/test-model-cards.stamp
 	cargo llvm-cov clean --workspace
-	NEXTEST_PROFILE=$(NEXTEST_PROFILE) cargo llvm-cov nextest --features tests_that_use_llms,web_admin_panel$(TEST_DEVICE_FEATURE_SUFFIX) --no-report --workspace
+	NEXTEST_PROFILE=$(NEXTEST_PROFILE) cargo llvm-cov nextest --features tests_that_use_llms,tests_that_use_opencode,web_admin_panel$(TEST_DEVICE_FEATURE_SUFFIX) --no-report --workspace
 	cargo llvm-cov report --no-default-ignore-filename-regex --ignore-filename-regex '$(LLVM_COV_THIRD_PARTY_SOURCES)' --json --output-path target/llvm-cov.json
 	cargo llvm-cov report --no-default-ignore-filename-regex --ignore-filename-regex '$(LLVM_COV_THIRD_PARTY_SOURCES)' --lcov --output-path target/lcov.info
 	cargo llvm-cov report --no-default-ignore-filename-regex --ignore-filename-regex '$(LLVM_COV_THIRD_PARTY_SOURCES)'
