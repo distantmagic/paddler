@@ -1,4 +1,5 @@
 use llama_cpp_bindings::context::LlamaContext;
+use llama_cpp_bindings::error::SamplerApplyError;
 use llama_cpp_bindings::sampling::LlamaSampler;
 use llama_cpp_bindings::token::data_array::LlamaTokenDataArray;
 
@@ -21,9 +22,19 @@ impl TokenSampling {
         llama_context
             .fill_token_data_array_ith(batch_index, candidates)
             .map_err(TextGenerationError::TokenDataUnreadable)?;
-        self.grammar
-            .constrain(candidates)
-            .map_err(TextGenerationError::GrammarConstraintFailed)?;
+        match self.grammar.constrain(candidates) {
+            Ok(()) => {}
+            Err(SamplerApplyError::EveryCandidateExcluded) => {
+                return Ok(SamplingOutcome::GrammarRejectedModelOutput(
+                    SamplerApplyError::EveryCandidateExcluded.to_string(),
+                ));
+            }
+            Err(constraint_error) => {
+                return Err(TextGenerationError::GrammarConstraintFailed(
+                    constraint_error,
+                ));
+            }
+        }
         candidates
             .apply_sampler(&self.chain)
             .map_err(TextGenerationError::SamplerChainApplicationFailed)?;
