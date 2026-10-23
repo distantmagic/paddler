@@ -4,6 +4,7 @@ use std::ffi::CString;
 
 use hf_hub::Cache;
 use llama_cpp_bindings::error::ParseChatMessageError;
+use llama_cpp_bindings::token_piece::TokenPiece;
 
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
 use paddler_test_cluster_harness::model_card::qwen3_0_6b::qwen3_0_6b;
@@ -27,7 +28,9 @@ fn a_tool_call_body_with_a_nul_byte_fails_to_parse() {
     let mut tool_call_pipeline =
         tool_call_pipeline_for_tools(&runtime.loaded_llama_model.model, &[]);
 
-    tool_call_pipeline.feed(TOOL_CALL_BODY_WITH_A_NUL_BYTE);
+    tool_call_pipeline.feed(&TokenPiece::Visible(
+        TOOL_CALL_BODY_WITH_A_NUL_BYTE.to_owned(),
+    ));
 
     assert_eq!(
         tool_call_pipeline.finalize().into_generated_token_result(),

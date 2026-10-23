@@ -1,7 +1,10 @@
+use std::mem::take;
+
 use llama_cpp_bindings::ChatMessageParseOutcome;
 use llama_cpp_bindings::ChatMessageParser;
 use llama_cpp_bindings::ParsedToolCall;
 use llama_cpp_bindings::RawChatMessage;
+use llama_cpp_bindings::token_piece::TokenPiece;
 
 use paddler_messaging::raw_tool_call_tokens::RawToolCallTokens;
 use paddler_tool_call_validator::tool_call_validator::ToolCallValidator;
@@ -25,8 +28,8 @@ impl ToolCallPipeline {
         }
     }
 
-    pub fn feed(&mut self, fragment: &str) {
-        self.buffer.append(fragment);
+    pub fn feed(&mut self, piece: &TokenPiece) {
+        self.buffer.append(piece);
     }
 
     #[must_use]
@@ -35,13 +38,24 @@ impl ToolCallPipeline {
     }
 
     pub fn finalize(&mut self) -> ToolCallEvent {
-        let input = self.buffer.take();
+        let ToolCallBuffer {
+            accumulated: input,
+            holds_visible_text,
+        } = take(&mut self.buffer);
 
         if input.is_empty() {
             return ToolCallEvent::Resolved(Vec::new());
         }
 
         match self.chat_message_parser.parse(&input, false) {
+            Ok(ChatMessageParseOutcome::Recognized(parsed))
+                if parsed.tool_calls.is_empty() && holds_visible_text =>
+            {
+                ToolCallEvent::UnrecognizedFormat(RawToolCallTokens {
+                    text: input,
+                    ffi_error_message: String::new(),
+                })
+            }
             Ok(ChatMessageParseOutcome::Recognized(parsed)) => {
                 self.validate_resolved(parsed.tool_calls)
             }

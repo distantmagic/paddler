@@ -3,6 +3,7 @@
 use hf_hub::Cache;
 use llama_cpp_bindings::sampling::LlamaSampler;
 use llama_cpp_bindings::token::logit_bias::LlamaLogitBias;
+use llama_cpp_bindings::token_piece::TokenPiece;
 use tokio::sync::mpsc::unbounded_channel;
 
 use paddler_agent_text_generation::continuous_batch_terminal_outcome::ContinuousBatchTerminalOutcome;
@@ -41,7 +42,7 @@ fn a_client_gone_before_an_unterminated_tool_call_resolves_receives_nothing() {
     let mut unterminated_tool_call = tool_call_pipeline_for_tools(model, &[]);
     let (gone_client_tx, gone_client_rx) = unbounded_channel();
 
-    unterminated_tool_call.feed("<tool_call>");
+    unterminated_tool_call.feed(&TokenPiece::Marker("<tool_call>".to_owned()));
     drop(gone_client_rx);
 
     assert_eq!(

@@ -15,7 +15,7 @@ impl ToolCallHandling {
         if let Self::Parsed(pipeline) = self
             && matches!(classified.sampled_token, SampledToken::ToolCall(_))
         {
-            pipeline.feed(classified.piece.raw());
+            pipeline.feed(&classified.piece);
         }
     }
 

@@ -1,18 +1,15 @@
-use std::mem::take;
+use llama_cpp_bindings::token_piece::TokenPiece;
 
 #[derive(Debug, Default)]
 pub struct ToolCallBuffer {
-    accumulated: String,
+    pub accumulated: String,
+    pub holds_visible_text: bool,
 }
 
 impl ToolCallBuffer {
-    pub fn append(&mut self, fragment: &str) {
-        self.accumulated.push_str(fragment);
-    }
-
-    #[must_use]
-    pub fn take(&mut self) -> String {
-        take(&mut self.accumulated)
+    pub fn append(&mut self, piece: &TokenPiece) {
+        self.accumulated.push_str(piece.raw());
+        self.holds_visible_text |= !piece.visible().is_empty();
     }
 
     #[must_use]
@@ -23,16 +20,17 @@ impl ToolCallBuffer {
 
 #[cfg(test)]
 mod tests {
+    use llama_cpp_bindings::token_piece::TokenPiece;
+
     use super::ToolCallBuffer;
 
     #[test]
-    fn take_returns_every_appended_fragment_and_empties_the_buffer() {
+    fn appending_keeps_the_raw_text_of_markers_and_of_visible_pieces() {
         let mut buffer = ToolCallBuffer::default();
 
-        buffer.append("<tool_call>\n");
-        buffer.append("{\"name\":\"x\"}");
+        buffer.append(&TokenPiece::Marker("<tool_call>".to_owned()));
+        buffer.append(&TokenPiece::Visible("{\"name\":\"x\"}".to_owned()));
 
-        assert_eq!(buffer.take(), "<tool_call>\n{\"name\":\"x\"}");
-        assert!(buffer.is_empty());
+        assert_eq!(buffer.accumulated, "<tool_call>{\"name\":\"x\"}");
     }
 }

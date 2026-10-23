@@ -1,6 +1,7 @@
 #![cfg(feature = "tests_that_use_llms")]
 
 use hf_hub::Cache;
+use llama_cpp_bindings::token_piece::TokenPiece;
 use serde_json::Value;
 
 use paddler_messaging::generated_token_result::GeneratedTokenResult;
@@ -13,7 +14,8 @@ use paddler_tests::llama_runtime::LlamaRuntime;
 
 use crate::tool_call_pipeline_for_tools::tool_call_pipeline_for_tools;
 
-const TOOL_CALL_WITH_ARGUMENTS_THAT_ARE_NOT_JSON: &str = "[TOOL_CALLS]get_weather[ARGS]not json";
+const TOOL_CALL_OPEN_MARKER: &str = "[TOOL_CALLS]";
+const TOOL_CALL_WITH_ARGUMENTS_THAT_ARE_NOT_JSON: &str = "get_weather[ARGS]not json";
 
 #[test]
 fn a_tool_call_the_chat_parser_cannot_match_is_reported_as_unrecognized() {
@@ -30,12 +32,15 @@ fn a_tool_call_the_chat_parser_cannot_match_is_reported_as_unrecognized() {
         &[Tool::<Value>::from(get_weather_tool())],
     );
 
-    tool_call_pipeline.feed(TOOL_CALL_WITH_ARGUMENTS_THAT_ARE_NOT_JSON);
+    tool_call_pipeline.feed(&TokenPiece::Marker(TOOL_CALL_OPEN_MARKER.to_owned()));
+    tool_call_pipeline.feed(&TokenPiece::Visible(
+        TOOL_CALL_WITH_ARGUMENTS_THAT_ARE_NOT_JSON.to_owned(),
+    ));
 
     assert_eq!(
         tool_call_pipeline.finalize().into_generated_token_result(),
         GeneratedTokenResult::UnrecognizedToolCallFormat(RawToolCallTokens {
-            text: TOOL_CALL_WITH_ARGUMENTS_THAT_ARE_NOT_JSON.to_owned(),
+            text: format!("{TOOL_CALL_OPEN_MARKER}{TOOL_CALL_WITH_ARGUMENTS_THAT_ARE_NOT_JSON}"),
             ffi_error_message:
                 "The model produced output that does not match the expected peg-native format"
                     .to_owned(),
