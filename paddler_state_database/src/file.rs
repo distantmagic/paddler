@@ -2,7 +2,6 @@ use std::fs::File as StdFile;
 use std::fs::Permissions;
 use std::fs::metadata;
 use std::io::ErrorKind;
-use std::io::Write as _;
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::Path;
 use std::path::PathBuf;
@@ -11,7 +10,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serde_json::from_str;
 use serde_json::from_value;
-use serde_json::to_string_pretty;
+use serde_json::to_writer_pretty;
 use tempfile::NamedTempFile;
 use tempfile::PersistError;
 use tokio::fs::read_to_string;
@@ -43,11 +42,11 @@ fn replacement_permissions(state_path: &Path) -> Result<Permissions, StateDataba
 }
 
 fn write_replacement(
-    replacement: &mut StdFile,
+    replacement: &StdFile,
     replacement_path: &Path,
-    serialized_schema: &[u8],
+    schema: &Schema,
 ) -> Result<(), StateDatabaseError> {
-    replacement.write_all(serialized_schema).map_err(|source| {
+    to_writer_pretty(replacement, schema).map_err(|source| {
         StateDatabaseError::FileWriteFailed {
             path: replacement_path.to_path_buf(),
             source,
@@ -62,10 +61,7 @@ fn write_replacement(
         })
 }
 
-fn replace_state_file(
-    state_path: &Path,
-    serialized_schema: &str,
-) -> Result<(), StateDatabaseError> {
+fn replace_state_file(state_path: &Path, schema: &Schema) -> Result<(), StateDatabaseError> {
     let state_directory =
         state_path
             .parent()
@@ -73,7 +69,7 @@ fn replace_state_file(
                 path: state_path.to_path_buf(),
             })?;
     let permissions = replacement_permissions(state_path)?;
-    let mut replacement = NamedTempFile::new_in(state_directory)
+    let replacement = NamedTempFile::new_in(state_directory)
         .and_then(|replacement| {
             replacement
                 .as_file()
@@ -86,12 +82,7 @@ fn replace_state_file(
         })?;
     let replacement_path = replacement.path().to_path_buf();
 
-    write_replacement(
-        replacement.as_file_mut(),
-        &replacement_path,
-        serialized_schema.as_bytes(),
-    )
-    .and_then(|()| {
+    write_replacement(replacement.as_file(), &replacement_path, schema).and_then(|()| {
         replacement
             .persist(state_path)
             .map(drop)
@@ -141,11 +132,8 @@ impl File {
     }
 }
 
-#[async_trait]
-impl StateDatabase for File {
-    async fn read_balancer_desired_state(
-        &self,
-    ) -> Result<StoredBalancerDesiredState, StateDatabaseError> {
+impl File {
+    async fn read_state_file(&self) -> Result<StoredBalancerDesiredState, StateDatabaseError> {
         match read_to_string(&self.path).await {
             Ok(content) => Ok(StoredBalancerDesiredState::Stored(
                 self.parse_schema(&content)?.balancer_desired_state,
@@ -160,20 +148,19 @@ impl StateDatabase for File {
         }
     }
 
-    async fn store_balancer_desired_state(
+    async fn replace_state_file_contents(
         &self,
         balancer_desired_state: &BalancerDesiredState,
     ) -> Result<(), StateDatabaseError> {
-        let serialized_schema = to_string_pretty(&Schema {
+        let schema = Schema {
             balancer_desired_state: balancer_desired_state.clone(),
             version: StateDatabaseSchemaVersion::default(),
-        })
-        .map_err(StateDatabaseError::SchemaUnserializable)?;
+        };
         let store_guard = self.store_lock.clone().lock_owned().await;
         let state_path = self.path.clone();
 
         spawn_blocking_resuming_panic(move || {
-            let replacement_outcome = replace_state_file(&state_path, &serialized_schema);
+            let replacement_outcome = replace_state_file(&state_path, &schema);
 
             drop(store_guard);
 
@@ -183,11 +170,26 @@ impl StateDatabase for File {
     }
 }
 
+#[async_trait]
+impl StateDatabase for File {
+    async fn read_balancer_desired_state(
+        &self,
+    ) -> Result<StoredBalancerDesiredState, StateDatabaseError> {
+        self.read_state_file().await
+    }
+
+    async fn store_balancer_desired_state(
+        &self,
+        balancer_desired_state: &BalancerDesiredState,
+    ) -> Result<(), StateDatabaseError> {
+        self.replace_state_file_contents(balancer_desired_state)
+            .await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::error::Error as _;
-    #[cfg(target_os = "linux")]
-    use std::fs::File as StdFile;
     #[cfg(target_os = "linux")]
     use std::fs::OpenOptions;
     use std::fs::Permissions;
@@ -216,8 +218,12 @@ mod tests {
     use super::File;
     #[cfg(target_os = "linux")]
     use super::write_replacement;
+    #[cfg(target_os = "linux")]
+    use crate::schema::Schema;
     use crate::state_database::StateDatabase;
     use crate::state_database_error::StateDatabaseError;
+    #[cfg(target_os = "linux")]
+    use crate::state_database_schema_version::StateDatabaseSchemaVersion;
     use crate::stored_balancer_desired_state::StoredBalancerDesiredState;
 
     fn state_with_model(model_uri: &str) -> BalancerDesiredState {
@@ -388,17 +394,24 @@ mod tests {
     }
 
     #[cfg(target_os = "linux")]
-    fn full_device() -> StdFile {
-        OpenOptions::new().write(true).open("/dev/full").unwrap()
+    fn write_replacement_to_device(device_path: &Path) -> Result<(), StateDatabaseError> {
+        write_replacement(
+            &OpenOptions::new().write(true).open(device_path).unwrap(),
+            device_path,
+            &Schema {
+                balancer_desired_state: BalancerDesiredState::default(),
+                version: StateDatabaseSchemaVersion::default(),
+            },
+        )
     }
 
     #[cfg(target_os = "linux")]
     #[test]
     fn a_replacement_on_a_device_that_refuses_to_sync_fails_to_sync() {
         assert!(matches!(
-            write_replacement(&mut full_device(), Path::new("/dev/full"), b""),
+            write_replacement_to_device(Path::new("/dev/null")),
             Err(StateDatabaseError::FileSyncFailed { path, source })
-                if path == Path::new("/dev/full") && source.kind() == ErrorKind::InvalidInput
+                if path == Path::new("/dev/null") && source.kind() == ErrorKind::InvalidInput
         ));
     }
 
@@ -406,9 +419,10 @@ mod tests {
     #[test]
     fn a_replacement_on_a_full_device_fails_to_write_its_schema() {
         assert!(matches!(
-            write_replacement(&mut full_device(), Path::new("/dev/full"), b"{}"),
+            write_replacement_to_device(Path::new("/dev/full")),
             Err(StateDatabaseError::FileWriteFailed { path, source })
-                if path == Path::new("/dev/full") && source.kind() == ErrorKind::StorageFull
+                if path == Path::new("/dev/full")
+                    && source.io_error_kind() == Some(ErrorKind::StorageFull)
         ));
     }
 
