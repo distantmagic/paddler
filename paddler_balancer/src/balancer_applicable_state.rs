@@ -1,72 +1,57 @@
+use nanoid::nanoid;
+
 use paddler_messaging::agent_desired_state::AgentDesiredState;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
+use paddler_messaging::cluster_inference_mode_report::ClusterInferenceModeReport;
+use paddler_messaging::inference_mode::InferenceMode;
 
 #[derive(Clone, Debug)]
 pub struct BalancerApplicableState {
     pub agent_desired_state: AgentDesiredState,
+    pub balancer_desired_state: BalancerDesiredState,
+    pub balancer_instance: String,
+    pub version: u64,
 }
 
-impl From<BalancerDesiredState> for BalancerApplicableState {
-    fn from(
-        BalancerDesiredState {
-            chat_template_override,
-            inference_parameters,
-            model,
-            multimodal_projection,
-            use_chat_template_override,
-        }: BalancerDesiredState,
+impl BalancerApplicableState {
+    #[must_use]
+    pub fn initial(balancer_desired_state: BalancerDesiredState) -> Self {
+        Self::of_balancer_instance(balancer_desired_state, nanoid!(), 0)
+    }
+
+    #[must_use]
+    pub fn superseded_by(&self, balancer_desired_state: BalancerDesiredState) -> Self {
+        Self::of_balancer_instance(
+            balancer_desired_state,
+            self.balancer_instance.clone(),
+            self.version + 1,
+        )
+    }
+
+    #[must_use]
+    pub fn cluster_inference_mode_report(&self) -> ClusterInferenceModeReport {
+        ClusterInferenceModeReport {
+            balancer_instance: self.balancer_instance.clone(),
+            inference_mode: self.inference_mode(),
+            version: self.version,
+        }
+    }
+
+    #[must_use]
+    pub const fn inference_mode(&self) -> InferenceMode {
+        self.balancer_desired_state.inference_mode
+    }
+
+    fn of_balancer_instance(
+        balancer_desired_state: BalancerDesiredState,
+        balancer_instance: String,
+        version: u64,
     ) -> Self {
         Self {
-            agent_desired_state: AgentDesiredState {
-                chat_template_override: if use_chat_template_override {
-                    chat_template_override
-                } else {
-                    None
-                },
-                inference_parameters,
-                model,
-                multimodal_projection,
-            },
+            agent_desired_state: AgentDesiredState::from(balancer_desired_state.clone()),
+            balancer_desired_state,
+            balancer_instance,
+            version,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use paddler_messaging::balancer_desired_state::BalancerDesiredState;
-    use paddler_messaging::chat_template::ChatTemplate;
-
-    use super::BalancerApplicableState;
-
-    fn desired_state_with_override(use_chat_template_override: bool) -> BalancerDesiredState {
-        BalancerDesiredState {
-            chat_template_override: Some(ChatTemplate {
-                content: "{{ messages }}".to_owned(),
-            }),
-            use_chat_template_override,
-            ..BalancerDesiredState::default()
-        }
-    }
-
-    #[test]
-    fn applies_the_chat_template_override_when_it_is_enabled() {
-        assert_eq!(
-            BalancerApplicableState::from(desired_state_with_override(true))
-                .agent_desired_state
-                .chat_template_override,
-            Some(ChatTemplate {
-                content: "{{ messages }}".to_owned(),
-            })
-        );
-    }
-
-    #[test]
-    fn ignores_the_chat_template_override_when_it_is_disabled() {
-        assert_eq!(
-            BalancerApplicableState::from(desired_state_with_override(false))
-                .agent_desired_state
-                .chat_template_override,
-            None
-        );
     }
 }

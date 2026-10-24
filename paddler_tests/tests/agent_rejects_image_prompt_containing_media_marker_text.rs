@@ -28,19 +28,22 @@ async fn agent_rejects_image_prompt_containing_media_marker_text() {
             CancellationToken::new(),
             &ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
-                conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Parts(vec![
-                        ConversationMessageContentPart::ImageUrl {
-                            image_url: ImageUrl {
-                                url: load_test_image_data_uri().expect("the test image must load"),
+                conversation_history: ConversationHistory::new(vec![
+                    ConversationMessage::Message {
+                        content: ConversationMessageContent::Parts(vec![
+                            ConversationMessageContentPart::ImageUrl {
+                                image_url: ImageUrl {
+                                    url: load_test_image_data_uri()
+                                        .expect("the test image must load"),
+                                },
                             },
-                        },
-                        ConversationMessageContentPart::Text {
-                            text: format!("What does {LLAMA_CPP_DEFAULT_MEDIA_MARKER} mean?"),
-                        },
-                    ]),
-                    role: "user".to_owned(),
-                }]),
+                            ConversationMessageContentPart::Text {
+                                text: format!("What does {LLAMA_CPP_DEFAULT_MEDIA_MARKER} mean?"),
+                            },
+                        ]),
+                        role: "user".to_owned(),
+                    },
+                ]),
                 enable_thinking: false,
                 grammar: None,
                 max_tokens: NonZeroU32::new(20).unwrap(),

@@ -1,10 +1,32 @@
 import { z } from "zod";
 
 import { ConversationMessageContentPartSchema } from "./ConversationMessageContentPart";
+import { ConversationToolCallSchema } from "./ConversationToolCall";
 
-export const ConversationMessageSchema = z.object({
-  role: z.string(),
-  content: z.union([z.string(), z.array(ConversationMessageContentPartSchema)]),
-});
+const ConversationMessageContentSchema = z.union([
+  z.string(),
+  z.array(ConversationMessageContentPartSchema),
+]);
+
+export const ConversationMessageSchema = z.union([
+  z.strictObject({
+    AssistantToolCalls: z.strictObject({
+      content: ConversationMessageContentSchema,
+      tool_calls: z.array(ConversationToolCallSchema),
+    }),
+  }),
+  z.strictObject({
+    Message: z.strictObject({
+      content: ConversationMessageContentSchema,
+      role: z.string(),
+    }),
+  }),
+  z.strictObject({
+    ToolResult: z.strictObject({
+      content: ConversationMessageContentSchema,
+      tool_call_id: z.string(),
+    }),
+  }),
+]);
 
 export type ConversationMessage = z.infer<typeof ConversationMessageSchema>;

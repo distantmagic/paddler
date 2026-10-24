@@ -2,8 +2,18 @@ import { z } from "zod";
 
 import { AgentIssueModelPathSchema } from "./AgentIssueModelPath";
 import { HuggingFaceDownloadLockSchema } from "./HuggingFaceDownloadLock";
+import { InferenceCapabilitySchema } from "./InferenceCapability";
 
 export const AgentIssueSchema = z.union([
+  z.object({
+    AgentModelUriIsNotAnAbsoluteLocalPath: AgentIssueModelPathSchema,
+  }),
+  z.object({
+    AgentModelUriIsNotCanonical: z.object({
+      canonical_uri: z.string(),
+      model_path: AgentIssueModelPathSchema,
+    }),
+  }),
   z.object({
     CacheCannotAcquireLock: AgentIssueModelPathSchema,
   }),
@@ -42,10 +52,22 @@ export const AgentIssueSchema = z.union([
     HuggingFaceCannotAcquireLock: HuggingFaceDownloadLockSchema,
   }),
   z.object({
+    HuggingFaceClientCannotStart: AgentIssueModelPathSchema,
+  }),
+  z.object({
     HuggingFaceModelDoesNotExist: AgentIssueModelPathSchema,
   }),
   z.object({
+    HuggingFaceModelUriIsMalformed: AgentIssueModelPathSchema,
+  }),
+  z.object({
     HuggingFacePermissions: AgentIssueModelPathSchema,
+  }),
+  z.object({
+    ModelArchitectureUnsupportedForDecisions: z.object({
+      architecture: z.string(),
+      model_path: AgentIssueModelPathSchema,
+    }),
   }),
   z.object({
     ModelCacheIsCorrupted: AgentIssueModelPathSchema,
@@ -60,12 +82,41 @@ export const AgentIssueSchema = z.union([
     ModelFileDoesNotExist: AgentIssueModelPathSchema,
   }),
   z.object({
+    ModelUriIsUnparseable: AgentIssueModelPathSchema,
+  }),
+  z.object({
     MultimodalProjectionCannotBeLoaded: AgentIssueModelPathSchema,
+  }),
+  z.object({
+    PointerHeadCannotBeLoaded: AgentIssueModelPathSchema,
+  }),
+  z.object({
+    PointerHeadIncompatibleWithModel: z.object({
+      incompatibility: z.union([
+        z.object({
+          DelimiterIsNotAControlToken: z.object({ delimiter: z.string() }),
+        }),
+        z.object({
+          HiddenSizeMismatch: z.object({
+            model_hidden_size: z.number(),
+            pointer_head_hidden_size: z.number(),
+          }),
+        }),
+      ]),
+      pointer_head_path: AgentIssueModelPathSchema,
+    }),
   }),
   z.object({
     SlotCannotStart: z.object({
       error: z.string(),
+      inference_capability: InferenceCapabilitySchema,
       slot_index: z.number(),
+    }),
+  }),
+  z.object({
+    SlotsInsufficientForDecisions: z.object({
+      desired_slots: z.number(),
+      required_slots: z.number(),
     }),
   }),
   z.object({

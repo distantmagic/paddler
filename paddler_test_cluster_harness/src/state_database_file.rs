@@ -12,19 +12,22 @@ pub struct StateDatabaseFile {
 
 impl StateDatabaseFile {
     pub fn new() -> Result<Self> {
-        let directory = TempDir::new().context("failed to create temp state database directory")?;
-        let path = directory.path().join("state.json");
-        let url = format!(
-            "file://{}",
-            path.to_str()
-                .context("temp state database file path is not valid UTF-8")?
-        );
+        TempDir::new()
+            .context("failed to create temp state database directory")
+            .and_then(Self::in_directory)
+    }
 
-        Ok(Self {
-            path,
-            url,
-            _directory_guard: directory,
-        })
+    fn in_directory(directory: TempDir) -> Result<Self> {
+        let path = directory.path().join("state.json");
+
+        path.to_str()
+            .map(|utf8_path| format!("file://{utf8_path}"))
+            .context("temp state database file path is not valid UTF-8")
+            .map(|url| Self {
+                path,
+                url,
+                _directory_guard: directory,
+            })
     }
 }
 

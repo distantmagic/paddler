@@ -2,12 +2,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::chat_template_conversation::ChatTemplateConversation;
-use crate::chat_template_message::ChatTemplateMessage;
-use crate::chat_template_message_content::ChatTemplateMessageContent;
-use crate::chat_template_message_content_part::ChatTemplateMessageContentPart;
 use crate::conversation_message::ConversationMessage;
-use crate::conversation_message_content::ConversationMessageContent;
-use crate::conversation_message_content_part::ConversationMessageContentPart;
 use crate::media_marker::MediaMarker;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -31,36 +26,7 @@ impl ConversationHistory {
         let messages = self
             .messages
             .into_iter()
-            .map(
-                |ConversationMessage { content, role }| ChatTemplateMessage {
-                    content: match content {
-                        ConversationMessageContent::Text(text) => {
-                            ChatTemplateMessageContent::Text(text)
-                        }
-                        ConversationMessageContent::Parts(parts) => {
-                            ChatTemplateMessageContent::Parts(
-                                parts
-                                    .into_iter()
-                                    .map(|part| ChatTemplateMessageContentPart {
-                                        content_type: "text",
-                                        text: match part {
-                                            ConversationMessageContentPart::Text { text } => text,
-                                            ConversationMessageContentPart::ImageUrl {
-                                                image_url,
-                                            } => {
-                                                image_urls.push(image_url);
-
-                                                media_marker.marker.clone()
-                                            }
-                                        },
-                                    })
-                                    .collect(),
-                            )
-                        }
-                    },
-                    role,
-                },
-            )
+            .map(|message| message.into_chat_template_message(media_marker, &mut image_urls))
             .collect();
 
         ChatTemplateConversation {
@@ -72,6 +38,10 @@ impl ConversationHistory {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::Value;
+    use serde_json::json;
+    use serde_json::to_value;
+
     use super::ConversationHistory;
     use crate::chat_template_conversation::ChatTemplateConversation;
     use crate::chat_template_message::ChatTemplateMessage;
@@ -80,11 +50,12 @@ mod tests {
     use crate::conversation_message::ConversationMessage;
     use crate::conversation_message_content::ConversationMessageContent;
     use crate::conversation_message_content_part::ConversationMessageContentPart;
+    use crate::conversation_tool_call::ConversationToolCall;
     use crate::image_url::ImageUrl;
     use crate::media_marker::MediaMarker;
 
     fn make_text_message(role: &str, text: &str) -> ConversationMessage {
-        ConversationMessage {
+        ConversationMessage::Message {
             content: ConversationMessageContent::Text(text.to_owned()),
             role: role.to_owned(),
         }
@@ -94,10 +65,19 @@ mod tests {
         role: &str,
         parts: Vec<ConversationMessageContentPart>,
     ) -> ConversationMessage {
-        ConversationMessage {
+        ConversationMessage::Message {
             content: ConversationMessageContent::Parts(parts),
             role: role.to_owned(),
         }
+    }
+
+    fn rendered_messages(history: ConversationHistory) -> Value {
+        to_value(
+            history
+                .into_chat_template_conversation(&MediaMarker::new("[IMAGE]".to_owned()))
+                .messages,
+        )
+        .unwrap()
     }
 
     #[test]
@@ -129,11 +109,11 @@ mod tests {
                     url: "http://example.com/img.png".to_owned(),
                 }],
                 messages: vec![
-                    ChatTemplateMessage {
+                    ChatTemplateMessage::Message {
                         content: ChatTemplateMessageContent::Text("hello".to_owned()),
                         role: "assistant".to_owned(),
                     },
-                    ChatTemplateMessage {
+                    ChatTemplateMessage::Message {
                         content: ChatTemplateMessageContent::Parts(vec![
                             ChatTemplateMessageContentPart {
                                 content_type: "text",
@@ -152,6 +132,44 @@ mod tests {
                     },
                 ],
             }
+        );
+    }
+
+    #[test]
+    fn an_assistant_tool_call_turn_reaches_the_template_with_structured_tool_calls() {
+        let history = ConversationHistory::new(vec![ConversationMessage::AssistantToolCalls {
+            content: ConversationMessageContent::Text(String::new()),
+            tool_calls: vec![ConversationToolCall {
+                arguments: json!({ "location": "Paris" }).as_object().unwrap().clone(),
+                id: "call_weather".to_owned(),
+                name: "get_weather".to_owned(),
+            }],
+        }]);
+
+        assert_eq!(
+            rendered_messages(history),
+            json!([{
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [{
+                    "function": { "arguments": { "location": "Paris" }, "name": "get_weather" },
+                    "id": "call_weather",
+                    "type": "function"
+                }]
+            }])
+        );
+    }
+
+    #[test]
+    fn a_tool_result_reaches_the_template_with_its_tool_call_id() {
+        let history = ConversationHistory::new(vec![ConversationMessage::ToolResult {
+            content: ConversationMessageContent::Text("sunny".to_owned()),
+            tool_call_id: "call_weather".to_owned(),
+        }]);
+
+        assert_eq!(
+            rendered_messages(history),
+            json!([{ "content": "sunny", "role": "tool", "tool_call_id": "call_weather" }])
         );
     }
 }

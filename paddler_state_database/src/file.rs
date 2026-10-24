@@ -1,56 +1,145 @@
+use std::fs::File as StdFile;
+use std::fs::Permissions;
+use std::fs::metadata;
 use std::io::ErrorKind;
+use std::os::unix::fs::PermissionsExt as _;
+use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
-use async_trait::async_trait;
-use log::warn;
 use serde_json::from_str;
-use serde_json::to_string_pretty;
-use tokio::fs::File as TokioFile;
+use serde_json::from_value;
+use serde_json::to_writer_pretty;
+use tempfile::NamedTempFile;
+use tempfile::PersistError;
 use tokio::fs::read_to_string;
-use tokio::io::AsyncWriteExt;
-use tokio::sync::RwLock;
-use tokio::sync::watch;
+use tokio::sync::Mutex;
 
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
+use paddler_spawn_resuming_panic::spawn_blocking_resuming_panic::spawn_blocking_resuming_panic;
 
 use crate::schema::Schema;
-use crate::state_database::StateDatabase;
+use crate::schema_version_header::SchemaVersionHeader;
 use crate::state_database_error::StateDatabaseError;
+use crate::state_database_schema_version::StateDatabaseSchemaVersion;
+use crate::stored_balancer_desired_state::StoredBalancerDesiredState;
+
+const NEW_STATE_FILE_ACCESS_MODE: u32 = 0o600;
+
+fn replacement_permissions(state_path: &Path) -> Result<Permissions, StateDatabaseError> {
+    match metadata(state_path) {
+        Ok(state_metadata) => Ok(state_metadata.permissions()),
+        Err(missing_state) if missing_state.kind() == ErrorKind::NotFound => {
+            Ok(Permissions::from_mode(NEW_STATE_FILE_ACCESS_MODE))
+        }
+        Err(source) => Err(StateDatabaseError::FilePermissionsUnreadable {
+            path: state_path.to_path_buf(),
+            source,
+        }),
+    }
+}
+
+fn write_replacement(
+    replacement: &StdFile,
+    replacement_path: &Path,
+    schema: &Schema,
+) -> Result<(), StateDatabaseError> {
+    to_writer_pretty(replacement, schema).map_err(|source| {
+        StateDatabaseError::FileWriteFailed {
+            path: replacement_path.to_path_buf(),
+            source,
+        }
+    })?;
+
+    replacement
+        .sync_all()
+        .map_err(|source| StateDatabaseError::FileSyncFailed {
+            path: replacement_path.to_path_buf(),
+            source,
+        })
+}
+
+fn replace_state_file(state_path: &Path, schema: &Schema) -> Result<(), StateDatabaseError> {
+    let state_directory =
+        state_path
+            .parent()
+            .ok_or_else(|| StateDatabaseError::FileHasNoParentDirectory {
+                path: state_path.to_path_buf(),
+            })?;
+    let permissions = replacement_permissions(state_path)?;
+    let replacement = NamedTempFile::new_in(state_directory)
+        .and_then(|replacement| {
+            replacement
+                .as_file()
+                .set_permissions(permissions)
+                .map(|()| replacement)
+        })
+        .map_err(|source| StateDatabaseError::FileReplacementCreationFailed {
+            directory: state_directory.to_path_buf(),
+            source,
+        })?;
+    let replacement_path = replacement.path().to_path_buf();
+
+    write_replacement(replacement.as_file(), &replacement_path, schema).and_then(|()| {
+        replacement
+            .persist(state_path)
+            .map(drop)
+            .map_err(
+                |PersistError { error, .. }| StateDatabaseError::FileReplaceFailed {
+                    path: state_path.to_path_buf(),
+                    replacement_path,
+                    source: error,
+                },
+            )
+    })
+}
 
 pub struct File {
-    balancer_desired_state_notify_tx: watch::Sender<BalancerDesiredState>,
     path: PathBuf,
-    write_lock: RwLock<()>,
+    store_lock: Arc<Mutex<()>>,
 }
 
 impl File {
     #[must_use]
-    pub fn new(
-        balancer_desired_state_notify_tx: watch::Sender<BalancerDesiredState>,
-        path: PathBuf,
-    ) -> Self {
+    pub fn new(path: PathBuf) -> Self {
         Self {
-            balancer_desired_state_notify_tx,
             path,
-            write_lock: RwLock::new(()),
+            store_lock: Arc::new(Mutex::new(())),
         }
     }
 
-    async fn read_schema_from_file(&self) -> Result<Schema, StateDatabaseError> {
-        match read_to_string(&self.path).await {
-            Ok(content) => {
-                from_str(&content).map_err(|source| StateDatabaseError::FileContentsInvalid {
-                    path: self.path.clone(),
-                    source,
-                })
-            }
-            Err(read_error) if read_error.kind() == ErrorKind::NotFound => {
-                warn!(
-                    "State database file not found; trying to store the default state: '{}'",
-                    self.path.display()
-                );
+    fn parse_schema(&self, content: &str) -> Result<Schema, StateDatabaseError> {
+        let SchemaVersionHeader { version } =
+            from_str(content).map_err(|source| StateDatabaseError::FileContentsInvalid {
+                path: self.path.clone(),
+                source,
+            })?;
 
-                self.store_default_schema().await
+        from_value::<StateDatabaseSchemaVersion>(version.clone()).map_err(|source| {
+            StateDatabaseError::SchemaVersionUnsupported {
+                found: version.to_string(),
+                path: self.path.clone(),
+                source,
+            }
+        })?;
+
+        from_str(content).map_err(|source| StateDatabaseError::FileContentsInvalid {
+            path: self.path.clone(),
+            source,
+        })
+    }
+}
+
+impl File {
+    pub async fn read_balancer_desired_state(
+        &self,
+    ) -> Result<StoredBalancerDesiredState, StateDatabaseError> {
+        match read_to_string(&self.path).await {
+            Ok(content) => Ok(StoredBalancerDesiredState::Stored(
+                self.parse_schema(&content)?.balancer_desired_state,
+            )),
+            Err(read_error) if read_error.kind() == ErrorKind::NotFound => {
+                Ok(StoredBalancerDesiredState::NothingStored)
             }
             Err(source) => Err(StateDatabaseError::FileReadFailed {
                 path: self.path.clone(),
@@ -59,161 +148,131 @@ impl File {
         }
     }
 
-    async fn store_default_schema(&self) -> Result<Schema, StateDatabaseError> {
-        let schema = Schema::default();
-
-        self.store_schema(&schema).await?;
-
-        Ok(schema)
-    }
-
-    async fn store_schema(&self, schema: &Schema) -> Result<(), StateDatabaseError> {
-        let balancer_desired_state = schema.balancer_desired_state.clone();
-        let _lock = self.write_lock.write().await;
-
-        let serialized_schema =
-            to_string_pretty(schema).map_err(StateDatabaseError::SchemaUnserializable)?;
-        let mut file = TokioFile::create(&self.path).await.map_err(|source| {
-            StateDatabaseError::FileCreationFailed {
-                path: self.path.clone(),
-                source,
-            }
-        })?;
-
-        file.write_all(serialized_schema.as_bytes())
-            .await
-            .map_err(|source| StateDatabaseError::FileWriteFailed {
-                path: self.path.clone(),
-                source,
-            })?;
-        file.sync_all()
-            .await
-            .map_err(|source| StateDatabaseError::FileSyncFailed {
-                path: self.path.clone(),
-                source,
-            })?;
-
-        self.balancer_desired_state_notify_tx
-            .send_replace(balancer_desired_state);
-
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl StateDatabase for File {
-    async fn read_balancer_desired_state(
-        &self,
-    ) -> Result<BalancerDesiredState, StateDatabaseError> {
-        self.read_schema_from_file()
-            .await
-            .map(|schema| schema.balancer_desired_state)
-    }
-
-    async fn store_balancer_desired_state(
+    pub async fn store_balancer_desired_state(
         &self,
         balancer_desired_state: &BalancerDesiredState,
     ) -> Result<(), StateDatabaseError> {
-        let mut schema = self.read_schema_from_file().await?;
+        let schema = Schema {
+            balancer_desired_state: balancer_desired_state.clone(),
+            version: StateDatabaseSchemaVersion::default(),
+        };
+        let store_guard = self.store_lock.clone().lock_owned().await;
+        let state_path = self.path.clone();
 
-        schema.balancer_desired_state = balancer_desired_state.clone();
+        spawn_blocking_resuming_panic(move || {
+            let replacement_outcome = replace_state_file(&state_path, &schema);
 
-        self.store_schema(&schema).await
+            drop(store_guard);
+
+            replacement_outcome
+        })
+        .await
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error as _;
+    #[cfg(target_os = "linux")]
+    use std::fs::OpenOptions;
+    use std::fs::Permissions;
     use std::io::ErrorKind;
+    use std::os::unix::fs::PermissionsExt as _;
+    #[cfg(target_os = "linux")]
+    use std::os::unix::fs::symlink;
+    use std::path::Path;
     use std::path::PathBuf;
 
     use tempfile::NamedTempFile;
     use tempfile::TempDir;
     use tokio::fs::metadata;
     use tokio::fs::read_to_string;
+    use tokio::fs::set_permissions;
     use tokio::fs::write;
-    use tokio::sync::watch;
 
-    use paddler_inference_parameters::inference_parameters::InferenceParameters;
     use paddler_messaging::agent_desired_model::AgentDesiredModel;
     use paddler_messaging::balancer_desired_state::BalancerDesiredState;
+    use paddler_messaging::balancer_text_generation_settings::BalancerTextGenerationSettings;
     use paddler_messaging::chat_template::ChatTemplate;
+    use paddler_messaging::chat_template_source::ChatTemplateSource;
+    use paddler_messaging::decision_settings::DecisionSettings;
+    use paddler_messaging::inference_mode::InferenceMode;
 
     use super::File;
+    #[cfg(target_os = "linux")]
+    use super::write_replacement;
+    #[cfg(target_os = "linux")]
     use crate::schema::Schema;
-    use crate::state_database::StateDatabase;
     use crate::state_database_error::StateDatabaseError;
+    #[cfg(target_os = "linux")]
+    use crate::state_database_schema_version::StateDatabaseSchemaVersion;
+    use crate::stored_balancer_desired_state::StoredBalancerDesiredState;
+
+    fn state_with_model(model_uri: &str) -> BalancerDesiredState {
+        BalancerDesiredState {
+            model: AgentDesiredModel::Uri(model_uri.to_owned()),
+            ..BalancerDesiredState::default()
+        }
+    }
 
     #[tokio::test]
     async fn reads_back_the_stored_desired_state_from_the_file() {
-        let (balancer_desired_state_notify_tx, _balancer_desired_state_notify_rx) =
-            watch::channel(BalancerDesiredState::default());
         let temp_dir = TempDir::new().unwrap();
         let path = temp_dir.path().join("state.json");
-        let database = File::new(balancer_desired_state_notify_tx, path.clone());
-
-        let desired_state = BalancerDesiredState {
-            chat_template_override: None,
-            inference_parameters: BalancerDesiredState::default().inference_parameters,
-            model: AgentDesiredModel::LocalToAgent("stored_model_path".to_owned()),
-            multimodal_projection: AgentDesiredModel::None,
-            use_chat_template_override: false,
-        };
+        let database = File::new(path.clone());
+        let desired_state = state_with_model("stored_model_uri");
 
         database
             .store_balancer_desired_state(&desired_state)
             .await
             .unwrap();
 
-        let read_back = database.read_balancer_desired_state().await.unwrap();
-
-        assert_eq!(read_back.model, desired_state.model);
+        assert_eq!(
+            database.read_balancer_desired_state().await.unwrap(),
+            StoredBalancerDesiredState::Stored(desired_state)
+        );
         assert!(metadata(&path).await.unwrap().is_file());
     }
 
     #[tokio::test]
-    async fn reading_missing_file_stores_and_returns_default_state() {
-        let (balancer_desired_state_notify_tx, _balancer_desired_state_notify_rx) =
-            watch::channel(BalancerDesiredState::default());
+    async fn reading_a_missing_file_reports_nothing_stored_and_creates_no_file() {
         let temp_dir = TempDir::new().unwrap();
         let path = temp_dir.path().join("not_yet_created.json");
-        let database = File::new(balancer_desired_state_notify_tx, path.clone());
 
-        let read_state = database.read_balancer_desired_state().await.unwrap();
-
-        assert_eq!(read_state, BalancerDesiredState::default());
-        assert!(metadata(&path).await.unwrap().is_file());
+        assert_eq!(
+            File::new(path.clone())
+                .read_balancer_desired_state()
+                .await
+                .unwrap(),
+            StoredBalancerDesiredState::NothingStored
+        );
+        assert!(
+            metadata(&path)
+                .await
+                .is_err_and(|missing| missing.kind() == ErrorKind::NotFound)
+        );
     }
 
     #[tokio::test]
     async fn reading_invalid_json_returns_parse_error() {
-        let (balancer_desired_state_notify_tx, _balancer_desired_state_notify_rx) =
-            watch::channel(BalancerDesiredState::default());
         let temp_file = NamedTempFile::new().unwrap();
         let path = temp_file.path().to_path_buf();
-        write(&path, b"this is not valid json").await.unwrap();
-        let database = File::new(balancer_desired_state_notify_tx, path.clone());
 
-        let read_result = database.read_balancer_desired_state().await;
+        write(&path, b"this is not valid json").await.unwrap();
 
         assert!(matches!(
-            read_result,
+            File::new(path.clone()).read_balancer_desired_state().await,
             Err(StateDatabaseError::FileContentsInvalid { path: invalid_path, .. }) if invalid_path == path
         ));
     }
 
     #[tokio::test]
     async fn reading_an_empty_file_fails_and_leaves_the_file_untouched() {
-        let (balancer_desired_state_notify_tx, _balancer_desired_state_notify_rx) =
-            watch::channel(BalancerDesiredState::default());
         let temp_file = NamedTempFile::new().unwrap();
         let path = temp_file.path().to_path_buf();
-        let database = File::new(balancer_desired_state_notify_tx, path.clone());
-
-        let read_result = database.read_balancer_desired_state().await;
 
         assert!(matches!(
-            read_result,
+            File::new(path.clone()).read_balancer_desired_state().await,
             Err(StateDatabaseError::FileContentsInvalid { path: invalid_path, .. }) if invalid_path == path
         ));
         assert_eq!(read_to_string(&path).await.unwrap(), "");
@@ -221,173 +280,264 @@ mod tests {
 
     #[tokio::test]
     async fn reading_a_directory_path_returns_non_not_found_error() {
-        let (balancer_desired_state_notify_tx, _balancer_desired_state_notify_rx) =
-            watch::channel(BalancerDesiredState::default());
         let temp_dir = TempDir::new().unwrap();
-        let database = File::new(
-            balancer_desired_state_notify_tx,
-            temp_dir.path().to_path_buf(),
-        );
-
-        let read_result = database.read_balancer_desired_state().await;
 
         assert!(matches!(
-            read_result,
+            File::new(temp_dir.path().to_path_buf()).read_balancer_desired_state().await,
             Err(StateDatabaseError::FileReadFailed { source, .. })
                 if source.kind() == ErrorKind::IsADirectory
         ));
     }
 
     #[tokio::test]
-    async fn storing_default_state_fails_when_parent_directory_is_missing() {
-        let (balancer_desired_state_notify_tx, _balancer_desired_state_notify_rx) =
-            watch::channel(BalancerDesiredState::default());
+    async fn storing_fails_when_the_parent_directory_is_missing() {
         let temp_dir = TempDir::new().unwrap();
-        let path: PathBuf = temp_dir.path().join("missing_directory").join("state.json");
-        let database = File::new(balancer_desired_state_notify_tx, path.clone());
-
-        let read_result = database.read_balancer_desired_state().await;
+        let missing_directory = temp_dir.path().join("missing_directory");
+        let database = File::new(missing_directory.join("state.json"));
 
         assert!(matches!(
-            read_result,
-            Err(StateDatabaseError::FileCreationFailed { path: uncreated_path, source })
-                if uncreated_path == path && source.kind() == ErrorKind::NotFound
+            database
+                .store_balancer_desired_state(&BalancerDesiredState::default())
+                .await,
+            Err(StateDatabaseError::FileReplacementCreationFailed { directory, source })
+                if directory == missing_directory && source.kind() == ErrorKind::NotFound
         ));
     }
 
     #[tokio::test]
-    async fn updating_schema_fails_when_path_is_a_directory() {
-        let (balancer_desired_state_notify_tx, _balancer_desired_state_notify_rx) =
-            watch::channel(BalancerDesiredState::default());
-        let temp_dir = TempDir::new().unwrap();
-        let database = File::new(
-            balancer_desired_state_notify_tx,
-            temp_dir.path().to_path_buf(),
-        );
-
-        let store_result = database
-            .store_balancer_desired_state(&BalancerDesiredState::default())
-            .await;
-
+    async fn storing_at_the_filesystem_root_has_no_directory_for_its_replacement() {
         assert!(matches!(
-            store_result,
-            Err(StateDatabaseError::FileReadFailed { source, .. })
-                if source.kind() == ErrorKind::IsADirectory
+            File::new(PathBuf::from("/"))
+                .store_balancer_desired_state(&BalancerDesiredState::default())
+                .await,
+            Err(StateDatabaseError::FileHasNoParentDirectory { path }) if path == Path::new("/")
         ));
     }
 
     #[tokio::test]
-    async fn storing_persists_the_state_while_nobody_is_listening() {
-        let (balancer_desired_state_notify_tx, balancer_desired_state_notify_rx) =
-            watch::channel(BalancerDesiredState::default());
-        drop(balancer_desired_state_notify_rx);
+    async fn storing_under_a_regular_file_cannot_read_the_access_mode_of_its_state() {
+        let regular_file = NamedTempFile::new().unwrap();
+        let path = regular_file.path().join("state.json");
+
+        assert!(matches!(
+            File::new(path.clone())
+                .store_balancer_desired_state(&BalancerDesiredState::default())
+                .await,
+            Err(StateDatabaseError::FilePermissionsUnreadable { path: unreadable_path, source })
+                if unreadable_path == path && source.kind() == ErrorKind::NotADirectory
+        ));
+    }
+
+    #[tokio::test]
+    async fn storing_fails_when_a_directory_occupies_the_state_path() {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("state.json");
-        let database = File::new(balancer_desired_state_notify_tx, path);
-        let stored_state = BalancerDesiredState {
-            model: AgentDesiredModel::LocalToAgent("stored-model".to_owned()),
-            ..BalancerDesiredState::default()
-        };
+        let database = File::new(temp_dir.path().to_path_buf());
+
+        assert!(matches!(
+            database
+                .store_balancer_desired_state(&BalancerDesiredState::default())
+                .await,
+            Err(StateDatabaseError::FileReplaceFailed { path, .. }) if path == temp_dir.path()
+        ));
+    }
+
+    #[tokio::test]
+    async fn a_store_that_fails_leaves_the_previous_state_readable() {
+        let temp_dir = TempDir::new().unwrap();
+        let database = File::new(temp_dir.path().join("state.json"));
+        let previous_state = state_with_model("previous_model_uri");
 
         database
-            .store_balancer_desired_state(&stored_state)
+            .store_balancer_desired_state(&previous_state)
+            .await
+            .unwrap();
+        set_permissions(temp_dir.path(), Permissions::from_mode(0o500))
+            .await
+            .unwrap();
+
+        let failed_store = database
+            .store_balancer_desired_state(&state_with_model("next_model_uri"))
+            .await;
+        let state_after_the_failed_store = database.read_balancer_desired_state().await.unwrap();
+
+        set_permissions(temp_dir.path(), Permissions::from_mode(0o700))
+            .await
+            .unwrap();
+
+        assert!(matches!(
+            failed_store,
+            Err(StateDatabaseError::FileReplacementCreationFailed { source, .. })
+                if source.kind() == ErrorKind::PermissionDenied
+        ));
+        assert_eq!(
+            state_after_the_failed_store,
+            StoredBalancerDesiredState::Stored(previous_state)
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    fn write_replacement_to_device(device_path: &Path) -> Result<(), StateDatabaseError> {
+        write_replacement(
+            &OpenOptions::new().write(true).open(device_path).unwrap(),
+            device_path,
+            &Schema {
+                balancer_desired_state: BalancerDesiredState::default(),
+                version: StateDatabaseSchemaVersion::default(),
+            },
+        )
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_replacement_on_a_device_that_refuses_to_sync_fails_to_sync() {
+        assert!(matches!(
+            write_replacement_to_device(Path::new("/dev/null")),
+            Err(StateDatabaseError::FileSyncFailed { path, source })
+                if path == Path::new("/dev/null") && source.kind() == ErrorKind::InvalidInput
+        ));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_replacement_on_a_full_device_fails_to_write_its_schema() {
+        assert!(matches!(
+            write_replacement_to_device(Path::new("/dev/full")),
+            Err(StateDatabaseError::FileWriteFailed { path, source })
+                if path == Path::new("/dev/full")
+                    && source.io_error_kind() == Some(ErrorKind::StorageFull)
+        ));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn storing_never_writes_through_a_link_planted_at_the_old_replacement_path() {
+        let temp_dir = TempDir::new().unwrap();
+        let unrelated_file = temp_dir.path().join("unrelated.txt");
+
+        write(&unrelated_file, "unrelated contents").await.unwrap();
+        symlink(&unrelated_file, temp_dir.path().join("state.json.next")).unwrap();
+
+        File::new(temp_dir.path().join("state.json"))
+            .store_balancer_desired_state(&state_with_model("stored_model_uri"))
             .await
             .unwrap();
 
         assert_eq!(
-            database.read_balancer_desired_state().await.unwrap(),
-            stored_state
+            read_to_string(&unrelated_file).await.unwrap(),
+            "unrelated contents"
         );
     }
 
-    #[cfg(target_os = "linux")]
     #[tokio::test]
-    async fn storing_a_small_schema_on_a_character_device_fails_to_sync() {
-        let (balancer_desired_state_notify_tx, _balancer_desired_state_notify_rx) =
-            watch::channel(BalancerDesiredState::default());
-        let database = File::new(balancer_desired_state_notify_tx, PathBuf::from("/dev/full"));
+    async fn storing_keeps_the_access_mode_of_the_replaced_state_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("state.json");
+        let database = File::new(path.clone());
 
-        let store_result = database.store_schema(&Schema::default()).await;
+        database
+            .store_balancer_desired_state(&state_with_model("previous_model_uri"))
+            .await
+            .unwrap();
+        set_permissions(&path, Permissions::from_mode(0o640))
+            .await
+            .unwrap();
+        database
+            .store_balancer_desired_state(&state_with_model("next_model_uri"))
+            .await
+            .unwrap();
 
-        assert!(matches!(
-            store_result,
-            Err(StateDatabaseError::FileSyncFailed { source, .. })
-                if source.kind() == ErrorKind::InvalidInput
-        ));
-    }
-
-    #[cfg(target_os = "linux")]
-    #[tokio::test]
-    async fn storing_a_large_schema_surfaces_the_write_error_during_write_all() {
-        const TOKIO_FILE_BUFFER_BYTES: usize = 2 * 1024 * 1024;
-
-        let (balancer_desired_state_notify_tx, _balancer_desired_state_notify_rx) =
-            watch::channel(BalancerDesiredState::default());
-        let database = File::new(balancer_desired_state_notify_tx, PathBuf::from("/dev/full"));
-
-        let mut schema = Schema::default();
-        schema.balancer_desired_state.model =
-            AgentDesiredModel::LocalToAgent("x".repeat(TOKIO_FILE_BUFFER_BYTES * 2));
-
-        let store_result = database.store_schema(&schema).await;
-
-        assert!(matches!(
-            store_result,
-            Err(StateDatabaseError::FileWriteFailed { source, .. })
-                if source.kind() == ErrorKind::StorageFull
-        ));
-    }
-
-    #[cfg(target_os = "macos")]
-    #[tokio::test]
-    async fn storing_to_dev_full_surfaces_permission_denied() {
-        let (balancer_desired_state_notify_tx, _balancer_desired_state_notify_rx) =
-            watch::channel(BalancerDesiredState::default());
-        let database = File::new(balancer_desired_state_notify_tx, PathBuf::from("/dev/full"));
-
-        let store_result = database.store_schema(&Schema::default()).await;
-
-        assert!(matches!(
-            store_result,
-            Err(StateDatabaseError::FileCreationFailed { source, .. })
-                if source.kind() == ErrorKind::PermissionDenied
-        ));
+        assert_eq!(
+            metadata(&path).await.unwrap().permissions().mode() & 0o777,
+            0o640
+        );
     }
 
     #[tokio::test]
-    async fn persists_the_chat_template_override_across_instances() {
+    async fn a_new_state_file_is_readable_only_by_its_owner() {
         let temp_dir = TempDir::new().unwrap();
         let path = temp_dir.path().join("state.json");
 
-        let chat_template = ChatTemplate {
-            content: "{% for message in messages %}{{ message.content }}{% endfor %}".to_owned(),
-        };
+        File::new(path.clone())
+            .store_balancer_desired_state(&state_with_model("stored_model_uri"))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            metadata(&path).await.unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
+
+    #[tokio::test]
+    async fn persists_the_settings_of_inactive_inference_modes_across_instances() {
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("state.json");
         let desired_state = BalancerDesiredState {
-            chat_template_override: Some(chat_template.clone()),
-            inference_parameters: InferenceParameters::default(),
-            model: AgentDesiredModel::LocalToAgent("test_model_path".to_owned()),
-            multimodal_projection: AgentDesiredModel::None,
-            use_chat_template_override: true,
+            decision: DecisionSettings {
+                pointer_head: AgentDesiredModel::Uri("pointer_head.gguf".to_owned()),
+            },
+            inference_mode: InferenceMode::TextGenerationAndEmbeddings,
+            text_generation: BalancerTextGenerationSettings {
+                chat_template_source: ChatTemplateSource::Override(ChatTemplate {
+                    content: "{% for message in messages %}{{ message.content }}{% endfor %}"
+                        .to_owned(),
+                }),
+                ..BalancerTextGenerationSettings::default()
+            },
+            ..state_with_model("test_model_uri")
         };
 
-        {
-            let (balancer_desired_state_tx, _balancer_desired_state_rx) =
-                watch::channel(BalancerDesiredState::default());
-            let database = File::new(balancer_desired_state_tx, path.clone());
+        File::new(path.clone())
+            .store_balancer_desired_state(&desired_state)
+            .await
+            .unwrap();
 
-            database
-                .store_balancer_desired_state(&desired_state)
+        assert_eq!(
+            File::new(path).read_balancer_desired_state().await.unwrap(),
+            StoredBalancerDesiredState::Stored(desired_state)
+        );
+    }
+
+    #[tokio::test]
+    async fn reading_a_file_of_an_older_schema_version_names_the_version_it_found() {
+        let temp_file = NamedTempFile::new().unwrap();
+        let path = temp_file.path().to_path_buf();
+
+        write(&path, br#"{"balancer_desired_state": {}, "version": "1"}"#)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            File::new(path.clone())
+                .read_balancer_desired_state()
                 .await
-                .unwrap();
-        }
+                .err()
+                .as_ref()
+                .map(ToString::to_string),
+            Some(format!(
+                r#"The state database file '{}' uses schema version "1", but this version of Paddler only reads version 2. Start from a new state database file."#,
+                path.display()
+            ))
+        );
+    }
 
-        let (balancer_desired_state_tx, _balancer_desired_state_rx) =
-            watch::channel(BalancerDesiredState::default());
-        let database = File::new(balancer_desired_state_tx, path);
-        let read_back = database.read_balancer_desired_state().await.unwrap();
+    #[tokio::test]
+    async fn reading_a_file_of_an_older_schema_version_keeps_why_the_version_was_refused() {
+        let temp_file = NamedTempFile::new().unwrap();
+        let path = temp_file.path().to_path_buf();
 
-        assert_eq!(read_back.chat_template_override, Some(chat_template));
-        assert!(read_back.use_chat_template_override);
-        assert_eq!(read_back.model, desired_state.model);
+        write(&path, br#"{"balancer_desired_state": {}, "version": "1"}"#)
+            .await
+            .unwrap();
+
+        let refusal = File::new(path)
+            .read_balancer_desired_state()
+            .await
+            .unwrap_err();
+
+        assert_eq!(
+            refusal.source().map(ToString::to_string),
+            Some("unknown variant `1`, expected `2`".to_owned())
+        );
     }
 }

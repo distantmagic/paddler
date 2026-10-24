@@ -13,6 +13,7 @@ use paddler_messaging::request_params::continue_from_conversation_history_params
 use paddler_tests::get_weather_tool::get_weather_tool;
 use paddler_tests::ministral_3_cluster_params::Ministral3ClusterParams;
 use paddler_tests::start_cluster_with_ministral_3::start_cluster_with_ministral_3;
+use paddler_tests::weather_tool_question::WEATHER_TOOL_QUESTION;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn mistral3_internal_endpoint_emits_tool_call_parsed_event() {
@@ -25,13 +26,12 @@ async fn mistral3_internal_endpoint_emits_tool_call_parsed_event() {
             CancellationToken::new(),
             &ContinueFromConversationHistoryParams {
                 add_generation_prompt: true,
-                conversation_history: ConversationHistory::new(vec![ConversationMessage {
-                    content: ConversationMessageContent::Text(
-                        "What is the weather in Paris? Use the get_weather tool to find out."
-                            .to_owned(),
-                    ),
-                    role: "user".to_owned(),
-                }]),
+                conversation_history: ConversationHistory::new(vec![
+                    ConversationMessage::Message {
+                        content: ConversationMessageContent::Text(WEATHER_TOOL_QUESTION.to_owned()),
+                        role: "user".to_owned(),
+                    },
+                ]),
                 enable_thinking: false,
                 grammar: None,
                 max_tokens: NonZeroU32::new(400).unwrap(),
