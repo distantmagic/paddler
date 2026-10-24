@@ -16,6 +16,15 @@ impl InProcessBalancer {
     }
 }
 
+impl InProcessBalancer {
+    async fn wait_for_exit(&mut self) -> ProcessEnd {
+        self.runner
+            .wait_for_completion()
+            .await
+            .map_or_else(ProcessEnd::failed, |()| ProcessEnd::Clean)
+    }
+}
+
 #[async_trait]
 impl ManagedProcess for InProcessBalancer {
     fn terminate(&mut self) -> Result<()> {
@@ -25,9 +34,6 @@ impl ManagedProcess for InProcessBalancer {
     }
 
     async fn exited(&mut self) -> ProcessEnd {
-        self.runner
-            .wait_for_completion()
-            .await
-            .map_or_else(ProcessEnd::failed, |()| ProcessEnd::Clean)
+        self.wait_for_exit().await
     }
 }

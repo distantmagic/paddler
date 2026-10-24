@@ -1,9 +1,8 @@
-use paddler_cache_dir::cache_dir::CacheDir;
+use paddler_model_source::desired_model_resolver::DesiredModelResolver;
 
-#[derive(Debug, Eq, PartialEq)]
 pub struct AgentBootstrapConfig {
     pub agent_name: Option<String>,
-    pub cache_dir: CacheDir,
+    pub desired_model_resolver: DesiredModelResolver,
     pub management_address: String,
     pub slots: u16,
 }

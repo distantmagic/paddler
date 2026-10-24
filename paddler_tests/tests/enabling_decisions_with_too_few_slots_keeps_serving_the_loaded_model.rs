@@ -16,7 +16,8 @@ use paddler_messaging::produces_snapshot::ProducesSnapshot as _;
 use paddler_tests::desired_state_reconciled_discriminant::desired_state_reconciled_discriminant;
 use paddler_tests::kev_0_8b_desired_state::kev_0_8b_desired_state;
 use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
-use paddler_tests::serving_pipeline_arbiter::ServingPipelineArbiter;
+
+use crate::serving_pipeline_arbiter::ServingPipelineArbiter;
 
 const SLOTS_TOO_FEW_FOR_DECISIONS: u16 = 1;
 

@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::Result;
-use async_trait::async_trait;
-use trzcina::Service;
-use trzcina::ServiceBundle;
+use trzcina::ServiceManager;
 
 use paddler_balancer::agent_controller_pool::AgentControllerPool;
 use paddler_balancer::balancer_addresses::BalancerAddresses;
@@ -33,6 +30,7 @@ use paddler_state_database::state_database_type::StateDatabaseType;
 
 use crate::balancer_bootstrap_config::BalancerBootstrapConfig;
 use crate::bootstrap_error::BootstrapError;
+use crate::registers_services::RegistersServices;
 
 pub struct BalancerServiceBundle {
     pub addresses: BalancerAddresses,
@@ -240,41 +238,34 @@ impl BalancerServiceBundle {
     }
 }
 
-#[async_trait]
-impl ServiceBundle for BalancerServiceBundle {
-    async fn services(self) -> Result<Vec<Box<dyn Service>>> {
-        let mut services: Vec<Box<dyn Service>> = vec![
-            Box::new(self.inference_service),
-            Box::new(self.management_service),
-            Box::new(self.reconciliation_service),
-        ];
+impl RegistersServices for BalancerServiceBundle {
+    fn register_services(self, service_manager: &mut ServiceManager) {
+        service_manager.register_service(self.inference_service);
+        service_manager.register_service(self.management_service);
+        service_manager.register_service(self.reconciliation_service);
 
         if let Some(service) = self.openai_service {
-            services.push(Box::new(service));
+            service_manager.register_service(service);
         }
 
         if let Some(service) = self.statsd_service {
-            services.push(Box::new(service));
+            service_manager.register_service(service);
         }
 
         if let Some(service) = self.typesafe_service {
-            services.push(Box::new(service));
+            service_manager.register_service(service);
         }
 
         #[cfg(feature = "web_admin_panel")]
         if let Some(service) = self.web_admin_panel_service {
-            services.push(Box::new(service));
+            service_manager.register_service(service);
         }
-
-        Ok(services)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
-
-    use trzcina::ServiceBundle as _;
 
     use paddler_balancer::compatibility::compatibility_service_configuration::CompatibilityServiceConfiguration;
     use paddler_balancer::inference_service::configuration::Configuration as InferenceServiceConfiguration;
@@ -289,11 +280,6 @@ mod tests {
 
     use super::BalancerServiceBundle;
     use crate::balancer_bootstrap_config::BalancerBootstrapConfig;
-
-    #[cfg(feature = "web_admin_panel")]
-    const EXPECTED_SERVICE_COUNT: usize = 7;
-    #[cfg(not(feature = "web_admin_panel"))]
-    const EXPECTED_SERVICE_COUNT: usize = 6;
 
     fn fully_configured_runner_config() -> BalancerBootstrapConfig {
         BalancerBootstrapConfig {
@@ -327,20 +313,6 @@ mod tests {
                 addr: EPHEMERAL_LOOPBACK_ADDR,
             }),
         }
-    }
-
-    #[tokio::test]
-    async fn services_includes_every_optional_service_when_configured() {
-        let bundle = BalancerServiceBundle::new(fully_configured_runner_config())
-            .await
-            .expect("a fully configured bundle must bind its ephemeral addresses");
-
-        let services = bundle
-            .services()
-            .await
-            .expect("a bound bundle must produce its services");
-
-        assert_eq!(services.len(), EXPECTED_SERVICE_COUNT);
     }
 
     #[tokio::test]

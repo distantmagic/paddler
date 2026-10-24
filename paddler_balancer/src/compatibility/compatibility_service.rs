@@ -30,15 +30,8 @@ pub struct CompatibilityService<TCompatibilityLayer> {
     pub inference_service_configuration: InferenceServiceConfiguration,
 }
 
-#[async_trait]
-impl<TCompatibilityLayer: ServesCompatibilityLayer> Service
-    for CompatibilityService<TCompatibilityLayer>
-{
-    fn name(&self) -> &'static str {
-        TCompatibilityLayer::SERVICE_NAME
-    }
-
-    async fn run(self: Box<Self>, shutdown: CancellationToken) -> Result<()> {
+impl<TCompatibilityLayer: ServesCompatibilityLayer> CompatibilityService<TCompatibilityLayer> {
+    async fn serve_until_shutdown(self: Box<Self>, shutdown: CancellationToken) -> Result<()> {
         let service_name = self.name();
         let cors_allowed_hosts_arc = Arc::new(
             self.inference_service_configuration
@@ -72,5 +65,18 @@ impl<TCompatibilityLayer: ServesCompatibilityLayer> Service
             },
         )
         .await
+    }
+}
+
+#[async_trait]
+impl<TCompatibilityLayer: ServesCompatibilityLayer> Service
+    for CompatibilityService<TCompatibilityLayer>
+{
+    fn name(&self) -> &'static str {
+        TCompatibilityLayer::SERVICE_NAME
+    }
+
+    async fn run(self: Box<Self>, shutdown: CancellationToken) -> Result<()> {
+        self.serve_until_shutdown(shutdown).await
     }
 }

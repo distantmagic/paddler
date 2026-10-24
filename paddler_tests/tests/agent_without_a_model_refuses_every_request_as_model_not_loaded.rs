@@ -26,7 +26,8 @@ use paddler_messaging::request_params::decide_params::DecideParams;
 use paddler_messaging::request_params::generate_embedding_batch_params::GenerateEmbeddingBatchParams;
 use paddler_messaging::reserved_request::ReservedRequest;
 use paddler_test_cluster_harness::untrusted_balancer_socket_server::UntrustedBalancerSocketServer;
-use paddler_tests::agent_runner_connected_to::agent_runner_connected_to;
+
+use crate::agent_runner_connected_to::agent_runner_connected_to;
 
 const AGENT_NAME: Option<&str> = Some("test-agent");
 

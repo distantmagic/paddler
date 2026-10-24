@@ -4,7 +4,8 @@ use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_messaging::decision_slots_minimum::DECISION_SLOTS_MINIMUM;
 use paddler_messaging::inference_mode::InferenceMode;
 use paddler_tests::kev_0_8b_desired_state::kev_0_8b_desired_state;
-use paddler_tests::serving_pipeline_arbiter::ServingPipelineArbiter;
+
+use crate::serving_pipeline_arbiter::ServingPipelineArbiter;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_replacement_superseded_by_its_own_state_keeps_reporting_the_model_metadata() {

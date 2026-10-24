@@ -14,8 +14,9 @@ use paddler_messaging::management_socket::agent::request::Request as AgentJsonRp
 use paddler_messaging::reserved_request::ReservedRequest;
 use paddler_test_cluster_harness::unending_generation::unending_generation;
 use paddler_test_cluster_harness::untrusted_balancer_socket_server::UntrustedBalancerSocketServer;
-use paddler_tests::agent_runner_connected_to::agent_runner_connected_to;
 use paddler_tests::qwen3_desired_state::qwen3_desired_state;
+
+use crate::agent_runner_connected_to::agent_runner_connected_to;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn agent_ends_a_management_connection_whose_balancer_reuses_an_in_flight_request_id() {

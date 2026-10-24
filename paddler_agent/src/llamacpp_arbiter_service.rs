@@ -21,13 +21,11 @@ pub struct LlamaCppArbiterService {
     pub served_applicable_state_holder: Arc<AgentApplicableStateHolder>,
 }
 
-#[async_trait]
-impl Service for LlamaCppArbiterService {
-    fn name(&self) -> &'static str {
-        "agent::llamacpp_arbiter_service"
-    }
-
-    async fn run(self: Box<Self>, shutdown: CancellationToken) -> Result<()> {
+impl LlamaCppArbiterService {
+    async fn arbitrate_pipelines_until_shutdown(
+        self: Box<Self>,
+        shutdown: CancellationToken,
+    ) -> Result<()> {
         let Self {
             agent_applicable_state_holder,
             inference_runtime_context,
@@ -58,6 +56,17 @@ impl Service for LlamaCppArbiterService {
         pipeline_arbiter.shut_down().await;
 
         service_outcome
+    }
+}
+
+#[async_trait]
+impl Service for LlamaCppArbiterService {
+    fn name(&self) -> &'static str {
+        "agent::llamacpp_arbiter_service"
+    }
+
+    async fn run(self: Box<Self>, shutdown: CancellationToken) -> Result<()> {
+        self.arbitrate_pipelines_until_shutdown(shutdown).await
     }
 }
 

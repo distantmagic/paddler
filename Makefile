@@ -6,8 +6,8 @@
 
 RUST_LOG ?= debug
 
-PADDLER_CRATES := paddler_agent paddler_agent_decision paddler_agent_embeddings paddler_agent_pointer_head paddler_agent_runtime paddler_agent_status paddler_agent_text_generation paddler_balancer paddler_bootstrap paddler_cache_dir paddler_cli paddler_client paddler_download_manager paddler_frame_writer paddler_image_decoder paddler_inference_parameters paddler_messaging paddler_model_source paddler_openai_translation paddler_outbox paddler_request_registry paddler_spawn_resuming_panic paddler_state_database paddler_tool_call_validator paddler_typesafe_translation
-PADDLER_SOURCES := $(shell find $(addsuffix /src,$(PADDLER_CRATES)) -name '*.rs') $(addsuffix /Cargo.toml,$(PADDLER_CRATES)) Cargo.toml Cargo.lock
+PADDLER_CRATES := paddler_agent paddler_agent_decision paddler_agent_embeddings paddler_agent_pointer_head paddler_agent_runtime paddler_agent_status paddler_agent_text_generation paddler_balancer paddler_bootstrap paddler_cache_dir paddler_cli paddler_client paddler_dashboard_assets paddler_download_manager paddler_frame_writer paddler_image_decoder paddler_inference_parameters paddler_messaging paddler_model_source paddler_openai_translation paddler_outbox paddler_request_registry paddler_spawn_resuming_panic paddler_state_database paddler_tool_call_validator paddler_typesafe_translation
+PADDLER_SOURCES := $(shell find $(addsuffix /src,$(PADDLER_CRATES)) -name '*.rs') $(wildcard $(addsuffix /build.rs,$(PADDLER_CRATES))) $(addsuffix /Cargo.toml,$(PADDLER_CRATES)) Cargo.toml Cargo.lock
 FRONTEND_SOURCES := $(shell find resources paddler_client_javascript/src -type f) paddler_client_javascript/package.json $(wildcard jarmuz/*.mjs)
 JS_CLIENT_SOURCES := $(shell find paddler_client_javascript/src -type f) paddler_client_javascript/package.json paddler_client_javascript/tsconfig.json
 KEV_CHECKPOINT_0_8b := jaredpalmer/kev-0.8b@788ddbdd65715bb03a56788c822f6c632c9a551d
@@ -190,43 +190,44 @@ test.client.js.llm: $(PADDLER_TEST_BINARY) node_modules target/test-model-cards.
 .PHONY: test.coverage
 test.coverage: esbuild-meta.json node_modules target/kev_0_8b/model.gguf target/kev_0_8b/pointer_head.gguf target/test-model-cards.stamp
 	cargo llvm-cov clean --workspace
-	NEXTEST_PROFILE=$(NEXTEST_PROFILE) cargo llvm-cov nextest --features tests_that_use_llms,tests_that_use_opencode,web_admin_panel$(TEST_DEVICE_FEATURE_SUFFIX) --no-report --workspace
-	cargo llvm-cov report --no-default-ignore-filename-regex --ignore-filename-regex '$(LLVM_COV_THIRD_PARTY_SOURCES)' --json --output-path target/llvm-cov.json
-	cargo llvm-cov report --no-default-ignore-filename-regex --ignore-filename-regex '$(LLVM_COV_THIRD_PARTY_SOURCES)' --lcov --output-path target/lcov.info
-	cargo llvm-cov report --no-default-ignore-filename-regex --ignore-filename-regex '$(LLVM_COV_THIRD_PARTY_SOURCES)'
+	NEXTEST_PROFILE=$(NEXTEST_PROFILE) cargo llvm-cov nextest --features tests_that_use_llms,tests_that_use_opencode,web_admin_panel$(TEST_DEVICE_FEATURE_SUFFIX) --include-build-script --no-report --workspace
+	cargo llvm-cov report --include-build-script --no-default-ignore-filename-regex --ignore-filename-regex '$(LLVM_COV_THIRD_PARTY_SOURCES)' --json --output-path target/llvm-cov.json
+	cargo llvm-cov report --include-build-script --no-default-ignore-filename-regex --ignore-filename-regex '$(LLVM_COV_THIRD_PARTY_SOURCES)' --lcov --output-path target/lcov.info
+	cargo llvm-cov report --include-build-script --no-default-ignore-filename-regex --ignore-filename-regex '$(LLVM_COV_THIRD_PARTY_SOURCES)'
 	npx rust-coverage-check target/llvm-cov.json \
 		--workspace-root $(CURDIR) \
-		--gated paddler_agent=97 \
-		--gated paddler_agent_decision=95.99 \
-		--gated paddler_agent_embeddings=98.04 \
+		--gated paddler_agent=100 \
+		--gated paddler_agent_decision=100 \
+		--gated paddler_agent_embeddings=100 \
 		--gated paddler_agent_pointer_head=100 \
-		--gated paddler_agent_runtime=99 \
+		--gated paddler_agent_runtime=100 \
 		--gated paddler_agent_status=100 \
-		--gated paddler_agent_text_generation=96.77 \
-		--gated paddler_balancer=99 \
+		--gated paddler_agent_text_generation=100 \
+		--gated paddler_balancer=100 \
 		--gated paddler_blocking_thread_fixture=100 \
 		--gated paddler_bootstrap=100 \
 		--gated paddler_cache_dir=100 \
-		--gated paddler_cli=99 \
-		--gated paddler_cli_tests=94 \
-		--gated paddler_client=99 \
-		--gated paddler_download_manager=99 \
+		--gated paddler_cli=100 \
+		--gated paddler_cli_tests=100 \
+		--gated paddler_client=100 \
+		--gated paddler_dashboard_assets=100 \
+		--gated paddler_download_manager=100 \
 		--gated paddler_frame_writer=100 \
 		--gated paddler_image_decoder=100 \
 		--gated paddler_inference_parameters=100 \
-		--gated paddler_local_http_fixture=89 \
+		--gated paddler_local_http_fixture=100 \
 		--gated paddler_messaging=100 \
-		--gated paddler_model_source=99 \
+		--gated paddler_model_source=100 \
 		--gated paddler_openai_response_format_validator=100 \
 		--gated paddler_openai_translation=100 \
-		--gated paddler_opencode_tests=79 \
+		--gated paddler_opencode_tests=100 \
 		--gated paddler_outbox=100 \
 		--gated paddler_request_registry=100 \
 		--gated paddler_spawn_resuming_panic=100 \
-		--gated paddler_state_database=99 \
+		--gated paddler_state_database=100 \
 		--gated paddler_tcp_buffer_limits=100 \
-		--gated paddler_test_cluster_harness=94 \
-		--gated paddler_tests=98 \
+		--gated paddler_test_cluster_harness=100 \
+		--gated paddler_tests=100 \
 		--gated paddler_tool_call_validator=100 \
 		--gated paddler_typesafe_translation=100
 

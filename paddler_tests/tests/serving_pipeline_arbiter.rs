@@ -11,12 +11,12 @@ use paddler_agent::pipeline_arbiter::PipelineArbiter;
 use paddler_agent::pipeline_arbiter_params::PipelineArbiterParams;
 use paddler_agent_runtime::inference_runtime_context::InferenceRuntimeContext;
 use paddler_agent_status::slot_guard::SlotGuard;
-use paddler_cache_dir::cache_dir::CacheDir;
 use paddler_messaging::agent_desired_state::AgentDesiredState;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
-
-use crate::agent_inference_runtime_context::agent_inference_runtime_context;
-use crate::desired_state_reconciled_discriminant::desired_state_reconciled_discriminant;
+use paddler_model_source::desired_model_resolver::DesiredModelResolver;
+use paddler_model_source::huggingface_default_endpoint::HUGGINGFACE_DEFAULT_ENDPOINT;
+use paddler_tests::agent_inference_runtime_context::agent_inference_runtime_context;
+use paddler_tests::desired_state_reconciled_discriminant::desired_state_reconciled_discriminant;
 
 pub struct ServingPipelineArbiter {
     pub desired_state_reconciler: DesiredStateReconciler,
@@ -31,7 +31,10 @@ impl ServingPipelineArbiter {
 
         Self {
             desired_state_reconciler: DesiredStateReconciler {
-                cache_dir: CacheDir::from_process_env(),
+                desired_model_resolver: DesiredModelResolver::from_process_env(
+                    HUGGINGFACE_DEFAULT_ENDPOINT.to_owned(),
+                )
+                .expect("the model downloader must start"),
                 slot_aggregated_status: inference_runtime_context.slot_aggregated_status.clone(),
             },
             pipeline_arbiter: PipelineArbiter::new(PipelineArbiterParams {

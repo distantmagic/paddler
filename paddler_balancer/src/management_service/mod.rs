@@ -47,13 +47,8 @@ pub struct ManagementService {
     pub web_admin_panel_addr: Option<SocketAddr>,
 }
 
-#[async_trait]
-impl Service for ManagementService {
-    fn name(&self) -> &'static str {
-        "balancer::management_service"
-    }
-
-    async fn run(self: Box<Self>, shutdown: CancellationToken) -> Result<()> {
+impl ManagementService {
+    async fn serve_until_shutdown(self: Box<Self>, shutdown: CancellationToken) -> Result<()> {
         let service_name = self.name();
         let cors_allowed_hosts_arc = cors_allowed_hosts_with_web_admin_panel(
             &self.configuration.cors_allowed_hosts,
@@ -95,5 +90,16 @@ impl Service for ManagementService {
             },
         )
         .await
+    }
+}
+
+#[async_trait]
+impl Service for ManagementService {
+    fn name(&self) -> &'static str {
+        "balancer::management_service"
+    }
+
+    async fn run(self: Box<Self>, shutdown: CancellationToken) -> Result<()> {
+        self.serve_until_shutdown(shutdown).await
     }
 }

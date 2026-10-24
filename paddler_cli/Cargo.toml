@@ -26,7 +26,7 @@ command_handler = { workspace = true }
 env_logger = { workspace = true }
 paddler_balancer = { workspace = true }
 paddler_bootstrap = { workspace = true }
-paddler_cache_dir = { workspace = true }
+paddler_model_source = { workspace = true }
 paddler_state_database = { workspace = true }
 tokio-util = { workspace = true }
 trzcina = { workspace = true }

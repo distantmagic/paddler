@@ -1,7 +1,8 @@
 use tokio_tungstenite::tungstenite::Message;
 
 use paddler_test_cluster_harness::untrusted_balancer_socket_server::UntrustedBalancerSocketServer;
-use paddler_tests::agent_runner_connected_to::agent_runner_connected_to;
+
+use crate::agent_runner_connected_to::agent_runner_connected_to;
 
 pub async fn agent_hang_up_on_a_frame(frame: Message) {
     let untrusted_balancer = UntrustedBalancerSocketServer::bind()

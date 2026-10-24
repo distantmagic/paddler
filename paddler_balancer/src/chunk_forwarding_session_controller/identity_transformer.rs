@@ -1,5 +1,3 @@
-use async_trait::async_trait;
-
 use paddler_messaging::inference_client::message::Message as OutgoingMessage;
 
 use super::transform_result::TransformResult;
@@ -15,11 +13,10 @@ impl IdentityTransformer {
     }
 }
 
-#[async_trait]
 impl TransformsOutgoingMessage for IdentityTransformer {
     type Output = TransformResult;
 
-    async fn transform(&self, message: OutgoingMessage) -> Vec<TransformResult> {
+    fn transform(&self, message: OutgoingMessage) -> Vec<TransformResult> {
         vec![TransformResult::serialized_from(&message)]
     }
 }

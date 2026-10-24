@@ -200,13 +200,11 @@ impl ManagementSocketClientService {
     }
 }
 
-#[async_trait]
-impl Service for ManagementSocketClientService {
-    fn name(&self) -> &'static str {
-        "agent::management_socket_client_service"
-    }
-
-    async fn run(self: Box<Self>, shutdown: CancellationToken) -> Result<()> {
+impl ManagementSocketClientService {
+    async fn reconnect_to_the_balancer_until_shutdown(
+        self: Box<Self>,
+        shutdown: CancellationToken,
+    ) -> Result<()> {
         let mut ticker = interval(BALANCER_RECONNECT_INTERVAL);
 
         ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
@@ -226,5 +224,17 @@ impl Service for ManagementSocketClientService {
                 }
             }
         }
+    }
+}
+
+#[async_trait]
+impl Service for ManagementSocketClientService {
+    fn name(&self) -> &'static str {
+        "agent::management_socket_client_service"
+    }
+
+    async fn run(self: Box<Self>, shutdown: CancellationToken) -> Result<()> {
+        self.reconnect_to_the_balancer_until_shutdown(shutdown)
+            .await
     }
 }

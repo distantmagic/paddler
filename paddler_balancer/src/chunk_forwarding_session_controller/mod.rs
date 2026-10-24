@@ -2,6 +2,8 @@ pub mod identity_transformer;
 pub mod transform_result;
 pub mod transforms_outgoing_message;
 
+use std::future::ready;
+
 use anyhow::Result;
 use tokio::sync::mpsc;
 
@@ -31,6 +33,14 @@ where
             transformer,
         }
     }
+
+    fn forward_transformed(&self, message: OutgoingMessage) -> Result<()> {
+        for output in self.transformer.transform(message) {
+            self.chunk_tx.send(output)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl<TTransformsOutgoingMessage> ControlsSession<OutgoingMessage>
@@ -38,11 +48,10 @@ impl<TTransformsOutgoingMessage> ControlsSession<OutgoingMessage>
 where
     TTransformsOutgoingMessage: TransformsOutgoingMessage + Send + Sync,
 {
-    async fn send_response(&mut self, message: OutgoingMessage) -> Result<()> {
-        for output in self.transformer.transform(message).await {
-            self.chunk_tx.send(output)?;
-        }
-
-        Ok(())
+    fn send_response(
+        &mut self,
+        message: OutgoingMessage,
+    ) -> impl Future<Output = Result<()>> + Send {
+        ready(self.forward_transformed(message))
     }
 }

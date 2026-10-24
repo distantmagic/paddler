@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use hf_hub::Cache;
 use tempfile::TempDir;
 use tokio::spawn;
 use tokio::sync::watch;
@@ -13,12 +14,15 @@ use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
 use paddler_blocking_thread_fixture::occupied_blocking_thread::OccupiedBlockingThread;
 use paddler_blocking_thread_fixture::single_blocking_thread_runtime::single_blocking_thread_runtime;
 use paddler_cache_dir::cache_dir::CacheDir;
+use paddler_download_manager::download_manager::DownloadManager;
 use paddler_local_http_fixture::fixture_response::FixtureResponse;
 use paddler_local_http_fixture::local_http_fixture::LocalHttpFixture;
 use paddler_messaging::agent_desired_model::AgentDesiredModel;
 use paddler_messaging::agent_desired_state::AgentDesiredState;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_messaging::subscribes_to_updates::SubscribesToUpdates as _;
+use paddler_model_source::desired_model_resolver::DesiredModelResolver;
+use paddler_model_source::huggingface_default_endpoint::HUGGINGFACE_DEFAULT_ENDPOINT;
 
 use crate::reconciliation_after_replacement::ReconciliationAfterReplacement;
 
@@ -50,10 +54,16 @@ impl ReconciliationReplacedBeforeItsWorkerRuns {
                 agent_applicable_state_holder: agent_applicable_state_holder.clone(),
                 agent_desired_state_rx,
                 desired_state_reconciler: DesiredStateReconciler {
-                    cache_dir: CacheDir {
-                        explicit: Some(cache_dir.path().to_path_buf()),
-                        home: None,
-                        xdg: None,
+                    desired_model_resolver: DesiredModelResolver {
+                        cache_dir: CacheDir {
+                            explicit: Some(cache_dir.path().to_path_buf()),
+                            home: None,
+                            xdg: None,
+                        },
+                        download_manager: DownloadManager::new()
+                            .expect("the model downloader must start"),
+                        huggingface_cache: Cache::from_env(),
+                        huggingface_endpoint: HUGGINGFACE_DEFAULT_ENDPOINT.to_owned(),
                     },
                     slot_aggregated_status: slot_aggregated_status.clone(),
                 },

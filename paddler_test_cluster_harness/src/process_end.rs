@@ -13,4 +13,11 @@ impl ProcessEnd {
     {
         Self::Failed(failure.into())
     }
+
+    pub fn into_result(self) -> Result<(), Error> {
+        match self {
+            Self::Clean => Ok(()),
+            Self::Failed(exit_failure) => Err(exit_failure),
+        }
+    }
 }

@@ -12,7 +12,8 @@ use paddler_messaging::validates::Validates as _;
 use paddler_test_cluster_harness::model_card::qwen3_5_0_8b::qwen3_5_0_8b;
 use paddler_test_cluster_harness::pointer_head_fixture::pointer_head_fixture;
 use paddler_test_cluster_harness::synthetic_pointer_head_fixture::QWEN3_5_0_8B_SYNTHETIC_POINTER_HEAD_FIXTURE;
-use paddler_tests::serving_pipeline_arbiter::ServingPipelineArbiter;
+
+use crate::serving_pipeline_arbiter::ServingPipelineArbiter;
 
 pub struct ServingDecisionAgent {
     pub serving_pipeline_arbiter: ServingPipelineArbiter,

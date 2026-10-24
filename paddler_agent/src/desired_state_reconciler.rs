@@ -4,8 +4,8 @@ use log::error;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
-use paddler_cache_dir::cache_dir::CacheDir;
 use paddler_messaging::agent_desired_state::AgentDesiredState;
+use paddler_model_source::desired_model_resolver::DesiredModelResolver;
 
 use crate::agent_desired_state_conversion::AgentDesiredStateConversion;
 use crate::agent_desired_state_converter::AgentDesiredStateConverter;
@@ -13,7 +13,7 @@ use crate::desired_state_reconciliation::DesiredStateReconciliation;
 
 #[derive(Clone)]
 pub struct DesiredStateReconciler {
-    pub cache_dir: CacheDir,
+    pub desired_model_resolver: DesiredModelResolver,
     pub slot_aggregated_status: Arc<SlotAggregatedStatus>,
 }
 
@@ -24,7 +24,7 @@ impl DesiredStateReconciler {
         agent_desired_state: AgentDesiredState,
     ) -> DesiredStateReconciliation {
         let conversion = AgentDesiredStateConverter {
-            cache_dir: self.cache_dir.clone(),
+            desired_model_resolver: self.desired_model_resolver.clone(),
             cancellation_token: cancellation_token.clone(),
             slot_aggregated_status: self.slot_aggregated_status.clone(),
         }
@@ -55,11 +55,12 @@ mod tests {
     use tokio_util::sync::CancellationToken;
 
     use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
-    use paddler_cache_dir::cache_dir::CacheDir;
     use paddler_messaging::agent_desired_model::AgentDesiredModel;
     use paddler_messaging::agent_desired_state::AgentDesiredState;
     use paddler_messaging::balancer_desired_state::BalancerDesiredState;
     use paddler_model_source::agent_local_model_path::AgentLocalModelPath;
+    use paddler_model_source::desired_model_resolver::DesiredModelResolver;
+    use paddler_model_source::huggingface_default_endpoint::HUGGINGFACE_DEFAULT_ENDPOINT;
     use paddler_model_source::huggingface_model_reference::HuggingFaceModelReference;
     use paddler_model_source::model_source::ModelSource;
 
@@ -75,7 +76,10 @@ mod tests {
 
     fn desired_state_reconciler() -> DesiredStateReconciler {
         DesiredStateReconciler {
-            cache_dir: CacheDir::from_process_env(),
+            desired_model_resolver: DesiredModelResolver::from_process_env(
+                HUGGINGFACE_DEFAULT_ENDPOINT.to_owned(),
+            )
+            .unwrap(),
             slot_aggregated_status: Arc::new(SlotAggregatedStatus::new(1)),
         }
     }

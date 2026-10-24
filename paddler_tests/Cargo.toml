@@ -30,6 +30,7 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 clap = { workspace = true }
 futures-util = { workspace = true }
+hf-hub = { workspace = true }
 llama-cpp-bindings = { workspace = true }
 llama-cpp-bindings-sys = { workspace = true }
 log = { workspace = true }
@@ -44,6 +45,7 @@ paddler_balancer = { workspace = true }
 paddler_bootstrap = { workspace = true }
 paddler_cache_dir = { workspace = true }
 paddler_client = { workspace = true }
+paddler_download_manager = { workspace = true }
 paddler_inference_parameters = { workspace = true }
 paddler_messaging = { workspace = true }
 paddler_model_source = { workspace = true }
@@ -59,11 +61,9 @@ tokio-util = { workspace = true }
 
 [dev-dependencies]
 async-openai = { workspace = true }
-hf-hub = { workspace = true }
 http = { workspace = true }
 llama-cpp-bindings-types = { workspace = true }
 paddler_blocking_thread_fixture = { workspace = true }
-paddler_download_manager = { workspace = true }
 paddler_local_http_fixture = { workspace = true }
 paddler_openai_translation = { workspace = true }
 paddler_tcp_buffer_limits = { workspace = true }

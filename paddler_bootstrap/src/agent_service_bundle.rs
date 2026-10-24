@@ -1,11 +1,8 @@
 use std::sync::Arc;
 
-use anyhow::Result;
-use async_trait::async_trait;
 use nanoid::nanoid;
 use tokio::sync::watch;
-use trzcina::Service;
-use trzcina::ServiceBundle;
+use trzcina::ServiceManager;
 
 use paddler_agent::agent_applicable_state_holder::AgentApplicableStateHolder;
 use paddler_agent::balancer_message_context::BalancerMessageContext;
@@ -20,6 +17,7 @@ use paddler_messaging::api_path::ApiPath;
 use paddler_outbox::outbox::Outbox;
 
 use crate::agent_bootstrap_config::AgentBootstrapConfig;
+use crate::registers_services::RegistersServices;
 
 pub struct AgentServiceBundle {
     llamacpp_arbiter: LlamaCppArbiterService,
@@ -32,7 +30,7 @@ impl AgentServiceBundle {
     pub fn new(
         AgentBootstrapConfig {
             agent_name,
-            cache_dir,
+            desired_model_resolver,
             management_address,
             slots,
         }: AgentBootstrapConfig,
@@ -81,7 +79,7 @@ impl AgentServiceBundle {
             agent_applicable_state_holder,
             agent_desired_state_rx,
             desired_state_reconciler: DesiredStateReconciler {
-                cache_dir,
+                desired_model_resolver,
                 slot_aggregated_status,
             },
         };
@@ -94,13 +92,10 @@ impl AgentServiceBundle {
     }
 }
 
-#[async_trait]
-impl ServiceBundle for AgentServiceBundle {
-    async fn services(self) -> Result<Vec<Box<dyn Service>>> {
-        Ok(vec![
-            Box::new(self.llamacpp_arbiter),
-            Box::new(self.management_socket_client),
-            Box::new(self.reconciliation),
-        ])
+impl RegistersServices for AgentServiceBundle {
+    fn register_services(self, service_manager: &mut ServiceManager) {
+        service_manager.register_service(self.llamacpp_arbiter);
+        service_manager.register_service(self.management_socket_client);
+        service_manager.register_service(self.reconciliation);
     }
 }

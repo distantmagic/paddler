@@ -15,13 +15,11 @@ pub struct ReconciliationService {
     pub balancer_applicable_state_holder: Arc<BalancerApplicableStateHolder>,
 }
 
-#[async_trait]
-impl Service for ReconciliationService {
-    fn name(&self) -> &'static str {
-        "balancer::reconciliation_service"
-    }
-
-    async fn run(self: Box<Self>, shutdown: CancellationToken) -> Result<()> {
+impl ReconciliationService {
+    async fn apply_desired_states_until_shutdown(
+        self: Box<Self>,
+        shutdown: CancellationToken,
+    ) -> Result<()> {
         let Self {
             agent_controller_pool,
             balancer_applicable_state_holder,
@@ -45,6 +43,17 @@ impl Service for ReconciliationService {
     }
 }
 
+#[async_trait]
+impl Service for ReconciliationService {
+    fn name(&self) -> &'static str {
+        "balancer::reconciliation_service"
+    }
+
+    async fn run(self: Box<Self>, shutdown: CancellationToken) -> Result<()> {
+        self.apply_desired_states_until_shutdown(shutdown).await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -60,29 +69,42 @@ mod tests {
     use crate::balancer_applicable_state::BalancerApplicableState;
     use crate::balancer_applicable_state_holder::BalancerApplicableStateHolder;
 
-    const RUNS_TO_EXERCISE_EVERY_BRANCH_ORDER: usize = 64;
+    fn reconciliation_service_of_a_closed_store() -> ReconciliationService {
+        let (balancer_applicable_state_tx, balancer_applicable_state_rx) =
+            watch::channel(Arc::new(BalancerApplicableState::initial(
+                BalancerDesiredState::default(),
+            )));
+
+        drop(balancer_applicable_state_tx);
+
+        ReconciliationService {
+            agent_controller_pool: Arc::new(AgentControllerPool::default()),
+            balancer_applicable_state_holder: Arc::new(BalancerApplicableStateHolder::new(
+                balancer_applicable_state_rx,
+            )),
+        }
+    }
 
     #[tokio::test]
     async fn stops_cleanly_when_its_desired_state_store_closes_during_shutdown() {
-        for _ in 0..RUNS_TO_EXERCISE_EVERY_BRANCH_ORDER {
-            let (balancer_applicable_state_tx, balancer_applicable_state_rx) =
-                watch::channel(Arc::new(BalancerApplicableState::initial(
-                    BalancerDesiredState::default(),
-                )));
-            let shutdown = CancellationToken::new();
+        let shutdown = CancellationToken::new();
 
-            shutdown.cancel();
-            drop(balancer_applicable_state_tx);
+        shutdown.cancel();
 
-            Box::new(ReconciliationService {
-                agent_controller_pool: Arc::new(AgentControllerPool::default()),
-                balancer_applicable_state_holder: Arc::new(BalancerApplicableStateHolder::new(
-                    balancer_applicable_state_rx,
-                )),
-            })
+        Box::new(reconciliation_service_of_a_closed_store())
             .run(shutdown)
             .await
             .expect("a shutdown must stop the reconciliation service cleanly");
-        }
+    }
+
+    #[tokio::test]
+    async fn fails_once_its_desired_state_store_stops_announcing_applicable_states() {
+        assert_eq!(
+            Box::new(reconciliation_service_of_a_closed_store())
+                .run(CancellationToken::new())
+                .await
+                .map_err(|reconciliation_error| reconciliation_error.to_string()),
+            Err("the desired state store stopped announcing applicable states".to_owned())
+        );
     }
 }

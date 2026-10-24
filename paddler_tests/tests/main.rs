@@ -154,6 +154,8 @@ mod agent_returns_image_decoding_error_for_invalid_base64;
 mod agent_returns_image_decoding_error_for_malformed_data_uri;
 mod agent_returns_image_decoding_error_for_remote_url;
 mod agent_returns_rms_normalized_embeddings_when_requested;
+#[cfg(test)]
+mod agent_runner_connected_to;
 mod agent_serves_decisions_with_a_batch_too_small_to_warm_up_every_slot;
 mod agent_serves_embeddings_without_a_chat_template;
 mod agent_serves_four_concurrent_clients_streaming_tokens;
@@ -427,6 +429,7 @@ mod reapplying_the_served_state_keeps_serving_it_without_a_restart;
 mod release_half_closed_openai_request;
 mod retaining_a_served_model_restarts_its_changed_capabilities_at_once;
 mod run_with_test_cluster_exports_the_url_of_every_service;
+mod run_with_test_cluster_fails_when_its_agents_cannot_set_up_their_model_downloader;
 mod run_with_test_cluster_fails_when_its_program_fails;
 mod run_with_test_cluster_fails_without_a_temporary_directory_for_agent_models;
 #[cfg(test)]
@@ -435,6 +438,8 @@ mod sample_decision_answers_check;
 mod sampling_with_a_smaller_vocabulary_grammar;
 #[cfg(test)]
 mod serving_decision_agent;
+#[cfg(test)]
+mod serving_pipeline_arbiter;
 #[cfg(test)]
 mod shutdown_during_state_transition;
 mod shutting_down_a_served_model_closes_every_capability_at_once;

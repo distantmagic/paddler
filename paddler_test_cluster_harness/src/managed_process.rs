@@ -8,13 +8,11 @@ pub trait ManagedProcess: Send {
     fn terminate(&mut self) -> Result<()>;
 
     async fn exited(&mut self) -> ProcessEnd;
+}
 
-    async fn shutdown(mut self: Box<Self>) -> Result<()> {
+impl dyn ManagedProcess {
+    pub async fn shutdown(mut self: Box<Self>) -> Result<()> {
         self.terminate()?;
-
-        match self.exited().await {
-            ProcessEnd::Clean => Ok(()),
-            ProcessEnd::Failed(exit_failure) => Err(exit_failure),
-        }
+        self.exited().await.into_result()
     }
 }

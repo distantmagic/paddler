@@ -8,7 +8,8 @@ use paddler_messaging::management_socket::agent::notification::Notification as A
 use paddler_messaging::management_socket::agent::request::Request as AgentJsonRpcRequest;
 use paddler_messaging::management_socket::agent::response::Response as AgentJsonRpcResponse;
 use paddler_test_cluster_harness::untrusted_balancer_socket_server::UntrustedBalancerSocketServer;
-use paddler_tests::agent_runner_connected_to::agent_runner_connected_to;
+
+use crate::agent_runner_connected_to::agent_runner_connected_to;
 
 pub const ANSWERED_REQUEST_ID: &str = "model-metadata";
 

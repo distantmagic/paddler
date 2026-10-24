@@ -16,8 +16,8 @@ use paddler_tests::desired_state_with_chat_template_override::desired_state_with
 use paddler_tests::first_message_content_chat_template::first_message_content_chat_template;
 use paddler_tests::kev_0_8b_desired_state::kev_0_8b_desired_state;
 use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
-use paddler_tests::serving_pipeline_arbiter::ServingPipelineArbiter;
 
+use crate::serving_pipeline_arbiter::ServingPipelineArbiter;
 use crate::swappable_model_file::SwappableModelFile;
 use paddler_tests::desired_state_reconciled_discriminant::desired_state_reconciled_discriminant;
 

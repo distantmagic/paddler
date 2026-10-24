@@ -10,7 +10,8 @@ use paddler_messaging::decision_question::DecisionQuestion;
 use paddler_messaging::decision_result::DecisionResult;
 use paddler_messaging::request_params::decide_params::DecideParams;
 use paddler_test_cluster_harness::model_card::qwen3_0_6b::qwen3_0_6b;
-use paddler_tests::serving_pipeline_arbiter::ServingPipelineArbiter;
+
+use crate::serving_pipeline_arbiter::ServingPipelineArbiter;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn an_agent_serving_text_generation_and_embeddings_rejects_decisions() {

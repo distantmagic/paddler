@@ -30,3 +30,4 @@ mod state_enabling_decisions;
 mod state_overriding_the_chat_template;
 #[cfg(test)]
 mod state_whose_model_cannot_load;
+mod the_reconciliation_service_stops_once_its_desired_state_channel_closes;

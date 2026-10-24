@@ -38,13 +38,8 @@ pub struct InferenceService {
     pub web_admin_panel_addr: Option<SocketAddr>,
 }
 
-#[async_trait]
-impl Service for InferenceService {
-    fn name(&self) -> &'static str {
-        "balancer::inference_service"
-    }
-
-    async fn run(self: Box<Self>, shutdown: CancellationToken) -> Result<()> {
+impl InferenceService {
+    async fn serve_until_shutdown(self: Box<Self>, shutdown: CancellationToken) -> Result<()> {
         let service_name = self.name();
         let cors_allowed_hosts_arc = cors_allowed_hosts_with_web_admin_panel(
             &self.configuration.cors_allowed_hosts,
@@ -79,5 +74,16 @@ impl Service for InferenceService {
             },
         )
         .await
+    }
+}
+
+#[async_trait]
+impl Service for InferenceService {
+    fn name(&self) -> &'static str {
+        "balancer::inference_service"
+    }
+
+    async fn run(self: Box<Self>, shutdown: CancellationToken) -> Result<()> {
+        self.serve_until_shutdown(shutdown).await
     }
 }

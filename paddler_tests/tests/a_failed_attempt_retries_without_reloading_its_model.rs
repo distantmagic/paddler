@@ -9,15 +9,15 @@ use paddler_messaging::agent_issue_params::model_path::ModelPath;
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_messaging::inference_mode::InferenceMode;
 use paddler_messaging::produces_snapshot::ProducesSnapshot as _;
+use paddler_tests::desired_state_reconciled_discriminant::desired_state_reconciled_discriminant;
 use paddler_tests::desired_state_with_chat_template_override::desired_state_with_chat_template_override;
 use paddler_tests::kev_0_8b_desired_state::kev_0_8b_desired_state;
 use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
-use paddler_tests::serving_pipeline_arbiter::ServingPipelineArbiter;
 use paddler_tests::uncompilable_chat_template::UNCOMPILABLE_CHAT_TEMPLATE_CONTENT;
 use paddler_tests::uncompilable_chat_template::uncompilable_chat_template;
 
+use crate::serving_pipeline_arbiter::ServingPipelineArbiter;
 use crate::swappable_model_file::SwappableModelFile;
-use paddler_tests::desired_state_reconciled_discriminant::desired_state_reconciled_discriminant;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_failed_attempt_retries_without_reloading_its_model() {

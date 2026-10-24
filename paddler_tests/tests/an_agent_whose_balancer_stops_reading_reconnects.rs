@@ -6,7 +6,8 @@ use paddler_messaging::management_socket::agent::message::Message as AgentJsonRp
 use paddler_messaging::management_socket::agent::request::Request as AgentJsonRpcRequest;
 use paddler_tcp_buffer_limits::tcp_buffer_limits_file::TcpBufferLimitsFile;
 use paddler_test_cluster_harness::untrusted_balancer_socket_server::UntrustedBalancerSocketServer;
-use paddler_tests::agent_runner_connected_to::agent_runner_connected_to;
+
+use crate::agent_runner_connected_to::agent_runner_connected_to;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn an_agent_whose_balancer_stops_reading_reconnects() {

@@ -8,7 +8,6 @@ use actix_web::rt;
 use actix_web::web;
 use actix_web::web::post;
 use anyhow::Result;
-use async_trait::async_trait;
 use futures::stream::StreamExt;
 use nanoid::nanoid;
 use tokio::sync::mpsc;
@@ -161,11 +160,10 @@ struct EmbeddingChunkBodyTransformer {
     embedding_document_duplicates: Arc<EmbeddingDocumentDuplicates>,
 }
 
-#[async_trait]
 impl TransformsOutgoingMessage for EmbeddingChunkBodyTransformer {
     type Output = TransformResult;
 
-    async fn transform(&self, message: OutgoingMessage) -> Vec<TransformResult> {
+    fn transform(&self, message: OutgoingMessage) -> Vec<TransformResult> {
         if let OutgoingMessage::Response(ResponseEnvelope {
             response: OutgoingResponse::Embedding(EmbeddingResult::Done),
             ..

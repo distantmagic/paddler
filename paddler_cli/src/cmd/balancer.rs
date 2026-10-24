@@ -114,9 +114,8 @@ pub struct Balancer {
     web_admin_panel_addr: Option<ResolvedSocketAddr>,
 }
 
-#[async_trait(?Send)]
-impl Handler for Balancer {
-    async fn handle(self, shutdown: CancellationToken) -> Result<()> {
+impl Balancer {
+    async fn run_balancer(self, shutdown: CancellationToken) -> Result<()> {
         let Self {
             buffered_request_timeout,
             compat_openai_addr,
@@ -171,5 +170,12 @@ impl Handler for Balancer {
         bundle.addresses.write_json_line(stdout().lock())?;
 
         run_service_manager(bundle, shutdown, ServiceShutdownOptions::default()).await
+    }
+}
+
+#[async_trait(?Send)]
+impl Handler for Balancer {
+    async fn handle(self, shutdown: CancellationToken) -> Result<()> {
+        self.run_balancer(shutdown).await
     }
 }

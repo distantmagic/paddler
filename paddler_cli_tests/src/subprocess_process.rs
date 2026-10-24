@@ -36,17 +36,8 @@ impl SubprocessProcess {
     }
 }
 
-#[async_trait]
-impl ManagedProcess for SubprocessProcess {
-    fn terminate(&mut self) -> Result<()> {
-        let Some(signals) = self.signals() else {
-            return Ok(());
-        };
-
-        signals.terminate().map_err(Into::into)
-    }
-
-    async fn exited(&mut self) -> ProcessEnd {
+impl SubprocessProcess {
+    async fn wait_for_exit(&mut self) -> ProcessEnd {
         match self.child.wait().await {
             Ok(exit_status)
                 if exit_status.success() || self.kill_requested.load(Ordering::Acquire) =>
@@ -60,5 +51,20 @@ impl ManagedProcess for SubprocessProcess {
                 ProcessEnd::failed(SubprocessClusterError::ProcessExitUnobservable(source))
             }
         }
+    }
+}
+
+#[async_trait]
+impl ManagedProcess for SubprocessProcess {
+    fn terminate(&mut self) -> Result<()> {
+        let Some(signals) = self.signals() else {
+            return Ok(());
+        };
+
+        signals.terminate().map_err(Into::into)
+    }
+
+    async fn exited(&mut self) -> ProcessEnd {
+        self.wait_for_exit().await
     }
 }

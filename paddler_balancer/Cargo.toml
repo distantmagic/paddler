@@ -16,12 +16,10 @@ actix-web-lab = { workspace = true }
 actix-ws = { workspace = true }
 anyhow = { workspace = true }
 askama = { workspace = true, optional = true }
-async-stream = { workspace = true }
 async-trait = { workspace = true }
 bytes = { workspace = true }
 cadence = { workspace = true }
 dashmap = { workspace = true }
-esbuild-metafile = { workspace = true, optional = true }
 futures = { workspace = true }
 futures-util = { workspace = true }
 indoc = { workspace = true }
@@ -54,10 +52,13 @@ trzcina = { workspace = true }
 default = []
 web_admin_panel = [
     "dep:askama",
-    "dep:esbuild-metafile",
     "dep:mime_guess",
+    "dep:paddler_dashboard_assets",
     "dep:rust-embed",
 ]
+
+[build-dependencies]
+paddler_dashboard_assets = { workspace = true, optional = true }
 
 [dev-dependencies]
 paddler_blocking_thread_fixture = { workspace = true }

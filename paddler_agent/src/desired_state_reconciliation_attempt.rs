@@ -100,8 +100,9 @@ mod tests {
     use tokio_util::sync::CancellationToken;
 
     use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
-    use paddler_cache_dir::cache_dir::CacheDir;
     use paddler_messaging::agent_desired_state::AgentDesiredState;
+    use paddler_model_source::desired_model_resolver::DesiredModelResolver;
+    use paddler_model_source::huggingface_default_endpoint::HUGGINGFACE_DEFAULT_ENDPOINT;
 
     use super::DesiredStateReconciliationAttempt;
     use crate::desired_state_reconciler::DesiredStateReconciler;
@@ -115,7 +116,10 @@ mod tests {
         let lowest_free_descriptor = File::open("/dev/null").unwrap().as_raw_fd();
         let mut reconciliation_attempt = DesiredStateReconciliationAttempt::start(
             DesiredStateReconciler {
-                cache_dir: CacheDir::from_process_env(),
+                desired_model_resolver: DesiredModelResolver::from_process_env(
+                    HUGGINGFACE_DEFAULT_ENDPOINT.to_owned(),
+                )
+                .unwrap(),
                 slot_aggregated_status: Arc::new(SlotAggregatedStatus::new(1)),
             },
             AgentDesiredState::default(),

@@ -41,7 +41,10 @@ tokio = { workspace = true }
 tokio-util = { workspace = true }
 
 [dev-dependencies]
+actix-web = { workspace = true }
+llama-cpp-bindings = { workspace = true }
 paddler_agent_decision = { workspace = true }
+paddler_agent_text_generation = { workspace = true }
 paddler_bootstrap = { workspace = true }
 paddler_client = { workspace = true }
 paddler_openai_response_format_validator = { workspace = true }
@@ -49,7 +52,12 @@ paddler_tests = { workspace = true }
 reqwest = { workspace = true }
 tempfile = { workspace = true }
 tokio-tungstenite = { workspace = true }
+trzcina = { workspace = true }
 url = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+libc = { workspace = true }
+seccompiler = { workspace = true }
 
 [lints]
 workspace = true

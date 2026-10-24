@@ -8,7 +8,7 @@ use paddler_cli_tests::spawn_agent_subprocess_params::SpawnAgentSubprocessParams
 use paddler_cli_tests::subprocess_cluster_error::SubprocessClusterError;
 use paddler_cli_tests::subprocess_process::SubprocessProcess;
 use paddler_cli_tests::unreachable_management_addr::UNREACHABLE_MANAGEMENT_ADDR;
-use paddler_test_cluster_harness::managed_process::ManagedProcess as _;
+use paddler_test_cluster_harness::managed_process::ManagedProcess;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn subprocess_signals_report_a_reaped_process_that_cannot_be_signalled() {
@@ -27,8 +27,7 @@ async fn subprocess_signals_report_a_reaped_process_that_cannot_be_signalled() {
 
     signals.kill().expect("the agent must be killed");
 
-    Box::new(agent_process)
-        .shutdown()
+    <dyn ManagedProcess>::shutdown(Box::new(agent_process))
         .await
         .expect("the killed agent must be reaped");
 

@@ -8,8 +8,8 @@ use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 use paddler_messaging::inference_mode::InferenceMode;
 use paddler_tests::kev_0_8b_desired_state::kev_0_8b_desired_state;
 use paddler_tests::kev_0_8b_target_path::kev_0_8b_target_path;
-use paddler_tests::serving_pipeline_arbiter::ServingPipelineArbiter;
 
+use crate::serving_pipeline_arbiter::ServingPipelineArbiter;
 use crate::swappable_model_file::SwappableModelFile;
 
 #[tokio::test(flavor = "multi_thread")]

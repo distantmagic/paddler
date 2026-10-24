@@ -7,7 +7,6 @@ use tokio_util::sync::CancellationToken;
 use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
 use paddler_agent_text_generation::multimodal_projection::MultimodalProjection;
 use paddler_agent_text_generation::text_generation_settings::TextGenerationSettings;
-use paddler_cache_dir::cache_dir::CacheDir;
 use paddler_messaging::agent_decisions_settings::AgentDecisionsSettings;
 use paddler_messaging::agent_desired_model::AgentDesiredModel;
 use paddler_messaging::agent_desired_state::AgentDesiredState;
@@ -15,8 +14,8 @@ use paddler_messaging::balancer_text_generation_settings::BalancerTextGeneration
 use paddler_messaging::decision_settings::DecisionSettings;
 use paddler_messaging::multimodal_settings::MultimodalSettings;
 use paddler_model_source::desired_model_resolution::DesiredModelResolution;
+use paddler_model_source::desired_model_resolver::DesiredModelResolver;
 use paddler_model_source::model_source_error::ModelSourceError;
-use paddler_model_source::resolve_desired_model::resolve_desired_model;
 
 use crate::agent_applicable_state::AgentApplicableState;
 use crate::agent_desired_state_conversion::AgentDesiredStateConversion;
@@ -26,7 +25,7 @@ use crate::inference_capabilities::InferenceCapabilities;
 use crate::model_serving_settings::ModelServingSettings;
 
 pub struct AgentDesiredStateConverter {
-    pub cache_dir: CacheDir,
+    pub desired_model_resolver: DesiredModelResolver,
     pub cancellation_token: CancellationToken,
     pub slot_aggregated_status: Arc<SlotAggregatedStatus>,
 }
@@ -131,13 +130,14 @@ impl AgentDesiredStateConverter {
         desired_model: &AgentDesiredModel,
         desired_model_file: DesiredModelFile,
     ) -> Result<ControlFlow<(), Option<PathBuf>>, ModelSourceError> {
-        match resolve_desired_model(
-            &self.cancellation_token,
-            &self.cache_dir,
-            desired_model,
-            self.slot_aggregated_status.clone(),
-        )
-        .await?
+        match self
+            .desired_model_resolver
+            .resolve(
+                &self.cancellation_token,
+                desired_model,
+                self.slot_aggregated_status.clone(),
+            )
+            .await?
         {
             DesiredModelResolution::Cancelled => Ok(ControlFlow::Break(())),
             DesiredModelResolution::NotConfigured => Ok(ControlFlow::Continue(None)),
@@ -170,7 +170,6 @@ mod tests {
     use paddler_agent_status::slot_aggregated_status::SlotAggregatedStatus;
     use paddler_agent_text_generation::multimodal_projection::MultimodalProjection;
     use paddler_agent_text_generation::text_generation_settings::TextGenerationSettings;
-    use paddler_cache_dir::cache_dir::CacheDir;
     use paddler_inference_parameters::model_runtime_parameters::ModelRuntimeParameters;
     use paddler_inference_parameters::pooling_type::PoolingType;
     use paddler_inference_parameters::sampling_parameters::SamplingParameters;
@@ -185,6 +184,8 @@ mod tests {
     use paddler_messaging::decision_settings::DecisionSettings;
     use paddler_messaging::multimodal_settings::MultimodalSettings;
     use paddler_model_source::agent_local_model_path::AgentLocalModelPath;
+    use paddler_model_source::desired_model_resolver::DesiredModelResolver;
+    use paddler_model_source::huggingface_default_endpoint::HUGGINGFACE_DEFAULT_ENDPOINT;
     use paddler_model_source::huggingface_model_reference::HuggingFaceModelReference;
     use paddler_model_source::model_source::ModelSource;
     use paddler_model_source::model_source_error::ModelSourceError;
@@ -199,6 +200,10 @@ mod tests {
     struct MissingLocalModel {
         _dir_guard: TempDir,
         path: PathBuf,
+    }
+
+    fn process_env_desired_model_resolver() -> DesiredModelResolver {
+        DesiredModelResolver::from_process_env(HUGGINGFACE_DEFAULT_ENDPOINT.to_owned()).unwrap()
     }
 
     fn fresh_status() -> Arc<SlotAggregatedStatus> {
@@ -292,7 +297,7 @@ mod tests {
         desired: &AgentDesiredState,
     ) -> AgentDesiredStateConversion {
         AgentDesiredStateConverter {
-            cache_dir: CacheDir::from_process_env(),
+            desired_model_resolver: process_env_desired_model_resolver(),
             cancellation_token,
             slot_aggregated_status: fresh_status(),
         }
@@ -314,7 +319,7 @@ mod tests {
         } = nonexistent_path_in_temp_dir("model");
         let desired = desired_state(local_model_at(&missing_path), AgentDesiredModel::None);
         let converter = AgentDesiredStateConverter {
-            cache_dir: CacheDir::from_process_env(),
+            desired_model_resolver: process_env_desired_model_resolver(),
             cancellation_token: CancellationToken::new(),
             slot_aggregated_status: status.clone(),
         };
@@ -348,7 +353,7 @@ mod tests {
         } = nonexistent_path_in_temp_dir("model");
         let desired = desired_state(local_model_at(&appearing_path), AgentDesiredModel::None);
         let converter = AgentDesiredStateConverter {
-            cache_dir: CacheDir::from_process_env(),
+            desired_model_resolver: process_env_desired_model_resolver(),
             cancellation_token: CancellationToken::new(),
             slot_aggregated_status: status.clone(),
         };
@@ -378,7 +383,7 @@ mod tests {
             local_model_at(&appearing_path),
         );
         let converter = AgentDesiredStateConverter {
-            cache_dir: CacheDir::from_process_env(),
+            desired_model_resolver: process_env_desired_model_resolver(),
             cancellation_token: CancellationToken::new(),
             slot_aggregated_status: status.clone(),
         };
@@ -409,7 +414,7 @@ mod tests {
             local_model_at(&missing_path),
         );
         let converter = AgentDesiredStateConverter {
-            cache_dir: CacheDir::from_process_env(),
+            desired_model_resolver: process_env_desired_model_resolver(),
             cancellation_token: CancellationToken::new(),
             slot_aggregated_status: status.clone(),
         };
@@ -443,7 +448,7 @@ mod tests {
             path: missing_path,
         } = nonexistent_path_in_temp_dir("pointer-head");
         let converter = AgentDesiredStateConverter {
-            cache_dir: CacheDir::from_process_env(),
+            desired_model_resolver: process_env_desired_model_resolver(),
             cancellation_token: CancellationToken::new(),
             slot_aggregated_status: status.clone(),
         };

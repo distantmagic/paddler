@@ -2,7 +2,7 @@
 
 use std::process::Command;
 
-const ANYHOW_MAIN_ERROR_EXIT_CODE: i32 = 1;
+use paddler_test_cluster_harness::failed_run_exit_code::FAILED_RUN_EXIT_CODE;
 
 #[test]
 fn run_with_test_cluster_fails_without_a_temporary_directory_for_agent_models() {
@@ -13,6 +13,6 @@ fn run_with_test_cluster_fails_without_a_temporary_directory_for_agent_models() 
             .status()
             .expect("the test cluster runner must run")
             .code(),
-        Some(ANYHOW_MAIN_ERROR_EXIT_CODE)
+        Some(FAILED_RUN_EXIT_CODE)
     );
 }
