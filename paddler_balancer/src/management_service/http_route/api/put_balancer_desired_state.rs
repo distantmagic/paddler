@@ -57,7 +57,7 @@ mod tests {
     use crate::buffered_request_manager::BufferedRequestManager;
     use crate::management_service::app_data::AppData;
 
-    async fn build_app_data(state_database: Arc<dyn StateDatabase>) -> Data<AppData> {
+    async fn build_app_data(state_database: Arc<StateDatabase>) -> Data<AppData> {
         let balancer_desired_state_store = BalancerDesiredStateStore::load(state_database)
             .await
             .expect("the desired state store must load");
@@ -80,9 +80,9 @@ mod tests {
 
     #[actix_web::test]
     async fn applies_the_desired_state_before_responding() {
-        let app_data = build_app_data(Arc::new(Memory::new(
+        let app_data = build_app_data(Arc::new(StateDatabase::Memory(Memory::new(
             StoredBalancerDesiredState::NothingStored,
-        )))
+        ))))
         .await;
         let app = init_service(
             App::new()
@@ -117,9 +117,9 @@ mod tests {
         let app = init_service(
             App::new()
                 .app_data(
-                    build_app_data(Arc::new(Memory::new(
+                    build_app_data(Arc::new(StateDatabase::Memory(Memory::new(
                         StoredBalancerDesiredState::NothingStored,
-                    )))
+                    ))))
                     .await,
                 )
                 .configure(put_balancer_desired_state),
@@ -147,11 +147,11 @@ mod tests {
         let app = init_service(
             App::new()
                 .app_data(
-                    build_app_data(Arc::new(File::new(
+                    build_app_data(Arc::new(StateDatabase::File(File::new(
                         directory_in_place_of_the_state_file
                             .path()
                             .join("state.json"),
-                    )))
+                    ))))
                     .await,
                 )
                 .configure(put_balancer_desired_state),

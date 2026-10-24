@@ -43,7 +43,6 @@ tokio-util = { workspace = true }
 [dev-dependencies]
 actix-web = { workspace = true }
 llama-cpp-bindings = { workspace = true }
-paddler_agent_decision = { workspace = true }
 paddler_agent_text_generation = { workspace = true }
 paddler_bootstrap = { workspace = true }
 paddler_client = { workspace = true }

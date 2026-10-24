@@ -7,7 +7,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use serde_json::from_str;
 use serde_json::from_value;
 use serde_json::to_writer_pretty;
@@ -21,7 +20,6 @@ use paddler_spawn_resuming_panic::spawn_blocking_resuming_panic::spawn_blocking_
 
 use crate::schema::Schema;
 use crate::schema_version_header::SchemaVersionHeader;
-use crate::state_database::StateDatabase;
 use crate::state_database_error::StateDatabaseError;
 use crate::state_database_schema_version::StateDatabaseSchemaVersion;
 use crate::stored_balancer_desired_state::StoredBalancerDesiredState;
@@ -133,7 +131,9 @@ impl File {
 }
 
 impl File {
-    async fn read_state_file(&self) -> Result<StoredBalancerDesiredState, StateDatabaseError> {
+    pub async fn read_balancer_desired_state(
+        &self,
+    ) -> Result<StoredBalancerDesiredState, StateDatabaseError> {
         match read_to_string(&self.path).await {
             Ok(content) => Ok(StoredBalancerDesiredState::Stored(
                 self.parse_schema(&content)?.balancer_desired_state,
@@ -148,7 +148,7 @@ impl File {
         }
     }
 
-    async fn replace_state_file_contents(
+    pub async fn store_balancer_desired_state(
         &self,
         balancer_desired_state: &BalancerDesiredState,
     ) -> Result<(), StateDatabaseError> {
@@ -167,23 +167,6 @@ impl File {
             replacement_outcome
         })
         .await
-    }
-}
-
-#[async_trait]
-impl StateDatabase for File {
-    async fn read_balancer_desired_state(
-        &self,
-    ) -> Result<StoredBalancerDesiredState, StateDatabaseError> {
-        self.read_state_file().await
-    }
-
-    async fn store_balancer_desired_state(
-        &self,
-        balancer_desired_state: &BalancerDesiredState,
-    ) -> Result<(), StateDatabaseError> {
-        self.replace_state_file_contents(balancer_desired_state)
-            .await
     }
 }
 
@@ -220,7 +203,6 @@ mod tests {
     use super::write_replacement;
     #[cfg(target_os = "linux")]
     use crate::schema::Schema;
-    use crate::state_database::StateDatabase;
     use crate::state_database_error::StateDatabaseError;
     #[cfg(target_os = "linux")]
     use crate::state_database_schema_version::StateDatabaseSchemaVersion;

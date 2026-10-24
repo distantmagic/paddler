@@ -39,6 +39,7 @@ mod tests {
     use paddler_messaging::api_path::ApiPath;
     use paddler_messaging::balancer_desired_state::BalancerDesiredState;
     use paddler_state_database::memory::Memory;
+    use paddler_state_database::state_database::StateDatabase;
     use paddler_state_database::stored_balancer_desired_state::StoredBalancerDesiredState;
 
     use super::get_balancer_applicable_state;
@@ -49,14 +50,15 @@ mod tests {
 
     #[actix_web::test]
     async fn responds_with_the_agent_desired_state_derived_from_the_desired_state() {
-        let balancer_desired_state_store = BalancerDesiredStateStore::load(Arc::new(Memory::new(
-            StoredBalancerDesiredState::Stored(BalancerDesiredState {
-                model: AgentDesiredModel::Uri("model.gguf".to_owned()),
-                ..BalancerDesiredState::default()
-            }),
-        )))
-        .await
-        .expect("the desired state store must load");
+        let balancer_desired_state_store =
+            BalancerDesiredStateStore::load(Arc::new(StateDatabase::Memory(Memory::new(
+                StoredBalancerDesiredState::Stored(BalancerDesiredState {
+                    model: AgentDesiredModel::Uri("model.gguf".to_owned()),
+                    ..BalancerDesiredState::default()
+                }),
+            ))))
+            .await
+            .expect("the desired state store must load");
         let app = init_service(
             App::new()
                 .app_data(Data::new(AppData {

@@ -1,10 +1,7 @@
-use async_trait::async_trait;
 use parking_lot::RwLock;
 
 use paddler_messaging::balancer_desired_state::BalancerDesiredState;
 
-use crate::state_database::StateDatabase;
-use crate::state_database_error::StateDatabaseError;
 use crate::stored_balancer_desired_state::StoredBalancerDesiredState;
 
 pub struct Memory {
@@ -18,24 +15,15 @@ impl Memory {
             stored_balancer_desired_state: RwLock::new(stored_balancer_desired_state),
         }
     }
-}
 
-#[async_trait]
-impl StateDatabase for Memory {
-    async fn read_balancer_desired_state(
-        &self,
-    ) -> Result<StoredBalancerDesiredState, StateDatabaseError> {
-        Ok(self.stored_balancer_desired_state.read().clone())
+    #[must_use]
+    pub fn read_balancer_desired_state(&self) -> StoredBalancerDesiredState {
+        self.stored_balancer_desired_state.read().clone()
     }
 
-    async fn store_balancer_desired_state(
-        &self,
-        state: &BalancerDesiredState,
-    ) -> Result<(), StateDatabaseError> {
+    pub fn store_balancer_desired_state(&self, balancer_desired_state: &BalancerDesiredState) {
         *self.stored_balancer_desired_state.write() =
-            StoredBalancerDesiredState::Stored(state.clone());
-
-        Ok(())
+            StoredBalancerDesiredState::Stored(balancer_desired_state.clone());
     }
 }
 
@@ -46,11 +34,10 @@ mod tests {
     use paddler_messaging::inference_mode::InferenceMode;
 
     use super::Memory;
-    use crate::state_database::StateDatabase;
     use crate::stored_balancer_desired_state::StoredBalancerDesiredState;
 
-    #[tokio::test]
-    async fn reads_back_the_stored_desired_state() {
+    #[test]
+    fn reads_back_the_stored_desired_state() {
         let database = Memory::new(StoredBalancerDesiredState::NothingStored);
         let desired_state = BalancerDesiredState {
             inference_mode: InferenceMode::TextGenerationEmbeddingsAndDecisions,
@@ -58,13 +45,10 @@ mod tests {
             ..BalancerDesiredState::default()
         };
 
-        database
-            .store_balancer_desired_state(&desired_state)
-            .await
-            .unwrap();
+        database.store_balancer_desired_state(&desired_state);
 
         assert_eq!(
-            database.read_balancer_desired_state().await.unwrap(),
+            database.read_balancer_desired_state(),
             StoredBalancerDesiredState::Stored(desired_state)
         );
     }

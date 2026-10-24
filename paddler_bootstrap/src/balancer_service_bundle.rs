@@ -78,12 +78,12 @@ impl BalancerServiceBundle {
             buffered_request_timeout,
             max_buffered_requests,
         ));
-        let state_database: Arc<dyn StateDatabase> = match state_database_type {
-            StateDatabaseType::File(path) => Arc::new(File::new(path)),
+        let state_database = Arc::new(match state_database_type {
+            StateDatabaseType::File(path) => StateDatabase::File(File::new(path)),
             StateDatabaseType::Memory(stored_balancer_desired_state) => {
-                Arc::new(Memory::new(*stored_balancer_desired_state))
+                StateDatabase::Memory(Memory::new(*stored_balancer_desired_state))
             }
-        };
+        });
         let balancer_desired_state_store = Arc::new(
             BalancerDesiredStateStore::load(state_database)
                 .await
