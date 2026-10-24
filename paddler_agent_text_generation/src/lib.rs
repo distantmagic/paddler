@@ -1,6 +1,7 @@
 pub mod chat_prompt_render_request;
 pub mod chat_prompt_renderer;
 pub mod chat_template_renderer;
+pub mod chat_template_tools;
 pub mod continuous_batch_active_request;
 pub mod continuous_batch_generation_step;
 pub mod continuous_batch_request_phase;
@@ -19,6 +20,7 @@ pub mod image_input;
 pub mod leading_bos_ingestion;
 pub mod model_bos_token;
 pub mod multimodal_ingestion_progress;
+pub mod multimodal_media_marker;
 pub mod multimodal_projection;
 pub mod multimodal_prompt_ingestion;
 pub mod multimodal_prompt_support;

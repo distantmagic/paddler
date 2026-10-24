@@ -1,3 +1,4 @@
+use std::ffi::CString;
 use std::ops::Deref;
 use std::path::Path;
 
@@ -7,6 +8,8 @@ use llama_cpp_bindings::mtmd::MtmdContextParams;
 use llama_cpp_bindings::mtmd::MtmdInitError;
 
 use paddler_agent_runtime::vram_occupancy::VramOccupancy;
+
+use crate::multimodal_media_marker::MULTIMODAL_MEDIA_MARKER;
 
 #[derive(Debug)]
 pub struct ResidentMultimodalContext {
@@ -27,7 +30,10 @@ impl ResidentMultimodalContext {
         let initialized_multimodal_context = MtmdContext::init_from_file(
             &multimodal_projection_path.to_string_lossy(),
             llama_model,
-            &MtmdContextParams::default(),
+            &MtmdContextParams {
+                media_marker: CString::from(MULTIMODAL_MEDIA_MARKER),
+                ..MtmdContextParams::default()
+            },
         );
 
         Ok(Self {

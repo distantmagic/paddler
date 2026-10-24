@@ -8,7 +8,6 @@ use llama_cpp_bindings::mtmd::MtmdBitmap;
 use rand::Rng as _;
 use rand::rng;
 use serde_json::Value;
-use serde_json::to_string;
 
 use paddler_agent_runtime::agent_request::AgentRequest;
 use paddler_agent_runtime::loaded_llama_model::LoadedLlamaModel;
@@ -25,6 +24,7 @@ use paddler_messaging::request_params::continue_from_raw_prompt_params::Continue
 use paddler_tool_call_validator::tool_call_validator::ToolCallValidator;
 
 use crate::chat_prompt_render_request::ChatPromptRenderRequest;
+use crate::chat_template_tools::ChatTemplateTools;
 use crate::conversation_prompt_support::ConversationPromptSupport;
 use crate::conversation_support::ConversationSupport;
 use crate::converts_to_mtmd_bitmap::ConvertsToMtmdBitmap;
@@ -121,11 +121,12 @@ impl GenerationRequestPreparer {
 
         let tools_with_schema_documents: Vec<Tool<Value>> =
             tools.into_iter().map(Tool::from).collect();
+        let chat_template_tools = ChatTemplateTools::new(&tools_with_schema_documents);
         let raw_prompt = chat_prompt_renderer.render(ChatPromptRenderRequest {
             add_generation_prompt,
             enable_thinking,
             messages: &messages,
-            tools: &tools_with_schema_documents,
+            tools: &chat_template_tools.tools,
         })?;
 
         let prompt = match prompt_modality {
@@ -145,7 +146,9 @@ impl GenerationRequestPreparer {
 
         let token_sampling = self.build_token_sampling(grammar)?;
         let tool_call_handling = if parse_tool_calls {
-            ToolCallHandling::Parsed(self.build_tool_call_pipeline(&tools_with_schema_documents)?)
+            ToolCallHandling::Parsed(
+                self.build_tool_call_pipeline(&tools_with_schema_documents, &chat_template_tools)?,
+            )
         } else {
             ToolCallHandling::Streamed
         };
@@ -214,12 +217,12 @@ impl GenerationRequestPreparer {
     fn build_tool_call_pipeline(
         &self,
         tools: &[Tool<Value>],
+        chat_template_tools: &ChatTemplateTools,
     ) -> Result<ToolCallPipeline, TextGenerationError> {
         let validator =
             ToolCallValidator::from_tools(tools).map_err(TextGenerationError::ToolSchemaInvalid)?;
-        let tools_json = to_string(tools).map_err(TextGenerationError::ToolsSerializationFailed)?;
         let chat_message_parser =
-            ChatMessageParser::new(&self.loaded_llama_model.model, &tools_json)
+            ChatMessageParser::new(&self.loaded_llama_model.model, &chat_template_tools.json())
                 .map_err(TextGenerationError::ToolCallParserCreationFailed)?;
 
         Ok(ToolCallPipeline::new(chat_message_parser, validator))

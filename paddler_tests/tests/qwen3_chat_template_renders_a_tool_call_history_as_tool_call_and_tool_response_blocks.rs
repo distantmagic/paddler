@@ -3,6 +3,7 @@
 use std::time::SystemTime;
 
 use hf_hub::Cache;
+use serde_json::Value;
 use serde_json::from_value;
 use serde_json::json;
 
@@ -76,7 +77,7 @@ fn qwen3_chat_template_renders_a_tool_call_history_as_tool_call_and_tool_respons
                 .conversation_history
                 .into_chat_template_conversation(&media_marker)
                 .messages,
-            tools: &[],
+            tools: &Value::Array(Vec::new()),
         })
         .expect("the Qwen3 chat template must render the tool call history");
 

@@ -28,7 +28,6 @@ const terminalErrorCodes = [
   { code: 500, variant: "SamplingCandidatesExhausted" },
   { code: 503, variant: "SchedulerUnavailable" },
   { code: 400, variant: "ToolSchemaInvalid" },
-  { code: 500, variant: "ToolsSerializationFailed" },
 ] as const;
 
 test("InferenceServiceGenerateTokensResponseSchema ends the stream with the status code of every terminal failure", function () {

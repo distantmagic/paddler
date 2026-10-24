@@ -30,5 +30,4 @@ pub enum GeneratedTokenFinalResult {
     SamplingCandidatesExhausted(String),
     SchedulerUnavailable(String),
     ToolSchemaInvalid(String),
-    ToolsSerializationFailed(String),
 }

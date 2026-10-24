@@ -46,7 +46,6 @@ pub enum GeneratedTokenResult {
     ToolCallToken(String),
     ToolCallValidationFailed(Vec<String>),
     ToolSchemaInvalid(String),
-    ToolsSerializationFailed(String),
     UndeterminableToken(String),
     UnrecognizedToolCallFormat(RawToolCallTokens),
 }
@@ -157,9 +156,6 @@ impl From<GeneratedTokenFinalResult> for GeneratedTokenResult {
                 Self::SchedulerUnavailable(detail)
             }
             GeneratedTokenFinalResult::ToolSchemaInvalid(detail) => Self::ToolSchemaInvalid(detail),
-            GeneratedTokenFinalResult::ToolsSerializationFailed(detail) => {
-                Self::ToolsSerializationFailed(detail)
-            }
         }
     }
 }
@@ -289,9 +285,6 @@ impl StreamableResult for GeneratedTokenResult {
             Self::ToolSchemaInvalid(detail) => {
                 ResultStep::Final(GeneratedTokenFinalResult::ToolSchemaInvalid(detail))
             }
-            Self::ToolsSerializationFailed(detail) => {
-                ResultStep::Final(GeneratedTokenFinalResult::ToolsSerializationFailed(detail))
-            }
             Self::UndeterminableToken(text) => {
                 ResultStep::Partial(GeneratedTokenPartialResult::UndeterminableToken(text))
             }
@@ -368,7 +361,6 @@ mod tests {
             GeneratedTokenResult::SamplingCandidatesExhausted("failure".to_owned()),
             GeneratedTokenResult::SchedulerUnavailable("failure".to_owned()),
             GeneratedTokenResult::ToolSchemaInvalid("failure".to_owned()),
-            GeneratedTokenResult::ToolsSerializationFailed("failure".to_owned()),
         ] {
             assert!(!keeps_the_stream_open(&terminal_result));
             assert!(!terminal_result.is_token());

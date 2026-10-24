@@ -14,13 +14,11 @@ use llama_cpp_bindings::error::SamplingError;
 use llama_cpp_bindings::error::StringToTokenError;
 use llama_cpp_bindings::error::TokenToStringError;
 use llama_cpp_bindings::mtmd::MtmdBitmapError;
-use llama_cpp_bindings::mtmd::MtmdDefaultMarkerError;
 use llama_cpp_bindings::mtmd::MtmdEvalError;
 use llama_cpp_bindings::mtmd::MtmdInitError;
 use llama_cpp_bindings::mtmd::MtmdTokenizeError;
 use log::error;
 use minijinja::Error as MinijinjaError;
-use serde_json::Error;
 use tokio::sync::mpsc;
 
 use paddler_agent_runtime::agent_runtime_error::AgentRuntimeError;
@@ -47,9 +45,6 @@ pub enum TextGenerationError {
 
     #[error("the chat template does not compile: {0}")]
     ChatTemplateDoesNotCompile(#[source] MinijinjaError),
-
-    #[error("unable to find the media marker of the multimodal projection: {0}")]
-    MediaMarkerUnavailable(#[source] MtmdDefaultMarkerError),
 
     #[error("unable to load the multimodal projection from {multimodal_projection_path}: {source}")]
     MultimodalProjectionLoadFailed {
@@ -102,9 +97,6 @@ pub enum TextGenerationError {
 
     #[error("{0}")]
     ToolSchemaInvalid(#[source] ToolCallValidationError),
-
-    #[error("failed to serialize tools: {0}")]
-    ToolsSerializationFailed(#[source] Error),
 
     #[error("failed to build this model's tool call parser: {0}")]
     ToolCallParserCreationFailed(#[source] ParseChatMessageError),
@@ -230,7 +222,6 @@ impl TextGenerationError {
                 GeneratedTokenResult::ImageDecodingFailed(message)
             }
             Self::AgentRuntime(_)
-            | Self::MediaMarkerUnavailable(_)
             | Self::ModelNotLoaded
             | Self::MultimodalProjectionLoadFailed { .. }
             | Self::SamplingParametersUnfitForTheSequenceContext(_)
@@ -252,9 +243,6 @@ impl TextGenerationError {
             }
             Self::PromptExceedsContextSize { details } => {
                 GeneratedTokenResult::PromptExceedsContextSize(details)
-            }
-            Self::ToolsSerializationFailed(_) => {
-                GeneratedTokenResult::ToolsSerializationFailed(message)
             }
             Self::MediaMicroBatchCheckFailed(_) => {
                 GeneratedTokenResult::MediaMicroBatchCheckFailed(message)
@@ -307,8 +295,6 @@ mod tests {
     use minijinja::Error as MinijinjaError;
     use minijinja::ErrorKind as MinijinjaErrorKind;
     use serde_json::Map;
-    use serde_json::Value;
-    use serde_json::from_str;
     use serde_json::json;
     use tokio::sync::mpsc;
 
@@ -622,12 +608,6 @@ mod tests {
             ExpectedReport {
                 rejection: TextGenerationError::TokenDataUnreadable(LogitsError::NullLogits),
                 into_result: GeneratedTokenResult::SamplerError,
-            },
-            ExpectedReport {
-                rejection: TextGenerationError::ToolsSerializationFailed(
-                    from_str::<Value>("{").unwrap_err(),
-                ),
-                into_result: GeneratedTokenResult::ToolsSerializationFailed,
             },
         ] {
             let expected_message = agent_message(&rejection.to_string());

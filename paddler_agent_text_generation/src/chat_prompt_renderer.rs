@@ -40,6 +40,7 @@ impl ChatPromptRenderer {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::Value;
     use std::mem::discriminant;
 
     use minijinja::Error as MinijinjaError;
@@ -98,7 +99,7 @@ mod tests {
             add_generation_prompt: true,
             enable_thinking: false,
             messages: &image_then_text_conversation(renderer).messages,
-            tools: &[],
+            tools: &Value::Array(Vec::new()),
         })
     }
 

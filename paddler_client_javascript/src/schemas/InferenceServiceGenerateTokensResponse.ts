@@ -73,7 +73,6 @@ const GeneratedTokenResultSchema = z.union([
   z.object({ SamplerChainCreationFailed: z.string() }),
   z.object({ SamplingCandidatesExhausted: z.string() }),
   z.object({ SchedulerUnavailable: z.string() }),
-  z.object({ ToolsSerializationFailed: z.string() }),
   z.object({ SamplerError: z.string() }),
   z.object({ ToolCallParsed: z.array(ParsedToolCallSchema) }),
   z.object({ ToolCallParseFailed: z.string() }),
@@ -467,15 +466,6 @@ export const InferenceServiceGenerateTokensResponseSchema = z
         generated_by,
         503,
         variant.SchedulerUnavailable,
-      );
-    }
-
-    if ("ToolsSerializationFailed" in variant) {
-      return terminalError(
-        request_id,
-        generated_by,
-        500,
-        variant.ToolsSerializationFailed,
       );
     }
 

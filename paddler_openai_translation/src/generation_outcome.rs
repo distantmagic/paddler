@@ -84,8 +84,7 @@ impl From<GeneratedTokenFinalResult> for GenerationOutcome {
             | GeneratedTokenFinalResult::MultimodalIngestionFailed(description)
             | GeneratedTokenFinalResult::SamplerChainCreationFailed(description)
             | GeneratedTokenFinalResult::SamplerError(description)
-            | GeneratedTokenFinalResult::SamplingCandidatesExhausted(description)
-            | GeneratedTokenFinalResult::ToolsSerializationFailed(description) => {
+            | GeneratedTokenFinalResult::SamplingCandidatesExhausted(description) => {
                 Self::failed(GenerationFailureCause::AgentFailed, description)
             }
         }
@@ -281,10 +280,6 @@ mod tests {
                     GeneratedTokenFinalResult::SamplingCandidatesExhausted(
                         "agent failure".to_owned(),
                     ),
-                    "agent failure",
-                ),
-                (
-                    GeneratedTokenFinalResult::ToolsSerializationFailed("agent failure".to_owned()),
                     "agent failure",
                 ),
             ],

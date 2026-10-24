@@ -8,7 +8,6 @@ use llama_cpp_bindings::error::TokenToStringError;
 use llama_cpp_bindings::llama_batch::LlamaBatch;
 use llama_cpp_bindings::model::LlamaModel;
 use llama_cpp_bindings::mtmd::micro_batch_tokens;
-use llama_cpp_bindings::mtmd::mtmd_default_marker;
 use llama_cpp_bindings::token::LlamaToken;
 use log::info;
 use log::warn;
@@ -46,6 +45,7 @@ use crate::conversation_support::ConversationSupport;
 use crate::generation_request_preparer::GenerationRequestPreparer;
 use crate::image_input::ImageInput;
 use crate::model_bos_token::ModelBosToken;
+use crate::multimodal_media_marker::MULTIMODAL_MEDIA_MARKER;
 use crate::multimodal_projection::MultimodalProjection;
 use crate::multimodal_prompt_support::MultimodalPromptSupport;
 use crate::prompt_tokenizer::PromptTokenizer;
@@ -242,11 +242,7 @@ impl TextGenerationPipeline {
 
         Ok(ChatPromptRenderer {
             chat_template_renderer,
-            media_marker: MediaMarker::new(
-                mtmd_default_marker()
-                    .map_err(TextGenerationError::MediaMarkerUnavailable)?
-                    .to_owned(),
-            ),
+            media_marker: MediaMarker::new(MULTIMODAL_MEDIA_MARKER.to_string_lossy().into_owned()),
             token_bos_str: special_token_text(model, model.token_bos(), &mut special_token_decoder)
                 .map_err(TextGenerationError::SpecialTokenUnrenderable)?,
             token_eos_str: special_token_text(model, model.token_eos(), &mut special_token_decoder)
