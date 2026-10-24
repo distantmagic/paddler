@@ -198,6 +198,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct DownloadManager {
     client: Client,
 }

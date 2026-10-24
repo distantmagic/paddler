@@ -59,6 +59,28 @@ export function AgentIssues({ issues }: { issues: Array<AgentIssue> }) {
           );
         }
 
+        if ("HuggingFaceClientCannotStart" in issue) {
+          return (
+            <li className={agentIssues__issue} key={index}>
+              <strong>
+                HuggingFace client cannot start:{" "}
+                {issue.HuggingFaceClientCannotStart.model_path}
+              </strong>
+              <strong>What will Paddler do?</strong>{" "}
+              <p>
+                Paddler will retry to download the model, starting a new
+                HuggingFace client every time.
+              </p>
+              <strong>What can you do?</strong>{" "}
+              <p>
+                Check the HuggingFace token stored in the HuggingFace cache
+                directory. It most likely contains characters that cannot be
+                sent in an HTTP header.
+              </p>
+            </li>
+          );
+        }
+
         if ("HuggingFaceModelDoesNotExist" in issue) {
           return (
             <li className={agentIssues__issue} key={index}>

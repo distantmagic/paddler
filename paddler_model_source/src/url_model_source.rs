@@ -2,7 +2,6 @@ use std::io;
 use std::path::Path;
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use tokio_util::sync::CancellationToken;
 
 use paddler_agent_status::agent_issue_fix::AgentIssueFix;
@@ -26,6 +25,7 @@ use crate::url_download_progress::UrlDownloadProgress;
 
 pub struct UrlModelSource {
     pub cache_dir: CacheDir,
+    pub download_manager: DownloadManager,
     pub download_url: DownloadUrl,
 }
 
@@ -65,7 +65,6 @@ impl UrlModelSource {
     }
 }
 
-#[async_trait]
 impl ResolvesModelSource for UrlModelSource {
     async fn resolve(
         &self,
@@ -74,6 +73,7 @@ impl ResolvesModelSource for UrlModelSource {
     ) -> Result<DesiredModelResolution, ModelSourceError> {
         let Self {
             cache_dir,
+            download_manager,
             download_url,
         } = self;
         let url = download_url.as_str();
@@ -121,8 +121,7 @@ impl ResolvesModelSource for UrlModelSource {
             model_path: self.model_path(),
             slot_aggregated_status: slot_aggregated_status.clone(),
         };
-        let download_outcome = DownloadManager::new()
-            .map_err(ModelSourceError::DownloaderUnavailable)?
+        let download_outcome = download_manager
             .download(
                 cancellation_token,
                 download_url,
@@ -161,6 +160,7 @@ mod tests {
     use paddler_cache_dir::cache_dir_error::CacheDirError;
     use paddler_cache_dir::cached_downloaded_model::CachedDownloadedModel;
     use paddler_download_manager::download_error::DownloadError;
+    use paddler_download_manager::download_manager::DownloadManager;
     use paddler_download_manager::download_url::DownloadUrl;
     use paddler_local_http_fixture::fixture_response::FixtureResponse;
     use paddler_local_http_fixture::local_http_fixture::LocalHttpFixture;
@@ -176,6 +176,7 @@ mod tests {
     fn url_model_source(cache_dir: CacheDir, url: &str) -> UrlModelSource {
         UrlModelSource {
             cache_dir,
+            download_manager: DownloadManager::new().unwrap(),
             download_url: DownloadUrl::parse(url).unwrap(),
         }
     }

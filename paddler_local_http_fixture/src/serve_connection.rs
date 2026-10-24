@@ -81,6 +81,26 @@ pub async fn serve_connection(
 
             Ok(())
         }
+        FixtureResponse::HuggingFaceFile {
+            body,
+            commit_hash,
+            etag,
+        } => {
+            write_complete_body(
+                &mut stream,
+                &status_line_and_headers(
+                    StatusCode::PARTIAL_CONTENT,
+                    body.len(),
+                    &format!(
+                        "Content-Range: bytes 0-{}/{}\r\nETag: \"{etag}\"\r\nX-Repo-Commit: {commit_hash}\r\n",
+                        body.len() - 1,
+                        body.len()
+                    ),
+                ),
+                body,
+            )
+            .await
+        }
         FixtureResponse::Ok(body) => {
             write_complete_body(
                 &mut stream,

@@ -26,6 +26,7 @@ pub enum AgentIssue {
     DownloadServerRejectedRequest(ModelPath),
     DownloadUrlIsMalformed(ModelPath),
     HuggingFaceCannotAcquireLock(HuggingFaceDownloadLock),
+    HuggingFaceClientCannotStart(ModelPath),
     HuggingFaceModelDoesNotExist(ModelPath),
     HuggingFaceModelUriIsMalformed(ModelPath),
     HuggingFacePermissions(ModelPath),

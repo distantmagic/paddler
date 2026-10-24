@@ -52,6 +52,9 @@ export const AgentIssueSchema = z.union([
     HuggingFaceCannotAcquireLock: HuggingFaceDownloadLockSchema,
   }),
   z.object({
+    HuggingFaceClientCannotStart: AgentIssueModelPathSchema,
+  }),
+  z.object({
     HuggingFaceModelDoesNotExist: AgentIssueModelPathSchema,
   }),
   z.object({

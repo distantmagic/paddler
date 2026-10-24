@@ -5,6 +5,7 @@ use paddler_messaging::agent_issue_params::slot_cannot_start_params::SlotCannotS
 #[derive(Debug)]
 pub enum AgentIssueFix {
     ChatTemplateIsCompiled(ModelPath),
+    HuggingFaceClientStarted(ModelPath),
     HuggingFaceDownloadedModel(ModelPath),
     HuggingFaceStartedDownloading(ModelPath),
     ModelFileExists(ModelPath),
@@ -30,6 +31,12 @@ impl AgentIssueFix {
                 Self::HuggingFaceDownloadedModel(fix_model_path)
                 | Self::HuggingFaceStartedDownloading(fix_model_path) => {
                     hugging_face_download_lock.model_path.eq(fix_model_path)
+                }
+                _ => false,
+            },
+            AgentIssue::HuggingFaceClientCannotStart(issue_model_path) => match self {
+                Self::HuggingFaceClientStarted(fix_model_path) => {
+                    issue_model_path.eq(fix_model_path)
                 }
                 _ => false,
             },
@@ -378,6 +385,17 @@ mod tests {
             !AgentIssueFix::HuggingFaceStartedDownloading(model_path("model_b")).can_fix(&issue)
         );
         assert!(!AgentIssueFix::ModelIsLoaded(model_path("model_a")).can_fix(&issue));
+    }
+
+    #[test]
+    fn hugging_face_client_cannot_start_is_fixed_only_by_the_client_starting_for_its_model() {
+        let issue = AgentIssue::HuggingFaceClientCannotStart(model_path("model_a"));
+
+        assert!(AgentIssueFix::HuggingFaceClientStarted(model_path("model_a")).can_fix(&issue));
+        assert!(!AgentIssueFix::HuggingFaceClientStarted(model_path("model_b")).can_fix(&issue));
+        assert!(
+            !AgentIssueFix::HuggingFaceStartedDownloading(model_path("model_a")).can_fix(&issue)
+        );
     }
 
     #[test]

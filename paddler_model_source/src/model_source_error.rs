@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use std::str::Utf8Error;
 
 use hf_hub::api::tokio::ApiError;
-use reqwest::Error as ReqwestError;
 use thiserror::Error;
 use url::ParseError;
 
@@ -20,8 +19,6 @@ pub enum ModelSourceError {
     AgentUriNotCanonical { canonical_uri: String, uri: String },
     #[error("Unable to resolve the model cache directory: {0}")]
     CacheDirectoryUnresolvable(#[source] CacheDirError),
-    #[error("Unable to set up the model downloader: {0}")]
-    DownloaderUnavailable(#[source] ReqwestError),
     #[error("Failed to download '{url}': {source}")]
     DownloadFailed {
         url: String,
