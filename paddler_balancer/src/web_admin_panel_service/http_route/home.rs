@@ -5,12 +5,12 @@ use askama::Template;
 
 use crate::response::view::view;
 use crate::web_admin_panel_service::app_data::AppData;
-use crate::web_admin_panel_service::dashboard_assets::DashboardAssets;
+use crate::web_admin_panel_service::dashboard_assets_html::DASHBOARD_ASSETS_HTML;
 use crate::web_admin_panel_service::template_data::TemplateData;
 
 async fn respond(app_data: web::Data<AppData>) -> impl Responder {
     view(WebAdminPanelTemplate {
-        dashboard_assets: &app_data.dashboard_assets,
+        dashboard_assets_html: DASHBOARD_ASSETS_HTML,
         template_data: &app_data.template_data,
     })
 }
@@ -18,7 +18,7 @@ async fn respond(app_data: web::Data<AppData>) -> impl Responder {
 #[derive(Template)]
 #[template(path = "web_admin_panel.html")]
 struct WebAdminPanelTemplate<'app_data> {
-    dashboard_assets: &'app_data DashboardAssets,
+    dashboard_assets_html: &'static str,
     template_data: &'app_data TemplateData,
 }
 

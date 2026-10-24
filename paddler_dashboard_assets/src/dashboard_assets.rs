@@ -7,6 +7,8 @@ use esbuild_metafile::input_properties::InputProperties;
 use esbuild_metafile::path_renderer::PathRenderer;
 use esbuild_metafile::preloadable_asset::PreloadableAsset;
 
+use crate::dashboard_assets_error::DashboardAssetsError;
+
 const DASHBOARD_INPUT_PATHS: [&str; 2] = [
     "resources/css/page-admin-panel.css",
     "resources/ts/controller_dashboard.tsx",
@@ -17,8 +19,7 @@ pub struct DashboardAssets {
 }
 
 impl DashboardAssets {
-    #[must_use]
-    pub fn of(esbuild_metafile: &EsbuildMetafile) -> Option<Self> {
+    pub fn of(esbuild_metafile: &EsbuildMetafile) -> Result<Self, DashboardAssetsError> {
         let path_renderer = PathRenderer {};
         let mut rendered_includes = BTreeSet::new();
         let mut rendered_preloads = BTreeSet::new();
@@ -28,7 +29,7 @@ impl DashboardAssets {
                 outputs, preloads, ..
             }) = esbuild_metafile.input(input_path)
             else {
-                return None;
+                return Err(DashboardAssetsError::DashboardInputMissing { input_path });
             };
 
             rendered_preloads.extend(preloads.into_iter().map(|preload_path| {
@@ -52,7 +53,7 @@ impl DashboardAssets {
             html.push('\n');
         }
 
-        Some(Self { html })
+        Ok(Self { html })
     }
 }
 
@@ -64,37 +65,7 @@ mod tests {
 
     use super::DashboardAssets;
 
-    const DASHBOARD_METAFILE: &str = r#"{
-        "outputs": {
-            "static/controller_dashboard.js": {
-                "imports": [{ "path": "static/icon.svg" }],
-                "cssBundle": "static/controller_dashboard.css",
-                "entryPoint": "resources/ts/controller_dashboard.tsx"
-            },
-            "static/controller_dashboard.css": {
-                "imports": [{ "path": "static/icon.svg" }],
-                "cssBundle": null,
-                "entryPoint": null
-            },
-            "static/page-admin-panel.css": {
-                "imports": [{ "path": "static/font.ttf" }],
-                "cssBundle": null,
-                "entryPoint": "resources/css/page-admin-panel.css"
-            },
-            "static/icon.svg": {
-                "imports": [],
-                "cssBundle": null,
-                "entryPoint": null,
-                "inputs": { "resources/icons/icon.svg": {} }
-            },
-            "static/font.ttf": {
-                "imports": [],
-                "cssBundle": null,
-                "entryPoint": null,
-                "inputs": { "resources/fonts/font.ttf": {} }
-            }
-        }
-    }"#;
+    const DASHBOARD_METAFILE: &str = include_str!("../fixtures/dashboard_metafile.json");
 
     #[test]
     fn renders_every_preload_before_the_includes_of_both_dashboard_inputs() {
@@ -110,12 +81,5 @@ mod tests {
                 "<script async src=\"/static/controller_dashboard.js\" type=\"module\"></script>\n",
             )
         );
-    }
-
-    #[test]
-    fn a_metafile_without_a_dashboard_input_describes_no_dashboard_assets() {
-        let esbuild_metafile = EsbuildMetafile::from_str(r#"{ "outputs": {} }"#).unwrap();
-
-        assert!(DashboardAssets::of(&esbuild_metafile).is_none());
     }
 }

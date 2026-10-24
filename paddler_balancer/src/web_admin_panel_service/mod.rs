@@ -1,18 +1,13 @@
 pub mod app_data;
 pub mod configuration;
-pub mod dashboard_assets;
-pub mod esbuild_meta_contents;
+pub mod dashboard_assets_html;
 pub mod http_route;
 pub mod template_data;
 
-use std::str::FromStr as _;
-
 use actix_web::App;
 use actix_web::web::Data;
-use anyhow::Context as _;
 use anyhow::Result;
 use async_trait::async_trait;
-use esbuild_metafile::esbuild_metafile::EsbuildMetafile;
 use tokio_util::sync::CancellationToken;
 use trzcina::Service;
 
@@ -20,8 +15,6 @@ use crate::http_listener::HttpListener;
 use crate::run_http_service::run_http_service;
 use crate::run_http_service_parameters::RunHttpServiceParameters;
 use crate::web_admin_panel_service::app_data::AppData;
-use crate::web_admin_panel_service::dashboard_assets::DashboardAssets;
-use crate::web_admin_panel_service::esbuild_meta_contents::ESBUILD_META_CONTENTS;
 use crate::web_admin_panel_service::http_route::favicon::favicon;
 use crate::web_admin_panel_service::http_route::home::home;
 use crate::web_admin_panel_service::http_route::static_files::static_files;
@@ -32,19 +25,10 @@ pub struct WebAdminPanelService {
     pub template_data: TemplateData,
 }
 
-#[async_trait]
-impl Service for WebAdminPanelService {
-    fn name(&self) -> &'static str {
-        "balancer::web_admin_panel_service"
-    }
-
-    async fn run(self: Box<Self>, shutdown: CancellationToken) -> Result<()> {
+impl WebAdminPanelService {
+    async fn serve_until_shutdown(self: Box<Self>, shutdown: CancellationToken) -> Result<()> {
         let service_name = self.name();
-        let esbuild_metafile = EsbuildMetafile::from_str(ESBUILD_META_CONTENTS)
-            .context("the embedded esbuild metafile is not an esbuild metafile")?;
         let app_data: Data<AppData> = Data::new(AppData {
-            dashboard_assets: DashboardAssets::of(&esbuild_metafile)
-                .context("the embedded esbuild metafile does not describe the dashboard assets")?,
             template_data: self.template_data,
         });
 
@@ -64,6 +48,17 @@ impl Service for WebAdminPanelService {
             },
         )
         .await
+    }
+}
+
+#[async_trait]
+impl Service for WebAdminPanelService {
+    fn name(&self) -> &'static str {
+        "balancer::web_admin_panel_service"
+    }
+
+    async fn run(self: Box<Self>, shutdown: CancellationToken) -> Result<()> {
+        self.serve_until_shutdown(shutdown).await
     }
 }
 
